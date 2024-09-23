@@ -1,0 +1,57 @@
+*{
+    user-select: none;
+}
+
+.sidebar-button {
+    width: 100%;
+    padding: 10px;
+    padding-left: 10px;
+    transition: background-color 0.3s;
+    border-bottom: 0.5px solid rgb(41, 41, 41);
+}
+
+.button-icon{
+    align-self: center;
+}
+
+.sidebar-button:hover {
+    background: var(--primary-dark);
+    cursor: pointer;
+}
+
+.sub-item-text {
+    padding-left: 20px;
+}
+
+.sub-item-collapse{
+    border-bottom: 0.5px solid rgb(41, 41, 41);
+    width:100%;
+}
+
+.sub-button{
+    padding-left: 20px;
+}
+
+.sub-button-icon{
+    align-self: center;
+}
+
+.sidebar-button-sub-button {
+    width: 100%;
+    padding:10px;
+    transition: background-color 0.3s;
+}
+
+.sub-button-text{
+    font-family: 'Arial';
+    font-size: 17px;
+}
+
+.sidebar-button-sub-button:hover {
+    background: var(--primary-dark);
+    cursor: pointer;
+}
+
+.logout-button {
+    cursor: pointer;
+}

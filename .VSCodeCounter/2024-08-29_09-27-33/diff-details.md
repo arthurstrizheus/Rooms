@@ -1,0 +1,131 @@
+# Diff Details
+
+Date : 2024-08-29 09:27:33
+
+Directory c:\\Code\\MeetMate\\backend
+
+Total : 116 files,  -7168 codes, -175 comments, -611 blanks, all -7954 lines
+
+[Summary](results.md) / [Details](details.md) / [Diff Summary](diff.md) / Diff Details
+
+## Files
+| filename | language | code | comment | blank | total |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| [backend/.env](/backend/.env) | Properties | 5 | 0 | 0 | 5 |
+| [backend/app.js](/backend/app.js) | JavaScript | 60 | 3 | 10 | 73 |
+| [backend/config/database.js](/backend/config/database.js) | JavaScript | 26 | 0 | 4 | 30 |
+| [backend/controllers/blockedDateController.js](/backend/controllers/blockedDateController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/groupController.js](/backend/controllers/groupController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/groupUserController.js](/backend/controllers/groupUserController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/meetingControler.js](/backend/controllers/meetingControler.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/meetingGroupController.js](/backend/controllers/meetingGroupController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/officeController.js](/backend/controllers/officeController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/resourceController.js](/backend/controllers/resourceController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/roomController.js](/backend/controllers/roomController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/roomGroupController.js](/backend/controllers/roomGroupController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/roomResourceController.js](/backend/controllers/roomResourceController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/typeController.js](/backend/controllers/typeController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/controllers/userController.js](/backend/controllers/userController.js) | JavaScript | 13 | 0 | 4 | 17 |
+| [backend/index.js](/backend/index.js) | JavaScript | 106 | 0 | 16 | 122 |
+| [backend/models/blockedDate.js](/backend/models/blockedDate.js) | JavaScript | 51 | 0 | 3 | 54 |
+| [backend/models/group.js](/backend/models/group.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/groupUser.js](/backend/models/groupUser.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/index.js](/backend/models/index.js) | JavaScript | 31 | 2 | 3 | 36 |
+| [backend/models/meeting.js](/backend/models/meeting.js) | JavaScript | 79 | 0 | 3 | 82 |
+| [backend/models/meetingGroup.js](/backend/models/meetingGroup.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/office.js](/backend/models/office.js) | JavaScript | 42 | 0 | 3 | 45 |
+| [backend/models/resource.js](/backend/models/resource.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/room.js](/backend/models/room.js) | JavaScript | 43 | 0 | 3 | 46 |
+| [backend/models/roomGroup.js](/backend/models/roomGroup.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/roomResource.js](/backend/models/roomResource.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/type.js](/backend/models/type.js) | JavaScript | 35 | 0 | 3 | 38 |
+| [backend/models/user.js](/backend/models/user.js) | JavaScript | 55 | 0 | 3 | 58 |
+| [backend/package-lock.json](/backend/package-lock.json) | JSON | 1,864 | 0 | 1 | 1,865 |
+| [backend/package.json](/backend/package.json) | JSON | 20 | 0 | 1 | 21 |
+| [backend/routes/blockedDates.js](/backend/routes/blockedDates.js) | JavaScript | 5 | 0 | 3 | 8 |
+| [backend/routes/groupUsers.js](/backend/routes/groupUsers.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/groups.js](/backend/routes/groups.js) | JavaScript | 5 | 0 | 3 | 8 |
+| [backend/routes/meetingGroups.js](/backend/routes/meetingGroups.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/meetings.js](/backend/routes/meetings.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/offices.js](/backend/routes/offices.js) | JavaScript | 5 | 0 | 3 | 8 |
+| [backend/routes/resources.js](/backend/routes/resources.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/roomGroups.js](/backend/routes/roomGroups.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/roomResources.js](/backend/routes/roomResources.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/rooms.js](/backend/routes/rooms.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/types.js](/backend/routes/types.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [backend/routes/users.js](/backend/routes/users.js) | JavaScript | 5 | 0 | 2 | 7 |
+| [src/App.js](/src/App.js) | JavaScript | -52 | -1 | -6 | -59 |
+| [src/Components/ShortSelect.js](/src/Components/ShortSelect.js) | JavaScript | -66 | 0 | -4 | -70 |
+| [src/Components/ShortSelectObject.js](/src/Components/ShortSelectObject.js) | JavaScript | -68 | 0 | -5 | -73 |
+| [src/Components/ShortTextFeild.js](/src/Components/ShortTextFeild.js) | JavaScript | -47 | 0 | -3 | -50 |
+| [src/Routes/Routes.js](/src/Routes/Routes.js) | JavaScript | -223 | -2 | -6 | -231 |
+| [src/Utilites/AuthContext.js](/src/Utilites/AuthContext.js) | JavaScript | -14 | 0 | -5 | -19 |
+| [src/Utilites/Functions/ApiFunctions.js](/src/Utilites/Functions/ApiFunctions.js) | JavaScript | -239 | -16 | -8 | -263 |
+| [src/Utilites/Functions/ColorFunctions.js](/src/Utilites/Functions/ColorFunctions.js) | JavaScript | -48 | -31 | -16 | -95 |
+| [src/Utilites/Functions/CommonFunctions.js](/src/Utilites/Functions/CommonFunctions.js) | JavaScript | -67 | -16 | -16 | -99 |
+| [src/Utilites/Hooks/useMultiSyncScrollHorizontal.js](/src/Utilites/Hooks/useMultiSyncScrollHorizontal.js) | JavaScript | -34 | -1 | -12 | -47 |
+| [src/Utilites/Hooks/useSyncScrollHorizontal.js](/src/Utilites/Hooks/useSyncScrollHorizontal.js) | JavaScript | -20 | 0 | -5 | -25 |
+| [src/Utilites/Hooks/useSyncScrollVertical.js](/src/Utilites/Hooks/useSyncScrollVertical.js) | JavaScript | -57 | 0 | -13 | -70 |
+| [src/Utilites/SnackbarContext.js](/src/Utilites/SnackbarContext.js) | JavaScript | -77 | -1 | -12 | -90 |
+| [src/Utilites/theme.js](/src/Utilites/theme.js) | JavaScript | -56 | -2 | -7 | -65 |
+| [src/Views/Components/Banner/Banner.js](/src/Views/Components/Banner/Banner.js) | JavaScript | -48 | 0 | -5 | -53 |
+| [src/Views/Components/Banner/Components/DateSelector.js](/src/Views/Components/Banner/Components/DateSelector.js) | JavaScript | -81 | -5 | -11 | -97 |
+| [src/Views/Components/Banner/Components/DayComponent.js](/src/Views/Components/Banner/Components/DayComponent.js) | JavaScript | -54 | 0 | -5 | -59 |
+| [src/Views/Components/Banner/Components/MonthSelector.js](/src/Views/Components/Banner/Components/MonthSelector.js) | JavaScript | -71 | -5 | -8 | -84 |
+| [src/Views/Components/Banner/Components/WeekPicker.js](/src/Views/Components/Banner/Components/WeekPicker.js) | JavaScript | -84 | -3 | -8 | -95 |
+| [src/Views/Components/DisplayMeeting/DisplayMeeting.js](/src/Views/Components/DisplayMeeting/DisplayMeeting.js) | JavaScript | -116 | 0 | -6 | -122 |
+| [src/Views/Components/PageSelector/PageSelector.js](/src/Views/Components/PageSelector/PageSelector.js) | JavaScript | -30 | 0 | -4 | -34 |
+| [src/Views/Components/SideBar/SideBar.css](/src/Views/Components/SideBar/SideBar.css) | CSS | -46 | 0 | -11 | -57 |
+| [src/Views/Components/SideBar/SideBar.js](/src/Views/Components/SideBar/SideBar.js) | JavaScript | -319 | -16 | -12 | -347 |
+| [src/Views/Pages/ApprovalQueue/ApprovalQueue.js](/src/Views/Pages/ApprovalQueue/ApprovalQueue.js) | JavaScript | -345 | 0 | -26 | -371 |
+| [src/Views/Pages/ApprovalQueue/Components/RowMeeting.js](/src/Views/Pages/ApprovalQueue/Components/RowMeeting.js) | JavaScript | -59 | 0 | -2 | -61 |
+| [src/Views/Pages/BlockedDates/BlockedDates.js](/src/Views/Pages/BlockedDates/BlockedDates.js) | JavaScript | -234 | 0 | -22 | -256 |
+| [src/Views/Pages/BlockedDates/Components/AddBlockedDate.js](/src/Views/Pages/BlockedDates/Components/AddBlockedDate.js) | JavaScript | -106 | 0 | -8 | -114 |
+| [src/Views/Pages/Daily/Components/DayCalender.js](/src/Views/Pages/Daily/Components/DayCalender.js) | JavaScript | -257 | -14 | -20 | -291 |
+| [src/Views/Pages/Daily/Components/Footer.js](/src/Views/Pages/Daily/Components/Footer.js) | JavaScript | -12 | 0 | -3 | -15 |
+| [src/Views/Pages/Daily/Components/HorizontalScrollBar.js](/src/Views/Pages/Daily/Components/HorizontalScrollBar.js) | JavaScript | -86 | 0 | -10 | -96 |
+| [src/Views/Pages/Daily/Components/HoursBar.js](/src/Views/Pages/Daily/Components/HoursBar.js) | JavaScript | -30 | 0 | -2 | -32 |
+| [src/Views/Pages/Daily/Components/MeetingBox.js](/src/Views/Pages/Daily/Components/MeetingBox.js) | JavaScript | -172 | -13 | -13 | -198 |
+| [src/Views/Pages/Daily/Components/MeetingForum.js](/src/Views/Pages/Daily/Components/MeetingForum.js) | JavaScript | -195 | -5 | -16 | -216 |
+| [src/Views/Pages/Daily/Components/MinuteBox.js](/src/Views/Pages/Daily/Components/MinuteBox.js) | JavaScript | -77 | -4 | -8 | -89 |
+| [src/Views/Pages/Daily/index.js](/src/Views/Pages/Daily/index.js) | JavaScript | -371 | 0 | -13 | -384 |
+| [src/Views/Pages/Groups/Components/AddNewGroup.js](/src/Views/Pages/Groups/Components/AddNewGroup.js) | JavaScript | -56 | 0 | -7 | -63 |
+| [src/Views/Pages/Groups/Groups.js](/src/Views/Pages/Groups/Groups.js) | JavaScript | -223 | 0 | -26 | -249 |
+| [src/Views/Pages/Home/index.js](/src/Views/Pages/Home/index.js) | JavaScript | -9 | 0 | -4 | -13 |
+| [src/Views/Pages/Locations/Locations.js](/src/Views/Pages/Locations/Locations.js) | JavaScript | -182 | 0 | -17 | -199 |
+| [src/Views/Pages/Login/Components/Signup.js](/src/Views/Pages/Login/Components/Signup.js) | JavaScript | -287 | 0 | -4 | -291 |
+| [src/Views/Pages/Login/Login.js](/src/Views/Pages/Login/Login.js) | JavaScript | -98 | 0 | -5 | -103 |
+| [src/Views/Pages/MeetingTypes/Components/AddNewType.js](/src/Views/Pages/MeetingTypes/Components/AddNewType.js) | JavaScript | -59 | 0 | -8 | -67 |
+| [src/Views/Pages/MeetingTypes/MeetingTypes.js](/src/Views/Pages/MeetingTypes/MeetingTypes.js) | JavaScript | -249 | 0 | -24 | -273 |
+| [src/Views/Pages/Monthly/Components/DayBox.js](/src/Views/Pages/Monthly/Components/DayBox.js) | JavaScript | -87 | 0 | -8 | -95 |
+| [src/Views/Pages/Monthly/Components/DaysBar.js](/src/Views/Pages/Monthly/Components/DaysBar.js) | JavaScript | -23 | 0 | -4 | -27 |
+| [src/Views/Pages/Monthly/Components/Footer.js](/src/Views/Pages/Monthly/Components/Footer.js) | JavaScript | -10 | 0 | -5 | -15 |
+| [src/Views/Pages/Monthly/Components/MeetingComponent.js](/src/Views/Pages/Monthly/Components/MeetingComponent.js) | JavaScript | -122 | -11 | -8 | -141 |
+| [src/Views/Pages/Monthly/Components/MeetingForum.js](/src/Views/Pages/Monthly/Components/MeetingForum.js) | JavaScript | -193 | -5 | -15 | -213 |
+| [src/Views/Pages/Monthly/Components/MonthCalender.js](/src/Views/Pages/Monthly/Components/MonthCalender.js) | JavaScript | -232 | -3 | -14 | -249 |
+| [src/Views/Pages/Monthly/index.js](/src/Views/Pages/Monthly/index.js) | JavaScript | -374 | 0 | -13 | -387 |
+| [src/Views/Pages/MyAccount/MyAccount.js](/src/Views/Pages/MyAccount/MyAccount.js) | JavaScript | -107 | 0 | -8 | -115 |
+| [src/Views/Pages/MyBookings/Components/RowMeeting.js](/src/Views/Pages/MyBookings/Components/RowMeeting.js) | JavaScript | -59 | 0 | -3 | -62 |
+| [src/Views/Pages/MyBookings/MyBookings.js](/src/Views/Pages/MyBookings/MyBookings.js) | JavaScript | -615 | 0 | -34 | -649 |
+| [src/Views/Pages/Resources/Components/AddNewResource.js](/src/Views/Pages/Resources/Components/AddNewResource.js) | JavaScript | -39 | 0 | -9 | -48 |
+| [src/Views/Pages/Resources/Components/AddNewRoomResource.js](/src/Views/Pages/Resources/Components/AddNewRoomResource.js) | JavaScript | -64 | 0 | -8 | -72 |
+| [src/Views/Pages/Resources/Resources.js](/src/Views/Pages/Resources/Resources.js) | JavaScript | -203 | 0 | -20 | -223 |
+| [src/Views/Pages/Resources/RoomResources.js](/src/Views/Pages/Resources/RoomResources.js) | JavaScript | -221 | 0 | -23 | -244 |
+| [src/Views/Pages/Rooms/Components/AddNewRoom.js](/src/Views/Pages/Rooms/Components/AddNewRoom.js) | JavaScript | -196 | -2 | -8 | -206 |
+| [src/Views/Pages/Rooms/Components/RowRoom.js](/src/Views/Pages/Rooms/Components/RowRoom.js) | JavaScript | -87 | 0 | -4 | -91 |
+| [src/Views/Pages/Rooms/Rooms.js](/src/Views/Pages/Rooms/Rooms.js) | JavaScript | -279 | 0 | -29 | -308 |
+| [src/Views/Pages/Users/Components/AddNewUser.js](/src/Views/Pages/Users/Components/AddNewUser.js) | JavaScript | -227 | -2 | -12 | -241 |
+| [src/Views/Pages/Users/Components/ViewUser.js](/src/Views/Pages/Users/Components/ViewUser.js) | JavaScript | -87 | 0 | -3 | -90 |
+| [src/Views/Pages/Users/Users.js](/src/Views/Pages/Users/Users.js) | JavaScript | -693 | 0 | -32 | -725 |
+| [src/Views/Pages/Weekly/Components/DayBox.js](/src/Views/Pages/Weekly/Components/DayBox.js) | JavaScript | -89 | 0 | -6 | -95 |
+| [src/Views/Pages/Weekly/Components/DaysBar.js](/src/Views/Pages/Weekly/Components/DaysBar.js) | JavaScript | -23 | 0 | -4 | -27 |
+| [src/Views/Pages/Weekly/Components/Footer.js](/src/Views/Pages/Weekly/Components/Footer.js) | JavaScript | -10 | 0 | -5 | -15 |
+| [src/Views/Pages/Weekly/Components/MeetingComponent.js](/src/Views/Pages/Weekly/Components/MeetingComponent.js) | JavaScript | -122 | -11 | -8 | -141 |
+| [src/Views/Pages/Weekly/Components/MeetingForum.js](/src/Views/Pages/Weekly/Components/MeetingForum.js) | JavaScript | -194 | -5 | -15 | -214 |
+| [src/Views/Pages/Weekly/Components/WeekCalender.js](/src/Views/Pages/Weekly/Components/WeekCalender.js) | JavaScript | -225 | -3 | -14 | -242 |
+| [src/Views/Pages/Weekly/index.js](/src/Views/Pages/Weekly/index.js) | JavaScript | -371 | 0 | -14 | -385 |
+| [src/index.css](/src/index.css) | CSS | -5 | 0 | 0 | -5 |
+| [src/index.js](/src/index.js) | JavaScript | -18 | -3 | -3 | -24 |
+| [src/reportWebVitals.js](/src/reportWebVitals.js) | JavaScript | -12 | 0 | -2 | -14 |
+
+[Summary](results.md) / [Details](details.md) / [Diff Summary](diff.md) / Diff Details
