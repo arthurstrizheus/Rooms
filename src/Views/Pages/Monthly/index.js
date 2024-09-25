@@ -11,7 +11,7 @@ import { startOfMonth } from 'date-fns';
 
 const createMeetingRooms = (rooms, theme) => {
     return rooms?.map(room => (
-        <Grid title={'room'} key={room.id} item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.main, borderBottom: `1px solid ${theme.palette.border.main}`, borderLeft: `3px solid ${room.color}` }}>
+        <Grid title={'room'} key={room.id} item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.light, borderBottom: `1px solid ${theme.palette.border.main}`, borderLeft: `3px solid ${room.color}` }}>
             <Stack>
                 <Typography variant="h7" fontFamily={'Candara'} fontWeight={'bold'} fontSize={17}>{room.value}</Typography>
                 <Typography variant="caption" fontFamily={'monospace'} color={'#8c8b8b'}>Capacity: {room.capacity}</Typography>
@@ -100,7 +100,7 @@ const MonthSchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
                 <Stack direction="row" height="calc(100vh - 167px)" width={'calc(100vw - 200px)'}>
                     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'row', position: 'relative' }}>
                         <Stack direction={'column'}>
-                            <Grid item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.main, borderBottom: `1px solid ${theme.palette.border.secondary}` }}>
+                            <Grid item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.lightHover, borderBottom: `1px solid ${theme.palette.border.secondary}` }}>
                                 <Stack>
                                     <Typography variant="h7" color={theme.palette.secondary.light} fontFamily="Candara" fontWeight="bold" fontSize={19}>
                                         SEA {locations?.find(lc => lc.officeid === user?.location)?.Alias}
@@ -115,7 +115,7 @@ const MonthSchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
                                     overflowY: 'auto', 
                                     msOverflowStyle: 'none', 
                                     scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
-                                    backgroundColor:theme.palette.background.fill.light.main
+                                    backgroundColor: theme.palette.background.fill.light.lightHover
                                 }}
                             />
                         </Stack>

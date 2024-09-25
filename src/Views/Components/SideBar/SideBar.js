@@ -1,10 +1,7 @@
-import { useTheme } from "@emotion/react";
-import './SideBar.css'
-import { useState } from "react";
-import logo from '../../../Assets/Images/sea-logo.png'
-import { useAuth } from "../../../Utilites/AuthContext";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Collapse, Grid, Stack, Tooltip, Typography } from "@mui/material";
+import { useTheme } from '@mui/material/styles';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Collapse, Grid, Stack, Tooltip, Typography, Divider, IconButton, Button, Box } from '@mui/material';
 import MeetingRoomOutlinedIcon from '@mui/icons-material/MeetingRoomOutlined';
 import DateRangeIcon from '@mui/icons-material/DateRangeOutlined';
 import TodayIcon from '@mui/icons-material/TodayOutlined';
@@ -16,34 +13,26 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDownOutlined
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUpOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import CorporateFareIcon from '@mui/icons-material/CorporateFareOutlined';
-import FormatColorFillOutlinedIcon from '@mui/icons-material/FormatColorFillOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
-import AllInboxOutlinedIcon from '@mui/icons-material/AllInboxOutlined';
-import EditCalendarOutlinedIcon from '@mui/icons-material/EditCalendarOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import logo from '../../../Assets/Images/sea-logo.png';
+import './SideBar.css';
+import { useAuth } from '../../../Utilites/AuthContext';
 
-const SideBar = ({setBannerText, setContent}) => {
+const SideBar = ({ setBannerText, setContent, bannderText }) => {
     const location = useLocation();
     const theme = useTheme();
-    const [nav, setNav] = useState({page:location.pathname.split('/').splice(-1)});
+    const [nav, setNav] = useState({ page: location.pathname.split('/').splice(-1) });
     const { user, setUser, logout } = useAuth();
     const navigate = useNavigate();
     const [open, setOpen] = useState({ rooms: true, account: false, manage: false });
-    const bannderText = {month:"Month Schedule", week: "Week Schedule", day: "Day Schedule", book: "My bookings", search: "Search for a room",
-        approve: "Approval queue", report: "Reports", account: "My account", locations: "Manage: Locations", rooms: "Manage: Rooms", types: "Manage: meeting types",
-        users: "Manage: users", resources: "Manage: resources", 
-    }
-
+    
     const toggleCollapse = (section) => {
         setOpen((prevState) => ({ ...prevState, [section]: !prevState[section] }));
     };
 
-    const handleManuClick = (menu) => {
-        if(Object.keys(bannderText).includes(menu.toLowerCase())){
-            setBannerText(bannderText[menu.toLowerCase()]);
-        }else{
-            setBannerText(menu);
-        }
+    const handleMenuClick = (menu) => {
+        setBannerText(menu);
         switch (menu.toLowerCase()) {
             case 'day':
                 nav.page = 'day';
@@ -118,236 +107,125 @@ const SideBar = ({setBannerText, setContent}) => {
                 break;
             }
     }
-    
+
     const handleLogout = () => {
         localStorage.removeItem('user');
-        const rememberMe = localStorage.getItem('rememberMe') == 'true';
-        if(!rememberMe){
-            localStorage.removeItem('email');
+        const rememberMe = localStorage.getItem('rememberMe') === 'true';
+        if (!rememberMe) {
+        localStorage.removeItem('email');
         }
         logout();
         setUser({});
-    }
+    };
 
-    return(
-        <Grid container sx={{alignSelf:'left', height:'100%', width:'200px', minWidth:'200px', backgroundColor:theme.palette.primary.main}}>
-            <Stack direction={'column'} sx={{width:"100%"}} justifyContent={'space-between'}>
-                <Grid container>
-                    <Grid container justifyContent="center" alignItems="center" minHeight={'120px'}>
-                        <img src={logo} alt="Logo" style={{ width: 'auto', height: '106px' }} />
-                    </Grid>
-                    <Grid container sx={{ textAlign: 'left' }}>
-                        <Grid
-                            item 
-                            className="sidebar-button" 
-                            style={{ '--primary-dark': theme.palette.primary.dark}}
-                            onClick={() => toggleCollapse('rooms')}
-                            borderTop={'.5px solid rgb(41, 41, 41)'}
-                            marginTop={'3px'}
-                        >
-                            <Stack direction={'row'} sx={{alignItems:'center', width:'100%', justifyContent: 'space-between'}}>
-                                <Stack  direction={'row'} spacing={1}>
-                                    <MeetingRoomOutlinedIcon className={'button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                    <Typography variant="h6" fontFamily={'Candara'} color={theme.palette.primary.text.light}>Rooms</Typography>
-                                </Stack >
-                                {open.rooms ?
-                                    <KeyboardArrowDownIcon sx={{color:theme.palette.secondary.light}}/>
-                                    :
-                                    <KeyboardArrowUpIcon sx={{color:theme.palette.secondary.light}}/>
-                                }
-                            </Stack>
-                            
-                        </Grid>
-                        <Collapse in={open.rooms} className={'sub-item-collapse'}>
-                            <Grid item className="sub-item">
-                                <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'month' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Month')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <CalendarMonthIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>Monthly view</Typography>
-                                    </Stack> 
-                                </Grid>
-                                <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'week' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Week')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <DateRangeIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Weekly view</Typography>
-                                    </Stack>
-                                </Grid>
-                                <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'day' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Day')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <TodayIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>Daily view</Typography>
-                                    </Stack> 
-                                </Grid>
-                                <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'book' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Book')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <ViewStreamIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>My bookings</Typography>
-                                    </Stack>
-                                </Grid>
-                                {/* <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'search' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Search')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <ManageSearchIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>Search room</Typography>
-                                    </Stack>
-                                </Grid> */}
-                                <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'approve' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Approve')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <PlaylistAddCheckIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Approval queue</Typography>
-                                    </Stack>
-                                </Grid>
-                                {/* <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'report' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Report')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <AssessmentOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>Reports</Typography>
-                                    </Stack>
-                                </Grid> */}
-                            </Grid>
-                        </Collapse>
-                        <Grid 
-                            item 
-                            className="sidebar-button" 
-                            style={{ '--primary-dark': theme.palette.primary.dark }} 
-                            onClick={() => toggleCollapse('account')}
-                        >
-                            <Stack direction={'row'} sx={{alignItems:'center', width:'100%', justifyContent: 'space-between'}}>
-                                <Stack  direction={'row'} spacing={1}>
-                                    <AccountBoxOutlinedIcon className={'button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                    <Typography variant="h6" fontFamily={'Candara'} color={theme.palette.primary.text.light}>Account</Typography>
-                                </Stack>
-                                
-                                {open.account ?
-                                    <KeyboardArrowDownIcon sx={{color:theme.palette.secondary.light}}/>
-                                    :
-                                    <KeyboardArrowUpIcon sx={{color:theme.palette.secondary.light}}/>
-                                }
-                            </Stack>
-                        </Grid>
-                        <Collapse in={open.account} className={'sub-item-collapse'}>
-                            <Grid item className="sub-item">
-                                <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'account' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Account')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <AccountBoxOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>My account</Typography>
-                                    </Stack>
-                                </Grid>
-                                {/* <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'settings' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Settings')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <SettingsOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Settings</Typography>
-                                    </Stack>
-                                </Grid> */}
-                                {/* <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'brand' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Branding')}>
-                                    <Stack direction={'row'} className={'sub-button'}>
-                                        <FavoriteBorderOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>Branding</Typography>
-                                    </Stack>
-                                </Grid> */}
-                            </Grid>
-                        </Collapse>
-                        {user?.admin && 
-                        (
-                            <>
-                            <Grid 
-                                item 
-                                className="sidebar-button" 
-                                style={{ '--primary-dark': theme.palette.primary.dark }} 
-                                onClick={() => toggleCollapse('manage')}
-                            >
-                                <Stack direction={'row'} sx={{alignItems:'center', width:'100%', justifyContent: 'space-between'}}>
-                                    <Stack  direction={'row'} spacing={1}>
-                                        <SettingsOutlinedIcon className={'button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                        <Typography variant="h6" fontFamily={'Candara'} color={theme.palette.primary.text.light}>Manage</Typography>
-                                    </Stack>
-                                    
-                                    {open.manage ?
-                                        <KeyboardArrowDownIcon sx={{color:theme.palette.secondary.light}}/>
-                                        :
-                                        <KeyboardArrowUpIcon sx={{color:theme.palette.secondary.light}}/>
-                                    }
-                                </Stack>
-                            </Grid>
-                            <Collapse in={open.manage} className={'sub-item-collapse'}>
-                                <Grid item className="sub-item">
-                                    <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'locations' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Locations')}>
-                                        <Stack direction={'row'} className={'sub-button'}>
-                                            <CorporateFareIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                            <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main} paddingLeft={'10px'}>Locations</Typography>
-                                        </Stack>
-                                    </Grid>
-                                    <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'rooms' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Rooms')}>
-                                        <Stack direction={'row'} className={'sub-button'}>
-                                            <MeetingRoomOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                            <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Rooms</Typography>
-                                        </Stack> 
-                                    </Grid>
-                                    <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'types' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Types')}>
-                                        <Stack direction={'row'} className={'sub-button'}>
-                                            <FormatColorFillOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                            <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Meeting types</Typography>
-                                        </Stack>
-                                    </Grid>
-                                    <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'users' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Users')}>
-                                        <Stack direction={'row'} className={'sub-button'}>
-                                            <PeopleAltOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                            <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Users</Typography>
-                                        </Stack>
-                                    </Grid>
-                                    <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'resources' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Resources')}>
-                                        <Stack direction={'row'} className={'sub-button'}>
-                                            <AllInboxOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                            <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Resources</Typography>
-                                        </Stack>   
-                                    </Grid>
-                                    <Grid className={'sidebar-button-sub-button'} style={{ '--primary-dark': theme.palette.primary.dark, background: nav.page == 'blocked' ? theme.palette.primary.dark : null }} onClick={() => handleManuClick('Blocked dates')}>
-                                        <Stack direction={'row'} className={'sub-button'}>
-                                            <EditCalendarOutlinedIcon className={'sub-button-icon'} sx={{color:theme.palette.secondary.light}}/>
-                                            <Typography variant="body1" className={'sub-button-text'} color={theme.palette.primary.text.main}  paddingLeft={'10px'}>Blocked dates</Typography>
-                                        </Stack>
-                                    </Grid>
-                                </Grid>
-                            </Collapse>
-                            </>
-                        )
-                        }
-                    </Grid>
-                </Grid>  
-                <Grid item backgroundColor={theme.palette.background.fill.dark.secondary} borderTop={'1px solid rgb(41, 41, 41)'} paddingTop={'8px'} paddingBottom={'8px'}>
-                    <Stack direction={'row'} justifyContent={'space-between'} sx={{marginLeft:'5px'}}>
-                        <Typography variant="caption" sx={{alignContent:'center', color:theme.palette.primary.text.main}}>{user?.first_name} {user?.last_name}</Typography>
-                        <Grid paddingRight={'5px'}>
-                            <Tooltip title="Log Out" arrow
-                                componentsProps={{
-                                    tooltip: {
-                                        sx: {
-                                            bgcolor: theme.palette.primary.dark, // Custom background color
-                                            color: theme.palette.primary.text.main, // Custom text color
-                                            fontSize: '1rem', // Larger text
-                                            padding: '10px', // Custom padding
-                                        },
-                                    },
-                                        arrow: {
-                                            sx: {
-                                                color: theme.palette.primary.dark, // Custom arrow color
-                                            },
-                                        },
-                                }}
-                            >
-                                <LogoutOutlinedIcon 
-                                    className="logout-button" 
-                                    sx={{color:theme.palette.secondary.light, ':hover':{color:theme.palette.primary.text.main}}}
-                                    onClick={handleLogout}
-                                />
-                            </Tooltip>
-                        </Grid>
-                        
-                        
-                    </Stack>
-                </Grid>
+    return (
+        <Grid container sx={{ minWidth: 220, backgroundColor: 'white' }}>
+        <Stack direction="column" sx={{ width: '100%', height: '100%' }} justifyContent="space-between">
+            <Grid container justifyContent="center" alignItems="center" sx={{ padding: 2 }}>
+            <img src={logo} alt="Logo" style={{ width: 'auto', height: 100 }} />
+            </Grid>
+            <Grid item sx={{ textAlign: 'left', paddingLeft:'10px', paddingRight:'10px' }}>
+                <MenuItem 
+                    title="Rooms" 
+                    icon={<MeetingRoomOutlinedIcon />} 
+                    isOpen={open.rooms} 
+                    onToggle={() => toggleCollapse('rooms')}
+                    items={[
+                    { name: 'Monthly View', icon: <CalendarMonthIcon />, onClick: () => handleMenuClick('month') },
+                    { name: 'Weekly View', icon: <DateRangeIcon />, onClick: () => handleMenuClick('week') },
+                    { name: 'Daily View', icon: <TodayIcon />, onClick: () => handleMenuClick('day') },
+                    { name: 'My Bookings', icon: <ViewStreamIcon />, onClick: () => handleMenuClick('book') },
+                    { name: 'Approval Queue', icon: <PlaylistAddCheckIcon />, onClick: () => handleMenuClick('approve') },
+                    ]}
+                />
+                <Divider />
+                <MenuItem 
+                    title="Account" 
+                    icon={<AccountBoxOutlinedIcon />} 
+                    isOpen={open.account} 
+                    onToggle={() => toggleCollapse('account')} 
+                    items={[
+                    { name: 'My Account', icon: <AccountBoxOutlinedIcon />, onClick: () => handleMenuClick('account') },
+                    ]}
+                />
+                {user?.admin && (
+                    <>
+                    <Divider />
+                    <MenuItem 
+                        title="Manage" 
+                        icon={<SettingsOutlinedIcon />} 
+                        isOpen={open.manage} 
+                        onToggle={() => toggleCollapse('manage')} 
+                        items={[
+                        { name: 'Locations', icon: <CorporateFareIcon />, onClick: () => handleMenuClick('locations') },
+                        { name: 'Rooms', icon: <MeetingRoomOutlinedIcon />, onClick: () => handleMenuClick('rooms') },
+                        { name: 'Users', icon: <PeopleAltOutlinedIcon />, onClick: () => handleMenuClick('users') },
+                        ]}
+                    />
+                    </>
+                )}
+            </Grid>
+            <Grid item sx={{ padding: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color={theme.palette.text.primary}>
+                {user?.first_name} {user?.last_name}
+                </Typography>
+                <Tooltip title="Log Out" arrow>
+                <IconButton onClick={handleLogout}>
+                    <LogoutOutlinedIcon sx={{ color: theme.palette.error.main }} />
+                </IconButton>
+                </Tooltip>
             </Stack>
-            
+            </Grid>
+        </Stack>
         </Grid>
     );
 };
+
+const MenuItem = ({ title, icon, onToggle, items }) => {
+    const theme = useTheme();
+    return (
+        <>
+        <Grid
+            item
+            sx={{
+                padding: 1,
+                cursor: 'default',
+                transition: 'background-color 0.3s ease',
+            }}
+            onClick={onToggle}
+        >
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Stack direction="row" alignItems="center" spacing={2}>
+                    {icon}
+                    <Typography variant="subtitle1">{title}</Typography>
+                </Stack>
+            </Stack>
+        </Grid >
+        <Box sx={{display:'flex', flexDirection:'column', gap:.5}}>
+            {items.map((item, index) => (
+                    <Button 
+                        startIcon={item.icon}
+                        fullWidth
+                        key={index}
+                        sx={{
+                            paddingTop: 1.5,
+                            paddingBottom: 1.5,
+                            paddingLeft:0,
+                            paddingLeft: 4,
+                            cursor: 'pointer',
+                            backgroundColor: theme.palette.background.paper,
+                            transition: 'background-color 0.4s ease',
+                            '&:hover': {
+                                backgroundColor: theme.palette.background.fill.light.light,
+                            },
+                        }}
+                        onClick={item.onClick}
+                    >{item.name}</Button>
+                ))}
+        </Box> 
+        </>
+    );
+    };
 
 export default SideBar;
