@@ -89,7 +89,7 @@ const DaySchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
                 <Stack direction="row" height="calc(100vh - 155px)" width={'calc(100vw - 200px)'}>
                     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'row', position: 'relative' }}>
                         <Stack direction={'column'}>
-                            <Grid item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.main, borderBottom: `1px solid ${theme.palette.border.secondary}` }}>
+                            <Grid item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.lightHover, borderBottom: `1px solid ${theme.palette.border.secondary}` }}>
                                 <Stack>
                                     <Typography variant="h7" color={theme.palette.secondary.light} fontFamily="Candara" fontWeight="bold" fontSize={19}>
                                         SEA {locations?.find(lc => lc.officeid === user?.location)?.Alias}
@@ -97,7 +97,7 @@ const DaySchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
                                     <Typography variant="body2">{rooms.length} Rooms</Typography>
                                 </Stack>
                             </Grid>
-                            <Box ref={roomListRef} sx={{ flexGrow: 1, width:`${roomsWidth}px`, background: theme.palette.background.fill.light.light, height: 'calc(100vh - 185px)', overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+                            <Box ref={roomListRef} sx={{ flexGrow: 1, width:`${roomsWidth}px`, background: theme.palette.background.fill.light.lightHover, height: 'calc(100vh - 185px)', overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
                                 {roomsObj?.map((room) => room)}
                             </Box>
                         </Stack>

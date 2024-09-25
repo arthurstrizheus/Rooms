@@ -57,7 +57,7 @@ function App() {
         <SnackbarProvider>
         {isAuthenticated && (
           <Stack direction={'row'} height={'100vh'}>
-            <SideBar setBannerText={setBannerText}/>
+            <SideBar setBannerText={setBannerText} bannerText={bannerText}/>
             <Stack direction={'column'} height={'100%'} width={'100%'}>
               <Banner bannerText={bannerText} loading={loading} selectedDate={selectedDate} setSelectedDate={setSelectedDate}/>
               <AppRoutes setLoading={setLoading} setBannerText={setBannerText} selectedDate={selectedDate} setSelectedDate={setSelectedDate} loading={loading}/>

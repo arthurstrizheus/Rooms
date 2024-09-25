@@ -193,7 +193,7 @@ export default function MyBookings({setLoading}) {
                     itm.id,
                     itm.name,
                     'Me',
-                    rooms?.find(rm => rm.id == itm.room).value,
+                    rooms?.find(rm => rm.id == itm.room)?.value,
                     start,
                     `${start.getHours() % 12 ? start.getHours() % 12 : 12}:${String(start.getMinutes()).padStart(2, '0')}${getDateAmPm(start)}m`,
                     durationString,

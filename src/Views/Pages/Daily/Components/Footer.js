@@ -12,7 +12,7 @@ const Footer = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
                 position: 'fixed', 
                 bottom: 0, 
                 height: '45px', 
-                background: theme.palette.background.fill.light.light, // Corrected the typo
+                background: theme.palette.background.fill.light.lightHover, // Corrected the typo
                 zIndex: 555,  // Match with HorizontalScrollBar zIndex
                 display: 'flex',
                 alignItems: 'center',
