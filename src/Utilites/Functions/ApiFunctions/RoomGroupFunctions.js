@@ -21,7 +21,7 @@ export async function PostRoomGroup(data) {
 
 export async function DeleteRoomGroup(id) {
     try {
-        const resp = await axios.delete(`/api/roomgroups/${id}`);
+        const resp = await axios.delete( `/api/roomgroups/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
@@ -42,7 +42,7 @@ export async function DeleteRoomGroup(id) {
 
 export async function DeleteRoomGroupByRoomId(data) {
     try {
-        const resp = await axios.delete(`/api/roomgroups`, {data:data});
+        const resp = await axios.delete( `/api/roomgroups`, {data:data});
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success

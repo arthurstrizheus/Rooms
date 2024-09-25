@@ -56,7 +56,7 @@ export default function BlockedDates({setLoading}) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = filteredDates.map(async itm => isSelected(itm.id) ? await DeleteBlockedDate(itm.id) : null);
+            const promises = filteredDates?.map(async itm => isSelected(itm.id) ? await DeleteBlockedDate(itm.id) : null);
             await Promise.all(promises).then((resp) =>  {
                 if(resp){
                     showSuccess("Items Deleted");
@@ -81,7 +81,7 @@ export default function BlockedDates({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = filteredDates.map((n) => n.id);
+            const newSelecteds = filteredDates?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -124,7 +124,7 @@ export default function BlockedDates({setLoading}) {
             setRooms(UserAnyAccessRooms(usrgrps, grps, rmgps, rms, user));
             setFullAccessRoms(UserFullAccessRooms(usrgrps, grps, rmgps, rms, user))
             setBlockedDates(blc);
-            setFilterLocation(lcs.find(lc => lc.officeid == user?.location));
+            setFilterLocation(lcs?.find(lc => lc.officeid == user?.location));
             setLoading(false);
         }
         if(user?.id){
@@ -134,10 +134,10 @@ export default function BlockedDates({setLoading}) {
 
     useEffect(() => {
         if(blockedDates?.length){
-            const filteredBlockedDates = blockedDates?.filter(bd => rooms.find(fr => fr.id == bd.room_id && fr.location === filterLocation.officeid));
+            const filteredBlockedDates = blockedDates?.filter(bd => rooms?.find(fr => fr.id == bd.room_id && fr.location === filterLocation.officeid));
 
             setFilteredDates(filteredBlockedDates);
-            const data = filteredBlockedDates.map(itm => {
+            const data = filteredBlockedDates?.map(itm => {
                 return createData(
                     itm.id,
                     itm.name,
@@ -184,11 +184,11 @@ export default function BlockedDates({setLoading}) {
                             id="demo-simple-select-standard"
                             value={filterLocation?.officeid || ''}
                             onChange={(e) => {
-                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                 setFilterLocation(selectedItem); // Return the entire object
                             }}
                         >
-                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                         </Select>
                     </FormControl>
                 </Box>           
@@ -214,9 +214,9 @@ export default function BlockedDates({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row) => {
+                        {paginatedRows?.map((row) => {
                             const isItemSelected = isSelected(row.id);
-                            const room = rooms.find(rm => rm.id == row.room_id);
+                            const room = rooms?.find(rm => rm.id == row.room_id);
                             const start = new Date(row.start_time);
                             const end = new Date(row.end_time);
                             const startString = new Date(row.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });

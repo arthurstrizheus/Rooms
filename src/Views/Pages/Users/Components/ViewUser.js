@@ -54,7 +54,7 @@ const ViewUser = ({location, row, rowUser, setOpen}) => {
                         {rowItem('Admin', row.admin ? 'True' : 'False')}
                         {rowItem('Last Login', new Date(rowuser?.last_login).toLocaleDateString('en-US', {hour:'numeric', minute:'numeric', weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }))}
                         {rowItem('Groups', row.groups.length == 0 ? 'None' : 
-                            row.groups.map((gp, index) => (
+                            row.groups?.map((gp, index) => (
                                 <Tooltip 
                                     key={index}
                                     arrow

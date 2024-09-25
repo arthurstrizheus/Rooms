@@ -56,13 +56,13 @@ function getComparator(order, orderBy) {
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array.map((el, index) => [el, index]);
+    const stabilizedThis = array?.map((el, index) => [el, index]);
     stabilizedThis.sort((a, b) => {
         const order = comparator(a[0], b[0]);
         if (order !== 0) return order;
         return a[1] - b[1];
     });
-    return stabilizedThis.map((el) => el[0]);
+    return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function Rooms({setLoading}) {
@@ -89,7 +89,7 @@ export default function Rooms({setLoading}) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = filteredRooms.map(async itm => isSelected(itm.id) ? await DeleteRoom(itm.id) : null);
+            const promises = filteredRooms?.map(async itm => isSelected(itm.id) ? await DeleteRoom(itm.id) : null);
             await Promise.all(promises).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -115,7 +115,7 @@ export default function Rooms({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = rooms.map((n) => n.id);
+            const newSelecteds = rooms?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -188,7 +188,7 @@ export default function Rooms({setLoading}) {
             setRoomGroups(rmgps);
             setLocations(lcs);
             setGroups(grps);
-            setFilterLocation(filterLocation?.officeid || filterLocation?.officeid === 0 ? filterLocation : lcs.find(lc => lc.officeid == user?.location));
+            setFilterLocation(filterLocation?.officeid || filterLocation?.officeid === 0 ? filterLocation : lcs?.find(lc => lc.officeid == user?.location));
             setRooms(rms);
             setLoading(false);
         }
@@ -205,7 +205,7 @@ export default function Rooms({setLoading}) {
             setFilteredRooms(rms);
         }
 
-        const data = rms.map(itm => {
+        const data = rms?.map(itm => {
             return createData(
                 itm.id,
                 itm.value,
@@ -242,11 +242,11 @@ export default function Rooms({setLoading}) {
                             id="demo-simple-select-standard"
                             value={filterLocation?.officeid === 0 ? 0 : filterLocation?.officeid ? filterLocation.officeid : ''}
                             onChange={(e) => {
-                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                 setFilterLocation(selectedItem); // Return the entire object
                             }}
                         >
-                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                         </Select>
                     </FormControl>
                 </Box>
@@ -292,12 +292,12 @@ export default function Rooms({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row, index) => {
+                        {paginatedRows?.map((row, index) => {
                             const backgroundColor = index % 2 === 0 ? '#f0f0f0' : '#ffffff';  // Alternate background color
                             const isItemSelected = isSelected(row.id);
                             const isItemOpen = isOpen(row.id);
-                            const location = locations.find(lc => lc.officeid === row.location);
-                            const rowRoom = filteredRooms.find(fr => fr.id === row.id);
+                            const location = locations?.find(lc => lc.officeid === row.location);
+                            const rowRoom = filteredRooms?.find(fr => fr.id === row.id);
                             return (
                             <React.Fragment key={row.id}>
                                 <StyledTableRow

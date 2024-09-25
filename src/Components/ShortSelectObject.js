@@ -24,7 +24,7 @@ const ShortSelect = ({ onChange, value, label, items, hoverBorderColor, borderCo
                 id={`short-select-${label}`}
                 value={value?.id || ''}
                 onChange={(e) => {
-                    const selectedItem = items.find(itm => itm.id === e.target.value);
+                    const selectedItem = items?.find(itm => itm.id === e.target.value);
                     onChange(selectedItem); // Return the entire object
                 }}
                 onOpen={handleOpen}

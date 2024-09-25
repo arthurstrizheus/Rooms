@@ -7,7 +7,7 @@ const PageSelector = ({headers, selectedHeader, onClick, hoverFill}) => {
     return(
     <Grid sx={{ height: '48px', width: '100%', background: theme.palette.background.fill.light.light}}>
         <Stack direction={'row'} sx={{ height: '100%', alignItems: 'center' }}>
-            {headers.map((itm, index) => 
+            {headers?.map((itm, index) => 
                 <Typography 
                     key={itm}
                     sx={{

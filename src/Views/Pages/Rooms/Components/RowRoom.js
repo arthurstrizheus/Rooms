@@ -45,8 +45,8 @@ const RowRoom = ({location, row, rowRoom, groups, roomgroups, setOpen}) => {
     useEffect(() => {
         const rgroups = roomgroups.filter(rg => rg.room_id == row.id);
         let allRoomGroups = [];
-        rgroups.map(rg => {
-            allRoomGroups.push(groups.find(grp => grp.id == rg.group_id));
+        rgroups?.map(rg => {
+            allRoomGroups.push(groups?.find(grp => grp.id == rg.group_id));
         })
         setRoomGroups(allRoomGroups);
     },[roomgroups]);
@@ -83,7 +83,7 @@ const RowRoom = ({location, row, rowRoom, groups, roomgroups, setOpen}) => {
                         {rowItem('Capacity', row.capacity)}
                         {rowItem('Color', <Box sx={{width:'15px', height:'15px', border:'1px solid black', background:row.color}}/>)}
                         {rowItem('Access Groups', roomGroups.length == 0 ? 'None' : 
-                            roomGroups.map((gp, index) => (
+                            roomGroups?.map((gp, index) => (
                                 <Tooltip 
                                     key={index}
                                     arrow
@@ -97,7 +97,7 @@ const RowRoom = ({location, row, rowRoom, groups, roomgroups, setOpen}) => {
                                 </Tooltip>
                             ))
                         )}
-                        {rowItem('Room Resources',roomResources.map(resource => resource.name).join(', '))}
+                        {rowItem('Room Resources',roomResources?.map(resource => resource.name).join(', '))}
                     </Stack>
                 </Grid>
                 <Grid sx={{background:'white', borderRadius:'10px', minWidth:'550px', overflow:'hidden', display:'flex'}}>

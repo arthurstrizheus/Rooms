@@ -75,7 +75,7 @@ const GetUsersGroups = async (req, res) => {
                 user_id: id
             }
         })
-        const groupIds = userGroups.map(ug => ug.group_id);
+        const groupIds = userGroups?.map(ug => ug.group_id);
 
         const data = await Group.findAll({
             where:{

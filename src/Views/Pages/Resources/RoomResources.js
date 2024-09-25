@@ -68,7 +68,7 @@ export default function RoomResources({setLoading}) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = roomResources.map(async itm => isSelected(itm.id) ? await DeleteRoomResource(itm.id) : null);
+            const promises = roomResources?.map(async itm => isSelected(itm.id) ? await DeleteRoomResource(itm.id) : null);
             await Promise.all(promises).then((resp) =>  resp ? showSuccess("Items Deleted") : showError("Failed to delete"));
             setSelected([]);
             setUpdate(prev => prev + 1);
@@ -78,7 +78,7 @@ export default function RoomResources({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = filteredResources.map((n) => n.id);
+            const newSelecteds = filteredResources?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -130,7 +130,7 @@ export default function RoomResources({setLoading}) {
             setResources(rss);
             setRooms(rms);
             setLocations(lcs);
-            setFilterLocation(lcs.find(lc => lc.officeid == user?.location));
+            setFilterLocation(lcs?.find(lc => lc.officeid == user?.location));
             setLoading(false);
         }
         getData();
@@ -139,11 +139,11 @@ export default function RoomResources({setLoading}) {
     useEffect(() => {
         if(rooms?.length && filterLocation?.officeid){
             const filteredRooms = rooms.filter(rm => rm.location == filterLocation.officeid);
-            const filteredResources = roomResources.filter(rr => rr.room_id == filteredRooms.find(fr => fr.id == rr.room_id )?.id);
+            const filteredResources = roomResources.filter(rr => rr.room_id == filteredRooms?.find(fr => fr.id == rr.room_id )?.id);
 
             setRooms(filteredRooms);
             setFilteredResources(filteredResources);
-            const data = filteredResources.map(itm => {
+            const data = filteredResources?.map(itm => {
                 return createData(
                     itm.id,
                     itm.resource_id,
@@ -185,11 +185,11 @@ export default function RoomResources({setLoading}) {
                             id="demo-simple-select-standard"
                             value={filterLocation?.officeid === 0 ? 0 : filterLocation?.officeid ? filterLocation.officeid : ''}
                             onChange={(e) => {
-                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                 setFilterLocation(selectedItem); // Return the entire object
                             }}
                         >
-                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                         </Select>
                     </FormControl>
                 </Box>
@@ -211,11 +211,11 @@ export default function RoomResources({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row) => {
+                        {paginatedRows?.map((row) => {
                             const isItemSelected = isSelected(row.id);
-                            const room = rooms.find(rm => rm.id == row.room_id);
-                            const location = locations.find(lc => lc.officeid == room.location);
-                            const rowResource = resources.find(rc => rc.id == row.resources_id);
+                            const room = rooms?.find(rm => rm.id == row.room_id);
+                            const location = locations?.find(lc => lc.officeid == room.location);
+                            const rowResource = resources?.find(rc => rc.id == row.resources_id);
 
                             return (
                             <React.Fragment key={row.id}>

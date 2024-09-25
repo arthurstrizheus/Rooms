@@ -31,7 +31,7 @@ const Type = sequelize.define('Type', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-Types',
+    tableName: 'Rooms-Types',
     timestamps: true
 });
 

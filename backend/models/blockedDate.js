@@ -47,7 +47,7 @@ const BlockedDate = sequelize.define('BlockedDate', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-BlockedDates',
+    tableName: 'Rooms-BlockedDates',
     timestamps: true
 });
 

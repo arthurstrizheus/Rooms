@@ -52,6 +52,7 @@ export async function GetLocations() {
         }
         return resp.data;
     } catch (err) {
+        console.log(err);
         // Handle errors such as network issues
         const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
         showError(errorMessage);
@@ -60,7 +61,7 @@ export async function GetLocations() {
 }
 export async function GetRooms() {
     try {
-        const resp = await axios.get('/api/rooms');
+        const resp = await axios.get( '/api/rooms');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -76,7 +77,7 @@ export async function GetRooms() {
 }
 export async function GetBlockedDatess() {
     try {
-        const resp = await axios.get('/api/blockeddates');
+        const resp = await axios.get( '/api/blockeddates');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -92,7 +93,7 @@ export async function GetBlockedDatess() {
 }
 export async function GetGroups() {
     try {
-        const resp = await axios.get('/api/groups');
+        const resp = await axios.get( '/api/groups');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -108,7 +109,7 @@ export async function GetGroups() {
 }
 export async function GetGroupUsers() {
     try {
-        const resp = await axios.get('/api/groupusers');
+        const resp = await axios.get( '/api/groupusers');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -124,7 +125,7 @@ export async function GetGroupUsers() {
 }
 export async function GetUserGroups(id) {
     try {
-        const resp = await axios.get(`/api/groups/user/${id}`);
+        const resp = await axios.get( `/api/groups/user/${id}`);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             return [];
@@ -136,7 +137,7 @@ export async function GetUserGroups(id) {
 }
 export async function GetMeetingGroups() {
     try {
-        const resp = await axios.get('/api/meetinggroups');
+        const resp = await axios.get( '/api/meetinggroups');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -152,7 +153,7 @@ export async function GetMeetingGroups() {
 }
 export async function GetMeetings() {
     try {
-        const resp = await axios.get('/api/meetings');
+        const resp = await axios.get( '/api/meetings');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -168,7 +169,7 @@ export async function GetMeetings() {
 }
 export async function GetMeetingApprovals(id) {
     try {
-        const resp = await axios.get(`/api/meetings/needsapproved/${id}`);
+        const resp = await axios.get( `/api/meetings/needsapproved/${id}`);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -184,7 +185,7 @@ export async function GetMeetingApprovals(id) {
 }
 export async function GetMeetingsByUserId(id, data) {
     try {
-        const resp = await axios.get(`/api/meetings/user/${id}`,{params: {...data}});
+        const resp = await axios.get( `/api/meetings/user/${id}`,{params: {...data}});
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -200,7 +201,7 @@ export async function GetMeetingsByUserId(id, data) {
 }
 export async function GetMeetingsUserCreated(id, data) {
     try {
-        const resp = await axios.get(`/api/meetings/created/${id}`, {params: {...data}});
+        const resp = await axios.get( `/api/meetings/created/${id}`, {params: {...data}});
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -216,7 +217,7 @@ export async function GetMeetingsUserCreated(id, data) {
 }
 export async function GetResources() {
     try {
-        const resp = await axios.get('/api/resources');
+        const resp = await axios.get( '/api/resources');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -232,7 +233,7 @@ export async function GetResources() {
 }
 export async function GetRoomGroups() {
     try {
-        const resp = await axios.get('/api/roomgroups');
+        const resp = await axios.get( '/api/roomgroups');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -248,7 +249,7 @@ export async function GetRoomGroups() {
 }
 export async function GetRoomResources() {
     try {
-        const resp = await axios.get('/api/roomresources');
+        const resp = await axios.get( '/api/roomresources');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -264,7 +265,7 @@ export async function GetRoomResources() {
 }
 export async function GetTypes() {
     try {
-        const resp = await axios.get('/api/types');
+        const resp = await axios.get( '/api/types');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -280,7 +281,7 @@ export async function GetTypes() {
 }
 export async function GetUsers() {
     try {
-        const resp = await axios.get('/api/users');
+        const resp = await axios.get( '/api/users');
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -299,33 +300,33 @@ export async function GetUsers() {
 // ------------------ FILTERING DATA --------------------
 export function UserAnyAccessRooms(GroupUsers, Groups, RoomGroups, Rooms, user){
     const usersGroups = UsersGroups(GroupUsers, Groups, user); // Only the user groups the user is in
-    const roomGroups = RoomGroups.filter(rg => rg.group_id === usersGroups.find(ug => ug.id == rg.group_id)?.id); // only the room groups the users is in
-    const rooms  = Rooms.filter(rm => rm.id === roomGroups.find(rg => rg.room_id == rm.id)?.room_id);
+    const roomGroups = RoomGroups.filter(rg => rg.group_id === usersGroups?.find(ug => ug.id == rg.group_id)?.id); // only the room groups the users is in
+    const rooms  = Rooms.filter(rm => rm.id === roomGroups?.find(rg => rg.room_id == rm.id)?.room_id);
     return rooms;    
 }
 export function UserFullAccessRooms(GroupUsers, Groups, RoomGroups, Rooms, user){
     const usersGroups =  UsersFullAccessGroups(GroupUsers, Groups, user); // Only the user groups the user is in3
-    const roomGroups = RoomGroups.filter(rg => rg.group_id === usersGroups.find(ug => ug.id == rg.group_id)?.id); // only the room groups the users is in
-    const rooms  = Rooms.filter(rm => rm.id === roomGroups.find(rg => rg.room_id == rm.id)?.room_id);
+    const roomGroups = RoomGroups.filter(rg => rg.group_id === usersGroups?.find(ug => ug.id == rg.group_id)?.id); // only the room groups the users is in
+    const rooms  = Rooms.filter(rm => rm.id === roomGroups?.find(rg => rg.room_id == rm.id)?.room_id);
     return rooms;
 }
 export function UserReadAccessRooms(GroupUsers, Groups, RoomGroups, Rooms, user){
     const usersGroups = UsersReadAccessGroups(GroupUsers, Groups, user); // Only the user groups the user is in
-    const roomGroups = RoomGroups.filter(rg => rg.group_id === usersGroups.find(ug => ug.id == rg.group_id)?.id); // only the room groups the users is in
-    const rooms  = Rooms.filter(rm => rm.id === roomGroups.find(rg => rg.room_id == rm.id)?.room_id);
+    const roomGroups = RoomGroups.filter(rg => rg.group_id === usersGroups?.find(ug => ug.id == rg.group_id)?.id); // only the room groups the users is in
+    const rooms  = Rooms.filter(rm => rm.id === roomGroups?.find(rg => rg.room_id == rm.id)?.room_id);
 }
 export function UsersGroups(GroupUsers, Groups, user){
     const usersGroups = GroupUsers.filter(gp => gp.user_id === user?.id); // Only the user groups the user is in
-    const groups = Groups.filter(gp => gp.id === usersGroups.find(ug => ug.group_id === gp.id)?.group_id);// Only the groups the user is in
+    const groups = Groups.filter(gp => gp.id === usersGroups?.find(ug => ug.group_id === gp.id)?.group_id);// Only the groups the user is in
     return groups;
 }
 export function UsersFullAccessGroups(GroupUsers, Groups, user){
     const usersGroups = GroupUsers.filter(gp => gp.user_id === user?.id); // Only the user groups the user is in
-    const groups = Groups.filter(gp => gp.id === usersGroups.find(ug => ug.group_id === gp.id)?.group_id).filter(gp => gp.access === 'Full');// Only the groups the user is in
+    const groups = Groups.filter(gp => gp.id === usersGroups?.find(ug => ug.group_id === gp.id)?.group_id).filter(gp => gp.access === 'Full');// Only the groups the user is in
     return groups;
 }
 export function UsersReadAccessGroups(GroupUsers, Groups, user){
     const usersGroups = GroupUsers.filter(gp => gp.user_id === user?.id); // Only the user groups the user is in
-    const groups = Groups.filter(gp => gp.id === usersGroups.find(ug => ug.group_id === gp.id)?.group_id).filter(gp => gp.access === 'Read');// Only the groups the user is in
+    const groups = Groups.filter(gp => gp.id === usersGroups?.find(ug => ug.group_id === gp.id)?.group_id).filter(gp => gp.access === 'Read');// Only the groups the user is in
     return groups;
 }

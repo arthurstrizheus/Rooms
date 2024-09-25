@@ -141,11 +141,11 @@ const WeekCalender = ({ Cref, hoursScrollRef, Cref2, roomsRes, selectedDate, loc
                         <Box ref={Cref} sx={{
                             display: 'flex', flexGrow: 1, overflow: "auto", msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                             <Stack width={'100%'} direction={'column'} position="relative">
-                                {roomsRes.map((room, index) => (
+                                {roomsRes?.map((room, index) => (
                                     <Grid key={room.id} className={'RoomCal'} item sx={{ width: '100%', height: '75px', borderBottom: `1px solid ${theme.palette.border.main}` }}>
                                         <Box ref={el => Cref2.current[index] = el} width={'100%'} >
                                             <Stack direction={'row'}  width={'100%'} height={'100%'}>
-                                                {days.map((day, index) => (
+                                                {days?.map((day, index) => (
                                                     memoizedCreateDays(room, filteredMeetings, index)
                                                 ))}
                                             </Stack>

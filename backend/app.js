@@ -1,4 +1,5 @@
 const express = require('express');
+// const cors = require('cors');
 const { sequelize, initModels, Office, BlockedDate, GroupUser, Group, MeetingGroup, Meeting, Resource, RoomGroup, RoomResource, Room, Type, User, MeetingRecurrence, SpecialPermission } = require('./models');
 const blockedDatesRouter = require('./routes/blockedDates');
 const groupUsersRouter = require('./routes/groupUsers');
@@ -39,6 +40,10 @@ const startServer = async () => {
     try {
         await sequelize.authenticate();
         console.log('Database connecting...');
+        // app.use(cors({
+        //     origin: 'https://rooms.sealimited.com/' // Adjust this based on your needs
+        // }));
+        app.use(express.json());
         
         initModels(); // Initialize models and associations
         const models = ['BlockedDate', 'GroupUser', 'Group', 'MeetingGroup', 'Meeting', 'Resource', 'RoomGroup', 'RoomResource', 'Room', 'Type', 'User', 'MeetingRecurrence', 'SpecialPermission'];
@@ -70,12 +75,12 @@ const startServer = async () => {
 
         // Synchronize all models except Office
         await Promise.all(
-            modelsToSync.map((model) => model.sync({ alter: false }))
+            modelsToSync?.map((model) => model.sync({ alter: false }))
         );
 
-        app.listen(5000, () => console.log('Server running on port 5000'));
-        const cors = require('cors');
-        app.use(cors());
+        const port = process.env.PORT || 5000; // Default to 3000 if PORT is not set
+        app.listen(port, () => console.log(`Server running on port ${port}`));
+        
     } catch (err) {
         console.error('Unable to connect to the database:', err);
     }

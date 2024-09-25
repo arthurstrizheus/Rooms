@@ -32,7 +32,7 @@ const AddNewRoomResource = ({ open, setOpen, rooms, roomResources, resources, se
     };
     useEffect(() => {
         if(room?.id){
-            setFilteredResources(resources.filter(r => r.id != roomResources.find(rr => rr.room_id == room.id)?.resources_id));
+            setFilteredResources(resources.filter(r => r.id != roomResources?.find(rr => rr.room_id == room.id)?.resources_id));
         }else{
             setFilteredResources(resources);
         }
@@ -59,11 +59,11 @@ const AddNewRoomResource = ({ open, setOpen, rooms, roomResources, resources, se
                         id="demo-simple-select-standard"
                         value={room?.id || ''}
                         onChange={(e) => {
-                            const selectedItem = rooms.find(itm => itm.id === e.target.value);
+                            const selectedItem = rooms?.find(itm => itm.id === e.target.value);
                             setRoom(selectedItem); // Return the entire object
                         }}
                     >
-                        {rooms.map((itm, index) => <MenuItem key={index} value={itm.id}>{itm.value}</MenuItem>)}
+                        {rooms?.map((itm, index) => <MenuItem key={index} value={itm.id}>{itm.value}</MenuItem>)}
                     </Select>
                 </FormControl>
                 <FormControl variant="standard" sx={{minWidth: 160, width:'100%'}}>
@@ -74,11 +74,11 @@ const AddNewRoomResource = ({ open, setOpen, rooms, roomResources, resources, se
                         id="demo-simple-select-standard"
                         value={resource?.id || ''}
                         onChange={(e) => {
-                            const selectedItem = filteredResources.find(itm => itm.id === e.target.value);
+                            const selectedItem = filteredResources?.find(itm => itm.id === e.target.value);
                             setResource(selectedItem); // Return the entire object
                         }}
                     >
-                        {filteredResources.map((itm, index) => <MenuItem key={index} value={itm.id}>{itm.name}</MenuItem>)}
+                        {filteredResources?.map((itm, index) => <MenuItem key={index} value={itm.id}>{itm.name}</MenuItem>)}
                     </Select>
                 </FormControl>
                 <Button variant="outlined" sx={{ marginTop: '20px', backgroundColor: 'rgba(0,170,0,.2)', ':hover': { backgroundColor: 'rgba(0,200,0,.4)' } }} onClick={onSubmit}>

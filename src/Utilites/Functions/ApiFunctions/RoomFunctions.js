@@ -21,7 +21,7 @@ export async function PostRoom(data) {
 
 export async function UpdateRoom(id, data) {
     try {
-        const resp = await axios.put(`/api/rooms/${id}`, data);
+        const resp = await axios.put( `/api/rooms/${id}`, data);
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Room updated');
@@ -44,7 +44,7 @@ export async function UpdateRoom(id, data) {
 
 export async function DeleteRoom(id) {
     try {
-        const resp = await axios.delete(`/api/rooms/${id}`);
+        const resp = await axios.delete( `/api/rooms/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Room deleted');

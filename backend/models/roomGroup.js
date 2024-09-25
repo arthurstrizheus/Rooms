@@ -11,7 +11,7 @@ const RoomGroup = sequelize.define('RoomGroup', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Groups', // Name of the referenced model
+            model: 'Rooms-Groups', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -20,7 +20,7 @@ const RoomGroup = sequelize.define('RoomGroup', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Rooms', // Name of the referenced model
+            model: 'Rooms-Rooms', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -40,7 +40,7 @@ const RoomGroup = sequelize.define('RoomGroup', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-RoomGroups',
+    tableName: 'Rooms-RoomGroups',
     timestamps: true
 });
 

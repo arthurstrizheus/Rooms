@@ -52,7 +52,7 @@ const DayBox = React.memo(({ theme, onClick, room, selectedDate, meetings, dayIn
         >
             <Box sx={{ display: 'flex', overflow: 'hidden', height: '100%' }}>
                 <Stack direction={'column'} spacing={'1px'} sx={{ flex: 1, width:'50%' }}>
-                    {boxMeetings1.map((mt, index) =>
+                    {boxMeetings1?.map((mt, index) =>
                         <MeetingComponent
                             key={index}
                             types={meetingTypes}
@@ -65,7 +65,7 @@ const DayBox = React.memo(({ theme, onClick, room, selectedDate, meetings, dayIn
                 </Stack>
                 {boxMeetings2.length > 0 && (
                     <Stack direction={'column'} spacing={'1px'} sx={{ flex: 1, width:'50%' }}>
-                        {boxMeetings2.map((mt, index) =>
+                        {boxMeetings2?.map((mt, index) =>
                             <MeetingComponent
                                 key={index}
                                 types={meetingTypes}

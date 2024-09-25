@@ -10,7 +10,7 @@ const GroupUser = sequelize.define('GroupUser', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Groups', // Name of the referenced model
+            model: 'Rooms-Groups', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -19,7 +19,7 @@ const GroupUser = sequelize.define('GroupUser', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Users', // Name of the referenced model
+            model: 'Rooms-Users', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -39,7 +39,7 @@ const GroupUser = sequelize.define('GroupUser', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-GroupUsers',
+    tableName: 'Rooms-GroupUsers',
     timestamps: true
 });
 

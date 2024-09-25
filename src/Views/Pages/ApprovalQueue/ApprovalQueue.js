@@ -54,13 +54,13 @@ function getComparator(order, orderBy) {
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array.map((el, index) => [el, index]);
+    const stabilizedThis = array?.map((el, index) => [el, index]);
     stabilizedThis.sort((a, b) => {
         const order = comparator(a[0], b[0]);
         if (order !== 0) return order;
         return a[1] - b[1];
     });
-    return stabilizedThis.map((el) => el[0]);
+    return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function ApprovalQueue({setLoading}) {
@@ -83,7 +83,7 @@ export default function ApprovalQueue({setLoading}) {
 
     const handleSubmit = () => {
         const statusChange = async () => {
-            const promises = meetings.map(async itm => isSelected(itm.id) ? await UpdateMeetingStatus(itm.id, {status: `${action}d`, userId:user?.id, meeting: itm.id === -1 ? itm : null}) : null);
+            const promises = meetings?.map(async itm => isSelected(itm.id) ? await UpdateMeetingStatus(itm.id, {status: `${action}d`, userId:user?.id, meeting: itm.id === -1 ? itm : null}) : null);
             await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${meetings?.length > 1 ? "s" : ''} ${action}d`) : showError(`Failed to ${action} user${meetings?.length > 1 ? "s" : ''}`)).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -109,7 +109,7 @@ export default function ApprovalQueue({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = meetings.map((n, index) => index);
+            const newSelecteds = meetings?.map((n, index) => index);
             setSelected(newSelecteds);
             return;
         }
@@ -171,7 +171,7 @@ export default function ApprovalQueue({setLoading}) {
             setLocations(lcs);
             setRooms(rms);
             setMeetings(mtgs);
-            setFilterLocation(lcs.find(lc => lc.officeid == user?.location));
+            setFilterLocation(lcs?.find(lc => lc.officeid == user?.location));
             setLoading(false);
         }
         if(user?.id){
@@ -183,7 +183,7 @@ export default function ApprovalQueue({setLoading}) {
     useEffect(() => {
         if(meetings?.length){
             const itms = meetings?.filter(mt => mt?.group === user?.status_group && (mt?.location === filterLocation.officeid || filterLocation.officeid === 0));
-            const data = itms.map(itm => {
+            const data = itms?.map(itm => {
                 const start = new Date(itm?.start_time);
                 const duration = getDuration(start, new Date(itm?.end_time));
                 let durationString = duration.hours ? `${duration.hours}h ${String(duration.minutes).padStart(2, '0')}m` : `${String(duration.minutes).padStart(2, '0')}m`;
@@ -191,7 +191,7 @@ export default function ApprovalQueue({setLoading}) {
                     itm.id,
                     itm.name,
                     itm.organizer,
-                    rooms.find(rm => rm.id == itm.room).value,
+                    rooms?.find(rm => rm.id == itm.room).value,
                     start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }),
                     `${start.getHours() % 12 ? start.getHours() % 12 : 12}:${String(start.getMinutes()).padStart(2, '0')}${getDateAmPm(start)}m`,
                     durationString,
@@ -219,11 +219,11 @@ export default function ApprovalQueue({setLoading}) {
                         id="demo-simple-select-standard"
                         value={filterLocation?.officeid || ''}
                         onChange={(e) => {
-                            const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                            const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                             setFilterLocation(selectedItem); // Return the entire object
                         }}
                     >
-                        {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                        {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                     </Select>
                 </FormControl>
             </Box>    
@@ -314,11 +314,11 @@ export default function ApprovalQueue({setLoading}) {
                         </TableRow>
                     </TableHead>
                     <TableBody sx={{backgroundColor:'white'}}>
-                    {paginatedRows?.length > 0 && paginatedRows.map((row, index) => {
+                    {paginatedRows?.length > 0 && paginatedRows?.map((row, index) => {
                         const backgroundColor = index % 2 === 0 ? '#f0f0f0' : '#ffffff';  // Alternate background color
                         const isItemSelected = isSelected(row.id);
                         const isItemOpen = isOpen(row.id);
-                        const meeting = meetings.find(mt => mt.id === row?.id);
+                        const meeting = meetings?.find(mt => mt.id === row?.id);
                         return (
                         <React.Fragment key={row.id}>
                             <StyledTableRow
@@ -355,9 +355,9 @@ export default function ApprovalQueue({setLoading}) {
                                         <Box>
                                             <RowMeeting
                                                 meeting={meeting}
-                                                location={locations.find(lc => lc.officeid === meeting?.location)}
-                                                room={rooms.find(rm => rm.id === meeting?.room)}
-                                                type={meetingTypes.find(tp => tp.id === meeting?.type)}
+                                                location={locations?.find(lc => lc.officeid === meeting?.location)}
+                                                room={rooms?.find(rm => rm.id === meeting?.room)}
+                                                type={meetingTypes?.find(tp => tp.id === meeting?.type)}
                                                 row={row}
                                             />
                                         </Box>

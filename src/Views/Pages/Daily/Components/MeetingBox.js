@@ -75,7 +75,7 @@ const MeetingBox = ({ meeting, onUpdateMeeting, userGroups, rooms, meetingTypesR
         setStartPosition({ right, width: adjustedWidth });
     }, [meeting, rooms, update]);
 
-    const getColorByType = () => (meetingTypesRes.find(mt => mt.id == meeting.type).color);
+    const getColorByType = () => (meetingTypesRes?.find(mt => mt.id == meeting.type).color);
 
     if (!meeting?.type) {
         return (

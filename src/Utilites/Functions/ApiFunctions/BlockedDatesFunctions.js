@@ -20,7 +20,7 @@ export async function PostBlockedDate(data) {
 
 export async function DeleteBlockedDate(id) {
     try {
-        const resp = await axios.delete(`/api/blockeddates/${id}`);
+        const resp = await axios.delete( `/api/blockeddates/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success

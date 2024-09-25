@@ -71,11 +71,11 @@ const AddNewGroup = ({ open, setOpen, location, locations, setUpdate}) => {
                             id="demo-simple-select-standard-location"
                             value={selectedLocation?.officeid === 0 ? 0 : selectedLocation?.officeid ? selectedLocation.officeid : ''}
                             onChange={(e) => {
-                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                 setSelectedLocation(selectedItem); // Return the entire object
                             }}
                         >
-                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                         </Select>
                     </FormControl>
                 }

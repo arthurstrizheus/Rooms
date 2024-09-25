@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../Utilites/AuthContext';
-import { Grid, Typography, Box, Checkbox, Button, Container, CssBaseline, Avatar, TextField, FormControlLabel, Link } from "@mui/material";
+import { Grid, Typography, Box, Checkbox, Button, Container, CssBaseline, Avatar, TextField, FormControlLabel, Link, Input, OutlinedInput, InputLabel, FormControl } from "@mui/material";
 import LockIcon from '@mui/icons-material/Lock';
 import { AuthenticateUser } from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
 
@@ -23,11 +23,12 @@ export default function Login({setLoading}) {
     const { setUser, login } = useAuth();
     const [rememberMe, setRememberMe] = useState(false); // State to track "Remember me"
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
 
     // On component mount, check if user info exists in localStorage
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
-        const storedRememberMe = localStorage.getItem('rememberMe') === 'true';
+        const storedRememberMe = localStorage.getItem('rememberMe') == 'true';
 
         if (storedUser) {
             setUser(JSON.parse(storedUser));
@@ -35,15 +36,16 @@ export default function Login({setLoading}) {
             login();
         }
         if(storedRememberMe){
-            setEmail(localStorage.getItem('email'));
+            const email = localStorage.getItem('email');
+            setRememberMe(true);
+            setEmail(email || '');
         }
     }, []);
 
     const handleSubmit = (event) => {
         setLoading(true);
         event.preventDefault();
-        const data = new FormData(event.currentTarget);
-        AuthenticateUser({ email: data.get('email'), password: data.get('password') }).then(resp => {
+        AuthenticateUser({ email: email, password: password }).then(resp => {
             if (resp?.id) {
                 setUser(resp);
                 login();
@@ -51,11 +53,12 @@ export default function Login({setLoading}) {
                 localStorage.setItem('user', JSON.stringify(resp));
 
                 if (rememberMe) {
-                    localStorage.setItem('email', `${data.get('email')}`);
+                    localStorage.setItem('email', `${email}`);
                     localStorage.setItem('rememberMe', 'true');
                 } else {
                     // Clear user from localStorage if "Remember me" is not checked
                     localStorage.removeItem('email');
+                    localStorage.setItem('rememberMe', 'false');
                 }
                 setLoading(false);
                 navigate('/schedule/type/day');
@@ -85,28 +88,31 @@ export default function Login({setLoading}) {
                     Sign in
                 </Typography>
                 <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-                    <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        id="email"
-                        label="Email Address"
-                        name="email"
-                        autoComplete="email"
-                        autoFocus
-                    />
-                    <TextField
-                        margin="normal"
-                        required
-                        fullWidth
-                        name="password"
-                        label="Password"
-                        type="password"
-                        id="password"
-                        autoComplete="current-password"
-                    />
+                    <FormControl variant="outlined" fullWidth required>
+                        <InputLabel htmlFor="email">Email Address</InputLabel>
+                        <OutlinedInput
+                            id="email"
+                            name="Email"
+                            label="Email Address"
+                            placeholder="Email Address"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            autoFocus
+                        />
+                    </FormControl>
+                    <FormControl variant="outlined" fullWidth required sx={{marginTop:'20px'}}>
+                        <InputLabel htmlFor="password">Password</InputLabel>
+                        <OutlinedInput
+                            id="password"
+                            name="Password"
+                            label="Password"
+                            placeholder="Email Address"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </FormControl>
                     <FormControlLabel
                         control={<Checkbox checked={rememberMe} onChange={handleRememberMeChange} color="primary" />}
                         label="Remember me"

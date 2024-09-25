@@ -44,7 +44,7 @@ const Meeting = sequelize.define('Meeting', {
         type: DataTypes.INTEGER, // Links to the meeting of the recurrence
         allowNull: true,
         references: {
-            model: 'MeetMate-MeetingRecurrences',
+            model: 'Rooms-MeetingRecurrences',
             key: 'id'
         },
     },
@@ -75,7 +75,7 @@ const Meeting = sequelize.define('Meeting', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-Meetings',
+    tableName: 'Rooms-Meetings',
     timestamps: true
 });
 

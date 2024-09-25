@@ -52,13 +52,13 @@ function getComparator(order, orderBy) {
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array.map((el, index) => [el, index]);
+    const stabilizedThis = array?.map((el, index) => [el, index]);
     stabilizedThis.sort((a, b) => {
         const order = comparator(a[0], b[0]);
         if (order !== 0) return order;
         return a[1] - b[1];
     });
-    return stabilizedThis.map((el) => el[0]);
+    return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function MyBookings({setLoading}) {
@@ -111,7 +111,7 @@ export default function MyBookings({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = meetings.map((n, index) => index);
+            const newSelecteds = meetings?.map((n, index) => index);
             setSelected(newSelecteds);
             return;
         }
@@ -184,7 +184,7 @@ export default function MyBookings({setLoading}) {
     
     useEffect(() => {
         if(meetings?.length){
-            const data = meetings.map(itm => {
+            const data = meetings?.map(itm => {
                 const start = new Date(itm.start_time);
                 const duration = getDuration(start, new Date(itm.end_time));
                 let durationString = duration.hours ? `${duration.hours}h ${String(duration.minutes).padStart(2, '0')}m` : `${String(duration.minutes).padStart(2, '0')}m`;
@@ -193,7 +193,7 @@ export default function MyBookings({setLoading}) {
                     itm.id,
                     itm.name,
                     'Me',
-                    rooms.find(rm => rm.id == itm.room).value,
+                    rooms?.find(rm => rm.id == itm.room).value,
                     start,
                     `${start.getHours() % 12 ? start.getHours() % 12 : 12}:${String(start.getMinutes()).padStart(2, '0')}${getDateAmPm(start)}m`,
                     durationString,
@@ -299,7 +299,7 @@ export default function MyBookings({setLoading}) {
                         </TableRow>
                     </TableHead>
                     <TableBody sx={{backgroundColor:'white'}}>
-                    {paginatedRows.map((row, index) => {
+                    {paginatedRows?.map((row, index) => {
                         const backgroundColor = index % 2 === 0 ? '#f0f0f0' : '#ffffff';  // Alternate background color
                         const isItemSelected = isSelected(index);
                         const isItemOpen = isOpen(index);
@@ -340,9 +340,9 @@ export default function MyBookings({setLoading}) {
                                         <Box>
                                             <RowMeeting
                                                 meeting={meeting}
-                                                location={locations.find(lc => lc.officeid === meeting.location)}
-                                                room={rooms.find(rm => rm.id == meeting.room)}
-                                                type={types.find(tp => tp.id === meeting.type)}
+                                                location={locations?.find(lc => lc.officeid === meeting.location)}
+                                                room={rooms?.find(rm => rm.id == meeting.room)}
+                                                type={types?.find(tp => tp.id === meeting.type)}
                                                 row={row}
                                             />
                                         </Box>

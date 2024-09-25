@@ -58,7 +58,7 @@ const DayCalender = ({Cref, hoursScrollRef, Cref2, scrollBarRef, roomsRes, selec
     const memoizedCreateMinutes = useMemo(
         () => (hour, room, am) => {
             const minutes = [0, 15, 30, 45];
-            return minutes.map((min) => (
+            return minutes?.map((min) => (
                 <MinuteBox key={`${hour}-${min}`} theme={theme} min={min} hour={hour} room={room} am={am} onClick={handleOpenMeetingDialog} />
             ));
         },
@@ -205,11 +205,11 @@ const DayCalender = ({Cref, hoursScrollRef, Cref2, scrollBarRef, roomsRes, selec
                         <Box ref={Cref} sx={{
                             display: 'flex', flexGrow: 1, overflowX: "auto", msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                             <Stack height={'100%'} width={'100%'} direction={'column'} position="relative">
-                                {roomsRes.map((room, index) => (
+                                {roomsRes?.map((room, index) => (
                                     <Grid key={room.id} className={'RoomCal'} item sx={{ width: '100%', height: '75px', borderBottom: `1px solid ${theme.palette.border.main}` }}>
                                         <Box ref={el => Cref2.current[index] = el} sx={{ display: 'flex', flexGrow:1, maxWidth:'1760px', overflowX: "auto", msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                                             <Stack direction={'row'} height={'100%'}>
-                                                {hours.map((hour, index) => (
+                                                {hours?.map((hour, index) => (
                                                     <Grid key={index} className="Hour" item
                                                         sx={{ width: '160px', height: '100%', borderLeft: `2px solid ${theme.palette.border.main}`,
                                                             cursor: 'pointer'

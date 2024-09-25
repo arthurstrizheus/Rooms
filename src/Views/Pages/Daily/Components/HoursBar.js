@@ -4,7 +4,7 @@ import {Grid, Stack, Typography} from "@mui/material";
 
 const HoursBar = ({hours}) => {
     const theme = useTheme();
-    return hours.map(hour => (
+    return hours?.map(hour => (
         <Grid key={hour.hour} className="Hour" item sx={{ width: '160px', height: '100%', minWidth: '160px' }}>
             <Stack direction={'column'} sx={{ borderLeft: `2px solid ${theme.palette.border.main}`, height: '100%' }} justifyContent={'space-between'}>
                 <Stack direction={'row'}>

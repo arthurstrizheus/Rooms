@@ -20,7 +20,7 @@ export async function PostResource(resource) {
 
 export async function DeleteResource(resource_id) {
     try {
-        const resp = await axios.delete(`/api/resources/${resource_id}`);
+        const resp = await axios.delete( `/api/resources/${resource_id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
@@ -59,7 +59,7 @@ export async function PostRoomResource(resource) {
 
 export async function GetRoomResources(roomId) {
     try {
-        const resp = await axios.get(`/api/roomresources/${roomId}`);
+        const resp = await axios.get( `/api/roomresources/${roomId}`);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -76,7 +76,7 @@ export async function GetRoomResources(roomId) {
 
 export async function DeleteRoomResource(resource_id) {
     try {
-        const resp = await axios.delete(`/api/roomresources/${resource_id}`);
+        const resp = await axios.delete( `/api/roomresources/${resource_id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success

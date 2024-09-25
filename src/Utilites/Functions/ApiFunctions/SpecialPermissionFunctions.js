@@ -21,7 +21,7 @@ export async function PostSpecialPermission(data) {
 
 export async function GetSpecialPermissionsForMeeting(meetingId) {
     try {
-        const resp = await axios.get(`/api/specialpermissions/meeting/${meetingId}`).catch(() => []);
+        const resp = await axios.get( `/api/specialpermissions/meeting/${meetingId}`).catch(() => []);
         return resp.data;
     } catch (err) {
         return [];
@@ -30,7 +30,7 @@ export async function GetSpecialPermissionsForMeeting(meetingId) {
 
 export async function DeleteSpecialPermission(id) {
     try {
-        const resp = await axios.delete(`/api/specialpermissions/${id}`);
+        const resp = await axios.delete( `/api/specialpermissions/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success

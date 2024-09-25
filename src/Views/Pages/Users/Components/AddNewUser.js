@@ -46,9 +46,9 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                 .then(async (resp) => {
                     if(resp){
                         showSuccess('User Created');
-                        let promises = fullControl.map(async fc => PostGroupUser({group_id: fc, user_id: resp.id, created_user_id: user?.id}));
+                        let promises = fullControl?.map(async fc => PostGroupUser({group_id: fc, user_id: resp.id, created_user_id: user?.id}));
                         await Promise.all(promises);
-                        promises = readAccess.map(async or => PostGroupUser({group_id: or, user_id: resp.id, created_user_id: user?.id}));
+                        promises = readAccess?.map(async or => PostGroupUser({group_id: or, user_id: resp.id, created_user_id: user?.id}));
                         await Promise.all(promises);
                     }
                 })
@@ -58,11 +58,11 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                 .then((resp) => {
                     if(resp){
                         // Add new groups
-                        fullControl.map(fc => oldFullControl.find(ofc => ofc === fc) ? null : PostGroupUser({group_id: fc, user_id: selecteduser?.id, created_user_id: user?.id}));
-                        readAccess.map(or => oldReadAccess.find(ora => ora === or) ? null : PostGroupUser({group_id: or, user_id: selecteduser?.id, created_user_id: user?.id}));
+                        fullControl?.map(fc => oldFullControl?.find(ofc => ofc === fc) ? null : PostGroupUser({group_id: fc, user_id: selecteduser?.id, created_user_id: user?.id}));
+                        readAccess?.map(or => oldReadAccess?.find(ora => ora === or) ? null : PostGroupUser({group_id: or, user_id: selecteduser?.id, created_user_id: user?.id}));
                         // Delete removed groups
-                        oldFullControl.map(ofc => fullControl.find(fc => ofc === fc) ? null : DeleteGroupUserById({group_id: ofc, user_id: selecteduser?.id}));
-                        oldReadAccess.map(ora => readAccess.find(or => ora === or) ? null : DeleteGroupUserById({group_id: ora, user_id: selecteduser?.id}));
+                        oldFullControl?.map(ofc => fullControl?.find(fc => ofc === fc) ? null : DeleteGroupUserById({group_id: ofc, user_id: selecteduser?.id}));
+                        oldReadAccess?.map(ora => readAccess?.find(or => ora === or) ? null : DeleteGroupUserById({group_id: ora, user_id: selecteduser?.id}));
                     }
                 })
                 .then(() => setUpdate(prev => prev + 1));
@@ -99,8 +99,8 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
             setEmail(selecteduser?.email);
             setAdmin(selecteduser?.admin);
             const usersGroups = [];
-            userGroups.filter(gp => gp.user_id == selecteduser?.id).map(ug => usersGroups.push(groups.find(gp => gp.id == ug.group_id)));
-            usersGroups.map(ug => {
+            userGroups.filter(gp => gp.user_id == selecteduser?.id)?.map(ug => usersGroups.push(groups?.find(gp => gp.id == ug.group_id)));
+            usersGroups?.map(ug => {
                 if(ug.access == 'Full' && !fullControl.includes(ug.id)){
                     fullControl.push(ug.id);
                     oldFullControl.push(ug.id);
@@ -165,12 +165,12 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                     id="demo-simple-select-standard"
                                     value={location?.officeid || ''}
                                     onChange={(e) => {
-                                        const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                        const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                         setLocation(selectedItem); // Return the entire object
                                     }}
                                     label="Location"
                                 >
-                                    {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                                    {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                                 </Select>
                             </FormControl>
                         </Stack>
@@ -186,8 +186,8 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                     input={<OutlinedInput id="select-multiple-chip-full" label="Full Control" />}
                                     renderValue={(selected) => (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
-                                            {selected.map((value) => (
-                                                <Chip key={value} label={groups.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
+                                            {selected?.map((value) => (
+                                                <Chip key={value} label={groups?.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
                                             ))}
                                         </Box>
                                     )}
@@ -196,7 +196,7 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                         height:110
                                     }}
                                 >
-                                    {groups.filter(gp => gp.access != 'Read').map((name, index) => (
+                                    {groups.filter(gp => gp.access != 'Read')?.map((name, index) => (
                                         <MenuItem
                                             key={index}
                                             value={name.id}
@@ -219,8 +219,8 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                     input={<OutlinedInput id="select-multiple-chip-read" label="Read Access" />}
                                     renderValue={(selected) => (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
-                                            {selected.map((value) => (
-                                                <Chip key={value} label={groups.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
+                                            {selected?.map((value) => (
+                                                <Chip key={value} label={groups?.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
                                             ))}
                                         </Box>
                                     )}
@@ -229,7 +229,7 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                         height:110
                                     }}
                                 >
-                                    {groups.filter(gp => gp.access != 'Full').map((name, index) => (
+                                    {groups.filter(gp => gp.access != 'Full')?.map((name, index) => (
                                         <MenuItem
                                             key={index}
                                             value={name.id}

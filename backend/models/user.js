@@ -55,7 +55,7 @@ const User = sequelize.define('User', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-Users',
+    tableName: 'Rooms-Users',
     timestamps: true
 });
 

@@ -20,7 +20,7 @@ export async function PostUser(data) {
 
 export async function DeleteUser(id) {
     try {
-        const resp = await axios.delete(`/api/users/${id}`);
+        const resp = await axios.delete( `/api/users/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
@@ -42,7 +42,7 @@ export async function DeleteUser(id) {
 
 export async function UpdateUser(id, data) {
     try {
-        const resp = await axios.put(`/api/users/${id}`, data);
+        const resp = await axios.put( `/api/users/${id}`, data);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
@@ -64,7 +64,7 @@ export async function UpdateUser(id, data) {
 
 export async function UpdateUserDetails(id, data) {
     try {
-        const resp = await axios.put(`/api/users/details/${id}`, data);
+        const resp = await axios.put( `/api/users/details/${id}`, data);
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess("Details updated");
@@ -87,7 +87,7 @@ export async function UpdateUserDetails(id, data) {
 
 export async function UpdateUserPassword(id, data) {
     try {
-        const resp = await axios.put(`/api/users/password/${id}`, data);
+        const resp = await axios.put( `/api/users/password/${id}`, data);
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess("Password updated");
@@ -136,7 +136,7 @@ export async function AuthenticatePassword(data) {
 
 export async function ActivateUser(data) {
     try {
-        const resp = await axios.put(`/api/users/activate/${data}`);
+        const resp = await axios.put( `/api/users/activate/${data}`);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);
@@ -153,7 +153,7 @@ export async function ActivateUser(data) {
 
 export async function DeactivateUser(data) {
     try {
-        const resp = await axios.put(`/api/users/deactivate/${data}`);
+        const resp = await axios.put( `/api/users/deactivate/${data}`);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError) {
             showError(errorCheck.message);

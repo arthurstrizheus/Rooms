@@ -32,7 +32,7 @@ export async function CheckPostMeeting(userId, data) {
 
 export async function DeleteMeeting(data) {
     try {
-        const resp = await axios.delete(`/api/meetings`, {data:data}).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
+        const resp = await axios.delete( `/api/meetings`, {data:data}).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Meeting deleted');
@@ -54,7 +54,7 @@ export async function DeleteMeeting(data) {
 }
 export async function DeleteOnlyParentMeeting(data) {
     try {
-        const resp = await axios.delete(`/api/meetings/onlyparent`, {data:data}).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
+        const resp = await axios.delete( `/api/meetings/onlyparent`, {data:data}).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Meeting deleted');
@@ -77,7 +77,7 @@ export async function DeleteOnlyParentMeeting(data) {
 
 export async function UpdateMeeting(id,data) {
     try {
-        const resp = await axios.put(`/api/meetings/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
+        const resp = await axios.put( `/api/meetings/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Meeting updated');
@@ -92,7 +92,7 @@ export async function UpdateMeeting(id,data) {
 
 export async function UpdateAllNextMeetingsInRecurrence(id,data) {
     try {
-        const resp = await axios.put(`/api/meetings/updatenext/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
+        const resp = await axios.put( `/api/meetings/updatenext/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Meetings updated');
@@ -113,7 +113,7 @@ export async function UpdateAllNextMeetingsInRecurrence(id,data) {
 
 export async function UpdateAllMeetingsInRecurrence(id,data) {
     try {
-        const resp = await axios.put(`/api/meetings/updateall/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
+        const resp = await axios.put( `/api/meetings/updateall/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Meetings updated');
@@ -134,7 +134,7 @@ export async function UpdateAllMeetingsInRecurrence(id,data) {
 
 export async function CancelFollowingMeetingsInRecurrence(data) {
     try {
-        const resp = await axios.delete(`/api/meetings/cancelnext`, {data:data});
+        const resp = await axios.delete( `/api/meetings/cancelnext`, {data:data});
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Recurrence updated');
@@ -157,7 +157,7 @@ export async function CancelFollowingMeetingsInRecurrence(data) {
 
 export async function CancelAllMeetingsInRecurrence(data) {
     try {
-        const resp = await axios.delete(`/api/meetings/cancelall`, {data:data});
+        const resp = await axios.delete( `/api/meetings/cancelall`, {data:data});
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Recurrence updated');
@@ -181,7 +181,7 @@ export async function CancelAllMeetingsInRecurrence(data) {
 
 export async function UpdateMeetingStatus(id,data) {
     try {
-        const resp = await axios.put(`/api/meetings/status/${id}`, data);
+        const resp = await axios.put( `/api/meetings/status/${id}`, data);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
@@ -200,7 +200,7 @@ export async function UpdateMeetingStatus(id,data) {
 
 export async function UpdateParentOnlyMeeting(id,data) {
     try {
-        const resp = await axios.put(`/api/meetings/parentonly/${id}`, data).catch(err => showError(err.message));
+        const resp = await axios.put( `/api/meetings/parentonly/${id}`, data).catch(err => showError(err.message));
         
         if (resp.status === 204 || resp.status === 200) {
             return resp.data; // Indicate success

@@ -22,7 +22,7 @@ const hexToRgb = (hex) => {
  * @returns {number} - The luminance value
  */
 const calculateLuminance = ({ r, g, b }) => {
-    const a = [r, g, b].map((v) => {
+    const a = [r, g, b]?.map((v) => {
         v /= 255;
         return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
     });
