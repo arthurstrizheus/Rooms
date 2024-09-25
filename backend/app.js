@@ -40,9 +40,6 @@ const startServer = async () => {
     try {
         await sequelize.authenticate();
         console.log('Database connecting...');
-        // app.use(cors({
-        //     origin: 'https://rooms.sealimited.com/' // Adjust this based on your needs
-        // }));
         app.use(express.json());
         
         initModels(); // Initialize models and associations
