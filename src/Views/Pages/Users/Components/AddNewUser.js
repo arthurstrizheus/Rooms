@@ -58,11 +58,11 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                 .then((resp) => {
                     if(resp){
                         // Add new groups
-                        fullControl?.map(fc => oldFullControl?.find(ofc => ofc === fc) ? null : PostGroupUser({group_id: fc, user_id: selecteduser?.id, created_user_id: user?.id}));
-                        readAccess?.map(or => oldReadAccess?.find(ora => ora === or) ? null : PostGroupUser({group_id: or, user_id: selecteduser?.id, created_user_id: user?.id}));
+                        fullControl?.map(fc => oldFullControl?.find(ofc => ofc === fc) ? null : PostGroupUser({group_id: fc, user_id: selectedUser?.id, created_user_id: user?.id}));
+                        readAccess?.map(or => oldReadAccess?.find(ora => ora === or) ? null : PostGroupUser({group_id: or, user_id: selectedUser?.id, created_user_id: user?.id}));
                         // Delete removed groups
-                        oldFullControl?.map(ofc => fullControl?.find(fc => ofc === fc) ? null : DeleteGroupUserById({group_id: ofc, user_id: selecteduser?.id}));
-                        oldReadAccess?.map(ora => readAccess?.find(or => ora === or) ? null : DeleteGroupUserById({group_id: ora, user_id: selecteduser?.id}));
+                        oldFullControl?.map(ofc => fullControl?.find(fc => ofc === fc) ? null : DeleteGroupUserById({group_id: ofc, user_id: selectedUser?.id}));
+                        oldReadAccess?.map(ora => readAccess?.find(or => ora === or) ? null : DeleteGroupUserById({group_id: ora, user_id: selectedUser?.id}));
                     }
                 })
                 .then(() => setUpdate(prev => prev + 1));
@@ -94,12 +94,12 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
     useEffect(() => {
         if(selectedUser){
             setLocation(userLocation);
-            setFirstName(selecteduser?.first_name);
-            setLastName(selecteduser?.last_name);
-            setEmail(selecteduser?.email);
-            setAdmin(selecteduser?.admin);
+            setFirstName(selectedUser?.first_name);
+            setLastName(selectedUser?.last_name);
+            setEmail(selectedUser?.email);
+            setAdmin(selectedUser?.admin);
             const usersGroups = [];
-            userGroups.filter(gp => gp.user_id == selecteduser?.id)?.map(ug => usersGroups.push(groups?.find(gp => gp.id == ug.group_id)));
+            userGroups.filter(gp => gp.user_id == selectedUser?.id)?.map(ug => usersGroups.push(groups?.find(gp => gp.id == ug.group_id)));
             usersGroups?.map(ug => {
                 if(ug.access == 'Full' && !fullControl.includes(ug.id)){
                     fullControl.push(ug.id);
