@@ -5,15 +5,12 @@ export async function PostUser(data) {
     try {
         const resp = await axios.post('/api/users',data);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -27,15 +24,13 @@ export async function DeleteUser(id) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -49,15 +44,13 @@ export async function UpdateUser(id, data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -72,15 +65,13 @@ export async function UpdateUserDetails(id, data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess("Details updated");
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -95,15 +86,13 @@ export async function UpdateUserPassword(id, data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess("Password updated");
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -111,13 +100,12 @@ export async function UpdateUserPassword(id, data) {
 export async function AuthenticateUser(data) {
     try {
         const resp = await axios.post('/api/users/login',data).catch(err => {
+            console.log(err);
             showError(err.response.data.message);
             return null;
         });
         return resp?.data;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -138,15 +126,12 @@ export async function ActivateUser(data) {
     try {
         const resp = await axios.put( `/api/users/activate/${data}`);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -155,15 +140,12 @@ export async function DeactivateUser(data) {
     try {
         const resp = await axios.put( `/api/users/deactivate/${data}`);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }

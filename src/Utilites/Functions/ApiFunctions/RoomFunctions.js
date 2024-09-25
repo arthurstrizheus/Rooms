@@ -5,16 +5,13 @@ export async function PostRoom(data) {
     try {
         const resp = await axios.post('/api/rooms',data);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         showSuccess('Room created');
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -29,15 +26,13 @@ export async function UpdateRoom(id, data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess('Room updated');
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -52,15 +47,13 @@ export async function DeleteRoom(id) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess('Room deleted');
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
