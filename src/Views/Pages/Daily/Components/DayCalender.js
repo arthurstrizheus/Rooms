@@ -48,7 +48,7 @@ const DayCalender = ({Cref, hoursScrollRef, Cref2, scrollBarRef, roomsRes, selec
             });
             setFilteredMeetings(prev => [...prev, ...dates]);
         }
-    }, [selectedDate, meetings, blockedDates]);
+    }, [selectedDate, meetings, blockedDates, update]);
 
     const handleOpenMeetingDialog = (min, hour, room, am) => {
         setSelectedMeeting({min:min, hour:hour, room: room, am:am});

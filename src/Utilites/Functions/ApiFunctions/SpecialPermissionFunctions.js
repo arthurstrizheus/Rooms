@@ -6,15 +6,12 @@ export async function PostSpecialPermission(data) {
         const resp = await axios.post('/api/specialpermissions',data);
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -37,15 +34,13 @@ export async function DeleteSpecialPermission(id) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-
         return false;
     }
 }

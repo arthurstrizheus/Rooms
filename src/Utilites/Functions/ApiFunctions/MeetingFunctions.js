@@ -5,16 +5,13 @@ export async function PostMeeting(data) {
     try {
         const resp = await axios.post('/api/meetings',data);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         showSuccess('Meeting created');
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -24,8 +21,6 @@ export async function CheckPostMeeting(userId, data) {
         const resp = await axios.post(`/api/meetings/canbook/${userId}`,data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
         return null;
     }
 }
@@ -40,15 +35,13 @@ export async function DeleteMeeting(data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess('Meeting deleted');
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -62,15 +55,13 @@ export async function DeleteOnlyParentMeeting(data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess('Meeting deleted');
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -100,7 +91,7 @@ export async function UpdateAllNextMeetingsInRecurrence(id,data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return resp.data;
         }
@@ -121,7 +112,7 @@ export async function UpdateAllMeetingsInRecurrence(id,data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
@@ -142,15 +133,13 @@ export async function CancelFollowingMeetingsInRecurrence(data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess('Recurrence updated');
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -165,15 +154,13 @@ export async function CancelAllMeetingsInRecurrence(data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         showSuccess('Recurrence updated');
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -181,19 +168,18 @@ export async function CancelAllMeetingsInRecurrence(data) {
 
 export async function UpdateMeetingStatus(id,data) {
     try {
-        const resp = await axios.put( `/api/meetings/status/${id}`, data);
+        const resp = await axios.put( `/api/meetings/status/${id}`, data).catch(resp => resp?.response?.data?.message ? showError(resp?.response?.data.message) : console.log(resp));
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             return false;
         }
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
         return false;
     }
 }
@@ -207,12 +193,11 @@ export async function UpdateParentOnlyMeeting(id,data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             return showError(errorCheck.me);
         }
         return resp.data;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
         return false;
     }
 }

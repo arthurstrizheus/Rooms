@@ -3,18 +3,14 @@ import { handleApiResponseError, showError, showSuccess } from "../ApiFunctions"
 
 export async function PostRoomGroup(data) {
     try {
-        console.log('data', data);
         const resp = await axios.post('/api/roomgroups',data);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;  
         }
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return null;
     }
 }
@@ -28,14 +24,12 @@ export async function DeleteRoomGroup(id) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }
@@ -49,15 +43,13 @@ export async function DeleteRoomGroupByRoomId(data) {
         }
         
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
         
         return true;
     } catch (err) {
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return false;
     }
 }

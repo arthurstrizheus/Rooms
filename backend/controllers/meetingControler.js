@@ -350,7 +350,9 @@ async function GetMeetingStatus (roomId, userId){
     // Find all room groups that match the user's group memberships of Full access
     const roomGroups = await RoomGroup.findAll({
         where: {
-            group_id: fullAccessGroups,
+            group_id:{
+                [Sequelize.Op.in]: fullAccessGroups
+            },
         }
     });
     
@@ -505,7 +507,9 @@ async function CanUserBook(roomId, userId){
         where:
         {
             id: userGroupIds,
-            access: 'Full'
+            access: {
+                [Sequelize.Op.in]: ['Full', 'Read']
+            }
         }
     })
     if(fullAccessGroup?.id){
@@ -616,10 +620,18 @@ const GetAllUserCanSee = async (req, res) => {
             }
         });
         if(fakeMeets?.length > 0){
-            fakeMeets?.map(fm => meetings.push(fm));
+            fakeMeets?.map(fm => {
+                if(!meetings?.find(mt => mt.id == fm.id)){
+                    meetings.push(fm);
+                }
+            });
         }
         if(meetingsUserHasSpecialAccess?.length > 0){
-            meetingsUserHasSpecialAccess?.map(mt => meetings.push(mt));
+            meetingsUserHasSpecialAccess?.map(mt => {
+                if(!meetings?.find(m => m.id == mt.id)){
+                    meetings.push(mt);
+                }
+            });
         }
         // console.log('fake meets',fakeMeets.length)
 
