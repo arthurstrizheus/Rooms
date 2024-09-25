@@ -46,7 +46,7 @@ export async function GetLocations() {
     try {
         const resp = await axios.get('/api/locations');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
@@ -54,8 +54,6 @@ export async function GetLocations() {
     } catch (err) {
         console.log(err);
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -63,15 +61,13 @@ export async function GetRooms() {
     try {
         const resp = await axios.get( '/api/rooms');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -79,15 +75,13 @@ export async function GetBlockedDatess() {
     try {
         const resp = await axios.get( '/api/blockeddates');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -95,15 +89,13 @@ export async function GetGroups() {
     try {
         const resp = await axios.get( '/api/groups');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -111,15 +103,13 @@ export async function GetGroupUsers() {
     try {
         const resp = await axios.get( '/api/groupusers');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -127,7 +117,7 @@ export async function GetUserGroups(id) {
     try {
         const resp = await axios.get( `/api/groups/user/${id}`);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             return [];
         }
         return resp.data;
@@ -139,15 +129,13 @@ export async function GetMeetingGroups() {
     try {
         const resp = await axios.get( '/api/meetinggroups');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -155,15 +143,13 @@ export async function GetMeetings() {
     try {
         const resp = await axios.get( '/api/meetings');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -171,15 +157,13 @@ export async function GetMeetingApprovals(id) {
     try {
         const resp = await axios.get( `/api/meetings/needsapproved/${id}`);
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -187,15 +171,13 @@ export async function GetMeetingsByUserId(id, data) {
     try {
         const resp = await axios.get( `/api/meetings/user/${id}`,{params: {...data}});
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -203,14 +185,12 @@ export async function GetMeetingsUserCreated(id, data) {
     try {
         const resp = await axios.get( `/api/meetings/created/${id}`, {params: {...data}});
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
-            showError(errorCheck.message);
+        if (errorCheck.isError && errorCheck?.message) {
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
         showError(errorMessage);
         return [];
     }
@@ -219,15 +199,13 @@ export async function GetResources() {
     try {
         const resp = await axios.get( '/api/resources');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -235,15 +213,13 @@ export async function GetRoomGroups() {
     try {
         const resp = await axios.get( '/api/roomgroups');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -251,31 +227,27 @@ export async function GetRoomResources() {
     try {
         const resp = await axios.get( '/api/roomresources');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
 export async function GetTypes() {
     try {
-        const resp = await axios.get( '/api/types');
+        const resp = await axios.get('/api/types');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
@@ -283,15 +255,13 @@ export async function GetUsers() {
     try {
         const resp = await axios.get( '/api/users');
         const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError) {
+        if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return [];
         }
         return resp.data;
     } catch (err) {
         // Handle errors such as network issues
-        const errorMessage = err.response ? err.response.statusText : "Network Error: Unable to reach the server.";
-        showError(errorMessage);
         return [];
     }
 }
