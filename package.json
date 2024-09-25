@@ -1,7 +1,7 @@
 {
   "name": "rooms",
   "version": "1.0.0",
-  "private": true,
+  "private": false,
   "proxy": "http://localhost:5000",
   "dependencies": {
     "@emotion/react": "^11.13.0",
