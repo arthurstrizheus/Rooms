@@ -18,7 +18,6 @@ function App() {
   const { isAuthenticated, setUser, login, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate(); 
-  // TODO ON DEPLY CHANGE "proxy": "http://localhost:5000", from package.json
 
   // I DONT LIKE HOW THIS WORKS. I need a better way to page authentication
   useEffect(() => {
@@ -32,8 +31,9 @@ function App() {
       login(user); 
       navigate('/schedule/type/day');
     }
+
     const storedUser = localStorage.getItem('user');
-    if ((JSON.parse(storedUser)?.id && !user) || (JSON.parse(storedUser)?.id === user?.id && isAuthenticated == false)) {
+    if ((JSON.parse(storedUser)?.id && !user) || (JSON.parse(storedUser)?.id === user?.id && isAuthenticated == false && user?.id !== null && user?.id !== undefined)) {
         const user = JSON.parse(storedUser);
         // Restore the user's session
         setUser(user);
@@ -52,7 +52,7 @@ function App() {
   };
 
   return (
-    <div className="MeetMate">
+    <div className="Rooms">
       <ThemeProvider theme={theme(mode)}>
         <SnackbarProvider>
         {isAuthenticated && (

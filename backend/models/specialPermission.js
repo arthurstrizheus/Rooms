@@ -11,7 +11,7 @@ const SpecialPermission = sequelize.define('SpecialPermission', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Users', // Name of the referenced model
+            model: 'Rooms-Users', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -20,7 +20,7 @@ const SpecialPermission = sequelize.define('SpecialPermission', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Meetings', // Name of the referenced model
+            model: 'Rooms-Meetings', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -40,7 +40,7 @@ const SpecialPermission = sequelize.define('SpecialPermission', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-SpecialPermissions',
+    tableName: 'Rooms-SpecialPermissions',
     timestamps: true
 });
 

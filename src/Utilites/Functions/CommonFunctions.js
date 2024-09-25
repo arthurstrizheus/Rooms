@@ -64,7 +64,7 @@ export function setTime(date, timeString) {
     const period = timeString.slice(-2).toLowerCase(); // Get "am" or "pm"
     const time = timeString.slice(0, -2); // Get the time part (e.g., "7:00", "11:30")
 
-    let [hours, minutes] = time.split(":").map(Number);
+    let [hours, minutes] = time.split(":")?.map(Number);
 
     // Convert 12-hour format to 24-hour format if necessary
     if (period === "pm" && hours < 12) {

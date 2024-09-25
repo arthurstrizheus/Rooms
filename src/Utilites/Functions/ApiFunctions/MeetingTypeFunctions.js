@@ -21,7 +21,7 @@ export async function PostMeetingType(data) {
 
 export async function DeleteMeetingType(id) {
     try {
-        const resp = await axios.delete(`/api/types/${id}`);
+        const resp = await axios.delete( `/api/types/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Type deleted');

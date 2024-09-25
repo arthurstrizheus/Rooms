@@ -56,7 +56,7 @@ export default function Resources({setLoading}) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = filteredResources.map(async itm => isSelected(itm.id) ? await DeleteResource(itm.id) : null);
+            const promises = filteredResources?.map(async itm => isSelected(itm.id) ? await DeleteResource(itm.id) : null);
             await Promise.all(promises).then((resp) =>  resp ? showSuccess("Items Deleted") : showError("Failed to delete"));
             setSelected([]);
             setUpdate(prev => prev + 1);
@@ -75,7 +75,7 @@ export default function Resources({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = filteredResources.map((n) => n.id);
+            const newSelecteds = filteredResources?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -119,9 +119,9 @@ export default function Resources({setLoading}) {
             setResources(rss);
             setLocations(lcs);
             if(filterLocation?.officeid){
-                setFilterLocation(lcs.find(lc => lc.officeid == filterLocation.officeid));
+                setFilterLocation(lcs?.find(lc => lc.officeid == filterLocation.officeid));
             }else{
-                setFilterLocation(lcs.find(lc => lc.officeid == user?.location));
+                setFilterLocation(lcs?.find(lc => lc.officeid == user?.location));
             }
             
             setLoading(false);
@@ -138,7 +138,7 @@ export default function Resources({setLoading}) {
         }
         
         setFilteredResources(filteredResources);
-        const data = filteredResources.map(itm => {
+        const data = filteredResources?.map(itm => {
             return createData(
                 itm.id,
                 itm.name,
@@ -171,11 +171,11 @@ export default function Resources({setLoading}) {
                             id="demo-simple-select-standard"
                             value={filterLocation?.officeid === 0 ? 0 : filterLocation?.officeid ? filterLocation.officeid : ''}
                             onChange={(e) => {
-                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                 setFilterLocation(selectedItem); // Return the entire object
                             }}
                         >
-                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                         </Select>
                     </FormControl>
                 </Box>             
@@ -196,9 +196,9 @@ export default function Resources({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row) => {
+                        {paginatedRows?.map((row) => {
                             const isItemSelected = isSelected(row.id);
-                            const location = locations.find(lc => lc.officeid == row.location);
+                            const location = locations?.find(lc => lc.officeid == row.location);
                             return (
                             <React.Fragment key={row.id}>
                                 <StyledTableRow

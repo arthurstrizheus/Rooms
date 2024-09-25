@@ -21,7 +21,7 @@ const getAmPm = (date) => {
 
 const MeetingComponent = ({types, meeting, onClick}) => {
     const theme = useTheme();
-    const backgroundColor = types.find(tp => tp.id === meeting?.type)?.color;
+    const backgroundColor = types?.find(tp => tp.id === meeting?.type)?.color;
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [isTooltipOpen, setIsTooltipOpen] = useState(false);
     const start = new Date(meeting.start_time);

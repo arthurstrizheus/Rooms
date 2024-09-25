@@ -27,7 +27,7 @@ const GetAllForMeeting = async (req, res) => {
     try {
         const data = await SpecialPermission.findAll({where:{meeting_id:meetingId}});
         if(data?.length > 0){
-            const userIds = data.map(itm => itm.user_id);
+            const userIds = data?.map(itm => itm.user_id);
             res.json(userIds);
         }else{
             res.json([]);

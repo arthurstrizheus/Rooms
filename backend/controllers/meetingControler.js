@@ -25,13 +25,13 @@ async function GetNextParentMeeting(userId, meeting){
         default:
             throw new Error('Invalid range');
     }
-    fakeMeets.map(fm => console.log({start:fm.start_time, equal: fm.start_time === nextDate.toISOString()}));
+    fakeMeets?.map(fm => console.log({start:fm.start_time, equal: fm.start_time === nextDate.toISOString()}));
 
     console.log('Next Date', nextDate);
-    let nextParentMeet = fakeMeets.find(fm => fm.start_time === nextDate.toISOString());
+    let nextParentMeet = fakeMeets?.find(fm => fm.start_time === nextDate.toISOString());
     console.log('Next parent', nextParentMeet);
     if(meetings?.length){
-        const MeetingExists = meetings.find(mt => mt.toJSON()?.start_time == nextParentMeet.start_time && mt.toJSON()?.end_time == nextParentMeet.end_time && mt.toJSON()?.recurrence_id == nextParentMeet.recurrence_id);
+        const MeetingExists = meetings?.find(mt => mt.toJSON()?.start_time == nextParentMeet.start_time && mt.toJSON()?.end_time == nextParentMeet.end_time && mt.toJSON()?.recurrence_id == nextParentMeet.recurrence_id);
         if(MeetingExists){
             return MeetingExists;
         }
@@ -58,7 +58,7 @@ async function CanSeeMeet(roomId, user) {
     }
 
     // Extract group IDs the user belongs to
-    const groupIds = groupUsers.map(gu => gu.group_id);
+    const groupIds = groupUsers?.map(gu => gu.group_id);
 
     // Find all room groups that match the user's group memberships
     const roomGroups = await RoomGroup.findAll({
@@ -68,7 +68,7 @@ async function CanSeeMeet(roomId, user) {
     });
 
     // Extract room IDs from the RoomGroup associations
-    let roomIds = roomGroups.map(rg => rg.room_id);
+    let roomIds = roomGroups?.map(rg => rg.room_id);
 
     // Find all meetings where the room is part of the rooms the user can access
     return roomIds.includes(roomId);
@@ -213,7 +213,7 @@ async function CreateRepeatingMeetings(currentDate, range, userId) {
         group: ['recurrence_id']
     });
 
-    const recurrenceData = latestMeetings.map(meet => ({
+    const recurrenceData = latestMeetings?.map(meet => ({
         recurrence_id: meet.recurrence_id,
         latest_start_time: meet.getDataValue('latest_start_time')
     })).filter(m => m.recurrence_id !== null && m.latest_start_time !== null);
@@ -222,9 +222,9 @@ async function CreateRepeatingMeetings(currentDate, range, userId) {
     if (recurrenceData.length === 0) {
         return []; // No recurring meetings found, return empty array
     }
-    const recurrenceIds = recurrenceData.map(m => m.recurrence_id);
+    const recurrenceIds = recurrenceData?.map(m => m.recurrence_id);
 
-    const latestStartTimes = recurrenceData.map(m => m.latest_start_time);
+    const latestStartTimes = recurrenceData?.map(m => m.latest_start_time);
 
 
     const meetingsWithRecurrence = await Meeting.findAll({
@@ -263,7 +263,7 @@ async function CreateRepeatingMeetings(currentDate, range, userId) {
     for (let meeting of meetingsWithRecurrence) {
         // User special permissions
         const special = await SpecialPermission.findAll({where:{user_id:id}});
-        const meetingIds = special.map(sp => sp.meeting_id);
+        const meetingIds = special?.map(sp => sp.meeting_id);
         const meetingsUserHasSpecialAccess = await Meeting.findAll({
             where:{
                 id:{
@@ -272,7 +272,7 @@ async function CreateRepeatingMeetings(currentDate, range, userId) {
                 status: 'Approved'
             }
         });
-        const meetIds = meetingsUserHasSpecialAccess.map(mt => mt.id);
+        const meetIds = meetingsUserHasSpecialAccess?.map(mt => mt.id);
 
         if(!CanSeeMeet(meeting, user) && !meetIds.includes(meeting.id)) continue; // Skip if user cannot see this meeting
         if(meeting.status === 'Canceled') continue;
@@ -334,7 +334,7 @@ async function GetMeetingStatus (roomId, userId){
     }
 
     // Extract group IDs the user belongs to
-    const groupIds = groupUsers.map(gu => gu.group_id);
+    const groupIds = groupUsers?.map(gu => gu.group_id);
 
     // Find all the groups that the user has full access in
     const groups = await Group.findAll({
@@ -345,7 +345,7 @@ async function GetMeetingStatus (roomId, userId){
             access: 'Full'
         }
     });
-    const fullAccessGroups = groups.map(gu => gu.id);
+    const fullAccessGroups = groups?.map(gu => gu.id);
 
     // Find all room groups that match the user's group memberships of Full access
     const roomGroups = await RoomGroup.findAll({
@@ -356,7 +356,7 @@ async function GetMeetingStatus (roomId, userId){
     
 
     // Extract room IDs from the RoomGroup associations
-    const roomIds = roomGroups.map(rg => rg.room_id);
+    const roomIds = roomGroups?.map(rg => rg.room_id);
     
     return roomIds.includes(roomId) ? 'Approved' : 'Waiting on Approval';
 }
@@ -447,11 +447,11 @@ async function CanDelete(meetingId, userId){
 
     // Get all groups the meeting is in via the room its in
     const meetingRoomGroups = await RoomGroup.findAll({where:{room_id: meeting.room}});
-    let meetingRoomGroupIds = meetingRoomGroups.map(mg => mg.group_id);
+    let meetingRoomGroupIds = meetingRoomGroups?.map(mg => mg.group_id);
     
     // Get all the groups the meeting is in, ia special permissions
     const meetingGroups = await MeetingGroup.findAll({where:{meeting_id: Number(meetingId)}});
-    meetingGroups.map(mg => meetingRoomGroupIds.push(mg.group_id));
+    meetingGroups?.map(mg => meetingRoomGroupIds.push(mg.group_id));
 
     console.log('meetingGroupIds', meetingRoomGroupIds);
     // Get all groups the user in along with it bein in the meeting groups
@@ -464,7 +464,7 @@ async function CanDelete(meetingId, userId){
                 }
             }
     });
-    const userGroupIds = userGroups.map(ug => ug.group_id);
+    const userGroupIds = userGroups?.map(ug => ug.group_id);
     console.log('UserGroupsIds', userGroupIds);
     // Find at least 1 group that the user is that has full access
     const fullAccessGroup = await Group.findOne({
@@ -486,7 +486,7 @@ async function CanUserBook(roomId, userId){
 
     // Get all groups the meeting is in via the room its in
     const meetingRoomGroups = await RoomGroup.findAll({where:{room_id: roomId}});
-    let meetingRoomGroupIds = meetingRoomGroups.map(mg => mg.group_id);
+    let meetingRoomGroupIds = meetingRoomGroups?.map(mg => mg.group_id);
 
     // Get all groups the user in along with it bein in the meeting groups
     const userGroups = await GroupUser.findAll({
@@ -498,7 +498,7 @@ async function CanUserBook(roomId, userId){
                 }
             }
     });
-    const userGroupIds = userGroups.map(ug => ug.group_id);
+    const userGroupIds = userGroups?.map(ug => ug.group_id);
 
     // Find at least 1 group that the user is that has full access
     const fullAccessGroup = await Group.findOne({
@@ -540,7 +540,7 @@ const GetAllUserCreated = async (req, res) => {
             order: [['createdAt', 'DESC']]  // Order by 'createdAt' field in ascending order
         });
         if(fakeMeets?.length > 0){
-            fakeMeets.map(fm => data.push(fm));
+            fakeMeets?.map(fm => data.push(fm));
         }
         res.json(data);
     } catch (err) {
@@ -570,7 +570,7 @@ const GetAllUserCanSee = async (req, res) => {
             });
             // console.log('fake meets',fakeMeets.length);
             if(fakeMeets?.length > 0){
-                fakeMeets.map(fm => meets.push(fm));
+                fakeMeets?.map(fm => meets.push(fm));
             }
             return res.status(200).json(meets);
         }
@@ -580,7 +580,7 @@ const GetAllUserCanSee = async (req, res) => {
 
         // Now check if user has any special permissions
         const special = await SpecialPermission.findAll({where:{user_id:id}});
-        const meetingIds = special.map(sp => sp.meeting_id);
+        const meetingIds = special?.map(sp => sp.meeting_id);
         const meetingsUserHasSpecialAccess = await Meeting.findAll({
             where:{
                 id:{
@@ -596,7 +596,7 @@ const GetAllUserCanSee = async (req, res) => {
         }
 
         // Extract group IDs the user belongs to
-        const groupIds = groupUsers.map(gu => gu.group_id);
+        const groupIds = groupUsers?.map(gu => gu.group_id);
 
         // Find all room groups that match the user's group memberships
         const roomGroups = await RoomGroup.findAll({
@@ -606,7 +606,7 @@ const GetAllUserCanSee = async (req, res) => {
         });
 
         // Extract room IDs from the RoomGroup associations
-        let roomIds = roomGroups.map(rg => rg.room_id);
+        let roomIds = roomGroups?.map(rg => rg.room_id);
 
         // Find all meetings where the room is part of the rooms the user can access
         let meetings = await Meeting.findAll({
@@ -616,10 +616,10 @@ const GetAllUserCanSee = async (req, res) => {
             }
         });
         if(fakeMeets?.length > 0){
-            fakeMeets.map(fm => meetings.push(fm));
+            fakeMeets?.map(fm => meetings.push(fm));
         }
         if(meetingsUserHasSpecialAccess?.length > 0){
-            meetingsUserHasSpecialAccess.map(mt => meetings.push(mt));
+            meetingsUserHasSpecialAccess?.map(mt => meetings.push(mt));
         }
         // console.log('fake meets',fakeMeets.length)
 
@@ -656,7 +656,7 @@ const GetAllNeedsApproval = async (req, res) => {
         }
 
         // Extract group IDs the user belongs to
-        const groupIds = groupUsers.map(gu => gu.group_id);
+        const groupIds = groupUsers?.map(gu => gu.group_id);
 
         // Find all the groups that the user has full access in
         const groups = await Group.findAll({
@@ -665,7 +665,7 @@ const GetAllNeedsApproval = async (req, res) => {
                 access: 'Full'
             }
         });
-        const fullAccessGroups = groups.map(gu => gu.id);
+        const fullAccessGroups = groups?.map(gu => gu.id);
 
         if(fullAccessGroups?.length){
             // Find all room groups that match the user's group memberships of Full access
@@ -676,7 +676,7 @@ const GetAllNeedsApproval = async (req, res) => {
             });
 
             // Extract room IDs from the RoomGroup associations
-            const roomIds = roomGroups.map(rg => rg.room_id);
+            const roomIds = roomGroups?.map(rg => rg.room_id);
 
             // Find all meetings where the room is part of the rooms the user can access and need approval
             const meetings = await Meeting.findAll({
@@ -718,7 +718,7 @@ const CanBook = async (req, res) => {
         // }
 
         // Extract group IDs the user belongs to
-        // const groupIds = groupUsers.map(gu => gu.group_id);
+        // const groupIds = groupUsers?.map(gu => gu.group_id);
 
         // Find all room groups that match the user's group memberships
         // const roomGroups = await RoomGroup.findAll({
@@ -729,7 +729,7 @@ const CanBook = async (req, res) => {
         // });
 
         // Extract room IDs from the RoomGroup associations
-        // const roomIds = roomGroups.map(rg => rg.room_id);
+        // const roomIds = roomGroups?.map(rg => rg.room_id);
 
         // if (!roomIds.includes(parseInt(room))) {
         //     return res.status(409).json({ message: 'Access denied', book:true });
@@ -747,8 +747,8 @@ const CanBook = async (req, res) => {
         const newEndTime = new Date(end_time);
         const fakeMeets = await CreateRepeatingMeetings(start_time, 'Month', created_user_id);
         const allMeetsWithRecurrance = [];
-        meetings.map(mt => allMeetsWithRecurrance.push(mt));
-        fakeMeets.map(fm => allMeetsWithRecurrance.push(fm));
+        meetings?.map(mt => allMeetsWithRecurrance.push(mt));
+        fakeMeets?.map(fm => allMeetsWithRecurrance.push(fm));
 
         // Check for overlapping meetings
         let isOverlapping = allMeetsWithRecurrance.some(meeting => {
@@ -978,7 +978,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             default:
                 throw new Error('Invalid range');
         }
-        const nextParentMeet = fakeMeets.find(fm => fm.start_time == nextDate.toISOString());
+        const nextParentMeet = fakeMeets?.find(fm => fm.start_time == nextDate.toISOString());
         if(!nextParentMeet){
             res.status(500).json({ message: 'Server error, Failed to find new parent meeting.' });
         }

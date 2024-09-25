@@ -143,7 +143,7 @@ const MonthCalender = ({ roomsRes, selectedDate, locations, meetings, meetingTyp
                         <Box sx={{
                             display: 'flex', flexGrow: 1, overflow: "auto", msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                             <Stack width={'100%'} direction={'column'} position="relative">
-                            {weeksOfMonth.map((weekStart, weekIndex) => {
+                            {weeksOfMonth?.map((weekStart, weekIndex) => {
                                 const daysInWeek = eachDayOfInterval({
                                     start: startOfWeek(weekStart, { weekStartsOn: 1 }),
                                     end: endOfWeek(weekStart, { weekStartsOn: 1 })
@@ -153,7 +153,7 @@ const MonthCalender = ({ roomsRes, selectedDate, locations, meetings, meetingTyp
                                     <Grid key={weekIndex} className={'RoomCal'} item sx={{ width: '100%', height: '100%', borderBottom: `1px solid ${theme.palette.border.main}` }}>
                                         <Box width={'100%'}>
                                             <Stack direction={'row'} width={'100%'} height={`calc(calc(100vh - 243px) / ${weeksOfMonth.length})`}>
-                                                {daysInWeek.map((day, dayIndex) => (
+                                                {daysInWeek?.map((day, dayIndex) => (
                                                     memoizedCreateDays(filteredMeetings, dayIndex, weekIndex, day)
                                                 ))}
                                             </Stack>

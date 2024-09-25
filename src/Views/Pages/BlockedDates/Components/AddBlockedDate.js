@@ -89,11 +89,11 @@ const AddBlockedDate = ({ open, setOpen, rooms, setUpdate }) => {
                                 id="demo-simple-select-standard"
                                 value={room?.id || ''}
                                 onChange={(e) => {
-                                    const selectedItem = rooms.find(itm => itm.id === e.target.value);
+                                    const selectedItem = rooms?.find(itm => itm.id === e.target.value);
                                     setRoom(selectedItem); // Return the entire object
                                 }}
                             >
-                                {rooms.map((itm, index) => <MenuItem key={index} value={itm.id}>{itm.value}</MenuItem>)}
+                                {rooms?.map((itm, index) => <MenuItem key={index} value={itm.id}>{itm.value}</MenuItem>)}
                             </Select>
                         </FormControl>
                     </Stack>

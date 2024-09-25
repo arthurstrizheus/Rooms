@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { openSnackbar } from '../../../../Utilites/SnackbarContext';
 import { useAuth } from '../../../../Utilites/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Container, CssBaseline } from '@mui/material';
@@ -192,17 +191,17 @@ export default function SignUp({ setLoading }) {
                                     labelId="demo-simple-select-standard-label"
                                     id="location"
                                     required
-                                    value={location.officeid || ''}
+                                    value={location?.officeid || ''}
                                     name="location"
                                     label="Location"
                                     onChange={(e) => {
-                                        const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                        const selectedItem = locations?.find(itm => itm?.officeid === e.target.value);
                                         setLocation(selectedItem);  // Return the entire object
                                     }}
                                 >
-                                    {locations.map((itm, index) => (
-                                        <MenuItem key={index} value={itm.officeid}>
-                                            {itm.Alias}
+                                    {locations?.length > 0 && locations?.map((itm, index) => (
+                                        <MenuItem key={index} value={itm?.officeid}>
+                                            {itm?.Alias}
                                         </MenuItem>
                                     ))}
                                 </Select>

@@ -121,7 +121,8 @@ const SideBar = ({setBannerText, setContent}) => {
     
     const handleLogout = () => {
         localStorage.removeItem('user');
-        if(!localStorage.getItem('rememberMe')){
+        const rememberMe = localStorage.getItem('rememberMe') == 'true';
+        if(!rememberMe){
             localStorage.removeItem('email');
         }
         logout();

@@ -10,7 +10,7 @@ const MeetingRecurrence = sequelize.define('MeetingRecurrence', {
     meeting_id: {
         type: DataTypes.INTEGER,
         references: {
-            model: 'MeetMate-Meetings',
+            model: 'Rooms-Meetings',
             key: 'id'
         },
         onDelete: 'CASCADE'
@@ -38,7 +38,7 @@ const MeetingRecurrence = sequelize.define('MeetingRecurrence', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-MeetingRecurrences',
+    tableName: 'Rooms-MeetingRecurrences',
     timestamps: true
 });
 

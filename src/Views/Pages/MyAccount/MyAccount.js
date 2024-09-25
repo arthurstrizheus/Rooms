@@ -114,7 +114,7 @@ const MyAccount = ({setLoading}) => {
     },[update, user]);
     
     useEffect(() => {  
-        setLocation(locations.find(lc => lc.officeid === user?.location));
+        setLocation(locations?.find(lc => lc.officeid === user?.location));
     },[locations]);
 
     return(
@@ -147,15 +147,15 @@ const MyAccount = ({setLoading}) => {
                                             label="Location"
                                             value={location?.officeid || ''}
                                             onChange={(e) => {
-                                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                                 setLocation(selectedItem); // Return the entire object
                                             }}
                                         >
-                                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                                         </Select>
                                     </FormControl>
                                     <Box sx={{display:'flex', flexDirection:'row', gap:1, width:'400px',}}>
-                                        {userGroups.map((gp, index) => (
+                                        {userGroups?.map((gp, index) => (
                                             <Tooltip 
                                                 key={index}
                                                 arrow

@@ -56,12 +56,12 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
         if(!update){
             setStartTime('7:00am');
             setEndTime('7:15am');
-            const meetingRoom = roomsRes.find(rm => rm.id == meeting.room.id);
+            const meetingRoom = roomsRes?.find(rm => rm.id == meeting.room.id);
             setSelectedRoom(meetingRoom);
-            setType(meetingTypesRes.find(tp => tp.value.toLowerCase() === "meeting"));
+            setType(meetingTypesRes?.find(tp => tp.value.toLowerCase() === "meeting"));
         }else{
-            const meetingType = meetingTypesRes.find(tp => tp.id == updateMeeting.type);
-            const meetingRoom = roomsRes.find(rm => rm.id == updateMeeting.room);
+            const meetingType = meetingTypesRes?.find(tp => tp.id == updateMeeting.type);
+            const meetingRoom = roomsRes?.find(rm => rm.id == updateMeeting.room);
             setMeetingName(updateMeeting.name);
             setType(meetingType);
             setColor(meetingType?.color);
@@ -77,7 +77,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
     },[]);
 
     const onChangeMeetingType = (e) => {
-        setColor((meetingTypesRes.find(m => m.value == e.value)).color);
+        setColor((meetingTypesRes?.find(m => m.value == e.value)).color);
         setType(e);
     }
 
@@ -176,7 +176,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                     case 'next':
                         UpdateAllNextMeetingsInRecurrence(user?.id, updateMeeting).then((resp) => {
                             if(resp){
-                                const promises = special.map(async itm => isSelected(itm) ? 
+                                const promises = special?.map(async itm => isSelected(itm) ? 
                                     PostSpecialPermission({meeting_id: resp.id, user_id: itm, created_user_id: user?.id}) 
                                 :
                                     DeleteSpecialPermission(itm)
@@ -194,7 +194,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                             if(resp?.book){
                                 UpdateParentOnlyMeeting(updateMeeting.id, updateMeeting).then((resp) => {
                                     if(resp){
-                                        const promises = special.map(async itm => isSelected(itm) ? 
+                                        const promises = special?.map(async itm => isSelected(itm) ? 
                                             PostSpecialPermission({meeting_id: resp.id, user_id: itm, created_user_id: user?.id}) 
                                         :
                                             DeleteSpecialPermission(itm)
@@ -214,7 +214,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                     case 'all':
                         UpdateAllMeetingsInRecurrence(user?.id, updateMeeting).then((resp) => {
                             if(resp){
-                                const promises = special.map(async itm => isSelected(itm) ? 
+                                const promises = special?.map(async itm => isSelected(itm) ? 
                                     PostSpecialPermission({meeting_id: resp.id, user_id: itm, created_user_id: user?.id}) 
                                 :
                                     DeleteSpecialPermission(itm)
@@ -232,7 +232,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                             if(resp){
                                 UpdateMeeting(user?.id, updateMeeting).then((resp) => {
                                     if(resp?.id){
-                                        const promises = special.map(async itm => isSelected(itm) ? 
+                                        const promises = special?.map(async itm => isSelected(itm) ? 
                                             PostSpecialPermission({meeting_id: resp.id, user_id: itm, created_user_id: user?.id}) 
                                         :
                                             DeleteSpecialPermission(itm)
@@ -298,7 +298,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                     if(resp?.book){
                         PostMeeting(newMeeting).then((resp) => {
                             if(resp?.id){
-                                const promises = special.map(async itm => isSelected(itm) ? 
+                                const promises = special?.map(async itm => isSelected(itm) ? 
                                     PostSpecialPermission({meeting_id: resp.id, user_id: itm, created_user_id: user?.id}) 
                                 :
                                     DeleteSpecialPermission(itm)
@@ -386,9 +386,9 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                                                 input={<OutlinedInput id="select-multiple-chip-full" label="Special Permissions" />}
                                                 renderValue={(selected) => (
                                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
-                                                        {selected.map((value) => 
+                                                        {selected?.map((value) => 
                                                             {
-                                                                const user = users.find(gp => gp.id === value);
+                                                                const user = users?.find(gp => gp.id === value);
                                                                 return <Chip key={value} label={`${user?.first_name} ${user?.last_name}`} sx={{maxHeight:25}}/>;
                                                             }
                                                         )}
@@ -400,7 +400,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                                                     height:110
                                                 }}
                                             >
-                                                {users.filter(gp => gp.access != 'Read' && gp.id !== user?.id).map((user, index) => (
+                                                {users.filter(gp => gp.access != 'Read' && gp.id !== user?.id)?.map((user, index) => (
                                                     <MenuItem
                                                         key={index}
                                                         value={user?.id}

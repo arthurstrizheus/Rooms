@@ -39,7 +39,7 @@ const Room = sequelize.define('Room', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-Rooms',
+    tableName: 'Rooms-Rooms',
     timestamps: true
 });
 

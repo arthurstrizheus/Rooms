@@ -24,7 +24,7 @@ const CancelAllMeetings = async (req, res) => {
         const recurrence = await MeetingRecurrence.findByPk(id);
         await recurrence.update({active:false});
         const meetings = await Meeting.findAll({where:{recurrence_id: id}})
-        meetings.map(async meeting => {
+        meetings?.map(async meeting => {
             await meeting.update({
                 status: 'Canceled'
             })
@@ -87,7 +87,7 @@ const CancelAllNextMeetings = async (req, res) => {
 
             }
         })
-        meetings.map(async meeting => {
+        meetings?.map(async meeting => {
             await meeting.update({
                 status: 'Canceled'
             })

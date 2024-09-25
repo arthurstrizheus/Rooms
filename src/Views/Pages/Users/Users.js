@@ -75,13 +75,13 @@ function getComparator(order, orderBy) {
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array.map((el, index) => [el, index]);
+    const stabilizedThis = array?.map((el, index) => [el, index]);
     stabilizedThis.sort((a, b) => {
         const order = comparator(a[0], b[0]);
         if (order !== 0) return order;
         return a[1] - b[1]; 
     });
-    return stabilizedThis.map((el) => el[0]);
+    return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function Users({setLoading}) {
@@ -111,7 +111,7 @@ export default function Users({setLoading}) {
 
     const handleSubmit = () => {
         const remove = async () => {
-            const promises = filteredUsers.map(async itm => isSelected(itm.id) ? await DeleteUser(itm.id) : null);
+            const promises = filteredUsers?.map(async itm => isSelected(itm.id) ? await DeleteUser(itm.id) : null);
             await Promise.all(promises).then((resp) =>  resp  ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Deleted`) : showError(`Failed to delete user${filteredUsers?.length > 1 ? "s" : ''}`)).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -119,7 +119,7 @@ export default function Users({setLoading}) {
         };
 
         const activate = async () => {
-            const promises = filteredUsers.map(async itm => isSelected(itm.id) ? await ActivateUser(itm.id) : null);
+            const promises = filteredUsers?.map(async itm => isSelected(itm.id) ? await ActivateUser(itm.id) : null);
             await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Activated`) : showError(`Failed to activate user${filteredUsers?.length > 1 ? "s" : ''}`)).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -127,7 +127,7 @@ export default function Users({setLoading}) {
         };
 
         const deactivate = async () => {
-            const promises = filteredUsers.map(async itm => isSelected(itm.id) ? await DeactivateUser(itm.id) : null);
+            const promises = filteredUsers?.map(async itm => isSelected(itm.id) ? await DeactivateUser(itm.id) : null);
             await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Deactivated`) : showError(`Failed to deactivate user${filteredUsers?.length > 1 ? "s" : ''}`)).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -164,7 +164,7 @@ export default function Users({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = users.map((n) => n.id);
+            const newSelecteds = users?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -250,7 +250,7 @@ export default function Users({setLoading}) {
             setGroups(grps);
             setGroupUsers(groupUsers);
             setLocations(lcs);
-            setFilterLocation(filterLocation?.officeid || filterLocation?.officeid === 0 ? filterLocation : lcs.find(lc => lc.officeid == user?.location));
+            setFilterLocation(filterLocation?.officeid || filterLocation?.officeid === 0 ? filterLocation : lcs?.find(lc => lc.officeid == user?.location));
             setLoading(false);
         }
         getData();
@@ -266,15 +266,15 @@ export default function Users({setLoading}) {
             setFilteredUsers(users);
         }
 
-        const data = usrs.map(itm => {
+        const data = usrs?.map(itm => {
             const Usersgroups = groupUsers.filter(ug => ug.user_id == itm.id);
             const usersGroupsByName = [];
-            Usersgroups.map(gp => usersGroupsByName.push(groups.find(mg => mg.id == gp.group_id)));
+            Usersgroups?.map(gp => usersGroupsByName.push(groups?.find(mg => mg.id == gp.group_id)));
             return createData(
                 itm.id,
                 `${itm.first_name} ${itm.last_name}`,
                 itm.email,
-                locations.find(lc => lc.officeid == itm.location).Alias,
+                locations?.find(lc => lc.officeid == itm.location).Alias,
                 usersGroupsByName,
                 itm.active ? 'True' : 'False',
                 itm.last_login ? new Date(itm.last_login).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })
@@ -304,11 +304,11 @@ export default function Users({setLoading}) {
                         id="demo-simple-select-standard"
                         value={filterLocation?.officeid === 0 ? 0 : filterLocation?.officeid ? filterLocation.officeid : ''}
                         onChange={(e) => {
-                            const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                            const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                             setFilterLocation(selectedItem); // Return the entire object
                         }}
                     >
-                        {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                        {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                     </Select>
                 </FormControl>
             </Box>
@@ -383,12 +383,12 @@ export default function Users({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row, index) => {
+                        {paginatedRows?.map((row, index) => {
                             const isItemSelected = isSelected(row.id);
                             const isItemOpen = isOpen(row.id);
                             const backgroundColor = index % 2 === 0 ? '#f0f0f0' : '#ffffff';  // Alternate background color
-                            const rowUser = filteredUsers.find(mt => mt.id === row.id);
-                            const location = locations.find(lc => lc.officeid == rowUser?.location);
+                            const rowUser = filteredUsers?.find(mt => mt.id === row.id);
+                            const location = locations?.find(lc => lc.officeid == rowUser?.location);
                             return (
                                 <React.Fragment key={index}>
                                     <StyledTableRow
@@ -414,7 +414,7 @@ export default function Users({setLoading}) {
                                         <StyledTableCell align="left">{row.email}</StyledTableCell>
                                         <StyledTableCell align="left">{row.location}</StyledTableCell>
                                         <StyledTableCell align="left" display="flex">
-                                            {row.groups.map((gp, index) => (
+                                            {row.groups?.map((gp, index) => (
                                                 <Tooltip 
                                                     key={index}
                                                     arrow

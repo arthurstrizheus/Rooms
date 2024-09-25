@@ -21,7 +21,7 @@ export async function PostGroup(data) {
 
 export async function DeleteGroup(id) {
     try {
-        const resp = await axios.delete(`/api/groups/${id}`);
+        const resp = await axios.delete( `/api/groups/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             showSuccess('Group deleted');

@@ -18,7 +18,7 @@ const GetAllForRoom = async (req, res) => {
         const data = await RoomResource.findAll({ where: { room_id: roomId } });
         
         // Extract resource IDs and log them to ensure they are correct
-        const resourceIds = data.map(rc => rc.resource_id);
+        const resourceIds = data?.map(rc => rc.resource_id);
         
         // Check if resourceIds is an array and contains valid values
         if (!Array.isArray(resourceIds) || !resourceIds.length) {

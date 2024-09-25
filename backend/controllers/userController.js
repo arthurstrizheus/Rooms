@@ -27,7 +27,7 @@ async function verifyPassword(plainPassword, hash) {
 const GetAll = async (req, res) => {
     try {
         const data = await User.findAll();
-        const noPass = data.map(usr => {
+        const noPass = data?.map(usr => {
             const userObj = usr.get({ plain: true });  // Convert Sequelize instance to plain object
             return { ...userObj, password: undefined };  // Remove the password
         });

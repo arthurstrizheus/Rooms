@@ -34,7 +34,7 @@ const useMultiSyncScrollHorizontal = (refs, masterRef) => {
         };
 
         if (masterRef && refs.length > 0) {
-            const removeHandlers = refs.map(ref => syncScroll(ref, [masterRef, ...refs.filter(r => r !== ref)]));
+            const removeHandlers = refs?.map(ref => syncScroll(ref, [masterRef, ...refs.filter(r => r !== ref)]));
 
             return () => {
                 removeHandlers.forEach(remove => remove());

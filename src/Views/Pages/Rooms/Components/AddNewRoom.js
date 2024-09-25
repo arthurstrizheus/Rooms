@@ -41,9 +41,9 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
             if(!selectedRoom?.id){
                 PostRoom({value: roomName, color: color, location: location.officeid, capacity: capacity, created_user_id: user?.id }).then(async (resp) => {
                     if(resp){
-                        let promises = fullControl.map(async fc => PostRoomGroup({group_id: fc, room_id: resp.id, created_user_id: user?.id}));
+                        let promises = fullControl?.map(async fc => PostRoomGroup({group_id: fc, room_id: resp.id, created_user_id: user?.id}));
                         await Promise.all(promises);
-                        promises = readAccess.map(async ra => PostRoomGroup({group_id: ra, room_id: resp.id, created_user_id: user?.id}));
+                        promises = readAccess?.map(async ra => PostRoomGroup({group_id: ra, room_id: resp.id, created_user_id: user?.id}));
                         await Promise.all(promises);
                     }
                 })
@@ -53,11 +53,11 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                 .then((resp) => {
                     if(resp){
                         // Add new groups
-                        fullControl.map(fc => oldFullControl.find(ofc => ofc === fc) ? null : PostRoomGroup({group_id: fc, room_id: selectedRoom.id, created_user_id: user?.id}));
-                        readAccess.map(or => oldReadAccess.find(ora => ora === or) ? null : PostRoomGroup({group_id: or, room_id: selectedRoom.id, created_user_id: user?.id}));
+                        fullControl?.map(fc => oldFullControl?.find(ofc => ofc === fc) ? null : PostRoomGroup({group_id: fc, room_id: selectedRoom.id, created_user_id: user?.id}));
+                        readAccess?.map(or => oldReadAccess?.find(ora => ora === or) ? null : PostRoomGroup({group_id: or, room_id: selectedRoom.id, created_user_id: user?.id}));
                         // Delete removed groups
-                        oldFullControl.map(ofc => fullControl.find(fc => ofc === fc) ? null : DeleteRoomGroupByRoomId({group_id: ofc, room_id: selectedRoom.id}));
-                        oldReadAccess.map(ora => readAccess.find(or => ora === or) ? null : DeleteRoomGroupByRoomId({group_id: ora, room_id: selectedRoom.id}));
+                        oldFullControl?.map(ofc => fullControl?.find(fc => ofc === fc) ? null : DeleteRoomGroupByRoomId({group_id: ofc, room_id: selectedRoom.id}));
+                        oldReadAccess?.map(ora => readAccess?.find(or => ora === or) ? null : DeleteRoomGroupByRoomId({group_id: ora, room_id: selectedRoom.id}));
                     }
                 })
                 .then(() =>setUpdate(prev => prev + 1));
@@ -95,8 +95,8 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
             setCapacity(selectedRoom.capacity);
             
             const roomsGroups = [];
-            roomGroups.filter(gp => gp.room_id == selectedRoom.id).map(ug => roomsGroups.push(groups.find(gp => gp.id == ug.group_id)));
-            roomsGroups.map(ug => {
+            roomGroups.filter(gp => gp.room_id == selectedRoom.id)?.map(ug => roomsGroups.push(groups?.find(gp => gp.id == ug.group_id)));
+            roomsGroups?.map(ug => {
                 if(ug.access == 'Full' && !fullControl.includes(ug.id)){
                     fullControl.push(ug.id);
                     oldFullControl.push(ug.id);
@@ -138,12 +138,12 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                                     id="demo-simple-select-standard"
                                     value={location?.officeid || ''}
                                     onChange={(e) => {
-                                        const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                        const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                         setLocation(selectedItem); // Return the entire object
                                     }}
                                     label="Location"
                                 >
-                                    {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                                    {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                                 </Select>
                             </FormControl>
                             <TextField
@@ -173,8 +173,8 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                                     input={<OutlinedInput id="select-multiple-chip-full" label="Full Control" />}
                                     renderValue={(selected) => (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
-                                            {selected.map((value) => (
-                                                <Chip key={value} label={groups.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
+                                            {selected?.map((value) => (
+                                                <Chip key={value} label={groups?.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
                                             ))}
                                         </Box>
                                     )}
@@ -184,7 +184,7 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                                         height:110
                                     }}
                                 >
-                                    {groups.filter(gp => gp.access != 'Read').map((name, index) => (
+                                    {groups.filter(gp => gp.access != 'Read')?.map((name, index) => (
                                         <MenuItem
                                             key={index}
                                             value={name.id}
@@ -207,8 +207,8 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                                     input={<OutlinedInput id="select-multiple-chip-read" label="Read Access" />}
                                     renderValue={(selected) => (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
-                                            {selected.map((value) => (
-                                                <Chip key={value} label={groups.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
+                                            {selected?.map((value) => (
+                                                <Chip key={value} label={groups?.find(gp => gp.id === value)?.group_name} sx={{maxHeight:25}}/>
                                             ))}
                                         </Box>
                                     )}
@@ -218,7 +218,7 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                                         height:110
                                     }}
                                 >
-                                    {groups.filter(gp => gp.access != 'Full').map((name, index) => (
+                                    {groups.filter(gp => gp.access != 'Full')?.map((name, index) => (
                                         <MenuItem
                                             key={index}
                                             value={name.id}

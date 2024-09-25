@@ -31,7 +31,7 @@ const Resource = sequelize.define('Resource', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-Resources',
+    tableName: 'Rooms-Resources',
     timestamps: true
 });
 

@@ -11,7 +11,7 @@ const MeetingGroup = sequelize.define('MeetingGroup', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Groups', // Name of the referenced model
+            model: 'Rooms-Groups', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -20,7 +20,7 @@ const MeetingGroup = sequelize.define('MeetingGroup', {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'MeetMate-Meetings', // Name of the referenced model
+            model: 'Rooms-Meetings', // Name of the referenced model
             key: 'id',       // Key in the referenced model
         },
         onDelete: 'CASCADE', // Enable cascade delete
@@ -40,7 +40,7 @@ const MeetingGroup = sequelize.define('MeetingGroup', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-MeetingGroups',
+    tableName: 'Rooms-MeetingGroups',
     timestamps: true
 });
 

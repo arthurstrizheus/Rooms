@@ -35,7 +35,7 @@ const Group = sequelize.define('Group', {
         defaultValue: DataTypes.NOW // Set default value
     }
 }, {
-    tableName: 'MeetMate-Groups',
+    tableName: 'Rooms-Groups',
     timestamps: true
 });
 

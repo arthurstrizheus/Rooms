@@ -57,13 +57,13 @@ function getComparator(order, orderBy) {
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array.map((el, index) => [el, index]);
+    const stabilizedThis = array?.map((el, index) => [el, index]);
     stabilizedThis.sort((a, b) => {
         const order = comparator(a[0], b[0]);
         if (order !== 0) return order;
         return a[1] - b[1]; 
     });
-    return stabilizedThis.map((el) => el[0]);
+    return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function Groups({setLoading}) {
@@ -100,7 +100,7 @@ export default function Groups({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = groups.map((n) => n.id);
+            const newSelecteds = groups?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -129,7 +129,7 @@ export default function Groups({setLoading}) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = filteredGroups.map(async itm => isSelected(itm.id) ? await DeleteGroup(itm.id) : null);
+            const promises = filteredGroups?.map(async itm => isSelected(itm.id) ? await DeleteGroup(itm.id) : null);
             await Promise.all(promises).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -152,7 +152,7 @@ export default function Groups({setLoading}) {
             setLoading(true);
             const locations = await GetLocations();
             const groups = await GetGroups();
-            setFilterLocation(filterLocation?.officeid || filterLocation?.officeid === 0 ? filterLocation : locations.find(lc => lc.officeid == user?.location));
+            setFilterLocation(filterLocation?.officeid || filterLocation?.officeid === 0 ? filterLocation : locations?.find(lc => lc.officeid == user?.location));
             setLocations(locations);
             setGroups(groups);
             setLoading(false);
@@ -170,7 +170,7 @@ export default function Groups({setLoading}) {
             setFilteredGroups(grps);
         }
 
-        const data = grps.map(itm => {
+        const data = grps?.map(itm => {
             return createData(
                 itm.id,
                 itm.group_name,
@@ -204,11 +204,11 @@ export default function Groups({setLoading}) {
                             id="demo-simple-select-standard"
                             value={filterLocation?.officeid === 0 ? 0 : filterLocation?.officeid ? filterLocation.officeid : ''}
                             onChange={(e) => {
-                                const selectedItem = locations.find(itm => itm.officeid === e.target.value);
+                                const selectedItem = locations?.find(itm => itm.officeid === e.target.value);
                                 setFilterLocation(selectedItem); // Return the entire object
                             }}
                         >
-                            {locations.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
+                            {locations?.map((itm, index) => <MenuItem key={index} value={itm.officeid}>{itm.Alias}</MenuItem>)}
                         </Select>
                     </FormControl>
                 </Box>
@@ -245,7 +245,7 @@ export default function Groups({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row, index) => {
+                        {paginatedRows?.map((row, index) => {
                             const isItemSelected = isSelected(row.id);
                             return (
                                 <StyledTableRow

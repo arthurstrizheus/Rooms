@@ -20,7 +20,7 @@ export async function PostGroupUser(data) {
 
 export async function DeleteGroupUser(id) {
     try {
-        const resp = await axios.delete(`/api/groupusers/${id}`);
+        const resp = await axios.delete( `/api/groupusers/${id}`);
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
@@ -42,7 +42,7 @@ export async function DeleteGroupUser(id) {
 
 export async function DeleteGroupUserById(data) {
     try {
-        const resp = await axios.delete(`/api/groupusers`, {data:data});
+        const resp = await axios.delete( `/api/groupusers`, {data:data});
         
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success

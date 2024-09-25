@@ -1,5 +1,5 @@
 {
-  "name": "meetmate",
+  "name": "rooms",
   "version": "1.0.0",
   "private": true,
   "proxy": "http://localhost:5000",

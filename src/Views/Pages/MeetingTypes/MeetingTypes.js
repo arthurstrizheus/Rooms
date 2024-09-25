@@ -52,13 +52,13 @@ function getComparator(order, orderBy) {
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array.map((el, index) => [el, index]);
+    const stabilizedThis = array?.map((el, index) => [el, index]);
     stabilizedThis.sort((a, b) => {
         const order = comparator(a[0], b[0]);
         if (order !== 0) return order;
         return a[1] - b[1];
     });
-    return stabilizedThis.map((el) => el[0]);
+    return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function MeetingTypes({setLoading}) {
@@ -75,7 +75,7 @@ export default function MeetingTypes({setLoading}) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = types.map(async itm => isSelected(itm.id) ? await DeleteMeetingType(itm.id) : null);
+            const promises = types?.map(async itm => isSelected(itm.id) ? await DeleteMeetingType(itm.id) : null);
             await Promise.all(promises).then( () => {
                 setSelected([]);
                 setUpdate(prev => prev + 1);
@@ -101,7 +101,7 @@ export default function MeetingTypes({setLoading}) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = types.map((n) => n.id);
+            const newSelecteds = types?.map((n) => n.id);
             setSelected(newSelecteds);
             return;
         }
@@ -142,7 +142,7 @@ export default function MeetingTypes({setLoading}) {
     },[update]);
 
     useEffect(() => {
-        const data = types.map(itm => {
+        const data = types?.map(itm => {
             return createData(
                 itm.id,
                 itm.value,
@@ -199,7 +199,7 @@ export default function MeetingTypes({setLoading}) {
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{backgroundColor:'white'}}>
-                        {paginatedRows.map((row) => {
+                        {paginatedRows?.map((row) => {
                             const isItemSelected = isSelected(row.id);
                             return (
                             <React.Fragment key={row.id}>

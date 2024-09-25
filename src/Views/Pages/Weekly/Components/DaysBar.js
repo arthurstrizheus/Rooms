@@ -6,7 +6,7 @@ import {Grid, Stack, Typography} from "@mui/material";
 const DaysBar = ({ days }) => {
     const theme = useTheme();
     return (
-        days.map((day) => (
+        days?.map((day) => (
             <Grid key={day} className="Hour" item sx={{ width: '100%', height: '100%', minWidth: '160px' }}>
                 <Stack direction={'column'} sx={{ borderLeft: `2px solid ${theme.palette.border.main}`, height: '100%', paddingLeft: '10px' }}>
                     {/* Display the day of the month */}
