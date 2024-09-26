@@ -108,7 +108,7 @@ export default function RoomResources({setLoading}) {
         const getData = async () => {
             setLoading(true);
             
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             const lcs = await GetLocations();
             const rrs = await GetRoomResources();
             const rss = await GetResources();

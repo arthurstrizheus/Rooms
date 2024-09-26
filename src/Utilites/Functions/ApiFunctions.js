@@ -57,9 +57,9 @@ export async function GetLocations() {
         return [];
     }
 }
-export async function GetRooms() {
+export async function GetRooms(userId) {
     try {
-        const resp = await axios.get( '/api/rooms');
+        const resp = await axios.get( `/api/rooms/${userId}`);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);

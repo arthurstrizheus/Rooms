@@ -180,7 +180,7 @@ export default function Rooms({setLoading}) {
     useEffect(() => {    
         const getData = async () => {
             setLoading(true);
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             const lcs = await GetLocations();
             const grps = await GetGroups();
             const rmgps = await GetRoomGroups();

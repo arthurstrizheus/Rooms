@@ -3,6 +3,7 @@ import { createTheme } from '@mui/material/styles';
 // Define your primary and secondary colors using blue and purple
 const primary = {
   light: '#7986cb', // light blue
+  lightHover: '#e8ecff',
   main: '#3f51b5',  // modern blue
   dark: '#303f9f',  // dark blue
   darkSelected: '#1a237e', // selected dark blue
@@ -45,6 +46,7 @@ const theme = (mode) => createTheme({
     mode: mode,
     primary: {
       light: primary.light,
+      lightHover: primary.lightHover,
       main: primary.main,
       dark: primary.dark,
       darkSelected: primary.darkSelected,

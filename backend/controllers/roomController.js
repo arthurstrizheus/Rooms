@@ -1,9 +1,65 @@
-const { Room } = require('../models');
+const { Sequelize } = require('sequelize');
+const { Room, User, GroupUser, RoomGroup } = require('../models');
 
 const GetAll = async (req, res) => {
     try {
         const data = await Room.findAll();
         res.json(data);
+    } catch (err) {
+        console.error('Error fetching room groups:', err);
+        res.status(500).send('Server error');
+    }
+};
+
+const GetRoomsUserCanSee = async (req, res) => {
+    try {
+        const { userId } = req.params; // User ID
+
+        if (!userId || userId == undefined || userId == null) {
+            return res.status(400).json({ message: 'Required fields missing, userId' });
+        }
+
+        // If user is admin return all meetings
+        const user = await User.findByPk(userId);
+
+        if(user.admin){
+            let rooms = await Room.findAll({
+                where: {
+                    location: user.location,
+                }
+            });
+            return res.status(200).json(rooms);
+        }
+
+        // Fetch all groups the user belongs to
+        const groupUsers = await GroupUser.findAll({ where: { user_id: userId } });
+
+        if(!groupUsers?.length){
+            return res.status(200).json([]);
+        }
+
+        // Extract group IDs the user belongs to
+        const groupIds = groupUsers?.map(gu => gu.group_id);
+
+        // Find all room groups that match the user's group memberships
+        const roomGroups = await RoomGroup.findAll({
+            where: {
+                group_id: groupIds,
+            }
+        });
+
+        // Extract room IDs from the RoomGroup associations
+        let roomIds = roomGroups?.map(rg => rg.room_id);
+
+        const UsersRooms = await Room.findAll({
+            where: {
+                id:{
+                    [Sequelize.Op.in]: roomIds
+                }
+            }
+        });
+        // Return the filtered meetings the user can see
+        return res.status(200).json(UsersRooms || []);
     } catch (err) {
         console.error('Error fetching room groups:', err);
         res.status(500).send('Server error');
@@ -96,5 +152,6 @@ module.exports = {
     GetAll,
     Post,
     Update,
-    Delete
+    Delete,
+    GetRoomsUserCanSee
 };
