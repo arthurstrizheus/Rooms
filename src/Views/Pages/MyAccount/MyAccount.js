@@ -2,15 +2,20 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useTheme } from "@emotion/react";
 import { openSnackbar } from "../../../Utilites/SnackbarContext";
-import {Grid, Stack, Typography, Button, Divider, FormControl, Select, InputLabel, MenuItem, TextField, Box, Tooltip, Chip} from "@mui/material";
+import {Grid, Stack, Typography, Button, Divider, FormControl, Select, InputLabel, MenuItem, TextField, Box, Tooltip, Chip, Tab, Tabs} from "@mui/material";
 import PageSelector from '../../Components/PageSelector/PageSelector';
 import { GetLocations, GetUserGroups } from "../../../Utilites/Functions/ApiFunctions";
 import { AuthenticatePassword, UpdateUserDetails, UpdateUserPassword, AuthenticateUser } from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
 
+function a11yProps(index) {
+    return {
+        id: `simple-tab-${index}`,
+        'aria-controls': `simple-tabpanel-${index}`,
+    };
+}
 
 const MyAccount = ({setLoading}) => {
     const theme = useTheme();
-    const headers = ['Details'];
     const {user, setUser} = useAuth();
     const [email, setEmail] = useState('');
     const [password1, setPassword1] = useState('');
@@ -118,14 +123,17 @@ const MyAccount = ({setLoading}) => {
     },[locations]);
 
     return(
-        <Grid sx={{width:'100%', height:'100%', background:'#fffafa'}}>
+        <Grid sx={{width:'100%', height:'100%'}}>
             <Stack direction={'column'} sx={{width:'100%', height:'100%'}}>
-                <PageSelector headers={headers} selectedHeader={0} hoverFill={'#fffafa'}/>
-                <Stack sx={{display:'flex', width: '100%', height: '100%', justifyContent: 'space-between', paddingTop:'50px', paddingBottom:'50px'}} direction={'row'}>
-                    
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <Tabs value={0} aria-label="basic tabs example">
+                        <Tab label='Details' {...a11yProps(0)} />
+                    </Tabs>
+                </Box>
+                <Stack sx={{display:'flex', width: '100%', height: '100%', justifyContent: 'space-between', paddingTop:'50px', paddingBottom:'50px', backgroundColor: theme.palette.background.fill.light.lightHover}} direction={'row'}>
                     <Grid sx={{width:'100%', height:'100%', display:'flex', justifyContent:'center'}}>
-                        <Grid sx={{width:'fit-content', height:'fit-content', padding:'20px', borderRadius:'20px', background:'rgba(247, 247, 247, .5)', border:!accountBorder ? '4px, solid rgba(0,0,0, .01 )' : '4px, solid rgba(255,0,0, .2)'}}>
-                            <Typography width={'100%'} textAlign={'center'}>Account Details</Typography>
+                        <Grid sx={{width:'fit-content', height:'fit-content', padding:'20px', borderRadius:'20px', background: theme.palette.secondary.lightHover, border:!accountBorder ? '4px, solid rgba(0,0,0, .01 )' : '4px, solid rgba(255,0,0, .2)'}}>
+                            <Typography width={'100%'} textAlign={'center'} color={theme.palette.primary.main}>Account Details</Typography>
                             <Stack direction={'row'} spacing={2} sx={{width:'100%', height:'100%', justifyContent:'center', marginTop:'15px', minHeight:'220px'}}>
                                 <Stack spacing={2}>
                                     <Typography sx={{ alignItems: 'center', display: 'flex', height: '38px' }}>First name</Typography>
@@ -180,8 +188,8 @@ const MyAccount = ({setLoading}) => {
                     <Divider orientation="vertical" sx={{height:'50%'}}/>
 
                     <Grid sx={{width:'100%', height:'100%', display:'flex', justifyContent:'center'}}>
-                        <Grid sx={{width:'fit-content', height:'fit-content', padding:'20px', borderRadius:'20px', background:'rgba(247, 247, 247, .5)', border: !passwordBorder ? '4px, solid rgba(0,0,0, .01 )' : '4px, solid rgba(255,0,0, .2 )'}}>
-                            <Typography width={'100%'} textAlign={'center'}>Athentication</Typography>
+                        <Grid sx={{width:'fit-content', height:'fit-content', padding:'20px', borderRadius:'20px', background: theme.palette.secondary.lightHover, border: !passwordBorder ? '4px, solid rgba(0,0,0, .01 )' : '4px, solid rgba(255,0,0, .2 )'}}>
+                            <Typography width={'100%'} textAlign={'center'} color={theme.palette.primary.main}>Athentication</Typography>
                             <Stack direction={'row'} spacing={2} sx={{width:'100%', height:'100%', justifyContent:'center', marginTop:'15px', minHeight:'220px'}}>
                                 <Stack spacing={2}>
                                     <Typography sx={{ alignItems: 'center', display: 'flex', height: '38px' }}>Current</Typography>

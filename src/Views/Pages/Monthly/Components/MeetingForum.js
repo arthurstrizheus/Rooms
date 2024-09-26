@@ -47,9 +47,8 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
         const data = async () => {
             const usrs = await GetUsers();
             if(update){
-                const selectedUserIds = await GetSpecialPermissionsForMeeting(updateMeeting.id);
-                console.log(selectedUserIds)
-                setSpecial(selectedUserIds);
+                const selectedUserIds = await GetSpecialPermissionsForMeeting({id: updateMeeting.id, recurrence_id: updateMeeting.recurrence_id});
+                setSpecial(selectedUserIds || []);
             }
             setUsers(usrs);
         }
@@ -326,14 +325,14 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
     };
 
     return(
-        <Grid container sx={{width: showDesc ? '600px' : '350px', height: showDesc ? '467px' : '411px', transition: 'width 0.5s ease-in-out, height 0.5s ease-in-out', overflow:'hidden'}}>
+        <Grid container sx={{width: showDesc ? '600px' : '350px', height: showDesc ? '467px' : '380px', transition: 'width 0.5s ease-in-out, height 0.5s ease-in-out', overflow:'hidden'}}>
             <Stack direction={'column'} sx={{width:'100%', height:'100%'}}>
                 <Grid container direction={'column'} sx={{paddingTop:'20px', paddingLeft:'20px', paddingBottom:'20px', borderBottom:`4px solid ${color ? color : "#91E041"}`}}>
                     <Typography fontSize={28}>Book Room</Typography>
                     <Typography fontSize={16} color={theme.palette.secondary.light} marginTop={'-5px'} fontFamily={'comic sans ms'}>{update ? new Date(updateMeeting.start_time)?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : meeting.date?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Typography>
                 </Grid>
-                <Grid container>
-                    <Stack direction={showDesc ? 'row' : 'column'} sx={{padding:'20px', width:'100%'}} spacing={2}>
+                <Box sx={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+                    <Stack direction={showDesc ? 'row' : 'column'} sx={{padding:'20px'}} spacing={2}>
                         <Box sx={{display:'flex', flexDirection:'column', gap:1, maxWidth: !showDesc ? '350px' : '600px', flexGrow:1}}>
                             <ShortTextField value={meetingName} label={"Meeting name"} variant={'outlined'} autoFocus={true} onChange={(e) => setMeetingName(e)}/>
                             <ShortSelectObject items={meetingTypesRes} label={'Meeting Type'} value={type} onChange={onChangeMeetingType}/>
@@ -342,12 +341,6 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                                 <ShortSelect items={times} label={'Start Time'} value={startTime} onChange={onChangeStartTime}/>
                                 <ShortSelect items={times} label={'End Time'} value={endTime} onChange={onChangeEndTime}/>
                             </Stack>
-                            <Typography fontSize={14} color={theme.palette.secondary.light} 
-                                sx={{':hover':{cursor:'pointer'}, width:'fit-content'}}
-                                onClick={() => setShowDesc(!showDesc)}
-                            >
-                                Add details {showDesc ? '-' : '+'}
-                            </Typography>
                         </Box>
                         {showDesc &&
                             <Box sx={{display: 'flex', flexGrow:1, flexDirection:'column', gap:1}}>
@@ -376,12 +369,12 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                                             <MenuItem key={4} value={'Yearly'}>{'Yearly'}</MenuItem>
                                     </Select>
                                     </FormControl>
-                                    <FormControl sx={{marginTop:'10px', width: "100%" }}>
+                                    <FormControl sx={{marginTop:'10px', width: "100%" }} size={'small'}>
                                             <InputLabel id="demo-multiple-chip-label-full">Special Permissions</InputLabel>
                                             <Select
                                                 labelId="demo-multiple-chip-label-full"
                                                 id="demo-multiple-chip-full"
-                                                multiple 
+                                                multiple
                                                 value={special}
                                                 onChange={handleSpecialChange}
                                                 input={<OutlinedInput id="select-multiple-chip-full" label="Special Permissions" />}
@@ -416,14 +409,16 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                             </Box>
                         }
                     </Stack>
-                    <Box sx={{display:'flex', flexDirection:'row', gap:1, flexGrow:1, padding:'4px', background:theme.palette.background.fill.light.dark}}>
+                    <Box sx={{display:'flex', flexDirection:'row', gap:1, flexGrow:1, padding:'4px'}}>
                         <Button 
-                            variant={'contained'} 
+                            variant={'outlined'}
+                            onClick={() => setShowDesc(!showDesc)}
                             sx={{
                                 width:'100%', 
                                 color:'black', 
-                                background:'#f7c6a1', 
-                                ':hover':{background:'#edae7e'},
+                                ':hover':{
+                                    background: theme.palette.background.fill.alert.warningLight,
+                                },
                                 fontWeight:'bold'
                             }} 
                             startIcon={<TuneIcon/>}
@@ -431,13 +426,14 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                             Advanced
                         </Button>
                         <Button 
-                            variant={'contained'} 
+                            variant={'outlined'} 
                             sx={{
                                 width:'100%', 
                                 color:'black', 
-                                background:'#a1f0a3', 
-                                ':hover':{background:'#58b85b'},
-                                fontWeight:'bold'
+                                ':hover':{
+                                    background: theme.palette.background.fill.alert.successLight,
+                                },
+                                fontWeight:'bold',
                             }}
                             onClick={onSubbmit}
                             startIcon={<CheckIcon/>}
@@ -445,7 +441,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                             {update ? 'Update' : 'Book'}
                         </Button>
                     </Box>
-                </Grid>
+                </Box>
             </Stack>
         </Grid>
     );

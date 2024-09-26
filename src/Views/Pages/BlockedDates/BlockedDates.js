@@ -5,7 +5,7 @@ import TableRow from '@mui/material/TableRow';
 import { useTheme } from '@emotion/react';
 import { useAuth } from '../../../Utilites/AuthContext';
 import { getDateAmPm } from '../../../Utilites/Functions/CommonFunctions';
-import { FormControl, InputLabel, Select, Box, Tooltip, TableContainer, Table, TableHead, TableBody, TablePagination, Paper, Checkbox, MenuItem } from "@mui/material";
+import { FormControl, InputLabel, Select, Box, Tooltip, TableContainer, Table, TableHead, TableBody, TablePagination, Paper, Checkbox, MenuItem, Tab, Tabs } from "@mui/material";
 import AddBlockedDate from './Components/AddBlockedDate';
 import AddIcon from '@mui/icons-material/AddOutlined';
 import PageSelector from '../../Components/PageSelector/PageSelector'
@@ -33,6 +33,12 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
     },
 }));
 
+function a11yProps(index) {
+    return {
+        id: `simple-tab-${index}`,
+        'aria-controls': `simple-tabpanel-${index}`,
+    };
+}
 
 function createData(id, name, description, room_id, start_time, end_time, repeats) {
     return { id, name, description, room_id, start_time, end_time, repeats };
@@ -165,7 +171,11 @@ export default function BlockedDates({setLoading}) {
                 location={filterLocation}
                 setUpdate={setUpdate}
             />
-            <PageSelector headers={["Blocked"]} selectedHeader={0} hoverFill={'white'} onClick={() => {}}/>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs value={0} aria-label="basic tabs example">
+                    <Tab label="Blocked" {...a11yProps(0)} />
+                </Tabs>
+            </Box>
             <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden' }}>
                 <Tooltip title={'Add Item'}>
                     <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:130, color:'darkgreen', cursor:'pointer', ':hover':{color:'green'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>

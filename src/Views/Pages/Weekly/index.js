@@ -98,7 +98,7 @@ const WeekSchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
     return (
         <Grid height={'100%'} width={'100%'} overflow={'hidden'}>
             <Stack direction={'column'} height="100%" >
-                <Stack direction="row" height="calc(100vh - 167px)" width={'calc(100vw - 200px)'}>
+                <Stack direction="row" height="calc(100vh - 167px)" width={'calc(100vw - 220px)'}>
                     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'row', position: 'relative' }}>
                         <Stack direction={'column'}>
                             <Grid item sx={{ width: '100%', height: '75px', padding: '10px', background: theme.palette.background.fill.light.lightHover, borderBottom: `1px solid ${theme.palette.border.secondary}` }}>

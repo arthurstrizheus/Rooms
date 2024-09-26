@@ -12,15 +12,25 @@ const primary = {
 
 const secondary = {
   light: '#ce93d8',  // light purple
+  lightHover: '#f7f9ff',
   main: '#9c27b0',   // modern purple
   dark: '#6a1b9a',   // dark purple
   text: { main: '#ffffff', light: '#e1bee7', dark: '#ab47bc' },
   contrastText: '#ffffff'
 };
 
+const alerts = {
+  error: '#e31010',
+  warning: '#edb211',
+  success: '#0ac729'
+}
+
 const fills = {
-  light: { main: '#f3e5f5', light: '#ede7f6', dark: '#e0e0e0', lightHover: '#fafbfc' }, // light purples and soft greys
-  dark: { main: '#3f51b5', light: '#7986cb', dark: '#303f9f', secondary: '#6a1b9a' }   // deep blue and purple tones
+  light: { main: '#f3e5f5', light: '#ede7f6', dark: '#c8abcc', lightHover: '#fafbfc' }, // light purples and soft greys
+  dark: { main: '#3f51b5', light: '#7986cb', dark: '#303f9f', secondary: '#6a1b9a' },  // deep blue and purple tones
+  alert: { success: '#96ffa9', successLight: '#d1ffd9', successDark: '#3db352', error: '#ff4b3b', 
+          errorLight: '#ffd9d9', errorDark: '#a83025', warning: '#ebb931', warningLight: '#fff2c9', warningDark: '#e6bd4e'
+        },
 };
 
 const borders = {
@@ -43,6 +53,7 @@ const theme = (mode) => createTheme({
     },
     secondary: {
       light: secondary.light,
+      lightHover: secondary.lightHover,
       main: secondary.main,
       dark: secondary.dark,
       text: secondary.text,

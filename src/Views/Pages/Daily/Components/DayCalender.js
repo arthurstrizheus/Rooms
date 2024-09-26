@@ -191,7 +191,7 @@ const DayCalender = ({Cref, hoursScrollRef, Cref2, scrollBarRef, roomsRes, selec
                 setUpdate={setUpdate}
                 updateMode={updateMode}
             />
-            <Grid width={'100%'} height={'calc(100vh - 155px)'} sx={{ overflowX: 'hidden' }}>
+            <Grid width={'100%'} height={'calc(100vh - 155px)'} sx={{ overflowX: 'hidden', position:'relative' }}>
                 <Box sx={{ height: '100%', display: 'flex', flexDirection: 'row', position: 'relative', overflowX: 'hidden' }}>
                     <Stack direction={'column'} width={'100%'} sx={{ overflowY: "hidden", msOverflowStyle: "none", scrollbarWidth: "none", "&::-webkit-scrollbar": { display: "none" } }}>
                         <Grid item sx={{ width: '100%', borderBottom: `1px solid ${theme.palette.border.secondary}`, background: theme.palette.background.fill.light.light }}>

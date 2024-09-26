@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { enGB } from 'date-fns/locale'; // Import the locale that starts weeks on Monday
 import { useTheme } from "@emotion/react";
-import { Grid, Stack, Typography, Dialog, Divider, Input, FormControl, InputLabel, TextField, Select, Box, Button, MenuItem } from "@mui/material";
+import { Grid, Stack, Typography, Dialog, Divider, Input, FormControl, InputLabel, TextField, Select, Box, Button, MenuItem, Collapse } from "@mui/material";
 import { LocalizationProvider, StaticDateTimePicker } from "@mui/x-date-pickers";
 import { addMinutes } from "date-fns";
 import { showError, showSuccess } from "../../../../Utilites/Functions/ApiFunctions";
@@ -30,6 +30,7 @@ const AddBlockedDate = ({ open, setOpen, rooms, setUpdate }) => {
         setRepeats('');
         setRoom('');
         setDescription('');
+        setShowDesc(false);
         setOpen(false);
     };
     const onSubmit = () => {
@@ -62,7 +63,7 @@ const AddBlockedDate = ({ open, setOpen, rooms, setUpdate }) => {
     return (
         <Dialog open={!!open} onClose={onClose} maxWidth="sm" fullWidth>
             <Grid sx={{display:'flex', justifyContent:'center', alignItems:'center', flexDirection:'column'}}>
-                <Stack direction={'column'} sx={{width:'fit-content', paddingTop:'5px' }}>
+                <Stack direction={'column'} sx={{width:'fit-content', paddingTop:'5px', height:`${showDesc ? '710px' : '600px'}`, transition: 'height 0.5s ease-in-out' }}>
                     <Typography
                         variant="h5"
                         textAlign={'center'}
@@ -97,8 +98,7 @@ const AddBlockedDate = ({ open, setOpen, rooms, setUpdate }) => {
                             </Select>
                         </FormControl>
                     </Stack>
-                    {showDesc ?
-                        
+                    <Collapse in={showDesc} timeout={600}>
                         <Box sx={{display:'flex', flexDirection:'column'}}>
                             <FormControl variant="standard" sx={{minWidth: 160, width:'100%'}}>
                                 <InputLabel id="repeats-simple-select-standard-label">Repeats</InputLabel>
@@ -125,22 +125,14 @@ const AddBlockedDate = ({ open, setOpen, rooms, setUpdate }) => {
                                 sx={{marginTop:'10px'}}
                                 onChange={(e) => setDescription(e.target.value)}
                             />
-                            <Typography fontSize={14} color={theme.palette.secondary.light} 
-                                sx={{':hover':{cursor:'pointer'}}}
-                                onClick={() => setShowDesc(false)}
-                            >
-                                Hide details -
-                            </Typography>
-                        </Box> 
-                        
-                    :
-                        <Typography fontSize={14} color={theme.palette.secondary.light} 
-                            sx={{':hover':{cursor:'pointer'}}}
-                            onClick={() => setShowDesc(true)}
-                        >
-                            Add details +
-                        </Typography>
-                    }
+                        </Box>
+                    </Collapse>
+                    <Typography fontSize={14} color={theme.palette.secondary.light} 
+                        sx={{':hover':{cursor:'pointer'}}}
+                        onClick={() => setShowDesc(!showDesc)}
+                    >
+                        {showDesc ? 'Hide details -' : 'Add details +'}
+                    </Typography>
                     {!showEndTime ?
                     (
                         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
@@ -182,6 +174,7 @@ const AddBlockedDate = ({ open, setOpen, rooms, setUpdate }) => {
                     
                     <Box sx={{display:'flex', marginTop: -5.4, flexGrow:1, marginBottom:4}}>
                         <Typography
+                            color={theme.palette.secondary.main}
                             variant="h6"
                             textAlign={'center'}
                             fontFamily={'Courier New, sans-serif'}

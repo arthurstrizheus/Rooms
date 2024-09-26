@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles';
 import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import { useTheme } from '@emotion/react';
-import { useAuth } from "../../../Utilites/AuthContext";
+import { useAuth } from "../../../../Utilites/AuthContext";
 import { useNavigate } from 'react-router-dom';
 import { Stack,
         Typography,
@@ -25,13 +25,12 @@ import { Stack,
         InputLabel,
         Select
     } from "@mui/material";
-import AddNewUser from './Components/AddNewUser';
+import AddNewUser from './AddNewUser';
 import AddIcon from '@mui/icons-material/AddOutlined';
-import PageSelector from '../../Components/PageSelector/PageSelector';
-import ShortSelect from '../../../Components/ShortSelect';
-import ViewUser from './Components/ViewUser';
-import { GetGroups, GetGroupUsers, GetLocations, GetUsers, showError, showSuccess } from '../../../Utilites/Functions/ApiFunctions';
-import { ActivateUser, DeactivateUser, DeleteUser } from '../../../Utilites/Functions/ApiFunctions/UserFunctions';
+import ShortSelect from '../../../../Components/ShortSelect';
+import ViewUser from './ViewUser';
+import { GetGroups, GetGroupUsers, GetLocations, GetUsers, showError, showSuccess } from '../../../../Utilites/Functions/ApiFunctions';
+import { ActivateUser, DeactivateUser, DeleteUser } from '../../../../Utilites/Functions/ApiFunctions/UserFunctions';
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -106,8 +105,6 @@ export default function Users({setLoading}) {
     const [groups, setGroups] = useState([]);
     const [locations, setLocations] = useState([]);
     const [groupUsers, setGroupUsers] = useState([]);
-    const headers = ['Users', 'Groups'];
-    const selectedHeader = 0;
 
     const handleSubmit = () => {
         const remove = async () => {
@@ -223,12 +220,6 @@ export default function Users({setLoading}) {
         setEditUserOpen(true);
     }
 
-    const hadleAddUser = () => {
-        setSelectedUserLocation(null);
-        setSelectedUser(null);
-        setEditUserOpen(true);
-    }
-
     const onHeaderClick = (e) => {
         if(e == 'Groups'){
             navigate('/manage/groups');
@@ -288,7 +279,7 @@ export default function Users({setLoading}) {
     },[filterLocation, users]);
     
     return (
-        <React.Fragment>
+        <Box sx={{height:'100%', width:'100%', display:'flex', flexGrow:1}}>
             <AddNewUser open={editUserOpen} setOpen={setEditUserOpen} userLocation={selectedUserLocation} locations={locations} groups={groups} userGroups={groupUsers} selectedUser={selectedUser} setUpdate={setUpdate}/>
             {user?.admin &&
                 <Tooltip title={'Add User'}>
@@ -312,9 +303,8 @@ export default function Users({setLoading}) {
                     </Select>
                 </FormControl>
             </Box>
-            <PageSelector headers={headers} selectedHeader={selectedHeader} hoverFill={'white'} onClick={onHeaderClick}/>
-            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column',  }}>
-                <TableContainer sx={{ flexGrow: 1 }}>
+            <Paper sx={{ height: '100%', display: 'flex', flexGrow:1, flexDirection: 'column',  }}>
+                <TableContainer sx={{ flexGrow: 1, height:'100%', overflow:'hidden'}}>
                     <Table sx={{ minWidth: 700 }} aria-label="customized table">
                         <TableHead sx={{position: 'sticky', top: 0, zIndex: 1}}>
                             <TableRow>
@@ -466,6 +456,7 @@ export default function Users({setLoading}) {
                     </Stack>
                 }
                 <TablePagination
+                    sx={{overflow:'hidden'}}
                     component="div"
                     count={filteredUsers.length}
                     rowsPerPage={rowsPerPage}
@@ -474,6 +465,6 @@ export default function Users({setLoading}) {
                     onRowsPerPageChange={handleChangeRowsPerPage}
                 />
             </Paper>
-        </React.Fragment>
+        </Box>
     );
 }

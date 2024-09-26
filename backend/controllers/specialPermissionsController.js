@@ -1,4 +1,4 @@
-const { SpecialPermission } = require('../models');
+const { SpecialPermission, MeetingRecurrence } = require('../models');
 const { CanDelete } = require('./meetingControler');
 
 const GetAll = async (req, res) => {
@@ -6,34 +6,38 @@ const GetAll = async (req, res) => {
         const data = await SpecialPermission.findAll();
         res.json(data);
     } catch (err) {
-        console.error('Error fetching room groups:', err);
+        console.error('Error fetching special permissions:', err);
         res.status(500).send('Server error');
     }
 };
-
 const GetAllForUser = async (req, res) => {
     const {userId} = req.params;
     try {
         const data = await SpecialPermission.findAll({where:{user_id:userId}});
         res.json(data);
     } catch (err) {
-        console.error('Error fetching room groups:', err);
+        console.error('Error fetching users special permissions:', err);
         res.status(500).send('Server error');
     }
 };
 
 const GetAllForMeeting = async (req, res) => {
-    const {meetingId} = req.params;
+    const {id, recurrence_id} = req.body;
     try {
+        let meetingId = id;
+        if(meetingId === -1){
+            const recurance = await MeetingRecurrence.findByPk(recurrence_id);
+            meetingId = recurance.meeting_id;
+        }
         const data = await SpecialPermission.findAll({where:{meeting_id:meetingId}});
         if(data?.length > 0){
             const userIds = data?.map(itm => itm.user_id);
-            res.json(userIds);
+            res.json([...new Set(userIds)]);
         }else{
             res.json([]);
         }
     } catch (err) {
-        console.error('Error fetching room groups:', err);
+        console.error('Error fetching meeting special users:', err);
         res.status(500).send('Server error');
     }
 };

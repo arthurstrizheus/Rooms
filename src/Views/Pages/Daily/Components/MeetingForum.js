@@ -48,9 +48,8 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
         const data = async () => {
             const usrs = await GetUsers();
             if(update){
-                const selectedUserIds = await GetSpecialPermissionsForMeeting(updateMeeting.id);
-                console.log(selectedUserIds)
-                setSpecial(selectedUserIds);
+                const selectedUserIds = await GetSpecialPermissionsForMeeting({id: updateMeeting.id, recurrence_id: updateMeeting.recurrence_id});
+                setSpecial(selectedUserIds || []);
             }
             setUsers(usrs);
         }
@@ -77,7 +76,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                 setShowDesc(true);
             }
         }
-    },[update, meeting]);
+    },[update, meeting, updateMeeting]);
 
     const onChangeMeetingType = (e) => {
         setColor((meetingTypesRes?.find(m => m.type == e.value)).color);
@@ -327,128 +326,125 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
 
     return(
         <Dialog open={open} onClose={clearOnClose}>
-            <Grid container sx={{width: showDesc ? '600px' : '350px', height: showDesc ? '467px' : '411px', transition: 'width 0.5s ease-in-out, height 0.5s ease-in-out', overflow:'hidden'}}>
-                <Stack direction={'column'} sx={{width:'100%', height:'100%'}}>
-                    <Grid container direction={'column'} sx={{paddingTop:'20px', paddingLeft:'20px', paddingBottom:'20px', borderBottom:`4px solid ${color ? color : "#91E041"}`}}>
-                        <Typography fontSize={28}>Book Room</Typography>
-                        <Typography fontSize={16} color={theme.palette.secondary.light} marginTop={'-5px'} fontFamily={'comic sans ms'}>{date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Typography>
-                    </Grid>
-                    <Grid container >
-                        <Stack direction={showDesc ? 'row' : 'column'} sx={{padding:'20px', width:'100%'}} spacing={2}>
-                            <Box sx={{display:'flex', flexDirection:'column', gap:1, maxWidth: !showDesc ? '350px' : '600px', flexGrow:1}}>
-                                <ShortTextField value={meetingName} label={"Meeting name"} variant={'outlined'} autoFocus={true} onChange={(e) => setMeetingName(e)}/>
-                                <ShortSelectObject items={meetingTypesRes} label={'Meeting Type'} value={type} onChange={onChangeMeetingType}/>
-                                <ShortSelectObject items={roomsRes} label={'Room'} value={selectedRoom} onChange={setSelectedRoom}/>
-                                <Stack direction={'row'} sx={{width:'100%'}} spacing={1}>
-                                    <ShortSelect items={times} label={'Start Time'} value={startTime} onChange={onChangeStartTime}/>
-                                    <ShortSelect items={times} label={'End Time'} value={endTime} onChange={onChangeEndTime}/>
-                                </Stack>
-                                <Typography fontSize={14} color={theme.palette.secondary.light} 
-                                    sx={{':hover':{cursor:'pointer'}, width:'fit-content'}}
-                                    onClick={() => setShowDesc(!showDesc)}
-                                >
-                                    Add details {showDesc ? '-' : '+'}
-                                </Typography>
-                            </Box>
-                            {showDesc &&
-                                <Box sx={{display: 'flex', flexGrow:1, flexDirection:'column', gap:1}}>
-                                        <TextField
-                                            id="outlined-multiline-static"
-                                            label="Description"
-                                            value={description}
-                                            multiline
-                                            rows={2}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                        />
-                                        <FormControl variant="outlined" sx={{minWidth: 160, width:'100%'}} size={'small'}>
-                                            <InputLabel id="repeats-simple-select-standard-label">Repeats</InputLabel>
-                                            <Select
-                                                sx={{width:'100%'}}
-                                                labelId="repeats-simple-select-standard-label"
-                                                id="repeats-simple-select-standard"
-                                                label='Repeats'
-                                                value={repeats}
-                                                onChange={(e) => setRepeats(e.target.value)}
-                                            >
-                                                <MenuItem key={0} value={''}>{'-- None --'}</MenuItem>
-                                                <MenuItem key={1} value={'Daily'}>{'Daily'}</MenuItem>
-                                                <MenuItem key={2} value={'Weekly'}>{'Weekly'}</MenuItem>
-                                                <MenuItem key={3} value={'Monthly'}>{'Monthly'}</MenuItem>
-                                                <MenuItem key={4} value={'Yearly'}>{'Yearly'}</MenuItem>
-                                        </Select>
-                                        </FormControl>
-                                        <FormControl sx={{marginTop:'10px', width: "100%" }}>
-                                                <InputLabel id="demo-multiple-chip-label-full">Special Permissions</InputLabel>
-                                                <Select
-                                                    labelId="demo-multiple-chip-label-full"
-                                                    id="demo-multiple-chip-full"
-                                                    multiple 
-                                                    value={special}
-                                                    onChange={handleSpecialChange}
-                                                    input={<OutlinedInput id="select-multiple-chip-full" label="Special Permissions" />}
-                                                    renderValue={(selected) => (
-                                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
-                                                            {selected?.map((value) => 
-                                                                {
-                                                                    const user = users?.find(gp => gp.id === value);
-                                                                    return <Chip key={value} label={`${user?.first_name} ${user?.last_name}`} sx={{maxHeight:25}}/>;
-                                                                }
-                                                            )}
-                                                        </Box>
-                                                    )}
-                                                    sx={{
-                                                        minHeight: 80, // Maximum height for the Select component
-                                                        maxWidth:365,
-                                                        height:110
-                                                    }}
-                                                >
-                                                    {users.filter(gp => gp.access != 'Read' && gp.id !== user?.id)?.map((user, index) => (
-                                                        <MenuItem
-                                                            key={index}
-                                                            value={user?.id}
-                                                            sx={{fontWeight: special.indexOf(user?.id) === -1 ? theme.typography.fontWeightRegular : theme.typography.fontWeightMedium}}
-                                                        >
-                                                            {`${user?.first_name} ${user?.last_name}`}
-                                                        </MenuItem>
-                                                    ))}
-                                                </Select>
-                                                <FormHelperText sx={{ whiteSpace: 'nowrap' }}>Allow users to see meeting</FormHelperText>
-                                            </FormControl>
-                                </Box>
-                            }
-                        </Stack>
-                        <Box sx={{display:'flex', flexDirection:'row', gap:1, flexGrow:1, padding:'4px', background:theme.palette.background.fill.light.dark}}>
-                            <Button 
-                                variant={'contained'} 
-                                sx={{
-                                    width:'100%', 
-                                    color:'black', 
-                                    background:'#f7c6a1', 
-                                    ':hover':{background:'#edae7e'},
-                                    fontWeight:'bold'
-                                }} 
-                                startIcon={<TuneIcon/>}
-                            >
-                                Advanced
-                            </Button>
-                            <Button 
-                                variant={'contained'} 
-                                sx={{
-                                    width:'100%', 
-                                    color:'black', 
-                                    background:'#a1f0a3', 
-                                    ':hover':{background:'#58b85b'},
-                                    fontWeight:'bold'
-                                }}
-                                onClick={onSubbmit}
-                                startIcon={<CheckIcon/>}
-                            >
-                                {update ? 'Update' : 'Book'}
-                            </Button>
+            <Grid container sx={{width: showDesc ? '600px' : '350px', height: showDesc ? '445px' : '355px', transition: 'width 0.5s ease-in-out, height 0.5s ease-in-out', overflow:'hidden'}}>
+            <Stack direction={'column'} sx={{width:'100%', height:'100%'}}>
+                <Grid container direction={'column'} sx={{paddingTop:'20px', paddingLeft:'20px', paddingBottom:'20px', borderBottom:`4px solid ${color ? color : "#91E041"}`}}>
+                    <Typography fontSize={28}>Book Room</Typography>
+                    <Typography fontSize={16} color={theme.palette.secondary.light} marginTop={'-5px'} fontFamily={'comic sans ms'}>{update ? new Date(updateMeeting.start_time)?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : meeting.date?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Typography>
+                </Grid>
+                <Box sx={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+                    <Stack direction={showDesc ? 'row' : 'column'} sx={{padding:'20px'}} spacing={2}>
+                        <Box sx={{display:'flex', flexDirection:'column', gap:1, maxWidth: !showDesc ? '350px' : '600px', flexGrow:1}}>
+                            <ShortTextField value={meetingName} label={"Meeting name"} variant={'outlined'} autoFocus={true} onChange={(e) => setMeetingName(e)}/>
+                            <ShortSelectObject items={meetingTypesRes} label={'Meeting Type'} value={type} onChange={onChangeMeetingType}/>
+                            <ShortSelectObject items={roomsRes} label={'Room'} value={selectedRoom} onChange={setSelectedRoom}/>
+                            <Stack direction={'row'} sx={{width:'100%'}} spacing={1}>
+                                <ShortSelect items={times} label={'Start Time'} value={startTime} onChange={onChangeStartTime}/>
+                                <ShortSelect items={times} label={'End Time'} value={endTime} onChange={onChangeEndTime}/>
+                            </Stack>
                         </Box>
-                    </Grid>
-                </Stack>
-            </Grid>
+                        {showDesc &&
+                            <Box sx={{display: 'flex', flexGrow:1, flexDirection:'column', gap:1}}>
+                                    <TextField
+                                        id="outlined-multiline-static"
+                                        label="Description"
+                                        value={description}
+                                        multiline
+                                        rows={2}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                    />
+                                    <FormControl variant="outlined" sx={{minWidth: 160, width:'100%'}} size={'small'}>
+                                        <InputLabel id="repeats-simple-select-standard-label">Repeats</InputLabel>
+                                        <Select
+                                            sx={{width:'100%'}}
+                                            labelId="repeats-simple-select-standard-label"
+                                            id="repeats-simple-select-standard"
+                                            label='Repeats'
+                                            value={repeats}
+                                            onChange={(e) => setRepeats(e.target.value)}
+                                        >
+                                            <MenuItem key={0} value={''}>{'-- None --'}</MenuItem>
+                                            <MenuItem key={1} value={'Daily'}>{'Daily'}</MenuItem>
+                                            <MenuItem key={2} value={'Weekly'}>{'Weekly'}</MenuItem>
+                                            <MenuItem key={3} value={'Monthly'}>{'Monthly'}</MenuItem>
+                                            <MenuItem key={4} value={'Yearly'}>{'Yearly'}</MenuItem>
+                                    </Select>
+                                    </FormControl>
+                                    <FormControl sx={{marginTop:'10px', width: "100%" }} size={'small'}>
+                                            <InputLabel id="demo-multiple-chip-label-full">Special Permissions</InputLabel>
+                                            <Select
+                                                labelId="demo-multiple-chip-label-full"
+                                                id="demo-multiple-chip-full"
+                                                multiple 
+                                                value={special}
+                                                onChange={handleSpecialChange}
+                                                input={<OutlinedInput id="select-multiple-chip-full" label="Special Permissions" />}
+                                                renderValue={(selected) => (
+                                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxHeight:105, overflowY: 'auto', marginTop:'4px' }}>
+                                                        {selected?.map((value) => 
+                                                            {
+                                                                const user = users?.find(gp => gp.id === value);
+                                                                return <Chip key={value} label={`${user?.first_name} ${user?.last_name}`} sx={{maxHeight:25}}/>;
+                                                            }
+                                                        )}
+                                                    </Box>
+                                                )}
+                                                sx={{
+                                                    minHeight: 80, // Maximum height for the Select component
+                                                    maxWidth:365,
+                                                    height:110
+                                                }}
+                                            >
+                                                {users.filter(gp => gp.access != 'Read' && gp.id !== user?.id)?.map((user, index) => (
+                                                    <MenuItem
+                                                        key={index}
+                                                        value={user?.id}
+                                                        sx={{fontWeight: special.indexOf(user?.id)?.admin ? theme.typography.fontWeightRegular : theme.typography.fontWeightMedium}}
+                                                    >
+                                                        {`${user?.first_name} ${user?.last_name}`}
+                                                    </MenuItem>
+                                                ))}
+                                            </Select>
+                                            <FormHelperText sx={{ whiteSpace: 'nowrap' }}>Allow users to see meeting</FormHelperText>
+                                        </FormControl>
+                            </Box>
+                        }
+                    </Stack>
+                    <Box sx={{display:'flex', flexDirection:'row', gap:1, flexGrow:1, padding:'4px'}}>
+                        <Button 
+                            variant={'outlined'}
+                            onClick={() => setShowDesc(!showDesc)}
+                            sx={{
+                                width:'100%', 
+                                color:'black', 
+                                ':hover':{
+                                    background: theme.palette.background.fill.alert.warningLight,
+                                },
+                                fontWeight:'bold'
+                            }} 
+                            startIcon={<TuneIcon/>}
+                        >
+                            Advanced
+                        </Button>
+                        <Button 
+                            variant={'outlined'} 
+                            sx={{
+                                width:'100%', 
+                                color:'black', 
+                                ':hover':{
+                                    background: theme.palette.background.fill.alert.successLight,
+                                },
+                                fontWeight:'bold',
+                            }}
+                            onClick={onSubbmit}
+                            startIcon={<CheckIcon/>}
+                        >
+                            {update ? 'Update' : 'Book'}
+                        </Button>
+                    </Box>
+                </Box>
+            </Stack>
+        </Grid>
         </Dialog>
     );
 }
