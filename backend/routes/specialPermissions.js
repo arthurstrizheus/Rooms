@@ -4,7 +4,7 @@ const specialPermissionsController = require('../controllers/specialPermissionsC
 
 router.get('/', specialPermissionsController.GetAll);
 router.get('/:userId', specialPermissionsController.GetAllForUser);
-router.get('/meeting/:meetingId', specialPermissionsController.GetAllForMeeting);
+router.post('/meeting', specialPermissionsController.GetAllForMeeting);
 router.post('/', specialPermissionsController.Post);
 router.put('/:id', specialPermissionsController.Update);
 router.delete('/:id', specialPermissionsController.Delete);

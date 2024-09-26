@@ -1,7 +1,7 @@
 import { useTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Collapse, Grid, Stack, Tooltip, Typography, Divider, IconButton, Button, Box } from '@mui/material';
+import { Grid, Stack, Tooltip, Typography, Divider, IconButton, Button, Box } from '@mui/material';
 import MeetingRoomOutlinedIcon from '@mui/icons-material/MeetingRoomOutlined';
 import DateRangeIcon from '@mui/icons-material/DateRangeOutlined';
 import TodayIcon from '@mui/icons-material/TodayOutlined';
@@ -9,9 +9,9 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonthOutlined';
 import ViewStreamIcon from '@mui/icons-material/ViewStreamOutlined';
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheckOutlined';
 import AccountBoxOutlinedIcon from '@mui/icons-material/AccountBoxOutlined';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDownOutlined';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUpOutlined';
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import AllInboxOutlinedIcon from '@mui/icons-material/AllInboxOutlined';
+import EditCalendarOutlinedIcon from '@mui/icons-material/EditCalendarOutlined';
+import FormatColorFillOutlinedIcon from '@mui/icons-material/FormatColorFillOutlined';
 import CorporateFareIcon from '@mui/icons-material/CorporateFareOutlined';
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
@@ -108,6 +108,8 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
             }
     }
 
+    useEffect(() => setNav({ page: location.pathname.split('/').splice(-1) }),[bannderText]);
+
     const handleLogout = () => {
         localStorage.removeItem('user');
         const rememberMe = localStorage.getItem('rememberMe') === 'true';
@@ -119,33 +121,33 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
     };
 
     return (
-        <Grid container sx={{ minWidth: 220, backgroundColor: 'white' }}>
+        <Grid container sx={{ minWidth: 220, maxWidth:220, backgroundColor: 'white' }}>
         <Stack direction="column" sx={{ width: '100%', height: '100%' }} justifyContent="space-between">
             <Grid container justifyContent="center" alignItems="center" sx={{ padding: 2 }}>
             <img src={logo} alt="Logo" style={{ width: 'auto', height: 100 }} />
             </Grid>
-            <Grid item sx={{ textAlign: 'left', paddingLeft:'10px', paddingRight:'10px' }}>
+            <Box sx={{ paddingLeft:'10px', paddingRight:'10px', display:'flex', flexDirection:'column', justifyContent:'start', flexGrow:1 }}>
                 <MenuItem 
                     title="Rooms" 
-                    icon={<MeetingRoomOutlinedIcon />} 
+                    icon={<></>} 
                     isOpen={open.rooms} 
                     onToggle={() => toggleCollapse('rooms')}
                     items={[
-                    { name: 'Monthly View', icon: <CalendarMonthIcon />, onClick: () => handleMenuClick('month') },
-                    { name: 'Weekly View', icon: <DateRangeIcon />, onClick: () => handleMenuClick('week') },
-                    { name: 'Daily View', icon: <TodayIcon />, onClick: () => handleMenuClick('day') },
-                    { name: 'My Bookings', icon: <ViewStreamIcon />, onClick: () => handleMenuClick('book') },
-                    { name: 'Approval Queue', icon: <PlaylistAddCheckIcon />, onClick: () => handleMenuClick('approve') },
+                    { name: 'Monthly View', icon: <CalendarMonthIcon />, onClick: () => handleMenuClick('month'), selected: nav.page == 'month' },
+                    { name: 'Weekly View', icon: <DateRangeIcon />, onClick: () => handleMenuClick('week'), selected: nav.page == 'week' },
+                    { name: 'Daily View', icon: <TodayIcon />, onClick: () => handleMenuClick('day'), selected: nav.page == 'day' },
+                    { name: 'My Bookings', icon: <ViewStreamIcon />, onClick: () => handleMenuClick('book'), selected: nav.page == 'book' },
+                    { name: 'Approval Queue', icon: <PlaylistAddCheckIcon />, onClick: () => handleMenuClick('approve'), selected: nav.page == 'approve' },
                     ]}
                 />
                 <Divider />
                 <MenuItem 
                     title="Account" 
-                    icon={<AccountBoxOutlinedIcon />} 
+                    icon={<></>} 
                     isOpen={open.account} 
                     onToggle={() => toggleCollapse('account')} 
                     items={[
-                    { name: 'My Account', icon: <AccountBoxOutlinedIcon />, onClick: () => handleMenuClick('account') },
+                    { name: 'My Account', icon: <AccountBoxOutlinedIcon />, onClick: () => handleMenuClick('account'), selected: nav.page == 'account' },
                     ]}
                 />
                 {user?.admin && (
@@ -153,18 +155,21 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                     <Divider />
                     <MenuItem 
                         title="Manage" 
-                        icon={<SettingsOutlinedIcon />} 
+                        icon={<></>} 
                         isOpen={open.manage} 
                         onToggle={() => toggleCollapse('manage')} 
                         items={[
-                        { name: 'Locations', icon: <CorporateFareIcon />, onClick: () => handleMenuClick('locations') },
-                        { name: 'Rooms', icon: <MeetingRoomOutlinedIcon />, onClick: () => handleMenuClick('rooms') },
-                        { name: 'Users', icon: <PeopleAltOutlinedIcon />, onClick: () => handleMenuClick('users') },
+                        { name: 'Locations', icon: <CorporateFareIcon />, onClick: () => handleMenuClick('locations'), selected: nav.page == 'locations' },
+                        { name: 'Rooms', icon: <MeetingRoomOutlinedIcon />, onClick: () => handleMenuClick('rooms'), selected: nav.page == 'rooms' },
+                        { name: 'Users', icon: <PeopleAltOutlinedIcon />, onClick: () => handleMenuClick('users'), selected: nav.page == 'users' || nav.page == 'groups' },
+                        { name: 'Meeting Types', icon: <FormatColorFillOutlinedIcon />, onClick: () => handleMenuClick('types'), selected: nav.page == 'types' },
+                        { name: 'Resources', icon: <AllInboxOutlinedIcon />, onClick: () => handleMenuClick('resources'), selected: nav.page == 'resources' },
+                        { name: 'Blocked Dates', icon: <EditCalendarOutlinedIcon />, onClick: () => handleMenuClick('blocked dates'), selected: nav.page == 'blockeddates' },
                         ]}
                     />
                     </>
                 )}
-            </Grid>
+            </Box>
             <Grid item sx={{ padding: 2 }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color={theme.palette.text.primary}>
@@ -192,13 +197,14 @@ const MenuItem = ({ title, icon, onToggle, items }) => {
                 padding: 1,
                 cursor: 'default',
                 transition: 'background-color 0.3s ease',
+                marginTop:'10px'
             }}
             onClick={onToggle}
         >
             <Stack direction="row" justifyContent="space-between" alignItems="center">
                 <Stack direction="row" alignItems="center" spacing={2}>
-                    {icon}
-                    <Typography variant="subtitle1">{title}</Typography>
+                    {/* {icon} */}
+                    <Typography variant="subtitle2" sx={{fontWeight:'bold'}}>{title}</Typography>
                 </Stack>
             </Stack>
         </Grid >
@@ -214,14 +220,14 @@ const MenuItem = ({ title, icon, onToggle, items }) => {
                             paddingLeft:0,
                             paddingLeft: 4,
                             cursor: 'pointer',
-                            backgroundColor: theme.palette.background.paper,
+                            backgroundColor: item.selected ? theme.palette.background.fill.light.light : theme.palette.background.paper,
                             transition: 'background-color 0.4s ease',
                             '&:hover': {
                                 backgroundColor: theme.palette.background.fill.light.light,
                             },
                         }}
                         onClick={item.onClick}
-                    >{item.name}</Button>
+                    ><Typography  variant="subtitle1" sx={{width:'100%',textAlign:'left'}}>{item.name}</Typography></Button>
                 ))}
         </Box> 
         </>

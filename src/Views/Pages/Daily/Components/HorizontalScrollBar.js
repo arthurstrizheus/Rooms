@@ -3,7 +3,7 @@ import { useTheme } from '@emotion/react';
 import {Box} from "@mui/material";
 
 
-const HorizontalScrollBar = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
+const HorizontalScrollBar = ({ hoursScrollRef, Cref2, scrollBarRef, Cref, roomsWidth }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [startX, setStartX] = useState(0);
     const [boxPosition, setBoxPosition] = useState(0);
@@ -39,6 +39,11 @@ const HorizontalScrollBar = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
     const handleMouseUp = () => {
         setIsDragging(false);
     };
+    useEffect(() => {
+        if(boxPosition + 20 >  (roomsWidth - 300 + 410)){
+            setBoxPosition(roomsWidth + 70);
+        }
+    },[roomsWidth])
 
     useEffect(() => {
         if (isDragging) {
@@ -59,34 +64,39 @@ const HorizontalScrollBar = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
             ref={scrollBarRef}
             sx={{
                 marginLeft: '320px',
-                width: '410px',
+                width: roomsWidth - 300 + 410,
                 overflowX: 'hidden',
                 position: 'relative',
                 height: '25px'
             }}
             flexDirection={'row'}
         >
-            <Box sx={{marginTop:'5px', marginLeft:'5px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'50px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'95px', width: '40px', height: '60%',  position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'140px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'185px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'230px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'275px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'320px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
-            <Box sx={{marginTop:'5px', marginLeft:'365px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.dark}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'5px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'50px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'95px', width: '40px', height: '60%',  position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'140px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'185px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'230px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'275px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'320px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'365px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'410px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'455px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'500px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'545px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
+            <Box sx={{marginTop:'5px', marginLeft:'590px', width: '40px', height: '60%', position: 'absolute', background:theme.palette.background.fill.light.main}}/>
             <Box
                 sx={{
                     width: '50px',
                     height: '90%',
-                    border:`1px solid ${theme.palette.border.light}`,
+                    border:`1px solid ${theme.palette.border.secondary}`,
                     position: 'absolute',
                     left: `${boxPosition}px`,
                     cursor: isDragging ? 'grabbing' : 'grab'
                 }}
                 onMouseDown={handleMouseDown}
             >
-                <Box sx={{marginLeft:'5px', marginRight:'5px' ,marginTop:'4px',height:'15px', background: 'rgba(236,65,81,.4)',}}/>
+                <Box sx={{marginLeft:'5px', marginRight:'5px' ,marginTop:'4px',height:'15px', background: theme.palette.background.fill.dark.light,}}/>
             </Box>
         </Box>
     );

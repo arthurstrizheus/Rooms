@@ -7,13 +7,13 @@ const Banner = ({bannerText, loading, selectedDate, setSelectedDate}) => {
     return(
         <Stack direction={'column'} position={'relative'} width={'100%'} >
             <Stack sx={{
-                    backgroundColor:theme.palette.background.fill.light.dark, 
+                    backgroundColor:theme.palette.background.default, 
                     minHeight:'93px', paddingTop:'30px', paddingLeft:'30px', paddingRight:'30px',
                 }}
                 direction={'row'}
                 spacing={'space-between'}
             >
-                <Grid item sx={{ width:'100%'}}>
+                <Grid item sx={{ width:'100%', minWidth:'400px'}}>
                     <Typography 
                     sx={{
                         fontSize: '2.5rem', // Adjust to your desired size
@@ -21,6 +21,7 @@ const Banner = ({bannerText, loading, selectedDate, setSelectedDate}) => {
                         fontWeight: 'light',
                         letterSpacing: '0.05em', // Adjust letter spacing
                         color: 'inherit', // Ensures it inherits the color, or set a specific color
+                        minWidth:'fit-content'
                     }}>{bannerText}</Typography>
                 </Grid>
                 <Grid item sx={{ width:'100%'}}>

@@ -267,7 +267,7 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                                     ':hover':{background:'#e8e8e8'},
                                 }}
                                 onClick={handleEditALL}
-                                startIcon={<EditNoteIcon sx={{color:theme.palette.secondary.light}}/>}
+                                startIcon={<EditNoteIcon sx={{color:'error'}}/>}
                             >
                                 Edit All
                             </Button>
@@ -339,14 +339,14 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                     }}
                     onClick={handleExit}
                 />
-                <Grid item sx={{width:'100%', height:'100%', borderBottom:`5px solid ${color}`, padding:'15px 20px 10px 20px', background:'#f2eeed'}} >
+                <Grid item sx={{width:'100%', height:'100%', borderBottom:`5px solid ${color}`, padding:'15px 20px 10px 20px', background:theme.palette.background.fill.light.lightHover}} >
                     <Stack direction={'column'} spacing={'-5px'} sx={{ paddingLeft:'5px'}}>
                         <Typography variant="h5">{meeting.name}</Typography>
                         <Typography variant="caption" fontSize={14} paddingLeft={'3px'}>{new Date(meeting.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</Typography>
                     </Stack>
                     <Divider sx={{paddingTop:'5px'}}/>
                     <Stack direction={'column'} sx={{paddingTop:'5px', paddingLeft:'5px'}} spacing={'-8px'}>
-                        <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.light}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
+                        <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.main}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
                         <Typography variant="body1" color={'#8c8b8b'} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
                     </Stack>
                 </Grid>
@@ -375,31 +375,27 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                 <Grid padding={'5px'}>
 
                 </Grid>
-                <Stack position={'relative'} bottom={meeting.description ? 0 : -5} direction={'row'} width={'100%'} sx={{ padding:'5px',paddingBottom:'10px', height:'35px', background:'#f2eeed', borderTop:'1px solid #dedede'}} spacing={1}>
+                <Stack position={'relative'} bottom={meeting.description ? 0 : -5} direction={'row'} width={'100%'} sx={{padding:'5px', height:'35px', borderTop:'1px solid #dedede'}} spacing={1}>
                     
                     <Button 
-                        variant={'contained'} 
+                        variant={'outlined'} 
                         sx={{
                             width:'100%', 
-                            color:'black', 
-                            background:'#f5f5f5', 
-                            ':hover':{background:'#e8e8e8'},
+                            color:'black',
                         }}
                         onClick={handleEdit}
-                        startIcon={<EditIcon sx={{color:theme.palette.secondary.light}}/>}
+                        startIcon={<EditIcon />}
                     >
                         Edit
                     </Button>
                     <Button 
-                        variant={'contained'} 
+                        variant={'outlined'} 
                         sx={{
                             width:'100%', 
                             color:'black',
-                            background:'#f5f5f5',
-                            ':hover':{background:'#e8e8e8'},
                         }}
                         onClick={handleDelete}
-                        startIcon={<DeleteOutlineIcon sx={{color:theme.palette.secondary.light}}/>}
+                        startIcon={<DeleteOutlineIcon />}
                     >
                         Cancel
                     </Button>

@@ -2,7 +2,7 @@ import { useTheme } from "@emotion/react";
 import { Grid } from "@mui/material";
 import HorizontalScrollBar from './HorizontalScrollBar';
 
-const Footer = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
+const Footer = ({ hoursScrollRef, Cref2, scrollBarRef, Cref, roomsWidth }) => {
     const theme = useTheme();
     
     return (
@@ -19,7 +19,7 @@ const Footer = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
                 justifyContent: 'start',
             }}
         >
-            <HorizontalScrollBar hoursScrollRef={hoursScrollRef} Cref2={Cref2} Cref={Cref} scrollBarRef={scrollBarRef} />
+            <HorizontalScrollBar hoursScrollRef={hoursScrollRef} Cref2={Cref2} Cref={Cref} scrollBarRef={scrollBarRef} roomsWidth={roomsWidth}/>
         </Grid>
     );
 };

@@ -5,9 +5,8 @@ import TableRow from '@mui/material/TableRow';
 import {getDateAmPm, getDuration} from '../../../Utilites/Functions/CommonFunctions'
 import { useTheme } from '@emotion/react';
 import { useAuth } from "../../../Utilites/AuthContext";
-import {Stack, Typography, Box, Paper, TableContainer, Table, TableHead, Checkbox, TableSortLabel, TableBody, Button, TablePagination, Collapse, Select, FormControl, InputLabel, MenuItem} from "@mui/material";
+import {Stack, Typography, Box, Paper, TableContainer, Table, TableHead, Checkbox, TableSortLabel, TableBody, Button, TablePagination, Collapse, Select, FormControl, InputLabel, MenuItem, Tabs, Tab} from "@mui/material";
 import RowMeeting from './Components/RowMeeting';
-import PageSelector from '../../Components/PageSelector/PageSelector'
 import { GetLocations, GetMeetingApprovals, GetRooms, GetTypes, showError, showSuccess } from '../../../Utilites/Functions/ApiFunctions';
 import { UpdateMeetingStatus} from '../../../Utilites/Functions/ApiFunctions/MeetingFunctions';
 import ShortSelect from '../../../Components/ShortSelect';
@@ -31,6 +30,14 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
         border: 0,
     },
     }));
+
+    
+function a11yProps(index) {
+    return {
+        id: `simple-tab-${index}`,
+        'aria-controls': `simple-tabpanel-${index}`,
+    };
+}
 
 function createData(id, name, organizer, room, date, start_time, duration, requested, status) {
     return { id, name, organizer, room, date, start_time, duration, requested, status };
@@ -209,7 +216,11 @@ export default function ApprovalQueue({setLoading}) {
     
     return (
         <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden'}}>
-            <PageSelector headers={["Meetings"]} selectedHeader={0} hoverFill={'white'} onClick={() => {}}/>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs value={0} aria-label="basic tabs example">
+                    <Tab label="Need Approved" {...a11yProps(0)} />
+                </Tabs>
+            </Box>
             <Box sx={{width:'200px', position:'absolute', right:120, top:122}}>
                 <FormControl variant="standard" sx={{minWidth: 160, width:'100%'}}>
                     <InputLabel id="demo-simple-select-standard-label">Filter By Location</InputLabel>

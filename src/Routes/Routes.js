@@ -12,10 +12,10 @@ import Locations from '../Views/Pages/Locations/Locations';
 import Rooms from '../Views/Pages/Rooms/Rooms';
 import MeetingTypes from '../Views/Pages/MeetingTypes/MeetingTypes';
 import ApprovalQueue from '../Views/Pages/ApprovalQueue/ApprovalQueue';
-import Users from '../Views/Pages/Users/Users';
+import Users from '../Views/Pages/Users/index';
 import Groups from '../Views/Pages/Groups/Groups';
-import RoomResources from '../Views/Pages/Resources/RoomResources';
-import Resources from '../Views/Pages/Resources/Resources';
+import RoomResources from '../Views/Pages/Resources/index';
+import Resources from '../Views/Pages/Resources/index';
 import BlockedDates from '../Views/Pages/BlockedDates/BlockedDates';
 
 const AppRoutes = ({ setLoading, selectedDate, setSelectedDate, setBannerText, loading }) => {

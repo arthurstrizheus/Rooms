@@ -4,14 +4,13 @@ import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 import TableRow from '@mui/material/TableRow';
 import { useTheme } from '@emotion/react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../../Utilites/AuthContext';
+import { useAuth } from '../../../../Utilites/AuthContext';
 import { FormControl, InputLabel, Select, Box, Tooltip, TableContainer, Table, TableHead, TableBody, TablePagination, Paper, Checkbox, MenuItem } from "@mui/material";
 import AddIcon from '@mui/icons-material/AddOutlined';
-import AddNewResource from './Components/AddNewResource';
-import PageSelector from '../../Components/PageSelector/PageSelector';
-import { GetLocations, GetResources, showError, showSuccess } from '../../../Utilites/Functions/ApiFunctions';
+import AddNewResource from './AddNewResource';
+import { GetLocations, GetResources, showError, showSuccess } from '../../../../Utilites/Functions/ApiFunctions';
 import DeleteIcon from '@mui/icons-material/DeleteOutlineOutlined';
-import { DeleteResource } from '../../../Utilites/Functions/ApiFunctions/ResourceFunctions';
+import { DeleteResource } from '../../../../Utilites/Functions/ApiFunctions/ResourceFunctions';
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -51,8 +50,6 @@ export default function Resources({setLoading}) {
     const [selected, setSelected] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
     const [update, setUpdate] = useState(0);
-    const headers = ['Room Resources', 'Resources'];
-    const selectedHeader = 1;
 
     const handleDeleteSelected = () => {
         const remove = async () => {
@@ -103,11 +100,6 @@ export default function Resources({setLoading}) {
     };
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
-    const onHeaderClick = (e) => {
-        if(e == 'Room Resources'){
-            navigate('/manage/rooms/resources');
-        }
-    }
 
     useEffect(() => {
         const getData = async () => {
@@ -153,7 +145,6 @@ export default function Resources({setLoading}) {
         <React.Fragment>
             <AddNewResource open={openDialog} setOpen={setOpenDialog} resources={filteredResources} location={filterLocation} setUpdate={setUpdate}/>
             <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden' }}>
-                <PageSelector headers={headers} selectedHeader={selectedHeader} hoverFill={'white'} onClick={onHeaderClick}/>
                 <Tooltip title={'Add Item'}>
                     <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:130, color:'darkgreen', cursor:'pointer', ':hover':{color:'green'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>
                 </Tooltip>

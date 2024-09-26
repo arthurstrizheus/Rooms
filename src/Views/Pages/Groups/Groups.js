@@ -137,14 +137,7 @@ export default function Groups({setLoading}) {
         };
         remove();
     };
-
-
-    const onHeaderClick = (e) => {
-        if(e == 'Users'){
-            navigate('/manage/users');
-        }
-    }
-
+    
     const isSelected = (id) => selected.indexOf(id) !== -1;
 
     useEffect(() => {
@@ -183,11 +176,9 @@ export default function Groups({setLoading}) {
     },[groups, filterLocation]);
     
     return (
-        <React.Fragment>
+        <Box sx={{height:'100%', width:'100%', display:'flex', flexGrow:1}}>
             <AddNewGroup open={openDialog} setOpen={setOpenDialog} location={filterLocation} locations={locations} setUpdate={setUpdate}/>
-            <PageSelector headers={['Users', 'Groups']} selectedHeader={1} hoverFill={'white'} onClick={onHeaderClick}/>
-            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column',  }}>
-                <Tooltip title={'Add User'}>
+            <Tooltip title={'Add User'}>
                     <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:130, color:'green', cursor:'pointer', ':hover':{color:'lightgreen'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>
                 </Tooltip>
                 {selected?.length > 0 &&
@@ -212,7 +203,8 @@ export default function Groups({setLoading}) {
                         </Select>
                     </FormControl>
                 </Box>
-                <TableContainer sx={{ flexGrow: 1 }}>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column',  flexGrow:1}}>
+                <TableContainer sx={{ flexGrow: 1, height:'100%', overflow:'hidden'}}>
                     <Table sx={{ minWidth: 700 }} aria-label="customized table">
                         <TableHead sx={{position: 'sticky', top: 0, zIndex: 1}}>
                             <TableRow>
@@ -274,6 +266,7 @@ export default function Groups({setLoading}) {
                     </Table>
                 </TableContainer>
                 <TablePagination
+                    sx={{overflow:'hidden'}}
                     component="div"
                     count={filteredGroups.length}
                     rowsPerPage={rowsPerPage}
@@ -282,6 +275,6 @@ export default function Groups({setLoading}) {
                     onRowsPerPageChange={handleChangeRowsPerPage}
                 />
             </Paper>
-        </React.Fragment>
+        </Box>
     );
 }
