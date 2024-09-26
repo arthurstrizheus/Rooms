@@ -169,7 +169,7 @@ export default function ApprovalQueue({setLoading}) {
     useEffect(() => {
         const getData = async () => {
             setLoading(true);
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             const lcs = await GetLocations();
             const mtgs = await GetMeetingApprovals(user?.id);
             const typs = await GetTypes();
@@ -202,7 +202,7 @@ export default function ApprovalQueue({setLoading}) {
                     start.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }),
                     `${start.getHours() % 12 ? start.getHours() % 12 : 12}:${String(start.getMinutes()).padStart(2, '0')}${getDateAmPm(start)}m`,
                     durationString,
-                    new Date(itm.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }),
+                    new Date(itm.createdAt).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }),
                     itm.status
                 );
             });

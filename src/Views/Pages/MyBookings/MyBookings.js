@@ -165,7 +165,7 @@ export default function MyBookings({setLoading}) {
         const data = async () => {
             const mts = await GetMeetingsUserCreated(user?.id, {date: new Date(), range:'Month'});
             const tps = await GetTypes();
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             const lcs = await GetLocations();
 
             setMeetings(mts);

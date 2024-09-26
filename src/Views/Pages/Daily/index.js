@@ -57,7 +57,7 @@ const DaySchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
         const data = async () => {
             setLoading(true);
             const lcs = await GetLocations();
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             setLocations(lcs);
             setRooms(rms);
             setLoading(false);

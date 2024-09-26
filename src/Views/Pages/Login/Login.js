@@ -4,6 +4,7 @@ import { useAuth } from '../../../Utilites/AuthContext';
 import { Grid, Typography, Box, Checkbox, Button, Container, CssBaseline, Avatar, TextField, FormControlLabel, Link, Input, OutlinedInput, InputLabel, FormControl } from "@mui/material";
 import LockIcon from '@mui/icons-material/Lock';
 import { AuthenticateUser } from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
+import { useTheme } from '@emotion/react';
 
 function Copyright(props) {
     return (
@@ -20,6 +21,7 @@ function Copyright(props) {
 
 export default function Login({setLoading}) {
     const navigate = useNavigate();
+    const theme = useTheme();
     const { setUser, login } = useAuth();
     const [rememberMe, setRememberMe] = useState(false); // State to track "Remember me"
     const [email, setEmail] = useState('');
@@ -120,8 +122,8 @@ export default function Login({setLoading}) {
                     <Button
                         type="submit"
                         fullWidth
-                        variant="contained"
-                        sx={{ mt: 3, mb: 2 }}
+                        variant="outlined"
+                        sx={{ mt: 3, mb: 2, ":hover":{background:theme.palette.primary.lightHover} }}
                     >
                         Sign In
                     </Button>

@@ -6,6 +6,7 @@ import {Grid, Typography, FormControl, InputLabel, Select, Box, TextField, Butto
 import LockOutlinedIcon from '@mui/icons-material/LockOpenOutlined';
 import { GetLocations, showSuccess, showError } from '../../../../Utilites/Functions/ApiFunctions';
 import { PostUser } from '../../../../Utilites/Functions/ApiFunctions/UserFunctions';
+import { useTheme } from '@emotion/react';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -28,6 +29,7 @@ export default function SignUp({ setLoading }) {
     const [location, setLocation] = useState('');
     const [locations, setLocations] = useState([]);
     const { login } = useAuth();
+    const theme = useTheme();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -212,7 +214,7 @@ export default function SignUp({ setLoading }) {
                         type="submit"
                         fullWidth
                         variant="contained"
-                        sx={{ mt: 3, mb: 2 }}
+                        sx={{ mt: 3, mb: 2, ":hover":{background:theme.palette.primary.lightHover}}}
                     >
                         Sign Up
                     </Button>

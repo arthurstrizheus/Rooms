@@ -3,6 +3,7 @@ const router = express.Router();
 const roomController = require('../controllers/roomController');
 
 router.get('/', roomController.GetAll);
+router.get('/:userId', roomController.GetRoomsUserCanSee);
 router.post('/', roomController.Post);
 router.put('/:id', roomController.Update);
 router.delete('/:id', roomController.Delete);

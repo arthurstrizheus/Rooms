@@ -120,7 +120,7 @@ export default function BlockedDates({setLoading}) {
         const getData = async () => {
             setLoading(true);
             const lcs = await GetLocations();
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             const rmgps = await GetRoomGroups();
             const blc = await GetBlockedDatess();
             const usrgrps = await GetGroupUsers();

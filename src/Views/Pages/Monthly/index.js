@@ -41,7 +41,7 @@ const MonthSchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
     useEffect(() => {
         const data = async () => {
             const lcs = await GetLocations();
-            const rms = await GetRooms();
+            const rms = await GetRooms(user.id);
             const mts = await GetMeetingsByUserId(user?.id, {date: startOfMonth(selectedDate), range:'Month'});
             const tps = await GetTypes();
             

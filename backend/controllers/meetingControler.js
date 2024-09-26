@@ -1,4 +1,4 @@
-const { Meeting, GroupUser, RoomGroup, Group, User, MeetingGroup, MeetingRecurrence, SpecialPermission } = require('../models');
+const { Meeting, GroupUser, RoomGroup, Group, User, MeetingGroup, MeetingRecurrence, SpecialPermission, BlockedDate } = require('../models');
 const { Sequelize } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -795,6 +795,19 @@ const CanBook = async (req, res) => {
                 // Check if the new meeting overlaps with an existing meeting
                 return (newStartTime < meetingEnd && newEndTime > meetingStart && meeting.room == room && ( meeting.status === 'Approved' ||  meeting.status === 'Waiting on Approval'));
             });
+        }
+
+        const blockedDates = await BlockedDate.findAll();
+        if(!isOverlapping){
+            isOverlapping = blockedDates.some(meeting => {
+                const meetingStart = new Date(meeting.start_time);
+                const meetingEnd = new Date(meeting.end_time);
+                // Check if the new meeting overlaps with an existing meeting
+                return (newStartTime < meetingEnd && newEndTime > meetingStart);
+            });
+            if(isOverlapping){
+                return res.status(409).json({ message: 'Meeting time overlaps with a blocked section of time', book:false });
+            }
         }
 
         // If there is an overlapping meeting, return a conflict message
