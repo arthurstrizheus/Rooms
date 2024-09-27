@@ -50,7 +50,7 @@ async function CanSeeMeet(roomId, user) {
     }
 
     // Fetch all groups the user belongs to
-    const groupUsers = await GroupUser.findAll({ where: { user_id: id } });
+    const groupUsers = await GroupUser.findAll({ where: { user_id: user.id } });
 
     // If the user is not part of any group, return an empty array
     if (!groupUsers.length) {
@@ -597,7 +597,7 @@ const GetAllUserCanSee = async (req, res) => {
         });
 
         // If the user is not part of any group, return an empty array
-        if (!groupUsers.length && meetingsUserHasSpecialAccess?.length == 0) {
+        if (!groupUsers.length && !meetingsUserHasSpecialAccess?.length) {
             return res.status(200).json([]);
         }
 
@@ -621,9 +621,10 @@ const GetAllUserCanSee = async (req, res) => {
                 status: 'Approved'
             }
         });
+
         if(fakeMeets?.length > 0){
             fakeMeets?.map(fm => {
-                if(!meetings?.find(mt => mt.id == fm.id)){
+                if(meetings?.find(mt => mt.recurrence_id == fm.recurrence_id)){
                     meetings.push(fm);
                 }
             });

@@ -83,6 +83,10 @@ function stableSort(array, comparator) {
     return stabilizedThis?.map((el) => el[0]);
 }
 
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export default function Users({setLoading}) {
     const {user} = useAuth();
     const navigate = useNavigate();
@@ -109,26 +113,23 @@ export default function Users({setLoading}) {
     const handleSubmit = () => {
         const remove = async () => {
             const promises = filteredUsers?.map(async itm => isSelected(itm.id) ? await DeleteUser(itm.id) : null);
-            await Promise.all(promises).then((resp) =>  resp  ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Deleted`) : showError(`Failed to delete user${filteredUsers?.length > 1 ? "s" : ''}`)).then( () => {
-                setSelected([]);
-                setUpdate(prev => prev + 1);
-            });
+            await Promise.all(promises).then((resp) =>  resp  ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Deleted`) : showError(`Failed to delete user${filteredUsers?.length > 1 ? "s" : ''}`));
+            setSelected([]);
+            setUpdate(prev => prev + 1);
         };
 
         const activate = async () => {
             const promises = filteredUsers?.map(async itm => isSelected(itm.id) ? await ActivateUser(itm.id) : null);
-            await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Activated`) : showError(`Failed to activate user${filteredUsers?.length > 1 ? "s" : ''}`)).then( () => {
-                setSelected([]);
-                setUpdate(prev => prev + 1);
-            });
+            await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Activated`) : showError(`Failed to activate user${filteredUsers?.length > 1 ? "s" : ''}`));
+            setSelected([]);
+            setUpdate(prev => prev + 1);
         };
 
         const deactivate = async () => {
             const promises = filteredUsers?.map(async itm => isSelected(itm.id) ? await DeactivateUser(itm.id) : null);
-            await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Deactivated`) : showError(`Failed to deactivate user${filteredUsers?.length > 1 ? "s" : ''}`)).then( () => {
-                setSelected([]);
-                setUpdate(prev => prev + 1);
-            });
+            await Promise.all(promises).then((resp) =>  resp ? showSuccess(`User${filteredUsers?.length > 1 ? "s" : ''} Deactivated`) : showError(`Failed to deactivate user${filteredUsers?.length > 1 ? "s" : ''}`));
+            setSelected([]);
+            setUpdate(prev => prev + 1);
         };
 
         switch(action){
@@ -220,11 +221,6 @@ export default function Users({setLoading}) {
         setEditUserOpen(true);
     }
 
-    const onHeaderClick = (e) => {
-        if(e == 'Groups'){
-            navigate('/manage/groups');
-        }
-    }
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
     const isOpen = (id) => rowsOpen.indexOf(id) !== -1;
@@ -273,7 +269,7 @@ export default function Users({setLoading}) {
                 itm.admin
             );
         });
-    
+
         const sortedRows = (stableSort(data, getComparator(order, orderBy)));
         setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
     },[filterLocation, users, update]);
@@ -434,13 +430,15 @@ export default function Users({setLoading}) {
                                         <StyledTableCell align="left">{row.active}</StyledTableCell>
                                         <StyledTableCell align="left">{row.last_login}</StyledTableCell>
                                     </StyledTableRow>
-                                    <StyledTableCell style={{ padding: 0, boxSizing: 'border-box' }} colSpan={7}>
-                                        <Collapse in={isItemOpen} timeout="auto" unmountOnExit>
-                                            <Box>
-                                                <ViewUser row={row} location={location} groups={groups} userGroups={groupUsers} rowUser={rowUser} setOpen={hadleEditUser}/>
-                                            </Box>
-                                        </Collapse>
-                                    </StyledTableCell>
+                                    <StyledTableRow>
+                                        <StyledTableCell style={{ padding: 0, boxSizing: 'border-box' }} colSpan={7}>
+                                            <Collapse in={isItemOpen} timeout="auto" unmountOnExit>
+                                                <Box>
+                                                    <ViewUser row={row} location={location} groups={groups} userGroups={groupUsers} rowUser={rowUser} setOpen={hadleEditUser}/>
+                                                </Box>
+                                            </Collapse>
+                                        </StyledTableCell>
+                                    </StyledTableRow>
                                 </React.Fragment>
                             );
                         })}

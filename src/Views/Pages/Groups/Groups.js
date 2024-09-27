@@ -6,7 +6,6 @@ import { useTheme } from '@emotion/react';
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useNavigate } from 'react-router-dom';
 import {TableContainer, Table, TableHead, TableBody, TablePagination, Paper, Checkbox, TableSortLabel, Tooltip, Select, FormControl, InputLabel, MenuItem } from "@mui/material";
-import PageSelector from '../../Components/PageSelector/PageSelector';
 import { GetGroups, GetLocations } from '../../../Utilites/Functions/ApiFunctions';
 import AddIcon from '@mui/icons-material/AddOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlineOutlined';
@@ -24,7 +23,7 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.body}`]: {
         fontSize: 14,
     },
-}));
+})); 
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
     '&:nth-of-type(odd)': {

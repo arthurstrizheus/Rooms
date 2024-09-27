@@ -44,7 +44,7 @@ export function showSuccess(msg) {
 
 export async function GetLocations() {
     try {
-        const resp = await axios.get('/api/locations', {
+        const resp = await axios.get(`/api/locations?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -65,7 +65,7 @@ export async function GetLocations() {
 }
 export async function GetRooms(userId) {
     try {
-        const resp = await axios.get( `/api/rooms/${userId}`, {
+        const resp = await axios.get( `/api/rooms/${userId}?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -85,7 +85,7 @@ export async function GetRooms(userId) {
 }
 export async function GetBlockedDatess() {
     try {
-        const resp = await axios.get( '/api/blockeddates', {
+        const resp = await axios.get( `/api/blockeddates?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -105,7 +105,7 @@ export async function GetBlockedDatess() {
 }
 export async function GetGroups() {
     try {
-        const resp = await axios.get( '/api/groups', {
+        const resp = await axios.get( `/api/groups?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -125,7 +125,7 @@ export async function GetGroups() {
 }
 export async function GetGroupUsers() {
     try {
-        const resp = await axios.get( '/api/groupusers', {
+        const resp = await axios.get( `/api/groupusers?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -145,7 +145,7 @@ export async function GetGroupUsers() {
 }
 export async function GetUserGroups(id) {
     try {
-        const resp = await axios.get( `/api/groups/user/${id}`, {
+        const resp = await axios.get( `/api/groups/user/${id}?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -163,7 +163,7 @@ export async function GetUserGroups(id) {
 }
 export async function GetMeetingGroups() {
     try {
-        const resp = await axios.get( '/api/meetinggroups', {
+        const resp = await axios.get( `/api/meetinggroups?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -183,7 +183,7 @@ export async function GetMeetingGroups() {
 }
 export async function GetMeetings() {
     try {
-        const resp = await axios.get( '/api/meetings', {
+        const resp = await axios.get( `/api/meetings?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -203,7 +203,7 @@ export async function GetMeetings() {
 }
 export async function GetMeetingApprovals(id) {
     try {
-        const resp = await axios.get( `/api/meetings/needsapproved/${id}`, {
+        const resp = await axios.get( `/api/meetings/needsapproved/${id}?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -223,7 +223,7 @@ export async function GetMeetingApprovals(id) {
 }
 export async function GetMeetingsByUserId(id, data) {
     try {
-        const resp = await axios.get( `/api/meetings/user/${id}`,{params: {...data}}, {
+        const resp = await axios.get( `/api/meetings/user/${id}?_=${new Date().getTime()}`,{params: {...data}}, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -243,7 +243,7 @@ export async function GetMeetingsByUserId(id, data) {
 }
 export async function GetMeetingsUserCreated(id, data) {
     try {
-        const resp = await axios.get( `/api/meetings/created/${id}`, {params: {...data}}, {
+        const resp = await axios.get( `/api/meetings/created/${id}?_=${new Date().getTime()}`, {params: {...data}}, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -263,7 +263,7 @@ export async function GetMeetingsUserCreated(id, data) {
 }
 export async function GetResources() {
     try {
-        const resp = await axios.get( '/api/resources', {
+        const resp = await axios.get( `/api/resources?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -283,7 +283,7 @@ export async function GetResources() {
 }
 export async function GetRoomGroups() {
     try {
-        const resp = await axios.get( '/api/roomgroups', {
+        const resp = await axios.get( `/api/roomgroups?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -303,7 +303,7 @@ export async function GetRoomGroups() {
 }
 export async function GetRoomResources() {
     try {
-        const resp = await axios.get( '/api/roomresources', {
+        const resp = await axios.get( `/api/roomresources?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -323,7 +323,7 @@ export async function GetRoomResources() {
 }
 export async function GetTypes() {
     try {
-        const resp = await axios.get('/api/types', {
+        const resp = await axios.get(`/api/types?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
@@ -343,7 +343,7 @@ export async function GetTypes() {
 }
 export async function GetUsers() {
     try {
-        const resp = await axios.get( '/api/users', {
+        const resp = await axios.get( `/api/users?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',

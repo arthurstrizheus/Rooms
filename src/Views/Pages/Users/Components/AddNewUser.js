@@ -196,7 +196,7 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                         height:110
                                     }}
                                 >
-                                    {groups.filter(gp => gp.access != 'Read')?.map((name, index) => (
+                                    {groups.filter(gp => gp.access != 'Read' && gp.id != 12 && gp.id != 13)?.map((name, index) => (
                                         <MenuItem
                                             key={index}
                                             value={name.id}
@@ -229,7 +229,7 @@ const AddNewUser = ({ open, setOpen, groups, userLocation, userGroups, selectedU
                                         height:110
                                     }}
                                 >
-                                    {groups.filter(gp => gp.access != 'Full')?.map((name, index) => (
+                                    {groups.filter(gp => gp.access != 'Full' && gp.id != 12 && gp.id != 13)?.map((name, index) => (
                                         <MenuItem
                                             key={index}
                                             value={name.id}

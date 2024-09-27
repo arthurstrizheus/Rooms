@@ -100,6 +100,7 @@ export default function SignUp({ setLoading }) {
         }).then(async (resp) => {
             if (resp) {
                 setUser(resp);
+                localStorage.setItem('user', JSON.stringify(resp));
                 showSuccess('Account created successfully. Thanks Arthur!');
                 login();
                 navigate('/schedule/type/day');
