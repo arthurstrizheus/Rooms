@@ -51,7 +51,7 @@ export async function PostRoomResource(resource) {
 
 export async function GetRoomResources(roomId) {
     try {
-        const resp = await axios.get( `/api/roomresources/${roomId}`, {
+        const resp = await axios.get( `/api/roomresources/${roomId}?_=${new Date().getTime()}`, {
             headers: {
                 'Cache-Control': 'no-cache', // Prevent caching
                 Pragma: 'no-cache',
