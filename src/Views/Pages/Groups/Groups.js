@@ -17,7 +17,7 @@ import { DeleteGroup } from '../../../Utilites/Functions/ApiFunctions/GroupFunct
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
-        backgroundColor: '#e3e3e3',
+        backgroundColor: 'white',
         color: theme.palette.common.black,
         fontWeight:'Bold'
     },
@@ -70,7 +70,7 @@ export default function Groups({setLoading}) {
     const {user} = useAuth();
     const navigate = useNavigate();
     const theme = useTheme();
-    const [order, setOrder] = useState('asc');
+    const [order, setOrder] = useState('desc');
     const [orderBy, setOrderBy] = useState('name');
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
@@ -173,7 +173,7 @@ export default function Groups({setLoading}) {
     
         const sortedRows = (stableSort(data, getComparator(order, orderBy)));
         setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
-    },[groups, filterLocation]);
+    },[groups, filterLocation, update]);
     
     return (
         <Box sx={{height:'100%', width:'100%', display:'flex', flexGrow:1}}>
@@ -227,9 +227,9 @@ export default function Groups({setLoading}) {
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
                                     <TableSortLabel
-                                        active={orderBy === 'email'}
-                                        direction={orderBy === 'email' ? order : 'asc'}
-                                        onClick={(event) => handleRequestSort(event, 'email')}
+                                        active={orderBy === 'access'}
+                                        direction={orderBy === 'access' ? order : 'asc'}
+                                        onClick={(event) => handleRequestSort(event, 'access')}
                                     >
                                         Access
                                     </TableSortLabel>
@@ -249,16 +249,20 @@ export default function Groups({setLoading}) {
                                     selected={isItemSelected}
                                 >
                                     <StyledTableCell padding="checkbox">
+                                        {row.id != 12 && row.id != 13 &&
                                         <Checkbox
-                                        onClick={(event) => handleClick(event, row.id)}
-                                        checked={isItemSelected}
-                                        inputProps={{ 'aria-labelledby': `enhanced-table-checkbox-${row.id}` }}
+                                            onClick={(event) => handleClick(event, row.id)}
+                                            checked={isItemSelected}
+                                            inputProps={{ 'aria-labelledby': `enhanced-table-checkbox-${row.id}` }}
                                         />
+                                        }
                                     </StyledTableCell>
                                     <StyledTableCell component="th" scope="row">
                                         {row.group_name}
                                     </StyledTableCell>
-                                    <StyledTableCell align="left">{row.access}</StyledTableCell>
+                                    <StyledTableCell align="left">
+                                        {row.access}
+                                    </StyledTableCell>
                                 </StyledTableRow>
                             );
                         })}

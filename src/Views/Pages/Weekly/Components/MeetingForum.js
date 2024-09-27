@@ -329,7 +329,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
             <Stack direction={'column'} sx={{width:'100%', height:'100%'}}>
                 <Grid container direction={'column'} sx={{paddingTop:'20px', paddingLeft:'20px', paddingBottom:'20px', borderBottom:`4px solid ${color ? color : "#91E041"}`}}>
                     <Typography fontSize={28}>Book Room</Typography>
-                    <Typography fontSize={16} color={theme.palette.secondary.light} marginTop={'-5px'} fontFamily={'comic sans ms'}>{update ? new Date(updateMeeting.start_time)?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : meeting.date?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Typography>
+                    <Typography fontSize={16} color={theme.palette.secondary.light} marginTop={'-5px'} fontFamily={'comic sans ms'}>{update && updateMeeting ? new Date(updateMeeting.start_time)?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : meeting.date?.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Typography>
                 </Grid>
                 <Box sx={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
                     <Stack direction={showDesc ? 'row' : 'column'} sx={{padding:'20px'}} spacing={2}>

@@ -99,6 +99,11 @@ const Delete = async (req, res) => {
     try {
         const { id } = req.params;  // Extract ID from URL parameters
 
+        // This is the all Groups 12, 13
+        if(id == 12 || id == 13){
+            return res.status(409).json({ message: 'Cannot cannot delete ALL user group'});
+        }
+
         // Find the existing resource by ID
         const resource = await Group.findByPk(id);
         if (!resource) {

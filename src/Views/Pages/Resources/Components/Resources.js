@@ -142,9 +142,9 @@ export default function Resources({setLoading}) {
     },[filterLocation, resources]);
 
     return (
-        <React.Fragment>
+        <Box sx={{height:'100%', width:'100%', display:'flex', flexGrow:1}}>
             <AddNewResource open={openDialog} setOpen={setOpenDialog} resources={filteredResources} location={filterLocation} setUpdate={setUpdate}/>
-            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden' }}>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', flexGrow:1, overflow:'hidden' }}>
                 <Tooltip title={'Add Item'}>
                     <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:130, color:'darkgreen', cursor:'pointer', ':hover':{color:'green'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>
                 </Tooltip>
@@ -170,7 +170,7 @@ export default function Resources({setLoading}) {
                         </Select>
                     </FormControl>
                 </Box>             
-                <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                <TableContainer sx={{ flexGrow: 1, overflowY: 'auto'}}>
                     <Table sx={{ minWidth: 700 }} aria-label="customized table">
                         <TableHead sx={{position: 'sticky', top: 0, zIndex: 1}}>
                             <TableRow>
@@ -227,6 +227,6 @@ export default function Resources({setLoading}) {
                 </Box>
                 
             </Paper>
-        </React.Fragment>
+        </Box>
     );
 }

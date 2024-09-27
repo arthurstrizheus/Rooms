@@ -7,15 +7,16 @@ function CustomTabPanel(props) {
     const { children, value, index, ...other } = props;
 
     return (
-        <div
-        role="tabpanel"
-        hidden={value !== index}
-        id={`simple-tabpanel-${index}`}
-        aria-labelledby={`simple-tab-${index}`}
-        {...other}
+        <Box
+            role="tabpanel"
+            hidden={value !== index}
+            id={`simple-tabpanel-${index}`}
+            aria-labelledby={`simple-tab-${index}`}
+            {...other}
+            sx={{  width:'100%', height:'100%'}}
         >
-        {value === index && <Box sx={{height:'100%', overflow:'hidden'}}>{children}</Box>}
-        </div>
+            {value === index && <Box sx={{height:'100%', overflow:'hidden', display:'flex', flexGrow:1}}>{children}</Box>}
+        </Box>
     );
 }
 
@@ -38,7 +39,7 @@ const Resournces  = ({setLoading}) => {
     });
 
     return(
-        <Box sx={{ width: '100%' }}>
+        <Box sx={{ display:'flex', flexGrow:1, flexDirection:'column', overflow:'hidden'}}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
                 <Tab label='Room Resources' {...a11yProps(0)} />

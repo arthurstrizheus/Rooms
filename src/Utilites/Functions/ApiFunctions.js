@@ -44,7 +44,13 @@ export function showSuccess(msg) {
 
 export async function GetLocations() {
     try {
-        const resp = await axios.get('/api/locations');
+        const resp = await axios.get('/api/locations', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -59,7 +65,13 @@ export async function GetLocations() {
 }
 export async function GetRooms(userId) {
     try {
-        const resp = await axios.get( `/api/rooms/${userId}`);
+        const resp = await axios.get( `/api/rooms/${userId}`, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -73,7 +85,13 @@ export async function GetRooms(userId) {
 }
 export async function GetBlockedDatess() {
     try {
-        const resp = await axios.get( '/api/blockeddates');
+        const resp = await axios.get( '/api/blockeddates', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -87,7 +105,13 @@ export async function GetBlockedDatess() {
 }
 export async function GetGroups() {
     try {
-        const resp = await axios.get( '/api/groups');
+        const resp = await axios.get( '/api/groups', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -101,7 +125,13 @@ export async function GetGroups() {
 }
 export async function GetGroupUsers() {
     try {
-        const resp = await axios.get( '/api/groupusers');
+        const resp = await axios.get( '/api/groupusers', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -115,7 +145,13 @@ export async function GetGroupUsers() {
 }
 export async function GetUserGroups(id) {
     try {
-        const resp = await axios.get( `/api/groups/user/${id}`);
+        const resp = await axios.get( `/api/groups/user/${id}`, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             return [];
@@ -127,7 +163,13 @@ export async function GetUserGroups(id) {
 }
 export async function GetMeetingGroups() {
     try {
-        const resp = await axios.get( '/api/meetinggroups');
+        const resp = await axios.get( '/api/meetinggroups', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -141,7 +183,13 @@ export async function GetMeetingGroups() {
 }
 export async function GetMeetings() {
     try {
-        const resp = await axios.get( '/api/meetings');
+        const resp = await axios.get( '/api/meetings', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -155,7 +203,13 @@ export async function GetMeetings() {
 }
 export async function GetMeetingApprovals(id) {
     try {
-        const resp = await axios.get( `/api/meetings/needsapproved/${id}`);
+        const resp = await axios.get( `/api/meetings/needsapproved/${id}`, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -169,7 +223,13 @@ export async function GetMeetingApprovals(id) {
 }
 export async function GetMeetingsByUserId(id, data) {
     try {
-        const resp = await axios.get( `/api/meetings/user/${id}`,{params: {...data}});
+        const resp = await axios.get( `/api/meetings/user/${id}`,{params: {...data}}, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -183,7 +243,13 @@ export async function GetMeetingsByUserId(id, data) {
 }
 export async function GetMeetingsUserCreated(id, data) {
     try {
-        const resp = await axios.get( `/api/meetings/created/${id}`, {params: {...data}});
+        const resp = await axios.get( `/api/meetings/created/${id}`, {params: {...data}}, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             return [];
@@ -197,7 +263,13 @@ export async function GetMeetingsUserCreated(id, data) {
 }
 export async function GetResources() {
     try {
-        const resp = await axios.get( '/api/resources');
+        const resp = await axios.get( '/api/resources', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -211,7 +283,13 @@ export async function GetResources() {
 }
 export async function GetRoomGroups() {
     try {
-        const resp = await axios.get( '/api/roomgroups');
+        const resp = await axios.get( '/api/roomgroups', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -225,7 +303,13 @@ export async function GetRoomGroups() {
 }
 export async function GetRoomResources() {
     try {
-        const resp = await axios.get( '/api/roomresources');
+        const resp = await axios.get( '/api/roomresources', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -239,7 +323,13 @@ export async function GetRoomResources() {
 }
 export async function GetTypes() {
     try {
-        const resp = await axios.get('/api/types');
+        const resp = await axios.get('/api/types', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -253,7 +343,13 @@ export async function GetTypes() {
 }
 export async function GetUsers() {
     try {
-        const resp = await axios.get( '/api/users');
+        const resp = await axios.get( '/api/users', {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);

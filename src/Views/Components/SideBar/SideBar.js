@@ -161,7 +161,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                         items={[
                         { name: 'Locations', icon: <CorporateFareIcon />, onClick: () => handleMenuClick('locations'), selected: nav.page == 'locations' },
                         { name: 'Rooms', icon: <MeetingRoomOutlinedIcon />, onClick: () => handleMenuClick('rooms'), selected: nav.page == 'rooms' },
-                        { name: 'Users', icon: <PeopleAltOutlinedIcon />, onClick: () => handleMenuClick('users'), selected: nav.page == 'users' || nav.page == 'groups' },
+                        { name: 'Users/Groups', icon: <PeopleAltOutlinedIcon />, onClick: () => handleMenuClick('users'), selected: nav.page == 'users' || nav.page == 'groups' },
                         { name: 'Meeting Types', icon: <FormatColorFillOutlinedIcon />, onClick: () => handleMenuClick('types'), selected: nav.page == 'types' },
                         { name: 'Resources', icon: <AllInboxOutlinedIcon />, onClick: () => handleMenuClick('resources'), selected: nav.page == 'resources' },
                         { name: 'Blocked Dates', icon: <EditCalendarOutlinedIcon />, onClick: () => handleMenuClick('blocked dates'), selected: nav.page == 'blockeddates' },

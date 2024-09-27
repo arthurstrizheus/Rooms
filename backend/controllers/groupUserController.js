@@ -69,7 +69,7 @@ const Update = async (req, res) => {
 const Delete = async (req, res) => {
     try {
         const { id } = req.params;  // Extract ID from URL parameters
-
+        
         // Find the existing resource by ID
         const resource = await GroupUser.findByPk(id);
         if (!resource) {

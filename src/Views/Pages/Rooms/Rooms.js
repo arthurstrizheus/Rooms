@@ -192,45 +192,50 @@ export default function Rooms({setLoading}) {
             setRooms(rms);
             setLoading(false);
         }
+        if(user?.id){
+            getData();
+        }
         getData();
-    },[update]);
+    },[update, user]);
     
     useEffect(() => {
         let rms = [];
-        if(filterLocation?.officeid){
-            rms = rooms.filter(rm => rm.location === filterLocation.officeid);
-            setFilteredRooms(rms);
-        }else{
-            rms = rooms;
-            setFilteredRooms(rms);
-        }
-
-        const data = rms?.map(itm => {
-            return createData(
-                itm.id,
-                itm.value,
-                itm.location,
-                itm.capacity,
-                itm.color
-            );
-        });
+        if(rooms?.length){
+            if(filterLocation?.officeid){
+                rms = rooms.filter(rm => rm.location === filterLocation.officeid);
+                setFilteredRooms(rms);
+            }else{
+                rms = rooms;
+                setFilteredRooms(rms);
+            }
     
-        const sortedRows = stableSort(data, getComparator(order, orderBy));
-        setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
+            const data = rms?.map(itm => {
+                return createData(
+                    itm.id,
+                    itm.value,
+                    itm.location,
+                    itm.capacity,
+                    itm.color
+                );
+            });
         
-    },[filterLocation, rooms]);
+            const sortedRows = stableSort(data, getComparator(order, orderBy));
+            setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
+        }else{
+            setPaginatedRows([]);
+        }
+    },[filterLocation, rooms, update]);
 
     return (
         <React.Fragment>
             <AddNewRoom open={openDialog} setOpen={setOpenDialog} selectedRoom={selectedRoom} roomLocation={selectedRoomLocation} roomGroups={roomGroups} locations={locations} groups={groups} setUpdate={setUpdate}/>
-            <PageSelector headers={[]} selectedHeader={1} hoverFill={'white'}/>
             <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden' }}>
                 <Tooltip title={'Add room'}>
-                    <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:130, color:'green', cursor:'pointer', ':hover':{color:'lightgreen'}, height:'30px', width:'30px'}} onClick={handleAddRoom}/>
+                    <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:135, color:'green', cursor:'pointer', ':hover':{color:'lightgreen'}, height:'30px', width:'30px'}} onClick={handleAddRoom}/>
                 </Tooltip>
                 {selected?.length > 0 &&
                 <Tooltip title={'Delete Selected'}>
-                    <DeleteIcon sx={{position:'absolute', right:75, zIndex:2, top:130, color:'red', cursor:'pointer', ':hover':{color:'darkred'}, height:'30px', width:'30px'}} onClick={handleDeleteSelected}/>
+                    <DeleteIcon sx={{position:'absolute', right:75, zIndex:2, top:135, color:'red', cursor:'pointer', ':hover':{color:'darkred'}, height:'30px', width:'30px'}} onClick={handleDeleteSelected}/>
                 </Tooltip>
                 }
                 <Box sx={{width:'200px', position:'absolute', right:120, top:122}}>
@@ -321,7 +326,7 @@ export default function Rooms({setLoading}) {
                                 </StyledTableCell>
                                 <StyledTableCell component="th" scope="row">{row.room}</StyledTableCell>
                                 <StyledTableCell align="left">{location.Alias}</StyledTableCell>
-                                <StyledTableCell align="left">{row.capacity}</StyledTableCell>
+                                <StyledTableCell align="left">{row.capacity ? row.capacity : 'N/A'}</StyledTableCell>
                                 </StyledTableRow>
                                 <StyledTableRow>
                                     <StyledTableCell style={{ padding: 0, boxSizing: 'border-box' }} colSpan={7}>

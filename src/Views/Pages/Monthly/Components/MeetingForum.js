@@ -28,7 +28,7 @@ const times = [
     '5:00pm'
 ];
 
-const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTypesRes, setUpdate, setOpen, setUpdateCount, updateMode}) => {
+const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTypesRes, setUpdate, setOpen, setUpdateCount, updateMode, onClose}) => {
     const theme = useTheme();
     const {user} = useAuth();
     const [color, setColor] = useState(null);

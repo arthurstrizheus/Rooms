@@ -102,8 +102,8 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
     return(
         <Dialog open={open} onClose={handleExit} >
             {/* Delete/Cancel Parent Warning Dialog*/}
-            <Dialog open={showWarning} onClose={() => setShowWarning(false)}>
-                <Grid container height={'100%'} sx={{minWidth:'300px', minHeight:'320px', width:'400px', overflow:'hidden'}}>
+            <Dialog open={showWarning} onClose={() => setShowWarning(false)} maxWidth={'md'}>
+                <Grid container height={'100%'} sx={{minWidth:'315px', minHeight:'320px', width:'410px', overflow:'hidden'}}>
                     <CloseIcon
                         sx={{
                             position:'absolute',
@@ -125,8 +125,8 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                         </Stack>
                         <Divider sx={{paddingTop:'5px'}}/>
                         <Stack direction={'column'} sx={{paddingTop:'5px', paddingLeft:'5px'}} spacing={'-8px'}>
-                            <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.light}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
-                            <Typography variant="body1" color={'#8c8b8b'} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
+                            <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.main}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
+                            <Typography variant="body1" color={theme.palette.primary.text.dark} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
                         </Stack>
                     </Grid>
                     <Grid item sx={{display: 'flex', flexDirection:'column', width:'100%', height:'100%',  padding:'15px 20px 10px 20px', justifyContent:'center'}}>
@@ -136,7 +136,7 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                     <Grid padding={'5px'}>
 
                     </Grid>
-                    <Stack position={'relative'} bottom={meeting.description ? 0 : -5} direction={'row'} width={'100%'} sx={{ padding:'5px', height:'35px', background:'#f2eeed', borderTop:'1px solid #dedede'}} spacing={1}>
+                    <Stack position={'relative'} bottom={meeting.description ? 0 : -5} direction={'row'} width={'100%'} sx={{marginBottom:'-5px', paddingRight:'5px', paddingTop:'5px', paddingLeft:'5px', height:'35px', borderTop:'1px solid #dedede'}} spacing={1}>
                         <Tooltip title={'Cancel all recurring meetings'}
                             componentsProps={{
                                 tooltip: {
@@ -147,13 +147,12 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                             }}
                         >
                             <Button
-                                variant={'contained'} 
+                                variant={'outlined'} 
                                 style={{ fontSize: '12px' }}
                                 sx={{
                                     width:'100%', 
-                                    color:'black', 
-                                    background:'#f5f5f5', 
-                                    ':hover':{background:'#e8e8e8'},
+                                    color:'black',
+                                    padding:'5px'
                                 }} 
                                 onClick={handleCancelAll}
                                 startIcon={<DeleteSweepIcon sx={{color:theme.palette.secondary.light}}/>}
@@ -171,13 +170,11 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                             }}
                         >
                             <Button 
-                                variant={'contained'} 
+                                variant={'outlined'} 
                                 style={{ fontSize: '12px' }}
                                 sx={{
                                     width:'100%', 
                                     color:'black', 
-                                    background:'#f5f5f5', 
-                                    ':hover':{background:'#e8e8e8'},
                                 }}
                                 onClick={handleCancelAllNext}
                                 startIcon={<RemoveRoadIcon sx={{color:theme.palette.secondary.light}}/>}
@@ -195,13 +192,12 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                             }}
                         >
                             <Button 
-                                variant={'contained'} 
+                                variant={'outlined'} 
                                 style={{ fontSize: '12px' }}
                                 sx={{
                                     width:'100%', 
                                     color:'black', 
-                                    background:'#f5f5f5', 
-                                    ':hover':{background:'#e8e8e8'},
+                                    padding:'5px'
                                 }}
                                 onClick={handleCancelOnlyParent}
                                 startIcon={<DoNotDisturbIcon sx={{color:theme.palette.secondary.light}}/>}
@@ -236,8 +232,8 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                         </Stack>
                         <Divider sx={{paddingTop:'5px'}}/>
                         <Stack direction={'column'} sx={{paddingTop:'5px', paddingLeft:'5px'}} spacing={'-8px'}>
-                            <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.light}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
-                            <Typography variant="body1" color={'#8c8b8b'} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
+                            <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.main}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
+                            <Typography variant="body1" color={theme.palette.primary.text.dark} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
                         </Stack>
                     </Grid>
                     <Grid item sx={{display: 'flex', flexDirection:'column', width:'100%', height:'100%',  padding:'15px 20px 10px 20px', justifyContent:'center'}}>
@@ -247,7 +243,7 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                     <Grid padding={'5px'}>
 
                     </Grid>
-                    <Stack position={'relative'} bottom={meeting.description ? 0 : -5} direction={'row'} width={'100%'} sx={{ padding:'5px', height:'35px', background:'#f2eeed', borderTop:'1px solid #dedede'}} spacing={1}>
+                    <Stack position={'relative'} bottom={meeting.description ? 0 : -5} direction={'row'} width={'100%'} sx={{marginBottom:'-5px', paddingRight:'5px', paddingTop:'5px', paddingLeft:'5px', height:'35px', borderTop:'1px solid #dedede'}} spacing={1}>
                         <Tooltip title={'Update all future meetings'}
                             componentsProps={{
                                 tooltip: {
@@ -258,13 +254,11 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                             }}
                         >
                             <Button
-                                variant={'contained'} 
+                                variant={'outlined'} 
                                 style={{ fontSize: '12px' }}
                                 sx={{
                                     width:'100%', 
                                     color:'black', 
-                                    background:'#f5f5f5', 
-                                    ':hover':{background:'#e8e8e8'},
                                 }}
                                 onClick={handleEditALL}
                                 startIcon={<EditNoteIcon sx={{color:'error'}}/>}
@@ -282,13 +276,11 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                             }}
                         >
                             <Button 
-                                variant={'contained'} 
+                                variant={'outlined'} 
                                 style={{ fontSize: '12px' }}
                                 sx={{
                                     width:'100%', 
-                                    color:'black', 
-                                    background:'#f5f5f5', 
-                                    ':hover':{background:'#e8e8e8'},
+                                    color:'black',
                                 }}
                                 onClick={handleEditFollowingParent}
                                 startIcon={<EditRoadIcon sx={{color:theme.palette.secondary.light}}/>}
@@ -306,13 +298,11 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                             }}
                         >
                             <Button 
-                                variant={'contained'} 
+                                variant={'outlined'} 
                                 style={{ fontSize: '12px' }}
                                 sx={{
                                     width:'100%', 
                                     color:'black', 
-                                    background:'#f5f5f5', 
-                                    ':hover':{background:'#e8e8e8'},
                                 }}
                                 onClick={handleEditOnlyParent}
                                 startIcon={<EditIcon sx={{color:theme.palette.secondary.light}}/>}
@@ -322,6 +312,7 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                         </Tooltip>
                     </Stack>
                 </Grid>
+            
             </Dialog>
             {/* Normal Dialog*/}
             <Grid container height={'100%'} sx={{minWidth:'300px', minHeight:'300px', width:'400px', overflow:'hidden'}}>
@@ -347,16 +338,16 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                     <Divider sx={{paddingTop:'5px'}}/>
                     <Stack direction={'column'} sx={{paddingTop:'5px', paddingLeft:'5px'}} spacing={'-8px'}>
                         <Typography variant="h6" fontSize={18} letterSpacing={1} color={theme.palette.secondary.main}>{start.getHours()}:{String(start.getMinutes()).padStart(2, '0')}{getAmPm(start)} - {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:{String(end.getMinutes()).padStart(2, '0')}{getAmPm(end)}</Typography>
-                        <Typography variant="body1" color={'#8c8b8b'} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
+                        <Typography variant="body1" color={theme.palette.primary.text.dark} fontSize={14} paddingLeft={'3px'}>SEA {location} / {room}</Typography>
                     </Stack>
                 </Grid>
                 <Grid item sx={{width:'100%', height:'100%',  padding:'15px 20px 10px 20px'}}>
                     <Stack direction={'row'} sx={{ paddingLeft:'5px'}} spacing={3}>
                         <Stack direction={'column'} spacing={1} >
-                            <Typography variant="body1" color={'#8c8b8b'}>Booker:</Typography>
-                            <Typography variant="body1" color={'#8c8b8b'}>Type:</Typography>
+                            <Typography variant="body1" color={theme.palette.primary.text.dark}>Booker:</Typography>
+                            <Typography variant="body1" color={theme.palette.primary.text.dark}>Type:</Typography>
                             {meeting.repeats &&
-                            <Typography variant="body1" color={'#8c8b8b'}>Repeats:</Typography>
+                            <Typography variant="body1" color={theme.palette.primary.text.dark}>Repeats:</Typography>
                             }
                         </Stack>
                         <Stack direction={'column'} spacing={1}>
@@ -370,7 +361,12 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                     {meeting.description &&
                         <Divider sx={{paddingTop:'5px'}}/>
                     }
-                    <Typography paddingTop={'10px'}>{meeting.description}</Typography>
+                    {meeting?.description != '' && meeting?.description != null && meeting?.description != undefined &&
+                        <Stack direction={'column'} sx={{ paddingLeft:'5px'}}>
+                            <Typography variant="body1" color={theme.palette.primary.text.dark} sx={{marginBottom:'-15px'}}>Description:</Typography>
+                            <Typography paddingTop={'10px'}>{meeting.description}</Typography>
+                        </Stack>
+                    }
                 </Grid>
                 <Grid padding={'5px'}>
 
@@ -400,8 +396,7 @@ const DisplayMeeting = ({open, setOpen, meeting, setEditOpen, types, rooms, loca
                         Cancel
                     </Button>
                 </Stack>
-            </Grid>
-            
+            </Grid> 
         </Dialog>
     );
 };

@@ -142,31 +142,36 @@ export default function MeetingTypes({setLoading}) {
     },[update]);
 
     useEffect(() => {
-        const data = types?.map(itm => {
-            return createData(
-                itm.id,
-                itm.value,
-                itm.color
-            );
-        });
-    
-        const sortedRows = stableSort(data, getComparator(order, orderBy));
-        setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
-    },[types]);
+        if(types?.length){
+            const data = types?.map(itm => {
+                return createData(
+                    itm.id,
+                    itm.value,
+                    itm.color
+                );
+            });
+        
+            const sortedRows = stableSort(data, getComparator(order, orderBy));
+            setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
+        }else{
+            setPaginatedRows([]);
+        }
+        
+    },[types, update]);
 
     return (
         <React.Fragment>
             <AddNewType open={openDialog} setOpen={setOpenDialog} setUpdate={setUpdate}/>
-            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden' }}>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden'}}>
                 <Tooltip title={'Add Item'}>
-                    <AddIcon sx={{position:'absolute', right:70, zIndex:2, top:135, color:'darkgreen', cursor:'pointer', ':hover':{color:'green'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>
+                    <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:135, color:'darkgreen', cursor:'pointer', ':hover':{color:'green'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>
                 </Tooltip>
                 {selected?.length > 0 &&
                 <Tooltip title={'Delete Selected'}>
-                    <DeleteIcon sx={{position:'absolute', right:100, zIndex:2, top:135, color:'red', cursor:'pointer', ':hover':{color:'darkred'}, height:'30px', width:'30px'}} onClick={handleDeleteSelected}/>
+                    <DeleteIcon sx={{position:'absolute', right:70, zIndex:2, top:135, color:'red', cursor:'pointer', ':hover':{color:'darkred'}, height:'30px', width:'30px'}} onClick={handleDeleteSelected}/>
                 </Tooltip>
                 }             
-                <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                <TableContainer sx={{ flexGrow: 1, overflowY: 'auto'}}>
                     <Table sx={{ minWidth: 700 }} aria-label="customized table">
                         <TableHead sx={{position: 'sticky', top: 0, zIndex: 1}}>
                             <TableRow>

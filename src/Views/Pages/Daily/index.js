@@ -54,16 +54,18 @@ const DaySchedulePage = ({ setLoading, selectedDate, setSelectedDate }) => {
     };
 
     useEffect(() => {
-        const data = async () => {
-            setLoading(true);
-            const lcs = await GetLocations();
-            const rms = await GetRooms(user.id);
-            setLocations(lcs);
-            setRooms(rms);
-            setLoading(false);
-        };
-        data();
-    },[update]);
+        if(user?.id){
+            const data = async () => {
+                setLoading(true);
+                const lcs = await GetLocations();
+                const rms = await GetRooms(user?.id);
+                setLocations(lcs);
+                setRooms(rms);
+                setLoading(false);
+            };
+            data();
+        }
+    },[update, user]);
 
     useEffect(() => {
         setRoomsObj(createMeetingRooms(rooms, theme));
