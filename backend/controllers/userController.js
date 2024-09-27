@@ -1,4 +1,4 @@
-const { User } = require('../models');
+const { User, GroupUser } = require('../models');
 const bcrypt = require('bcrypt');
 
 const saltRounds = 10;
@@ -70,8 +70,19 @@ const Post = async (req, res) => {
             created_user_id: created_user_id ? created_user_id : null,
         });
 
+        await GroupUser.create({
+            user_id: newResource.id,
+            group_id: 12,
+        });
+
+        await GroupUser.create({
+            user_id: newResource.id,
+            group_id: 13,
+        });
+
+        const userWithoutPassword = { ...newResource.get(), password: undefined };
         // Return the created record as a JSON response
-        res.status(201).json(newResource);
+        res.status(201).json(userWithoutPassword);
     } catch (err) {
         console.error('Error creating resource:', err);
         res.status(500).json({ message: 'Server error' });

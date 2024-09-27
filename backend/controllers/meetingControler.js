@@ -262,19 +262,21 @@ async function CreateRepeatingMeetings(currentDate, range, userId) {
 
     for (let meeting of meetingsWithRecurrence) {
         // User special permissions
-        const special = await SpecialPermission.findAll({where:{user_id:id}});
-        const meetingIds = special?.map(sp => sp.meeting_id);
-        const meetingsUserHasSpecialAccess = await Meeting.findAll({
-            where:{
-                id:{
-                    [Sequelize.Op.In]: meetingIds,
-                },
-                status: 'Approved'
-            }
-        });
-        const meetIds = meetingsUserHasSpecialAccess?.map(mt => mt.id);
-
-        if(!CanSeeMeet(meeting, user) && !meetIds.includes(meeting.id)) continue; // Skip if user cannot see this meeting
+        const special = await SpecialPermission.findAll({where:{user_id:userId}});
+        if(special?.length){
+            const meetingIds = special?.map(sp => sp.meeting_id);
+            const meetingsUserHasSpecialAccess = await Meeting.findAll({
+                where:{
+                    id:{
+                        [Sequelize.Op.In]: meetingIds,
+                    },
+                    status: 'Approved'
+                }
+            });
+            const meetIds = meetingsUserHasSpecialAccess?.map(mt => mt.id);
+            if((!CanSeeMeet(meeting, user) && !meetIds.includes(meeting.id)) || !CanSeeMeet(meeting, user)) continue;
+        }
+        if(!CanSeeMeet(meeting, user)) continue; // Skip if user cannot see this meeting
         if(meeting.status === 'Canceled') continue;
         const recurrence = await MeetingRecurrence.findByPk(meeting.recurrence_id);
         if (!recurrence || !recurrence?.active) continue;  // Skip if no recurrence exists

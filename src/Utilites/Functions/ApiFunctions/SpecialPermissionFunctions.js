@@ -18,7 +18,13 @@ export async function PostSpecialPermission(data) {
 
 export async function GetSpecialPermissionsForMeeting(meeting) {
     try {
-        const resp = await axios.post( '/api/specialpermissions/meeting', meeting).catch(() => []);
+        const resp = await axios.post( '/api/specialpermissions/meeting', meeting, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        }).catch(() => []);
         return resp.data;
     } catch (err) {
         return [];

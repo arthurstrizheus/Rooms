@@ -51,7 +51,13 @@ export async function PostRoomResource(resource) {
 
 export async function GetRoomResources(roomId) {
     try {
-        const resp = await axios.get( `/api/roomresources/${roomId}`);
+        const resp = await axios.get( `/api/roomresources/${roomId}`, {
+            headers: {
+                'Cache-Control': 'no-cache', // Prevent caching
+                Pragma: 'no-cache',
+                Expires: '0',
+            },
+        });
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);

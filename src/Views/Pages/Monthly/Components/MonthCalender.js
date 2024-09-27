@@ -127,6 +127,7 @@ const MonthCalender = ({ roomsRes, selectedDate, locations, meetings, meetingTyp
                         setUpdateCount={setUpdate}
                         date={selectedDate}
                         updateMode={updateMode}
+                        onClose={handleCloseForm}
                     />
             </Dialog>
             <Grid width={'100%'} height={'calc(100vh - 166px)'} sx={{ overflowX: 'hidden' }}>

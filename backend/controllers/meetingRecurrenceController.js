@@ -46,9 +46,9 @@ const CancelAllNextMeetings = async (req, res) => {
         const user = await User.findByPk(created_user_id);
         if(Number(id) === -1){
             const parentMeeting = await Meeting.findByPk(recurrence.meeting_id);
-            canDelete = await meetingController.CanDelete(parentMeeting.id, user.id);
+            canDelete = await meetingController.CanDelete(parentMeeting.id, user?.id);
         }else{
-            canDelete = await meetingController.CanDelete(id, user.id);
+            canDelete = await meetingController.CanDelete(id, user?.id);
         }
 
         if(!canDelete) {

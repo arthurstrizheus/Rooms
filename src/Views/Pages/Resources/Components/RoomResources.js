@@ -124,8 +124,10 @@ export default function RoomResources({setLoading}) {
             setFilterLocation(lcs?.find(lc => lc.officeid == user?.location));
             setLoading(false);
         }
-        getData();
-    },[update]);
+        if(user?.id){
+            getData();
+        }
+    },[update, user]);
 
     useEffect(() => {
         if(rooms?.length && filterLocation?.officeid){
@@ -148,7 +150,7 @@ export default function RoomResources({setLoading}) {
     
 
     return (
-        <React.Fragment>
+        <Box sx={{height:'100%', width:'100%', display:'flex', flexGrow:1}}>
             <AddNewRoomResource
                 open={openDialog}
                 setOpen={setOpenDialog}
@@ -157,7 +159,7 @@ export default function RoomResources({setLoading}) {
                 resources={resources?.filter(rm => rm.location == filterLocation?.officeid)}
                 setUpdate={setUpdate}
             />
-            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden' }}>
+            <Paper sx={{ height: '100%', display: 'flex', flexGrow:1, flexDirection: 'column', overflow:'hidden' }}>
                 <Tooltip title={'Add Item'}>
                     <AddIcon sx={{position:'absolute', right:40, zIndex:2, top:130, color:'darkgreen', cursor:'pointer', ':hover':{color:'green'}, height:'30px', width:'30px'}} onClick={setOpenDialog}/>
                 </Tooltip>
@@ -183,7 +185,7 @@ export default function RoomResources({setLoading}) {
                         </Select>
                     </FormControl>
                 </Box>
-                <TableContainer sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                <TableContainer sx={{ flexGrow: 1, height:'100%', overflowY: 'hidden' }}>
                     <Table sx={{ minWidth: 700 }} aria-label="customized table">
                         <TableHead sx={{position: 'sticky', top: 0, zIndex: 1}}>
                             <TableRow>
@@ -248,6 +250,6 @@ export default function RoomResources({setLoading}) {
                 </Box>
                 
             </Paper>
-        </React.Fragment>
+        </Box>
     );
 }

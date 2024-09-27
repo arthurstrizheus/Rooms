@@ -28,7 +28,7 @@ export default function SignUp({ setLoading }) {
     const [emailError, setEmailError] = useState(false);  // Track email validation error
     const [location, setLocation] = useState('');
     const [locations, setLocations] = useState([]);
-    const { login } = useAuth();
+    const { login, setUser } = useAuth();
     const theme = useTheme();
     const navigate = useNavigate();
 
@@ -99,6 +99,7 @@ export default function SignUp({ setLoading }) {
             active: true
         }).then(async (resp) => {
             if (resp) {
+                setUser(resp);
                 showSuccess('Account created successfully. Thanks Arthur!');
                 login();
                 navigate('/schedule/type/day');
@@ -213,7 +214,7 @@ export default function SignUp({ setLoading }) {
                     <Button
                         type="submit"
                         fullWidth
-                        variant="contained"
+                        variant="outlined"
                         sx={{ mt: 3, mb: 2, ":hover":{background:theme.palette.primary.lightHover}}}
                     >
                         Sign Up

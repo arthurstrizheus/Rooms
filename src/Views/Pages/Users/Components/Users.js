@@ -276,7 +276,7 @@ export default function Users({setLoading}) {
     
         const sortedRows = (stableSort(data, getComparator(order, orderBy)));
         setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
-    },[filterLocation, users]);
+    },[filterLocation, users, update]);
     
     return (
         <Box sx={{height:'100%', width:'100%', display:'flex', flexGrow:1}}>

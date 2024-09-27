@@ -30,6 +30,7 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
         setReadAccess([]);
         setOldFullControl([]);
         setOldReadAccess([]);
+        setUpdate(prev => prev + 1);
     };
 
     const handleChange = (newColor) => {
@@ -37,7 +38,7 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
     };
 
     const onSubmit = () => {
-        if(roomName != '' && color != '' && location && capacity != ''){
+        if(roomName != '' && color != '' && location){
             if(!selectedRoom?.id){
                 PostRoom({value: roomName, color: color, location: location.officeid, capacity: capacity, created_user_id: user?.id }).then(async (resp) => {
                     if(resp){
@@ -45,24 +46,28 @@ const AddNewRoom = ({ open, setOpen, roomGroups, roomLocation, selectedRoom, loc
                         await Promise.all(promises);
                         promises = readAccess?.map(async ra => PostRoomGroup({group_id: ra, room_id: resp.id, created_user_id: user?.id}));
                         await Promise.all(promises);
+                        onClose();
                     }
-                })
-                .then(() => setUpdate(prev => prev + 1));
+                });
             }else{
                 UpdateRoom(selectedRoom?.id, {value: roomName, color: color, location: location.officeid, capacity: capacity, created_user_id: user?.id })
-                .then((resp) => {
+                .then(async (resp) => {
                     if(resp){
                         // Add new groups
-                        fullControl?.map(fc => oldFullControl?.find(ofc => ofc === fc) ? null : PostRoomGroup({group_id: fc, room_id: selectedRoom.id, created_user_id: user?.id}));
-                        readAccess?.map(or => oldReadAccess?.find(ora => ora === or) ? null : PostRoomGroup({group_id: or, room_id: selectedRoom.id, created_user_id: user?.id}));
+                        let promises = fullControl?.map(fc => oldFullControl?.find(ofc => ofc === fc) ? null : PostRoomGroup({group_id: fc, room_id: selectedRoom.id, created_user_id: user?.id}));
+                        await Promise.all(promises);
+                        promises = readAccess?.map(or => oldReadAccess?.find(ora => ora === or) ? null : PostRoomGroup({group_id: or, room_id: selectedRoom.id, created_user_id: user?.id}));
+                        await Promise.all(promises);
                         // Delete removed groups
-                        oldFullControl?.map(ofc => fullControl?.find(fc => ofc === fc) ? null : DeleteRoomGroupByRoomId({group_id: ofc, room_id: selectedRoom.id}));
-                        oldReadAccess?.map(ora => readAccess?.find(or => ora === or) ? null : DeleteRoomGroupByRoomId({group_id: ora, room_id: selectedRoom.id}));
+                        promises = oldFullControl?.map(ofc => fullControl?.find(fc => ofc === fc) ? null : DeleteRoomGroupByRoomId({group_id: ofc, room_id: selectedRoom.id}));
+                        await Promise.all(promises);
+                        promises = oldReadAccess?.map(ora => readAccess?.find(or => ora === or) ? null : DeleteRoomGroupByRoomId({group_id: ora, room_id: selectedRoom.id}));
+                        await Promise.all(promises);
+                    
                     }
+                    onClose();
                 })
-                .then(() =>setUpdate(prev => prev + 1));
             }
-            onClose();
         }else{
             showError("Feilds cannot be empty");
         }

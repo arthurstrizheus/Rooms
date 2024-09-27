@@ -212,7 +212,7 @@ export default function ApprovalQueue({setLoading}) {
         }else{
             setPaginatedRows([]);
         }
-    },[meetings, filterLocation]);
+    },[meetings, filterLocation, update]);
     
     return (
         <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow:'hidden'}}>
