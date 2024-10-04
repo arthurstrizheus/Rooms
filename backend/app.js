@@ -15,6 +15,7 @@ const usersRouter = require('./routes/users');
 const officeRouter = require('./routes/offices');
 const specialPermissionsRouter = require('./routes/specialPermissions');
 const recurrenceRouter = require('./routes/meetingrecurrences');
+const zscalerRouter = require('./routes/zscaler');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/locations', officeRouter);
 app.use('/api/recurrences', recurrenceRouter);
 app.use('/api/specialpermissions', specialPermissionsRouter);
+app.use('/api/zscaler', zscalerRouter);
 
 // const retryOptions = { maxRetries: 3, delay: 100 }; // Customize retry options as needed
 

@@ -9,15 +9,24 @@ import SideBar from './Views/Components/SideBar/SideBar';
 import Banner from './Views/Components/Banner/Banner';
 import AppRoutes from './Routes/Routes'
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function App() {
 
   const [mode, setMode] = useState('light');
   const [bannerText, setBannerText] = useState("Month Schedule")
   const [loading, setLoading] = useState(false);
+  const [update, setUpdate] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { isAuthenticated, setUser, login, user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    delay(120000).then(() => setUpdate(prev => prev + 1));
+  },[update]);
 
   // I DONT LIKE HOW THIS WORKS. I need a better way to page authentication
   useEffect(() => {
