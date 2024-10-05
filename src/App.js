@@ -27,6 +27,7 @@ function App() {
   const [mode, setMode] = useState("light");
   const [bannerText, setBannerText] = useState("Month Schedule");
   const [loading, setLoading] = useState(false);
+  const [update, setUpdate] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const { isAuthenticated, setUser, login, user } = useAuth();
   const location = useLocation();
