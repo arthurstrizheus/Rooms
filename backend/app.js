@@ -26,7 +26,7 @@ const allowedOrigins = [
   "http://localhost:3002",
   "https://roomsync-badb9.web.app",
   "https://room-sync.arthurstrizheus.com",
-  "http://roomsync-badb9.web.app",
+  "https://rooms-sync-4f68d.web.app",
   "http://room-sync.arthurstrizheus.com",
   // Add more origins as needed
 ];

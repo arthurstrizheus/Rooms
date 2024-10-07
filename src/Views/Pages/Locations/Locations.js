@@ -1,198 +1,337 @@
-import React, {useEffect, useState} from 'react';
-import { styled } from '@mui/material/styles';
-import TableCell, { tableCellClasses } from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import { useTheme } from '@emotion/react';
-import { Paper, TableContainer, TableHead, TableSortLabel, Table, TableBody, Typography, TablePagination } from '@mui/material';
-import { GetLocations } from '../../../Utilites/Functions/ApiFunctions';
+import React, { useEffect, useState } from "react";
+import { styled } from "@mui/material/styles";
+import TableCell, { tableCellClasses } from "@mui/material/TableCell";
+import TableRow from "@mui/material/TableRow";
+import { useTheme } from "@emotion/react";
+import {
+  Paper,
+  TableContainer,
+  TableHead,
+  TableSortLabel,
+  Table,
+  TableBody,
+  Typography,
+  TablePagination,
+  Tooltip,
+  Checkbox,
+} from "@mui/material";
+import {
+  GetLocations,
+  showError,
+  showSuccess,
+} from "../../../Utilites/Functions/ApiFunctions";
+import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
+import AddIcon from "@mui/icons-material/AddOutlined";
+import AddNewLocation from "./Components/AddNewLocation";
+import { DeleteLocation } from "../../../Utilites/Functions/ApiFunctions/LocationFunctions";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
-    [`&.${tableCellClasses.head}`]: {
-        backgroundColor: 'white',
-        color: theme.palette.common.black,
-        fontWeight:'Bold'
-    },
-    [`&.${tableCellClasses.body}`]: {
-        fontSize: 14,
-    },
+  [`&.${tableCellClasses.head}`]: {
+    backgroundColor: "white",
+    color: theme.palette.common.black,
+    fontWeight: "Bold",
+  },
+  [`&.${tableCellClasses.body}`]: {
+    fontSize: 14,
+  },
 }));
 
 const StyledTableRow = styled(TableRow)(({ theme }) => ({
-    '&:last-child td, &:last-child th': {
-        border: 0,
-    },
-    }));
+  "&:last-child td, &:last-child th": {
+    border: 0,
+  },
+}));
 
 function createData(id, city, number, saddress, state, zip, airport, alias) {
-    return { id, city, number, saddress, state, zip, airport, alias };
+  return { id, city, number, saddress, state, zip, airport, alias };
 }
 
 function descendingComparator(a, b, orderBy) {
-    if (typeof a[orderBy] === 'string') {
-        return b[orderBy].localeCompare(a[orderBy]);
-    } else if (typeof a[orderBy] === 'number') {
-        return b[orderBy] - a[orderBy];
-    } else if (a[orderBy] instanceof Date) {
-        return new Date(b[orderBy]) - new Date(a[orderBy]);
-    }
-    return 0;
+  if (typeof a[orderBy] === "string") {
+    return b[orderBy].localeCompare(a[orderBy]);
+  } else if (typeof a[orderBy] === "number") {
+    return b[orderBy] - a[orderBy];
+  } else if (a[orderBy] instanceof Date) {
+    return new Date(b[orderBy]) - new Date(a[orderBy]);
+  }
+  return 0;
 }
 
 function getComparator(order, orderBy) {
-    return order === 'desc'
-        ? (a, b) => descendingComparator(a, b, orderBy)
-        : (a, b) => -descendingComparator(a, b, orderBy);
+  return order === "desc"
+    ? (a, b) => descendingComparator(a, b, orderBy)
+    : (a, b) => -descendingComparator(a, b, orderBy);
 }
 
 function stableSort(array, comparator) {
-    const stabilizedThis = array?.map((el, index) => [el, index]);
-    stabilizedThis.sort((a, b) => {
-        const order = comparator(a[0], b[0]);
-        if (order !== 0) return order;
-        return a[1] - b[1];
-    });
-    return stabilizedThis?.map((el) => el[0]);
+  const stabilizedThis = array?.map((el, index) => [el, index]);
+  stabilizedThis.sort((a, b) => {
+    const order = comparator(a[0], b[0]);
+    if (order !== 0) return order;
+    return a[1] - b[1];
+  });
+  return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function Locations() {
-    const theme = useTheme();
-    const [order, setOrder] = useState('asc');
-    const [orderBy, setOrderBy] = useState('name');
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(25);
-    const [locations, setLocations] = useState([]);
-    const [paginatedRows, setPaginatedRows] = useState([]);
+  const theme = useTheme();
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("name");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [locations, setLocations] = useState([]);
+  const [paginatedRows, setPaginatedRows] = useState([]);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [update, setUpdate] = useState(0);
+  const [selected, setSelected] = useState([]);
 
-
-    const handleRequestSort = (event, property) => {
-        const isAsc = orderBy === property && order === 'asc';
-        setOrder(isAsc ? 'desc' : 'asc');
-        setOrderBy(property);
+  const handleDeleteSelected = () => {
+    const remove = async () => {
+      const promises = locations?.map(async (itm) =>
+        isSelected(itm.officeid) && itm.Alias != "All"
+          ? await DeleteLocation(itm.officeid)
+          : null
+      );
+      await Promise.all(promises).then((resp) =>
+        resp ? showSuccess("Items Deleted") : showError("Failed to delete")
+      );
+      setSelected([]);
+      setUpdate((prev) => prev + 1);
     };
+    remove();
+  };
 
-    const handleChangePage = (event, newPage) => {
-        setPage(newPage);
-    };
+  const handleRequestSort = (event, property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
 
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
-    
-    useEffect(() => {
-        GetLocations().then(resp => {
-            const data = resp?.map(itm => {
-                return createData(
-                    itm.officeid,
-                    itm.City,
-                    itm.Number,
-                    itm.SAddress,
-                    itm.state,
-                    itm.Zip,
-                    itm.Airport,
-                    itm.Alias
-                );
-            });
-            setLocations(resp);
-            const sortedRows = stableSort(data, getComparator(order, orderBy));
-            setPaginatedRows(sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage));
-        });
-    },[]);
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
 
-    
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
 
-    return (
-        <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column',  }}>
-            <TableContainer sx={{ flexGrow: 1}}>
-                <Table sx={{ minWidth: 700 }} aria-label="customized table">
-                    <TableHead sx={{position: 'sticky', top: 0, zIndex: 1}}>
-                        <TableRow>
-                            <StyledTableCell align="left">
-                            <TableSortLabel
-                                active={orderBy === 'alias'}
-                                direction={orderBy === 'alias' ? order : 'asc'}
-                                onClick={(event) => handleRequestSort(event, 'alias')}
-                            >
-                                Alias
-                            </TableSortLabel>
-                            </StyledTableCell>
-                            <StyledTableCell align="left">
-                            <TableSortLabel
-                                active={orderBy === 'city'}
-                                direction={orderBy === 'city' ? order : 'asc'}
-                                onClick={(event) => handleRequestSort(event, 'city')}
-                            >
-                                City
-                            </TableSortLabel>
-                            </StyledTableCell>
-                            <StyledTableCell align="left">
-                            <TableSortLabel
-                                active={orderBy === 'state'}
-                                direction={orderBy === 'state' ? order : 'asc'}
-                                onClick={(event) => handleRequestSort(event, 'state')}
-                            >
-                                State
-                            </TableSortLabel>
-                            </StyledTableCell>
-                            <StyledTableCell align="left">
-                            <TableSortLabel
-                                active={orderBy === 'zip'}
-                                direction={orderBy === 'zip' ? order : 'asc'}
-                                onClick={(event) => handleRequestSort(event, 'zip')}
-                            >
-                                Zip
-                            </TableSortLabel>
-                            </StyledTableCell>
-                            <StyledTableCell align="left">
-                            <TableSortLabel
-                                active={orderBy === 'address'}
-                                direction={orderBy === 'address' ? order : 'asc'}
-                                onClick={(event) => handleRequestSort(event, 'address')}
-                            >
-                                Address
-                            </TableSortLabel>
-                            </StyledTableCell>
-                            <StyledTableCell align="left">
-                            <TableSortLabel
-                                active={orderBy === 'airport'}
-                                direction={orderBy === 'airport' ? order : 'asc'}
-                                onClick={(event) => handleRequestSort(event, 'airport')}
-                            >
-                                Airport
-                            </TableSortLabel>
-                            </StyledTableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody sx={{backgroundColor:'white'}}>
-                    {paginatedRows?.map((row) => {
-                        return (
+  useEffect(() => {
+    GetLocations().then((resp) => {
+      const data = resp?.map((itm) => {
+        return createData(
+          itm.officeid,
+          itm.City,
+          itm.Number,
+          itm.SAddress,
+          itm.state,
+          itm.Zip,
+          itm.Airport,
+          itm.Alias
+        );
+      });
+      setLocations(resp);
+      const sortedRows = stableSort(data, getComparator(order, orderBy));
+      if (resp?.length) {
+        setPaginatedRows(
+          sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+        );
+      } else {
+        setPaginatedRows([]);
+      }
+    });
+  }, [update]);
 
-                            <StyledTableRow
-                                key={row.id}
-                                hover
-                                role="checkbox"
-                                tabIndex={-1}
-                            >
-                                <StyledTableCell component="th" scope="row"><Typography  align="left">{row.alias}</Typography></StyledTableCell>
-                                <StyledTableCell align="left">{row.city}</StyledTableCell>
-                                <StyledTableCell align="left">{row.state}</StyledTableCell>
-                                <StyledTableCell align="left">{row.zip}</StyledTableCell>
-                                <StyledTableCell align="left">{row.saddress}</StyledTableCell>
-                                <StyledTableCell align="left">{row.airport}</StyledTableCell>
-                            </StyledTableRow>
-                        );
-                    })}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-            <TablePagination
-                component="div"
-                count={locations.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-            />
-        </Paper>
-    );
+  const handleSelectAllClick = (event) => {
+    if (event.target.checked) {
+      const newSelecteds = locations
+        ?.filter((n) => n.Alias != "All")
+        ?.map((n) => n.officeid);
+      setSelected(newSelecteds);
+      return;
+    }
+
+    setSelected([]);
+  };
+
+  const handleClick = (event, id) => {
+    const selectedIndex = selected.indexOf(id);
+    let newSelected = [];
+
+    if (selectedIndex === -1) {
+      newSelected = newSelected.concat(selected, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selected.slice(1));
+    } else if (selectedIndex === selected.length - 1) {
+      newSelected = newSelected.concat(selected.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selected.slice(0, selectedIndex),
+        selected.slice(selectedIndex + 1)
+      );
+    }
+
+    setSelected(newSelected);
+  };
+
+  const isSelected = (id) => selected.indexOf(id) !== -1;
+
+  return (
+    <Paper sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Tooltip title={"Add Item"}>
+        <AddIcon
+          sx={{
+            position: "absolute",
+            right: 40,
+            zIndex: 2,
+            top: 130,
+            color: "darkgreen",
+            cursor: "pointer",
+            ":hover": { color: "green" },
+            height: "30px",
+            width: "30px",
+          }}
+          onClick={setOpenDialog}
+        />
+      </Tooltip>
+      {selected?.length > 0 && (
+        <Tooltip title={"Delete Selected"}>
+          <DeleteIcon
+            sx={{
+              position: "absolute",
+              right: 70,
+              zIndex: 2,
+              top: 130,
+              color: "red",
+              cursor: "pointer",
+              ":hover": { color: "darkred" },
+              height: "30px",
+              width: "30px",
+            }}
+            onClick={handleDeleteSelected}
+          />
+        </Tooltip>
+      )}
+      <AddNewLocation
+        open={openDialog}
+        setOpen={setOpenDialog}
+        setUpdate={setUpdate}
+      />
+      <TableContainer sx={{ flexGrow: 1 }}>
+        <Table sx={{ minWidth: 700 }} aria-label="customized table">
+          <TableHead sx={{ position: "sticky", top: 0, zIndex: 1 }}>
+            <TableRow>
+              <StyledTableCell padding="checkbox">
+                <Checkbox
+                  indeterminate={
+                    selected.length > 0 && selected.length < locations.length
+                  }
+                  checked={
+                    locations.length > 0 && selected.length === locations.length
+                  }
+                  onChange={handleSelectAllClick}
+                  inputProps={{ "aria-label": "select all meetings" }}
+                />
+              </StyledTableCell>
+              <StyledTableCell align="left">
+                <TableSortLabel
+                  active={orderBy === "alias"}
+                  direction={orderBy === "alias" ? order : "asc"}
+                  onClick={(event) => handleRequestSort(event, "alias")}
+                >
+                  Alias
+                </TableSortLabel>
+              </StyledTableCell>
+              <StyledTableCell align="left">
+                <TableSortLabel
+                  active={orderBy === "city"}
+                  direction={orderBy === "city" ? order : "asc"}
+                  onClick={(event) => handleRequestSort(event, "city")}
+                >
+                  City
+                </TableSortLabel>
+              </StyledTableCell>
+              <StyledTableCell align="left">
+                <TableSortLabel
+                  active={orderBy === "state"}
+                  direction={orderBy === "state" ? order : "asc"}
+                  onClick={(event) => handleRequestSort(event, "state")}
+                >
+                  State
+                </TableSortLabel>
+              </StyledTableCell>
+              <StyledTableCell align="left">
+                <TableSortLabel
+                  active={orderBy === "zip"}
+                  direction={orderBy === "zip" ? order : "asc"}
+                  onClick={(event) => handleRequestSort(event, "zip")}
+                >
+                  Zip
+                </TableSortLabel>
+              </StyledTableCell>
+              <StyledTableCell align="left">
+                <TableSortLabel
+                  active={orderBy === "address"}
+                  direction={orderBy === "address" ? order : "asc"}
+                  onClick={(event) => handleRequestSort(event, "address")}
+                >
+                  Address
+                </TableSortLabel>
+              </StyledTableCell>
+              <StyledTableCell align="left">
+                <TableSortLabel
+                  active={orderBy === "airport"}
+                  direction={orderBy === "airport" ? order : "asc"}
+                  onClick={(event) => handleRequestSort(event, "airport")}
+                >
+                  Airport
+                </TableSortLabel>
+              </StyledTableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody sx={{ backgroundColor: "white" }}>
+            {paginatedRows?.map((row) => {
+              const isItemSelected = isSelected(row.id);
+              return (
+                <StyledTableRow
+                  key={row.id}
+                  hover
+                  role="checkbox"
+                  tabIndex={-1}
+                >
+                  <StyledTableCell padding="checkbox">
+                    {row.alias != "All" && (
+                      <Checkbox
+                        onClick={(event) => handleClick(event, row.id)}
+                        checked={isItemSelected}
+                        inputProps={{
+                          "aria-labelledby": `enhanced-table-checkbox-${row.id}`,
+                        }}
+                      />
+                    )}
+                  </StyledTableCell>
+                  <StyledTableCell component="th" scope="row">
+                    <Typography align="left">{row.alias}</Typography>
+                  </StyledTableCell>
+                  <StyledTableCell align="left">{row.city}</StyledTableCell>
+                  <StyledTableCell align="left">{row.state}</StyledTableCell>
+                  <StyledTableCell align="left">{row.zip}</StyledTableCell>
+                  <StyledTableCell align="left">{row.saddress}</StyledTableCell>
+                  <StyledTableCell align="left">{row.airport}</StyledTableCell>
+                </StyledTableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        component="div"
+        count={locations.length}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+    </Paper>
+  );
 }

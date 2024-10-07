@@ -12,13 +12,13 @@ import { initializeApp } from "firebase/app";
 
 function App() {
   const firebaseConfig = {
-    apiKey: "AIzaSyCa87Hb189bqYv5sKaOGPMpCARw5kd668s",
-    authDomain: "roomsync-badb9.firebaseapp.com",
-    projectId: "roomsync-badb9",
-    storageBucket: "roomsync-badb9.appspot.com",
-    messagingSenderId: "790285901039",
-    appId: "1:790285901039:web:07bacc2a555157b5558f1a",
-    measurementId: "G-5RMQL0CR9K",
+    apiKey: process.env.REACT_APP_apiKey,
+    authDomain: process.env.REACT_APP_authDomain,
+    projectId: process.env.REACT_APP_projectId,
+    storageBucket: process.env.REACT_APP_storageBucket,
+    messagingSenderId: process.env.REACT_APP_messagingSenderId,
+    appId: process.env.REACT_APP_appId,
+    measurementId: process.env.REACT_APP_measurementId,
   };
 
   // Initialize Firebase
