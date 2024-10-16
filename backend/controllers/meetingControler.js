@@ -565,12 +565,17 @@ const GetAllUserCanSee = async (req, res) => {
 
         const fakeMeets = await CreateRepeatingMeetings(date, range, id); // Create repeating meetings if they do not exist, only the next 30 from the date
 
+        const groups = await Group.GetAll({where:{group_name: 'All'}});
+        let groupsIds = groups.map(gp => gp.id);
+        groupsIds.push(user.location);
         // If user is admin return all meetings
         const user = await User.findByPk(id);
         if(user.admin){
             let meets = await Meeting.findAll({
                 where: {
-                    location: user.location,
+                    location:{
+                        [Sequelize.Op.In]: groupsIds
+                    },
                     status: 'Approved'
                 }
             });
@@ -652,10 +657,15 @@ const GetAllNeedsApproval = async (req, res) => {
 
         // If user is admin return all meetings
         const user = await User.findByPk(id);
+        const Allgroups = await Group.GetAll({where:{group_name: 'All'}});
+        let groupsIds = Allgroups.map(gp => gp.id);
+        groupsIds.push(user.location);
         if(user.admin){
             const meets = await Meeting.findAll({
                 where: {
-                    location: user.location,
+                    location: {
+                        [Sequelize.Op.In]: groupsIds
+                    },
                     status: 'Waiting on Approval'
                 }
             });

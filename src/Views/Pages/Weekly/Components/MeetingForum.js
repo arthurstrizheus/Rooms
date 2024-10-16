@@ -423,7 +423,7 @@ const MeetingFourm = ({date, meeting, roomsRes, update, updateMeeting, meetingTy
                             }} 
                             startIcon={<TuneIcon/>}
                         >
-                            Advanced
+                            {showDesc ? 'Basic' : 'Advanced'}
                         </Button>
                         <Button 
                             variant={'outlined'} 

@@ -48,6 +48,10 @@ const Post = async (req, res) => {
         if (!email || !password || !first_name || !last_name ) {
             return res.status(400).json({ message: 'email, password, first_name, last_name, last_login, and created_user_id are required' });
         }
+        const usr = await User.findOne({where: {email:email}});
+        if(usr){
+            return res.status(409).json({ message: 'User with this email already exists'});
+        }
         let passHash = '';
         try{
             passHash = await hashPassword(password);
