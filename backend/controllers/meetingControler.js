@@ -268,7 +268,7 @@ async function CreateRepeatingMeetings(currentDate, range, userId) {
             const meetingsUserHasSpecialAccess = await Meeting.findAll({
                 where:{
                     id:{
-                        [Sequelize.Op.In]: meetingIds,
+                        [Sequelize.Op.in]: meetingIds,
                     },
                     status: 'Approved'
                 }
@@ -444,11 +444,11 @@ const SetStatus = async (req, res) => {
 
 async function CanDelete(meetingId, userId){
     const meeting = await Meeting.findByPk(Number(meetingId));
-    // If user created it they can delete it
-    if(meeting.created_user_id === userId){return true;}
     const user = await User.findByPk(userId);
     if(user.admin){return true;}
-
+    // If user created it they can delete it
+    if(meeting.created_user_id === userId){return true;}
+    else{return false;}
     // Get all groups the meeting is in via the room its in
     const meetingRoomGroups = await RoomGroup.findAll({where:{room_id: meeting.room}});
     let meetingRoomGroupIds = meetingRoomGroups?.map(mg => mg.group_id);
@@ -565,16 +565,16 @@ const GetAllUserCanSee = async (req, res) => {
 
         const fakeMeets = await CreateRepeatingMeetings(date, range, id); // Create repeating meetings if they do not exist, only the next 30 from the date
 
-        const groups = await Group.GetAll({where:{group_name: 'All'}});
+        const groups = await Group.findAll({where:{group_name: 'All'}});
         let groupsIds = groups.map(gp => gp.id);
+        const user = await User.findByPk(id);
         groupsIds.push(user.location);
         // If user is admin return all meetings
-        const user = await User.findByPk(id);
         if(user.admin){
             let meets = await Meeting.findAll({
                 where: {
                     location:{
-                        [Sequelize.Op.In]: groupsIds
+                        [Sequelize.Op.in]: groupsIds
                     },
                     status: 'Approved'
                 }
@@ -657,14 +657,14 @@ const GetAllNeedsApproval = async (req, res) => {
 
         // If user is admin return all meetings
         const user = await User.findByPk(id);
-        const Allgroups = await Group.GetAll({where:{group_name: 'All'}});
+        const Allgroups = await Group.findAll({where:{group_name: 'All'}});
         let groupsIds = Allgroups.map(gp => gp.id);
         groupsIds.push(user.location);
         if(user.admin){
             const meets = await Meeting.findAll({
                 where: {
                     location: {
-                        [Sequelize.Op.In]: groupsIds
+                        [Sequelize.Op.in]: groupsIds
                     },
                     status: 'Waiting on Approval'
                 }
