@@ -33,11 +33,13 @@ const usersRouter = require("./routes/users");
 const officeRouter = require("./routes/offices");
 const specialPermissionsRouter = require("./routes/specialPermissions");
 const recurrenceRouter = require("./routes/meetingrecurrences");
+const matterManagerRoutes = require("./routes/matterManagerRoutes");
 const zscalerRouter = require("./routes/zscaler");
 const app = express();
 
 app.use(bodyParser.json());
 app.use(express.json());
+app.use("/api/mattermanager", matterManagerRoutes);
 app.use("/api/blockeddates", blockedDatesRouter);
 app.use("/api/groupusers", groupUsersRouter);
 app.use("/api/groups", groupsRouter);
