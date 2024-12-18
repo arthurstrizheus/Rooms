@@ -27,7 +27,10 @@ import {
   UserExistsInAD,
 } from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
 import { useTheme } from "@emotion/react";
-import { GetLocations } from "../../../Utilites/Functions/ApiFunctions";
+import {
+  GetLocations,
+  showError,
+} from "../../../Utilites/Functions/ApiFunctions";
 
 function Copyright(props) {
   return (
@@ -89,34 +92,36 @@ export default function Login({ setLoading }) {
   const handleSubmit = (event) => {
     setLoading(true);
     event.preventDefault();
+    if (showLocations && !location?.officeid) {
+      showError("You must select your location");
+    } else {
+      AuthenticateUserAD({
+        email: email,
+        password: password,
+        location: location?.officeid,
+      }).then((resp) => {
+        if (resp) {
+          console.log("resp", resp);
+          if (resp?.id) {
+            setUser(resp);
+            login();
+            setShowLocations(false);
+            localStorage.setItem("user", JSON.stringify(resp));
 
-    AuthenticateUserAD({
-      email: email,
-      password: password,
-      location: location?.officeid,
-    }).then((resp) => {
-      if (resp) {
-        console.log("resp", resp);
-        if (resp?.id) {
-          setUser(resp);
-          login();
-          setShowLocations(false);
-          localStorage.setItem("user", JSON.stringify(resp));
-
-          if (rememberMe) {
-            localStorage.setItem("email", `${email}`);
-            localStorage.setItem("rememberMe", "true");
-          } else {
-            // Clear user from localStorage if "Remember me" is not checked
-            localStorage.removeItem("email");
-            localStorage.setItem("rememberMe", "false");
+            if (rememberMe) {
+              localStorage.setItem("email", `${email}`);
+              localStorage.setItem("rememberMe", "true");
+            } else {
+              // Clear user from localStorage if "Remember me" is not checked
+              localStorage.removeItem("email");
+              localStorage.setItem("rememberMe", "false");
+            }
+            setLoading(false);
+            navigate("/schedule/type/day");
           }
-          setLoading(false);
-          navigate("/schedule/type/day");
         }
-      }
-    });
-
+      });
+    }
     // AuthenticateUser({ email: email, password: password }).then(resp => {
     //     if (resp?.id) {
     //         setUser(resp);

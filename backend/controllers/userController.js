@@ -279,11 +279,14 @@ const userExistsInAd = async (req, res) => {
     if (!username) {
       return res.status(400).json({ message: "Username required." });
     }
-
+    let cleanUsername = username;
+    if (username.includes("@")) {
+      cleanUsername = username.split("@")[0];
+    }
     // Find user in AD
     let user;
     try {
-      user = await User.findOne({ where: { username: username } });
+      user = await User.findOne({ where: { username: cleanUsername } });
     } catch (err) {
       console.error("Error finding user:", err);
       return res.status(500).json({
@@ -315,11 +318,14 @@ const AuthenticateAD = async (req, res) => {
         .status(400)
         .json({ message: "Username and password are required." });
     }
-
+    let cleanUsername = username;
+    if (username.includes("@")) {
+      cleanUsername = username.split("@")[0];
+    }
     // Find user in AD
     let user;
     try {
-      user = await findUserAsync(username);
+      user = await findUserAsync(cleanUsername);
     } catch (err) {
       console.error("Error finding user:", err);
       return res.status(500).json({
@@ -337,7 +343,7 @@ const AuthenticateAD = async (req, res) => {
     // Authenticate user
     let auth;
     try {
-      auth = await authenticateAsync(`${username}@sealimited`, password);
+      auth = await authenticateAsync(`${cleanUsername}@sealimited`, password);
     } catch (err) {
       console.error("Authentication error:", err);
       return res.status(500).json({
@@ -352,10 +358,10 @@ const AuthenticateAD = async (req, res) => {
     console.log(`User ${user?.displayName} authenticated in AD.`);
 
     const [exUser, created] = await User.findOrCreate({
-      where: { username: username }, // Use Auth0 user ID as unique identifier
+      where: { username: cleanUsername }, // Use Auth0 user ID as unique identifier
       defaults: {
-        username: username,
-        email: `${username}@sealimited.com`,
+        username: cleanUsername,
+        email: `${cleanUsername}@sealimited.com`,
         admin: false,
         password: "",
         first_name: user.givenName,
