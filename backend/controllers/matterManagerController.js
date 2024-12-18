@@ -2,7 +2,7 @@ const ActiveDirectory = require("activedirectory2");
 const ldapConfig = require("../ldapConfig");
 const ad = new ActiveDirectory(ldapConfig);
 const util = require("util");
-const { sendGroupNotificationEmail } = require("./mailControllerjs");
+const { sendGroupNotificationEmail } = require("./mailController.js");
 
 const findUserAsync = util.promisify(ad.findUser.bind(ad));
 
