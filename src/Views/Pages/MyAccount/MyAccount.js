@@ -29,7 +29,6 @@ import {
   UpdateUserPassword,
   AuthenticateUser,
 } from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
-import axios from "axios";
 
 function a11yProps(index) {
   return {
@@ -161,13 +160,6 @@ const MyAccount = ({ setLoading }) => {
     setLocation(locations?.find((lc) => lc.officeid === user?.location));
   }, [locations]);
 
-  const getAllFull = () => {
-    axios
-      .get("/api/mattermanager/full")
-      .then((resp) => console.log(resp.data))
-      .catch((err) => console.log(err));
-  };
-
   return (
     <Grid sx={{ width: "100%", height: "100%" }}>
       <Stack direction={"column"} sx={{ width: "100%", height: "100%" }}>
@@ -176,7 +168,6 @@ const MyAccount = ({ setLoading }) => {
             <Tab label="Details" {...a11yProps(0)} />
           </Tabs>
         </Box>
-        <Button onClick={getAllFull}>Click me</Button>
         <Stack
           sx={{
             display: "flex",
@@ -362,7 +353,7 @@ const MyAccount = ({ setLoading }) => {
             </Grid>
           </Grid>
 
-          <Divider orientation="vertical" sx={{ height: "50%" }} />
+          {/* <Divider orientation="vertical" sx={{ height: "50%" }} />
 
           <Grid
             sx={{
@@ -471,7 +462,7 @@ const MyAccount = ({ setLoading }) => {
                 </Button>
               </Stack>
             </Grid>
-          </Grid>
+          </Grid> */}
         </Stack>
       </Stack>
     </Grid>
