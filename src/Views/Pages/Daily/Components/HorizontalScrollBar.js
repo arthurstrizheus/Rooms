@@ -2,40 +2,36 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@emotion/react";
 import { Box } from "@mui/material";
 
-const HorizontalScrollBar = ({
-  hoursScrollRef,
-  Cref2,
-  scrollBarRef,
-  Cref,
-  roomsWidth,
-}) => {
+const HorizontalScrollBar = ({ hoursScrollRef, Cref2, scrollBarRef, Cref }) => {
   const theme = useTheme();
 
-  // Drag / handle state
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const [handlePosition, setHandlePosition] = useState(0);
-
-  // Measurements for ratio-based scroll
   const [scrollbarTrackWidth, setScrollbarTrackWidth] = useState(0);
   const [scrollableWidth, setScrollableWidth] = useState(0);
+  const [trackWidth, setTrackWidth] = useState(0);
 
   const HANDLE_WIDTH = 52;
-
-  // For dynamic ticks
-  const TICK_COUNT = 10;
   const TICK_SPACING = 45;
-
-  // Reference to the handle Box, so we can detect clicks on it
+  const TICK_COUNT = Math.ceil((trackWidth - 5) / TICK_SPACING);
   const handleRef = useRef(null);
 
-  // -----------------------------
-  // 1) MEASURE TRACK & CONTENT
-  // -----------------------------
+  // Update track width dynamically
+  useEffect(() => {
+    const updateTrackWidth = () => {
+      if (hoursScrollRef.current) {
+        setTrackWidth(hoursScrollRef.current.clientWidth);
+      }
+    };
+    updateTrackWidth();
+    window.addEventListener("resize", updateTrackWidth);
+    return () => window.removeEventListener("resize", updateTrackWidth);
+  }, [hoursScrollRef]);
+
+  // Measure scrollable width and track width
   const measure = () => {
-    if (scrollBarRef.current) {
-      setScrollbarTrackWidth(scrollBarRef.current.offsetWidth);
-    }
+    setScrollbarTrackWidth(trackWidth);
     if (hoursScrollRef.current) {
       const totalScrollWidth = hoursScrollRef.current.scrollWidth || 0;
       const visibleWidth = hoursScrollRef.current.clientWidth || 0;
@@ -43,17 +39,13 @@ const HorizontalScrollBar = ({
     }
   };
 
-  // Re-measure whenever roomsWidth changes
   useEffect(() => {
     measure();
-  }, [roomsWidth]);
+  }, [trackWidth]);
 
-  // -----------------------------
-  // 2) DRAG LOGIC
-  // -----------------------------
+  // Handle dragging
   const handleMouseDown = (e) => {
     setIsDragging(true);
-    // Distance between handle’s left edge & click
     const { left } = e.currentTarget.getBoundingClientRect();
     setDragOffset(e.clientX - left);
   };
@@ -62,12 +54,9 @@ const HorizontalScrollBar = ({
     if (!isDragging || !scrollBarRef.current) return;
     const { left: scrollBarLeft } =
       scrollBarRef.current.getBoundingClientRect();
-
-    // New position = mouseX - trackLeft - offset in handle
+    const maxHandlePos = Math.max(0, scrollbarTrackWidth - HANDLE_WIDTH);
     let newPos = e.clientX - scrollBarLeft - dragOffset;
-    const maxHandlePos = scrollbarTrackWidth - HANDLE_WIDTH;
     newPos = Math.max(0, Math.min(newPos, maxHandlePos));
-
     setHandlePosition(newPos);
     scrollContentByHandle(newPos, maxHandlePos);
   };
@@ -76,49 +65,69 @@ const HorizontalScrollBar = ({
     setIsDragging(false);
   };
 
-  // Attach/Detach events while dragging
   useEffect(() => {
     if (isDragging) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
-    } else {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
     }
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, scrollbarTrackWidth, scrollableWidth]);
 
-  // -----------------------------
-  // 3) CLICK TRACK TO JUMP HANDLE
-  // -----------------------------
-  const handleTrackClick = (e) => {
-    // If the user clicked on the handle itself, skip
-    if (handleRef.current && handleRef.current.contains(e.target)) {
-      return;
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (hoursScrollRef.current) {
+        const newTrackWidth = hoursScrollRef.current.clientWidth;
+        const totalScrollWidth = hoursScrollRef.current.scrollWidth || 0;
+        const visibleWidth = hoursScrollRef.current.clientWidth || 0;
+        setTrackWidth(newTrackWidth);
+        setScrollableWidth(Math.max(0, totalScrollWidth - visibleWidth));
+      }
+    };
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
+  }, [hoursScrollRef]);
+
+  useEffect(() => {
+    const syncHandleWithScroll = () => {
+      if (!hoursScrollRef.current || scrollableWidth <= 0) {
+        setHandlePosition(0);
+        return;
+      }
+      const scrollLeft = hoursScrollRef.current.scrollLeft;
+      const maxHandlePos = Math.max(0, trackWidth - HANDLE_WIDTH);
+      const ratio = scrollLeft / scrollableWidth;
+      const newHandlePos = ratio * maxHandlePos;
+      setHandlePosition(Math.max(0, Math.min(newHandlePos, maxHandlePos)));
+    };
+    const el = hoursScrollRef.current;
+    if (el) {
+      el.addEventListener("scroll", syncHandleWithScroll);
+      syncHandleWithScroll(); // Initial sync
+      return () => el.removeEventListener("scroll", syncHandleWithScroll);
     }
+  }, [trackWidth, scrollableWidth, hoursScrollRef]);
+
+  // Handle track click
+  const handleTrackClick = (e) => {
+    if (handleRef.current && handleRef.current.contains(e.target)) return;
     if (!scrollBarRef.current) return;
-
     const trackRect = scrollBarRef.current.getBoundingClientRect();
-    // Center handle under cursor:
+    const maxHandlePos = Math.max(0, scrollbarTrackWidth - HANDLE_WIDTH);
     let newPos = e.clientX - trackRect.left - HANDLE_WIDTH / 2;
-    const maxHandlePos = scrollbarTrackWidth - HANDLE_WIDTH;
     newPos = Math.max(0, Math.min(newPos, maxHandlePos));
-
     setHandlePosition(newPos);
     scrollContentByHandle(newPos, maxHandlePos);
   };
 
-  // -----------------------------
-  // 4) HANDLE → SCROLL SYNC
-  // -----------------------------
+  // Scroll content based on handle position
   const scrollContentByHandle = (pos, maxPos) => {
-    if (scrollableWidth <= 0) return;
+    if (scrollableWidth <= 0 || maxPos <= 0) return;
     const ratio = pos / maxPos;
     const scrollLeft = ratio * scrollableWidth;
-
     if (hoursScrollRef.current) hoursScrollRef.current.scrollLeft = scrollLeft;
     if (Cref?.current) Cref.current.scrollLeft = scrollLeft;
     if (Cref2?.current?.length) {
@@ -128,15 +137,18 @@ const HorizontalScrollBar = ({
     }
   };
 
-  // -----------------------------
-  // 5) SCROLL → HANDLE SYNC
-  // -----------------------------
+  // Sync handle with content scroll
   const syncHandleWithScroll = () => {
-    if (!hoursScrollRef.current || scrollableWidth <= 0) return;
+    if (!hoursScrollRef.current) return;
+    if (scrollableWidth <= 0) {
+      setHandlePosition(0);
+      return;
+    }
     const scrollLeft = hoursScrollRef.current.scrollLeft;
-    const maxHandlePos = scrollbarTrackWidth - HANDLE_WIDTH;
+    const maxHandlePos = Math.max(0, scrollbarTrackWidth - HANDLE_WIDTH);
     const ratio = scrollLeft / scrollableWidth;
-    setHandlePosition(ratio * maxHandlePos);
+    const newHandlePos = ratio * maxHandlePos;
+    setHandlePosition(Math.max(0, Math.min(newHandlePos, maxHandlePos)));
   };
 
   useEffect(() => {
@@ -146,9 +158,6 @@ const HorizontalScrollBar = ({
     return () => el.removeEventListener("scroll", syncHandleWithScroll);
   }, [scrollableWidth, scrollbarTrackWidth]);
 
-  // -----------------------------
-  // RENDER
-  // -----------------------------
   return (
     <Box
       ref={scrollBarRef}
@@ -157,17 +166,16 @@ const HorizontalScrollBar = ({
         position: "relative",
         height: "25px",
         marginLeft: "320px",
-        width: roomsWidth - 300 + 410, // or use calc(...) if needed
+        width: trackWidth,
         overflow: "hidden",
       }}
     >
-      {/* Dynamically created ticks using theme colors */}
       {[...Array(TICK_COUNT)].map((_, i) => (
         <Box
           key={i}
           sx={{
             position: "absolute",
-            left: `${5 + i * TICK_SPACING}px`,
+            left: `${(i / (TICK_COUNT - 1)) * (trackWidth - 40)}px`,
             marginTop: "5px",
             width: "40px",
             height: "60%",
@@ -175,8 +183,6 @@ const HorizontalScrollBar = ({
           }}
         />
       ))}
-
-      {/* Draggable handle */}
       <Box
         ref={handleRef}
         sx={{
@@ -189,7 +195,6 @@ const HorizontalScrollBar = ({
         }}
         onMouseDown={handleMouseDown}
       >
-        {/* Inner bar */}
         <Box
           sx={{
             margin: "4px 5px",
