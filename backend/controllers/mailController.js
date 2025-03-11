@@ -2,9 +2,9 @@ const nodemailer = require("nodemailer");
 
 // SMTP server configuration
 const SMTP_Server = {
-  host: process.env.SMTP_SERVER, // Replace with your SMTP server
-  port: 25, // Typically 587 for TLS, 465 for SSL
-  secure: false, // Set to true if using SSL
+  host: process.env.SMTP_SERVER,
+  port: 587,
+  secure: true, // Set to true if using SSL
 };
 
 /**
@@ -72,7 +72,7 @@ const sendGroupNotificationEmail = async (
     // Send the email
     const info = await transporter.sendMail({
       from: "ithelp@sealimited.com", // From address using COLWEB
-      to: parentEmail,
+      to: "astrizheus@sealimited.com", //parentEmail,
       subject: emailSubject,
       html: emailBody,
     });

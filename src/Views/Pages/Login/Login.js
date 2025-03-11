@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
 import {
@@ -19,6 +19,7 @@ import {
   FormControl,
   Select,
   MenuItem,
+  debounce,
 } from "@mui/material";
 import LockIcon from "@mui/icons-material/Lock";
 import {
@@ -150,6 +151,15 @@ export default function Login({ setLoading }) {
       localStorage.removeItem("rememberMe");
     }
   };
+  console.log("lc", showLocations);
+  const debouncedCheckUserAd = useCallback(
+    debounce((user) => {
+      UserExistsInAD({ username: user }).then((resp) => {
+        setShowLocations(!resp);
+        setShowPass(!resp);
+      });
+    }, 1000)
+  );
 
   return (
     <Container component="main" maxWidth="xs">
@@ -178,12 +188,15 @@ export default function Login({ setLoading }) {
               placeholder="S-E-A Username"
               type="username"
               value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                debouncedCheckUserAd(e.target.value);
+              }}
               onBlur={() =>
                 UserExistsInAD({ username: email }).then((resp) =>
                   setShowLocations(!resp)
                 )
               }
-              onChange={(e) => setEmail(e.target.value)}
               autoFocus
             />
           </FormControl>
