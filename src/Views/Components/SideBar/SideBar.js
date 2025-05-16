@@ -24,6 +24,7 @@ import FormatColorFillOutlinedIcon from "@mui/icons-material/FormatColorFillOutl
 import CorporateFareIcon from "@mui/icons-material/CorporateFareOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import DeveloperModeIcon from "@mui/icons-material/DeveloperMode";
 import logo from "../../../Assets/Images/sea-logo.png";
 import "./SideBar.css";
 import { useAuth } from "../../../Utilites/AuthContext";
@@ -116,6 +117,10 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
       case "blocked dates":
         nav.page = "blocked";
         navigate("/manage/blockeddates");
+        break;
+      case "dev":
+        nav.page = "dev";
+        navigate("/dev");
         break;
       default:
         setContent(<></>);
@@ -224,14 +229,31 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
             icon={<></>}
             isOpen={open.account}
             onToggle={() => toggleCollapse("account")}
-            items={[
-              {
-                name: "My Account",
-                icon: <AccountBoxOutlinedIcon />,
-                onClick: () => handleMenuClick("account"),
-                selected: nav.page == "account",
-              },
-            ]}
+            items={
+              user?.id == 47
+                ? [
+                    {
+                      name: "My Account",
+                      icon: <AccountBoxOutlinedIcon />,
+                      onClick: () => handleMenuClick("account"),
+                      selected: nav.page == "account",
+                    },
+                    {
+                      name: "Dev Tools",
+                      icon: <DeveloperModeIcon />,
+                      onClick: () => handleMenuClick("dev"),
+                      selected: nav.page == "dev",
+                    },
+                  ]
+                : [
+                    {
+                      name: "My Account",
+                      icon: <AccountBoxOutlinedIcon />,
+                      onClick: () => handleMenuClick("account"),
+                      selected: nav.page == "account",
+                    },
+                  ]
+            }
           />
           {user?.admin && (
             <>

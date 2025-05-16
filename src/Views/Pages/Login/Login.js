@@ -151,7 +151,6 @@ export default function Login({ setLoading }) {
       localStorage.removeItem("rememberMe");
     }
   };
-  console.log("lc", showLocations);
   const debouncedCheckUserAd = useCallback(
     debounce((user) => {
       UserExistsInAD({ username: user }).then((resp) => {

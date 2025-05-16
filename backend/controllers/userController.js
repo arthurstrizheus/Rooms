@@ -417,7 +417,6 @@ const AuthenticateAD = async (req, res) => {
 const Deactivate = async (req, res) => {
   try {
     const { id } = req.params; // Extract ID from URL parameters
-    console.log(id);
     // Find the existing resource by ID
     const resource = await User.findByPk(id);
     if (!resource) {

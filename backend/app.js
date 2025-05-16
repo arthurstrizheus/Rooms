@@ -1,4 +1,5 @@
 const express = require("express");
+require("dotenv").config(); // Must be at the top of the file
 const bodyParser = require("body-parser");
 // const cors = require('cors');
 const {

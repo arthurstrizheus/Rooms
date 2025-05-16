@@ -5,9 +5,9 @@ import {
   getHours,
   getMinutes,
   setTime,
-} from "../../../../Utilites/Functions/CommonFunctions";
-import { useAuth } from "../../../../Utilites/AuthContext";
-import { openSnackbar } from "../../../../Utilites/SnackbarContext";
+} from "../../../Utilites/Functions/CommonFunctions";
+import { useAuth } from "../../../Utilites/AuthContext";
+import { openSnackbar } from "../../../Utilites/SnackbarContext";
 import {
   Grid,
   Stack,
@@ -28,65 +28,21 @@ import {
   PostMeeting,
   UpdateAllMeetingsInRecurrence,
   UpdateAllNextMeetingsInRecurrence,
-  UpdateMeeting,
   UpdateParentOnlyMeeting,
-} from "../../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
-import ShortTextField from "../../../../Components/ShortTextField";
-import ShortSelect from "../../../../Components/ShortSelect";
-import ShortSelectObject from "../../../../Components/ShortSelectObject";
+  UpdateMeeting,
+} from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
+import ShortTextField from "../../../Components/ShortTextField";
+import ShortSelect from "../../../Components/ShortSelect";
+import ShortSelectObject from "../../../Components/ShortSelectObject";
 import TuneIcon from "@mui/icons-material/Tune";
 import CheckIcon from "@mui/icons-material/Check";
-import { GetUsers } from "../../../../Utilites/Functions/ApiFunctions";
+import { GetUsers } from "../../../Utilites/Functions/ApiFunctions";
 import {
   DeleteSpecialPermission,
   GetSpecialPermissionsForMeeting,
   PostSpecialPermission,
-} from "../../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
-import _ from "lodash-es";
-
-const times = [
-  "7:00am",
-  "7:15am",
-  "7:30am",
-  "7:45am",
-  "8:00am",
-  "8:15am",
-  "8:30am",
-  "8:45am",
-  "9:00am",
-  "9:15am",
-  "9:30am",
-  "9:45am",
-  "10:00am",
-  "10:15am",
-  "10:30am",
-  "10:45am",
-  "11:00am",
-  "11:15am",
-  "11:30am",
-  "11:45am",
-  "12:00pm",
-  "12:15pm",
-  "12:30pm",
-  "12:45pm",
-  "1:00pm",
-  "1:15pm",
-  "1:30pm",
-  "1:45pm",
-  "2:00pm",
-  "2:15pm",
-  "2:30pm",
-  "2:45pm",
-  "3:00pm",
-  "3:15pm",
-  "3:30pm",
-  "3:45pm",
-  "4:00pm",
-  "4:15pm",
-  "4:30pm",
-  "4:45pm",
-  "5:00pm",
-];
+} from "../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
+import { getDate, getMonth, getSeconds, getTime, getYear } from "date-fns";
 
 const getInitialValues = (event, range) => {
   const newEvent = {
@@ -105,14 +61,61 @@ const getInitialValues = (event, range) => {
 
   return newEvent;
 };
+// Welcome to Date Sanity™! All passengers please keep your arms inside the function at all times.
+function isMultipleDayMeeting(meeting) {
+  if (!meeting?.start || !meeting?.end) {
+    // There is no meeting we can all go home
+    return false;
+  }
+  const start = new Date(meeting.start);
+  const end = new Date(meeting.end);
+
+  if (meeting.allDay) {
+    // For allDay events, end is exclusive. Nothing makes sense, so check for >1 day.
+    const diff = (end - start) / (1000 * 60 * 60 * 24);
+    return diff > 1;
+  } else {
+    // Compare local calendar days, like civilized people do.
+    return (
+      getYear(start) !== getYear(end) ||
+      getMonth(start) !== getMonth(end) ||
+      (getDate(start) !== getDate(end) &&
+        getHours(end) != 0 &&
+        getMinutes(end) != 0 &&
+        getSeconds(end) != 0)
+    );
+  }
+}
+
+const isLateMeeting = (meeting) => {
+  if (!meeting?.start || !meeting?.end) {
+    // There is no meeting, we can all go home. Or just pretend this is fine.
+    return false;
+  }
+  const start = new Date(meeting.start); // Creating Date objects because who doesn't love reinventing time?
+  const end = new Date(meeting.end); // Time is a flat circle... or just an object now.
+
+  return (
+    // A meeting can start at 11pm and end at 12AM (which is the next day technically). We dont like 2 day meetings... AVOID!
+    // Because meetings that span different years are what nightmares are made of.
+    getYear(start) != getYear(end) ||
+    // Apparently, a month-long meeting is a thing. Live the dream.
+    getMonth(start) != getMonth(end) ||
+    // For when your meeting can't even stay in its own day.
+    (getDate(start) != getDate(end) &&
+      // But if it ends at exactly midnight, thats late? Sure, let's go with that.
+      getHours(end) == 0 &&
+      getMinutes(end) == 0 &&
+      getSeconds(end) == 0)
+  );
+};
 
 const MeetingFourm = ({
   date,
   meeting,
-  roomsRes,
+  rooms,
   update,
-  updateMeeting,
-  meetingTypesRes,
+  meetingTypes,
   setUpdate,
   setOpen,
   setUpdateCount,
@@ -132,58 +135,107 @@ const MeetingFourm = ({
   const [special, setSpecial] = useState([]);
   const [meetingName, setMeetingName] = useState("");
   const [showDesc, setShowDesc] = useState(false);
+  const [allDay, setAllDay] = useState(meeting?.allDay || false);
+  const times = [];
+  const multiDayMeet = isMultipleDayMeeting(meeting);
+
+  const formatTime = (h, m) => {
+    const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    const ampm = h < 12 ? "AM" : "PM";
+    return `${String(hour).padStart(2, "0")}:${String(m).padStart(
+      2,
+      "0"
+    )} ${ampm}`;
+  };
+
+  for (let h = 0; h <= 23; h++) {
+    // Because time, like the universe, is cruel and goes up to 23 before resetting.
+    for (let m = 0; m < 60; m += 15) {
+      // Still marching by 15s, you efficient genius.
+      times.push(formatTime(h, m)); // Format and push, like a polite time-traveling bouncer.
+    }
+  }
 
   useEffect(() => {
     const data = async () => {
       const usrs = await GetUsers();
       if (update) {
         const selectedUserIds = await GetSpecialPermissionsForMeeting({
-          id: updateMeeting.id,
-          recurrence_id: updateMeeting.recurrence_id,
+          id: meeting.id,
+          recurrence_id: meeting.recurrence_id,
         });
         setSpecial(selectedUserIds || []);
       }
       setUsers(usrs);
     };
     data();
+    // Behold! The Tower of Nested Ifs: A monument to indecision and existential dread.
     if (!update) {
-      setStartTime("7:00am");
-      setEndTime("7:15am");
-      setType(
-        meetingTypesRes?.find((tp) => tp.value.toLowerCase() === "meeting")
-      );
+      // We only want to update when we're NOT updating. Because logic is for mortals.
+
+      if (multiDayMeet) {
+        // Ah, a meeting that spans multiple days! Surely, nobody will ever actually survive one of these.
+        setStartTime("12:00 AM"); // Because time loses all meaning after Day 1.
+        setEndTime("12:00 AM"); // It's always midnight somewhere, right?
+      } else {
+        if (meeting.allDay) {
+          // The all-day event! The grown-up equivalent of "do not disturb."
+          setStartTime("12:00 AM"); // Just pretend it's midnight all day.
+          setEndTime("12:00 AM"); // See above, but with more existential dread.
+        } else {
+          // Finally, a meeting that dares to have an actual start and end time.
+          setStartTime(
+            `${String(getHours(meeting.start)).padStart(2, "0")}:${String(
+              getMinutes(meeting.start)
+            ).padStart(2, "0")} ${getAmPm(meeting.start).toUpperCase()}`
+          );
+          if (isLateMeeting(meeting)) {
+            // For those meetings that creep past your bedtime.
+            setEndTime("12:00 AM"); // The official time for "why am I still here?"
+          } else {
+            // The fabled normal meeting, as rare as a polite reply-all.
+            setEndTime(
+              `${String(getHours(meeting.end) ?? 12).padStart(2, "0")}:${String(
+                getMinutes(meeting.end)
+              ).padStart(2, "0")} ${getAmPm(meeting.end).toUpperCase()}`
+            );
+          }
+        }
+      }
+      // Seek the Holy Grail of meeting types! It's always "meeting," because what else would it be?
+      setType(meetingTypes?.find((tp) => tp.value.toLowerCase() === "meeting"));
+      // End scene. Please clap.
     } else {
-      const meetingType = meetingTypesRes?.find(
-        (tp) => tp.id == updateMeeting.type
-      );
-      const meetingRoom = roomsRes?.find((rm) => rm.id == updateMeeting.room);
-      setMeetingName(updateMeeting.name);
-      setType(meetingType);
-      setColor(meetingType?.color);
-      setRepeats(updateMeeting.repeats);
-      setSelectedRoom(meetingRoom);
+      // Welcome to "The Else Side"! Where dreams come true, variables get set, and nothing ever goes wrong.
+      const meetingType = meetingTypes?.find((tp) => tp.id == meeting.type); // Finding the meeting type, like looking for a sensible comment on the Internet.
+      const meetingRoom = rooms?.find((rm) => rm.id == meeting.room); // Ah, the room. Because meetings without rooms are just sad group hallucinations.
+      setMeetingName(meeting.name); // Set the name, because "Untitled Meeting #47" doesn't inspire confidence.
+      setType(meetingType); // Let the meeting have an identity crisis.
+      setColor(meetingType?.color); // For when you want your meetings as colorful as your calendar-induced anxiety.
+      setRepeats(meeting.repeats); // Because the only thing better than one meeting is infinite meetings.
+      setSelectedRoom(meetingRoom); // May the odds of getting a room with working A/C be ever in your favor.
       setStartTime(
-        `${getHours(updateMeeting.start_time)}:${String(
-          getMinutes(updateMeeting.start_time)
-        ).padStart(2, "0")}${getAmPm(updateMeeting.start_time)}`
-      );
+        `${String(getHours(meeting.start_time)).padStart(2, "0")}:${String(
+          getMinutes(meeting.start_time)
+        ).padStart(2, "0")} ${getAmPm(meeting.start_time).toUpperCase()}`
+      ); // Because being late by one minute ruins everything.
       setEndTime(
-        `${getHours(updateMeeting.end_time)}:${String(
-          getMinutes(updateMeeting.end_time)
-        ).padStart(2, "0")}${getAmPm(updateMeeting.end_time)}`
-      );
-      setDescription(updateMeeting.description);
-      if (
-        updateMeeting.description != "" &&
-        updateMeeting.description != null
-      ) {
+        `${String(getHours(meeting.end_time)).padStart(2, "0")}:${String(
+          getMinutes(meeting.end_time)
+        ).padStart(2, "0")} ${getAmPm(meeting.end_time).toUpperCase()}`
+      ); // Endings are important. Like, actually leaving on time.
+      setDescription(meeting.description); // Let your meeting description do what your calendar cannot: make sense.
+
+      if (meeting.description != "" && meeting.description != null) {
+        // Show the description if it exists. Otherwise, pretend everything is fine.
         setShowDesc(true);
       }
+      // The else saga ends. Nobody claps, but you feel a vague sense of accomplishment.
     }
   }, []);
 
   const onChangeMeetingType = (e) => {
-    setColor((meetingTypesRes?.find((m) => m.value == e.value)).color);
+    setColor((meetingTypes?.find((m) => m.value == e.value)).color);
     setType(e);
   };
 
@@ -262,27 +314,27 @@ const MeetingFourm = ({
       } else {
         // console.log(`Original: Start: ${formatDate(updateMeeting.start_time)} End: ${formatDate(updateMeeting.end_time)}`);
         // Parse the start_time to a Date object
-        let updatedStartTime = new Date(updateMeeting.start_time);
-        let updatedEndTime = new Date(updateMeeting.end_time);
+        let updatedStartTime = new Date(meeting.start_time);
+        let updatedEndTime = new Date(meeting.end_time);
 
         // Update start time with the specified time
         updatedStartTime = setTime(updatedStartTime, startTime);
         updatedEndTime = setTime(updatedEndTime, endTime);
 
         // Update the meeting's start_time
-        updateMeeting.start_time = updatedStartTime.toISOString();
-        updateMeeting.end_time = updatedEndTime.toISOString();
+        meeting.start_time = updatedStartTime.toISOString();
+        meeting.end_time = updatedEndTime.toISOString();
 
         // Update all other values
-        updateMeeting.room = selectedRoom.id;
-        updateMeeting.type = type.id;
-        updateMeeting.name = meetingName;
-        updateMeeting.description = description ? description : "";
-        updateMeeting.repeats = repeats ? repeats : "";
+        meeting.room = selectedRoom.id;
+        meeting.type = type.id;
+        meeting.name = meetingName;
+        meeting.description = description ? description : "";
+        meeting.repeats = repeats ? repeats : "";
 
         switch (updateMode) {
           case "next":
-            UpdateAllNextMeetingsInRecurrence(user?.id, updateMeeting)
+            UpdateAllNextMeetingsInRecurrence(user?.id, meeting)
               .then((resp) => {
                 if (resp) {
                   const promises = special?.map(async (itm) =>
@@ -304,11 +356,10 @@ const MeetingFourm = ({
               });
             break;
           case "current":
-            console.log(updateMode);
-            CheckPostMeeting(user?.id, updateMeeting)
+            CheckPostMeeting(user?.id, meeting)
               .then((resp) => {
                 if (resp?.book) {
-                  UpdateParentOnlyMeeting(updateMeeting.id, updateMeeting)
+                  UpdateParentOnlyMeeting(meeting.id, meeting)
                     .then((resp) => {
                       if (resp) {
                         const promises = special?.map(async (itm) =>
@@ -335,7 +386,7 @@ const MeetingFourm = ({
               });
             break;
           case "all":
-            UpdateAllMeetingsInRecurrence(user?.id, updateMeeting)
+            UpdateAllMeetingsInRecurrence(user?.id, meeting)
               .then((resp) => {
                 if (resp) {
                   const promises = special?.map(async (itm) =>
@@ -357,10 +408,10 @@ const MeetingFourm = ({
               });
             break;
           default:
-            CheckPostMeeting(user?.id, updateMeeting)
+            CheckPostMeeting(user?.id, meeting)
               .then((resp) => {
                 if (resp?.book) {
-                  UpdateMeeting(user?.id, updateMeeting)
+                  UpdateMeeting(user?.id, meeting)
                     .then((resp) => {
                       if (resp) {
                         const promises = special?.map(async (itm) =>
@@ -389,8 +440,8 @@ const MeetingFourm = ({
         }
       }
     } else {
-      const start = setTime(update ? date : meeting.date, startTime);
-      const end = setTime(update ? date : meeting.date, endTime);
+      const start = setTime(update ? date : meeting?.start, startTime);
+      const end = setTime(update ? date : meeting?.end, endTime);
       if (start >= end) {
         openSnackbar(
           "End time cannot be less than or equal to the start time",
@@ -473,7 +524,7 @@ const MeetingFourm = ({
       container
       sx={{
         width: showDesc ? "600px" : "350px",
-        height: showDesc ? "467px" : "380px",
+        height: showDesc ? "430px" : multiDayMeet ? "400px" : "380px",
         transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
         overflow: "hidden",
       }}
@@ -496,22 +547,40 @@ const MeetingFourm = ({
             marginTop={"-5px"}
             fontFamily={"comic sans ms"}
           >
-            {update
-              ? new Date(updateMeeting.start_time)?.toLocaleDateString(
-                  "en-US",
-                  {
+            {update ? (
+              new Date(meeting?.start_time)?.toLocaleDateString("en-US", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })
+            ) : multiDayMeet ? (
+              <>
+                <Typography>
+                  {meeting?.start?.toLocaleDateString("en-US", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
                     year: "numeric",
-                  }
-                )
-              : meeting.date?.toLocaleDateString("en-US", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })}
+                  })}{" "}
+                </Typography>
+                <Typography>
+                  {meeting?.end?.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </Typography>
+              </>
+            ) : (
+              meeting?.start?.toLocaleDateString("en-US", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })
+            )}
           </Typography>
         </Grid>
         <Box
@@ -543,13 +612,13 @@ const MeetingFourm = ({
                 onChange={(e) => setMeetingName(e)}
               />
               <ShortSelectObject
-                items={meetingTypesRes}
+                items={meetingTypes}
                 label={"Meeting Type"}
                 value={type}
                 onChange={onChangeMeetingType}
               />
               <ShortSelectObject
-                items={roomsRes}
+                items={rooms}
                 label={"Room"}
                 value={selectedRoom}
                 onChange={setSelectedRoom}

@@ -2,7 +2,14 @@ const ActiveDirectory = require("activedirectory2");
 const ldapConfig = require("../ldapConfig");
 const ad = new ActiveDirectory(ldapConfig);
 const util = require("util");
-const { sendGroupNotificationEmail } = require("./mailController.js");
+const {
+  sendGroupNotificationEmail,
+  sendProcessCompleteEmail,
+} = require("./mailController.js");
+const {
+  logErrorToFile,
+  logMsgToFile,
+} = require("../functions/logErrorToFile.js");
 
 const findUserAsync = util.promisify(ad.findUser.bind(ad));
 
@@ -48,6 +55,7 @@ const getAllFullOUAssociates = async (req, res) => {
     scope: "sub",
     attributes: ["distinguishedName", "member"],
   };
+  logMsgToFile("Monthly Group Membership Email Process Start");
 
   const convertCNToUsername = (cn) => {
     const match = cn.match(/CN=([^,]+)\\,\s*(.*?)\s*-\s*(?:Full|Read)/i);
@@ -171,7 +179,7 @@ const getAllFullOUAssociates = async (req, res) => {
         .status(404)
         .json({ error: "No valid groups or members found." });
     }
-
+    let errorCount = 0;
     if (filteredGroupData.length > 0) {
       filteredGroupData.forEach((fd) => {
         const { parent, groupName, members } = fd;
@@ -185,14 +193,23 @@ const getAllFullOUAssociates = async (req, res) => {
             );
           }
         } catch (err) {
+          errorCount++;
+          logErrorToFile(err);
           console.error(`Failed to send email to ${parent.mail}:`, err);
         }
       });
     }
+    sendProcessCompleteEmail(errorCount ? "Partial Error" : "Completed");
+    logMsgToFile("Monthly Group Membership Email Process Completed");
 
     res.status(200).json({ status: "Success" }); //.json(filteredGroupData);
   } catch (err) {
+    logMsgToFile(
+      "Monthly Group Membership Email Process Failed. Check error log."
+    );
     console.error(err);
+    logErrorToFile(err);
+    sendProcessCompleteEmail("CRITICAL ERROR");
     res.status(500).json({ error: "Error retrieving data", details: err });
   }
 };

@@ -1,10 +1,20 @@
 const nodemailer = require("nodemailer");
+require("dotenv").config(); // Must be at the top of the file
+const { logErrorToFile } = require("../functions/logErrorToFile.js");
 
 // SMTP server configuration
 const SMTP_Server = {
   host: process.env.SMTP_SERVER,
   port: 587,
-  secure: true, // Set to true if using SSL
+  secure: false, // Set to true if using SSL
+  auth: {
+    user: process.env.SMTP_USER, // e.g., "ithelp@sealimited.com"
+    pass: process.env.SMTP_PASS, // Your SMTP password or app-specific password
+  },
+  tls: {
+    // Optional: Enforce specific TLS settings if needed
+    rejectUnauthorized: true, // Set to false if testing with self-signed certificates
+  },
 };
 
 /**
@@ -55,7 +65,6 @@ const sendGroupNotificationEmail = async (
   };
 
   // Create the email content
-  const memberList = members.map((member) => `<li>${member}</li>`).join("");
   const emailSubject = `Group Ownership Notification: ${groupName}`;
   const emailBody = `
   <p>Dear ${parentName},</p>
@@ -66,7 +75,36 @@ const sendGroupNotificationEmail = async (
   <p>If there is an issue with access, please reply to this email with any concerns.</p>
   <p></p>
   <p>Thank you.</p>
-`;
+  `;
+
+  try {
+    // Send the email
+    const info = await transporter.sendMail({
+      from: "ithelp@sealimited.com", // From address using COLWEB
+      to: parentEmail, //parentEmail,
+      subject: emailSubject,
+      html: emailBody,
+    });
+
+    console.log(`Email sent to ${parentEmail}: ${info.messageId}`);
+  } catch (error) {
+    logErrorToFile(error);
+    console.error(`Error sending email to ${parentEmail}:`, error);
+  }
+};
+
+const sendProcessCompleteEmail = async (status) => {
+  // Create the email transporter
+  const transporter = nodemailer.createTransport(SMTP_Server);
+
+  // Create the email content
+  const emailSubject = `Group Ownership Notification Email ${status}`;
+  const emailBody = `
+  <p>Dear Developer,</p>
+  <p>The Matter Manager email notification has completed with status <strong>${status}</strong>.</p>
+  <p></p>
+  <p>Thank you.</p>
+  `;
 
   try {
     // Send the email
@@ -77,10 +115,11 @@ const sendGroupNotificationEmail = async (
       html: emailBody,
     });
 
-    console.log(`Email sent to ${parentEmail}: ${info.messageId}`);
+    console.log(`Email sent to astrizheus@sealimited.com: ${info.messageId}`);
   } catch (error) {
-    console.error(`Error sending email to ${parentEmail}:`, error);
+    logErrorToFile(error);
+    console.error(`Error sending email to astrizheus@sealimited.com:`, error);
   }
 };
 
-module.exports = { sendGroupNotificationEmail };
+module.exports = { sendGroupNotificationEmail, sendProcessCompleteEmail };
