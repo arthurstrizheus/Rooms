@@ -21,7 +21,7 @@ const Banner = ({ bannerText, loading, selectedDate, setSelectedDate }) => {
           <Typography
             sx={{
               fontSize: "2.5rem", // Adjust to your desired size
-              fontFamily: "Courier New, sans-serif", // Use the imported font
+              fontFamily: "Calibri", // Use the imported font
               fontWeight: "light",
               letterSpacing: "0.05em", // Adjust letter spacing
               color: "inherit", // Ensures it inherits the color, or set a specific color

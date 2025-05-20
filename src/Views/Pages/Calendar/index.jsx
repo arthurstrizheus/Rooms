@@ -99,6 +99,7 @@ const Calendar = ({
   // dayGridMonth, timeGridWeek, timeGridDay
 
   useEffect(() => {
+    console.log("update Triggered");
     const data = async () => {
       const lcs = await GetLocations();
       const rms = await GetRooms(user?.id);
@@ -385,9 +386,9 @@ const Calendar = ({
           rooms={rooms}
           meetingTypes={meetingTypes}
           update={update}
-          setUpdate={update}
+          setUpdate={setUpdate}
           handleCloseForm={handleCloseForm}
-          setUpdateTrigger={setUpdate}
+          setUpdateTrigger={setUpdateTrigger}
           updateMode={updateMode}
           onClose={handleCloseForm}
         />

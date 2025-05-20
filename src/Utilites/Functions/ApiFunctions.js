@@ -295,7 +295,7 @@ export async function GetMeetingsUserCreated(id, data) {
     return resp.data;
   } catch (err) {
     // Handle errors such as network issues
-    showError(errorMessage);
+    showError(err.message);
     return [];
   }
 }

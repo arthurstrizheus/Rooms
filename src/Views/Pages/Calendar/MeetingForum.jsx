@@ -117,8 +117,7 @@ const MeetingFourm = ({
   update,
   meetingTypes,
   setUpdate,
-  setOpen,
-  setUpdateCount,
+  setUpdateTrigger,
   updateMode,
   onClose,
 }) => {
@@ -259,8 +258,9 @@ const MeetingFourm = ({
     setRepeats("");
     setDescription("");
     setUpdate(!update);
-    setUpdateCount((prevValue) => prevValue + 1);
-    setOpen(false);
+    console.log("update");
+    setUpdateTrigger((prevValue) => prevValue + 1);
+    onClose();
   };
 
   const clear = () => {
@@ -274,9 +274,8 @@ const MeetingFourm = ({
     setSelectedRoom("");
     setRepeats("");
     setDescription("");
-    setUpdateCount((prevValue) => prevValue + 1);
+    setUpdateTrigger((prevValue) => prevValue + 1);
     onClose();
-    setOpen(false);
   };
   const isSelected = (id) => special.indexOf(id) !== -1;
 
@@ -499,10 +498,11 @@ const MeetingFourm = ({
                     : DeleteSpecialPermission(itm)
                 );
                 Promise.all(promises).then(() => {
-                  clear();
+                  clearOnClose();
                 });
               }
             });
+            clearOnClose();
           }
         });
       }

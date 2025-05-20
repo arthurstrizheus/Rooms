@@ -37,16 +37,6 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
   });
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [open, setOpen] = useState({
-    rooms: true,
-    account: false,
-    manage: false,
-  });
-
-  const toggleCollapse = (section) => {
-    setOpen((prevState) => ({ ...prevState, [section]: !prevState[section] }));
-  };
-
   const handleMenuClick = (menu) => {
     setBannerText(menu);
     switch (menu.toLowerCase()) {
@@ -151,7 +141,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
       sx={{
         width: 300,
         height: "100vh",
-        backgroundColor: "white",
+        backgroundColor: theme.palette.background.paper,
       }}
     >
       <Grid
@@ -188,8 +178,6 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
           <MenuItem
             title="Rooms"
             icon={<></>}
-            isOpen={open.rooms}
-            onToggle={() => toggleCollapse("rooms")}
             items={[
               {
                 name: "Monthly View",
@@ -227,8 +215,6 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
           <MenuItem
             title="Account"
             icon={<></>}
-            isOpen={open.account}
-            onToggle={() => toggleCollapse("account")}
             items={
               user?.id == 47
                 ? [
@@ -261,8 +247,6 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
               <MenuItem
                 title="Manage"
                 icon={<></>}
-                isOpen={open.manage}
-                onToggle={() => toggleCollapse("manage")}
                 items={[
                   {
                     name: "Locations",
@@ -367,11 +351,11 @@ const MenuItem = ({ title, icon, onToggle, items }) => {
               paddingLeft: 4,
               cursor: "pointer",
               backgroundColor: item.selected
-                ? theme.palette.background.fill.light.light
+                ? theme.palette.primary.selected
                 : theme.palette.background.paper,
               transition: "background-color 0.4s ease",
               "&:hover": {
-                backgroundColor: theme.palette.background.fill.light.light,
+                backgroundColor: theme.palette.primary.lightHover,
               },
             }}
             onClick={item.onClick}
