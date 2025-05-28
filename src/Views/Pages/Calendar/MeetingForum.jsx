@@ -147,11 +147,16 @@ const MeetingFourm = ({
     )} ${ampm}`;
   };
 
-  for (let h = 0; h <= 23; h++) {
-    // Because time, like the universe, is cruel and goes up to 23 before resetting.
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // zero-based!
+  const day = now.getDate();
+
+  for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
-      // Still marching by 15s, you efficient genius.
-      times.push(formatTime(h, m)); // Format and push, like a polite time-traveling bouncer.
+      // every time lives on the same calendar day:
+      const dt = new Date(year, month, day, h, m, 0, 0);
+      times.push(formatTime(dt.getHours(), dt.getMinutes())); // formatTime should accept a Date
     }
   }
 
@@ -243,6 +248,7 @@ const MeetingFourm = ({
   };
 
   const onChangeEndTime = (e) => {
+    console.log(e);
     setEndTime(e);
   };
 
@@ -263,20 +269,6 @@ const MeetingFourm = ({
     onClose();
   };
 
-  const clear = () => {
-    setStartTime("");
-    setEndTime("");
-    setSelectedRoom("");
-    setType("");
-    setMeetingName("");
-    setType("");
-    setColor("");
-    setSelectedRoom("");
-    setRepeats("");
-    setDescription("");
-    setUpdateTrigger((prevValue) => prevValue + 1);
-    onClose();
-  };
   const isSelected = (id) => special.indexOf(id) !== -1;
 
   const onSubbmit = () => {
@@ -440,7 +432,10 @@ const MeetingFourm = ({
       }
     } else {
       const start = setTime(update ? date : meeting?.start, startTime);
-      const end = setTime(update ? date : meeting?.end, endTime);
+      const end = setTime(
+        update ? date : meeting?.allDay ? meeting?.start : meeting?.end,
+        endTime
+      );
       if (start >= end) {
         openSnackbar(
           "End time cannot be less than or equal to the start time",
@@ -484,6 +479,7 @@ const MeetingFourm = ({
           created_user_id: user?.id,
           repeats: repeats,
         };
+        console.log(newMeeting);
         CheckPostMeeting(user?.id, newMeeting).then((resp) => {
           if (resp?.book) {
             PostMeeting(newMeeting).then((resp) => {

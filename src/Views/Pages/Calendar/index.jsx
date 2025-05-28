@@ -46,11 +46,15 @@ import {
 
 import { IsMeetingParentRecurrence } from "../../../Utilites/Functions/ApiFunctions/MeetingRecurrencesFunctions";
 
-const transposeMeetingToEvent = (meetings) => {
+const transposeMeetingToEvent = (meetings, meetingTypes) => {
   let events = [];
   if (meetings?.length) {
     meetings.map((meeting, index) => {
+      console.log(meeting);
       events.push({
+        backgroundColor: meetingTypes?.find((tp) => tp?.id == meeting?.type)
+          ?.color,
+        textColor: "black",
         id: meeting.id == -1 ? index : meeting.id, // Unique string or number
         title: meeting.name, // Text shown on the calendar
         start: meeting.start_time, // ISO format date/time string
@@ -151,8 +155,10 @@ const Calendar = ({
   }, [selectedDate, defaultView]);
 
   useEffect(() => {
-    setEvents(transposeMeetingToEvent(meetings));
-  }, [meetings]);
+    if (meetingTypes?.length) {
+      setEvents(transposeMeetingToEvent(meetings, meetingTypes));
+    }
+  }, [meetings, meetingTypes]);
 
   // calendar event select/add/edit/delete
   const handleRangeSelect = (arg) => {
