@@ -22,6 +22,7 @@ import {
   FormHelperText,
   OutlinedInput,
   TextField,
+  Checkbox,
 } from "@mui/material";
 import {
   CheckPostMeeting,
@@ -44,23 +45,6 @@ import {
 } from "../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
 import { getDate, getMonth, getSeconds, getTime, getYear } from "date-fns";
 
-const getInitialValues = (event, range) => {
-  const newEvent = {
-    title: "",
-    description: "",
-    color: "#2196f3",
-    textColor: "",
-    allDay: false,
-    start: range ? new Date(range.start) : new Date(),
-    end: range ? new Date(range.end) : new Date(),
-  };
-
-  if (event || range) {
-    return _.merge({}, newEvent, event);
-  }
-
-  return newEvent;
-};
 // Welcome to Date Sanity™! All passengers please keep your arms inside the function at all times.
 function isMultipleDayMeeting(meeting) {
   if (!meeting?.start || !meeting?.end) {
@@ -70,7 +54,7 @@ function isMultipleDayMeeting(meeting) {
   const start = new Date(meeting.start);
   const end = new Date(meeting.end);
 
-  if (meeting.allDay) {
+  if (meeting.all_day) {
     // For allDay events, end is exclusive. Nothing makes sense, so check for >1 day.
     const diff = (end - start) / (1000 * 60 * 60 * 24);
     return diff > 1;
@@ -127,14 +111,14 @@ const MeetingFourm = ({
   const [type, setType] = useState("");
   const [selectedRoom, setSelectedRoom] = useState("");
   const [description, setDescription] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const [startTime, setStartTime] = useState("12:00 AM");
+  const [endTime, setEndTime] = useState("12:00 AM");
   const [repeats, setRepeats] = useState("");
   const [users, setUsers] = useState([]);
   const [special, setSpecial] = useState([]);
   const [meetingName, setMeetingName] = useState("");
   const [showDesc, setShowDesc] = useState(false);
-  const [allDay, setAllDay] = useState(meeting?.allDay || false);
+  const [allDay, setAllDay] = useState(meeting?.all_day || false);
   const times = [];
   const multiDayMeet = isMultipleDayMeeting(meeting);
 
@@ -182,7 +166,7 @@ const MeetingFourm = ({
         setStartTime("12:00 AM"); // Because time loses all meaning after Day 1.
         setEndTime("12:00 AM"); // It's always midnight somewhere, right?
       } else {
-        if (meeting.allDay) {
+        if (meeting.all_day) {
           // The all-day event! The grown-up equivalent of "do not disturb."
           setStartTime("12:00 AM"); // Just pretend it's midnight all day.
           setEndTime("12:00 AM"); // See above, but with more existential dread.
@@ -248,7 +232,6 @@ const MeetingFourm = ({
   };
 
   const onChangeEndTime = (e) => {
-    console.log(e);
     setEndTime(e);
   };
 
@@ -270,12 +253,13 @@ const MeetingFourm = ({
   };
 
   const isSelected = (id) => special.indexOf(id) !== -1;
+  console.log(meeting);
 
   const onSubbmit = () => {
     if (update) {
       const start = setTime(date, startTime);
       const end = setTime(date, endTime);
-      if (start >= end) {
+      if (start >= end && !allDay) {
         openSnackbar(
           "End time cannot be less than or equal to the start time",
           {
@@ -322,6 +306,7 @@ const MeetingFourm = ({
         meeting.name = meetingName;
         meeting.description = description ? description : "";
         meeting.repeats = repeats ? repeats : "";
+        meeting.allDay = allDay;
 
         switch (updateMode) {
           case "next":
@@ -433,7 +418,7 @@ const MeetingFourm = ({
     } else {
       const start = setTime(update ? date : meeting?.start, startTime);
       const end = setTime(
-        update ? date : meeting?.allDay ? meeting?.start : meeting?.end,
+        update ? date : meeting?.all_day ? meeting?.start : meeting?.end,
         endTime
       );
       if (start >= end) {
@@ -478,8 +463,8 @@ const MeetingFourm = ({
           retired: false,
           created_user_id: user?.id,
           repeats: repeats,
+          all_day: allDay,
         };
-        console.log(newMeeting);
         CheckPostMeeting(user?.id, newMeeting).then((resp) => {
           if (resp?.book) {
             PostMeeting(newMeeting).then((resp) => {
@@ -515,12 +500,19 @@ const MeetingFourm = ({
     );
   };
 
+  const handleAllDayChange = (checked) => {
+    setAllDay(checked);
+    // The all-day event! The grown-up equivalent of "do not disturb."
+    setStartTime("12:00 AM"); // Just pretend it's midnight all day.
+    setEndTime("12:00 AM"); // See above, but with more existential dread.
+  };
+
   return (
     <Grid
       container
       sx={{
         width: showDesc ? "600px" : "350px",
-        height: showDesc ? "430px" : multiDayMeet ? "400px" : "380px",
+        height: showDesc ? "410px" : multiDayMeet ? "400px" : "380px",
         transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
         overflow: "hidden",
       }}
@@ -619,21 +611,47 @@ const MeetingFourm = ({
                 value={selectedRoom}
                 onChange={setSelectedRoom}
               />
-              <Stack direction={"row"} sx={{ width: "100%" }} spacing={1}>
-                <ShortSelect
-                  items={times}
-                  label={"Start Time"}
-                  value={startTime}
-                  onChange={onChangeStartTime}
-                />
-                <ShortSelect
-                  items={times}
-                  label={"End Time"}
-                  value={endTime}
-                  onChange={onChangeEndTime}
-                />
-              </Stack>
+              {!allDay && (
+                <Stack direction={"row"} sx={{ width: "100%" }} spacing={1}>
+                  <ShortSelect
+                    items={times}
+                    label={"Start Time"}
+                    value={startTime}
+                    onChange={onChangeStartTime}
+                  />
+                  <ShortSelect
+                    items={times}
+                    label={"End Time"}
+                    value={endTime}
+                    onChange={onChangeEndTime}
+                  />
+                </Stack>
+              )}
+              {showDesc && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-start",
+                  }}
+                >
+                  <Checkbox
+                    checked={allDay}
+                    value={allDay}
+                    onChange={(e) => handleAllDayChange(e.target.checked)}
+                    size="small"
+                    sx={{
+                      padding: 0,
+                      "&:hover": { backgroundColor: "transparent" },
+                    }}
+                  />
+                  <Typography variant="body2" sx={{ ml: 0.5 }}>
+                    All Day
+                  </Typography>
+                </Box>
+              )}
             </Box>
+
             {showDesc && (
               <Box
                 sx={{

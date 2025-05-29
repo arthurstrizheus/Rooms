@@ -1075,6 +1075,7 @@ const Post = async (req, res) => {
       name,
       retired,
       created_user_id,
+      allDay,
     } = req.body;
 
     // Validate the incoming data (optional but recommended)
@@ -1106,6 +1107,7 @@ const Post = async (req, res) => {
       retired,
       status: !user.admin ? meetingStatus : "Approved",
       created_user_id,
+      all_day: allDay,
     });
 
     if (repeats != "") {
@@ -1143,6 +1145,7 @@ const Update = async (req, res) => {
       retired,
       status,
       created_user_id,
+      allDay,
       recurrence_id,
     } = req.body; // Extract data from the request body
     // Validate the incoming data (optional but recommended)
@@ -1218,6 +1221,7 @@ const Update = async (req, res) => {
         repeats,
         name,
         retired,
+        all_day: allDay,
         status:
           status !== "Approved"
             ? !user.admin
@@ -1262,6 +1266,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
       status,
       created_user_id,
       recurrence_id,
+      all_day: allDay,
     } = req.body; // Extract data from the request body
     // Validate the incoming data (optional but recommended)
     if (
@@ -1356,6 +1361,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
       repeats: null,
       name,
       retired,
+      all_day: allDay,
       status:
         status !== "Approved"
           ? !user.admin
@@ -1391,6 +1397,7 @@ const UpdateAllRecurrence = async (req, res) => {
       new_start_time,
       new_end_time,
       recurrence_id,
+      allDay,
     } = req.body; // Extract data from the request body
     // Validate the incoming data (optional but recommended)
     if (
@@ -1454,6 +1461,14 @@ const UpdateAllRecurrence = async (req, res) => {
       ...resource.dataValues,
       start_time: newStart,
       end_time: newEnd,
+      all_day: allDay,
+      description,
+      location,
+      room,
+      type,
+      organizer,
+      description,
+      name,
       status:
         status !== "Approved"
           ? !user.admin
@@ -1489,6 +1504,7 @@ const UpdateAllNextInRecurrence = async (req, res) => {
       status,
       created_user_id,
       recurrence_id,
+      allDay,
     } = req.body; // Extract data from the request body
     // Validate the incoming data (optional but recommended)
     if (
@@ -1526,6 +1542,7 @@ const UpdateAllNextInRecurrence = async (req, res) => {
       repeats,
       name,
       retired,
+      all_day: allDay,
       status,
       created_user_id,
       recurrence_id,
@@ -1599,6 +1616,7 @@ const UpdateCurrentInRecurrence = async (req, res) => {
       status,
       created_user_id,
       recurrence_id,
+      allDay,
     } = req.body; // Extract data from the request body
     // Validate the incoming data (optional but recommended)
     if (
@@ -1640,9 +1658,10 @@ const UpdateCurrentInRecurrence = async (req, res) => {
       status,
       created_user_id,
       recurrence_id,
+      all_day: allDay,
     };
     // find next meeting that wil become a parent after
-    let fakeMeets = await CreateRepeatingMeetingsOfThisMeeting(meeting);
+    // let fakeMeets = await CreateRepeatingMeetingsOfThisMeeting(meeting);
     // update the times
     meeting = {
       ...meeting,

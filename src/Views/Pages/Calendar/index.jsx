@@ -16,7 +16,7 @@ import { startOfMonth, startOfWeek } from "date-fns";
 
 // project imports
 import CalendarStyled from "./CalendarStyled";
-
+import RenderEventContent from "./RenderEventContent";
 import Loader from "../../Components/Loader";
 import SubCard from "../../Components/SubCard";
 
@@ -46,28 +46,28 @@ import {
 
 import { IsMeetingParentRecurrence } from "../../../Utilites/Functions/ApiFunctions/MeetingRecurrencesFunctions";
 
-const transposeMeetingToEvent = (meetings, meetingTypes) => {
-  let events = [];
-  if (meetings?.length) {
-    meetings.map((meeting, index) => {
-      console.log(meeting);
-      events.push({
-        backgroundColor: meetingTypes?.find((tp) => tp?.id == meeting?.type)
-          ?.color,
-        textColor: "black",
-        id: meeting.id == -1 ? index : meeting.id, // Unique string or number
-        title: meeting.name, // Text shown on the calendar
-        start: meeting.start_time, // ISO format date/time string
-        end: meeting.end_time, // Optional; defaults to 1-hour if omitted
-        allDay: meeting.all_day, // Set true for all-day events
-        // Custom props (optional)
-        extendedProps: {
-          ...meeting,
-        },
-      });
-    });
-  }
-  return events;
+const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
+  return (meetings || []).map((meeting, idx) => {
+    const type = meetingTypes.find((tp) => tp.id === meeting.type);
+    const room = rooms.find((rm) => rm.id === meeting.room);
+    const roomName = room
+      ? room.value?.replace("Conference", "CR")?.replace("Training Room", "TR")
+      : "Unknown room";
+
+    return {
+      id: meeting.id === -1 ? idx : meeting.id,
+      title: meeting.name, // just the name here
+      start: meeting.start_time,
+      end: meeting.end_time,
+      allDay: meeting.all_day,
+      backgroundColor: type?.color,
+      textColor: "black",
+      extendedProps: {
+        ...meeting,
+        roomName: roomName,
+      },
+    };
+  });
 };
 
 // ==============================|| APPLICATION CALENDAR ||============================== //
@@ -156,7 +156,7 @@ const Calendar = ({
 
   useEffect(() => {
     if (meetingTypes?.length) {
-      setEvents(transposeMeetingToEvent(meetings, meetingTypes));
+      setEvents(transposeMeetingToEvent(meetings, meetingTypes, rooms));
     }
   }, [meetings, meetingTypes]);
 
@@ -441,6 +441,7 @@ const Calendar = ({
               eventDisplay="block"
               headerToolbar={false}
               allDayMaintainDuration
+              eventContent={RenderEventContent}
               eventResizableFromStart
               select={handleRangeSelect}
               eventDrop={handleEventUpdate}
