@@ -172,6 +172,7 @@ const Calendar = ({
       start: arg.start,
       end: arg.end,
       allDay: arg.allDay,
+      view: defaultView,
     });
     setOpenMeetingDialog(true);
   };
@@ -238,6 +239,7 @@ const Calendar = ({
         ...updateEvent.extendedProps,
         new_start_time: new Date(updateEvent.start).toISOString(),
         new_end_time: new Date(updateEvent.end).toISOString(),
+        allDay: updateEvent.allDay,
       };
       if (mode == "next" && user?.id) {
         UpdateAllNextMeetingsInRecurrence(user?.id, updatedMeeting)

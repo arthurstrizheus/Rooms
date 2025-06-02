@@ -20,6 +20,10 @@ const {
   endOfMonth,
   subWeeks,
   addWeeks,
+  getDate,
+  getYear,
+  getMonth,
+  getTime,
 } = require("date-fns");
 
 async function GetNextParentMeeting(userId, meeting) {
@@ -227,30 +231,57 @@ async function CreateRepeatingMeetingsOfThisMeeting(meeting) {
   return meetings;
 }
 
-async function CreateRepeatingMeetings(currentDate, range, userId) {
+async function CreateRepeatingMeetings(
+  currentDate,
+  range,
+  userId,
+  userOnly = false
+) {
   const user = await User.findByPk(userId);
 
   const recurrenceMeetings = await MeetingRecurrence.findAll();
   const recurrenceMeetingIds = recurrenceMeetings?.map((rm) => rm.meeting_id);
-
-  const latestMeetings = await Meeting.findAll({
-    attributes: [
-      "recurrence_id",
-      [Sequelize.fn("MAX", Sequelize.col("start_time")), "latest_start_time"],
-    ],
-    where: {
-      recurrence_id: {
-        [Sequelize.Op.not]: null,
+  let latestMeetings = [];
+  if (userOnly) {
+    latestMeetings = await Meeting.findAll({
+      attributes: [
+        "recurrence_id",
+        [Sequelize.fn("MAX", Sequelize.col("start_time")), "latest_start_time"],
+      ],
+      where: {
+        created_user_id: userId,
+        recurrence_id: {
+          [Sequelize.Op.not]: null,
+        },
+        status: {
+          [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+        },
+        id: {
+          [Sequelize.Op.in]: recurrenceMeetingIds,
+        },
       },
-      status: {
-        [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+      group: ["recurrence_id"],
+    });
+  } else {
+    latestMeetings = await Meeting.findAll({
+      attributes: [
+        "recurrence_id",
+        [Sequelize.fn("MAX", Sequelize.col("start_time")), "latest_start_time"],
+      ],
+      where: {
+        recurrence_id: {
+          [Sequelize.Op.not]: null,
+        },
+        status: {
+          [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+        },
+        id: {
+          [Sequelize.Op.in]: recurrenceMeetingIds,
+        },
       },
-      id: {
-        [Sequelize.Op.in]: recurrenceMeetingIds,
-      },
-    },
-    group: ["recurrence_id"],
-  });
+      group: ["recurrence_id"],
+    });
+  }
 
   const recurrenceData = latestMeetings
     ?.map((meet) => ({
@@ -666,7 +697,7 @@ const GetAllUserCreated = async (req, res) => {
           "Required fields missing, date and range ('Day', 'Week'. 'Month')",
       });
     }
-    const fakeMeets = await CreateRepeatingMeetings(date, range, id); // Create repeating meetings if they do not exist, only the next 30 from the date
+    const fakeMeets = await CreateRepeatingMeetings(date, range, id, true); // Create repeating meetings if they do not exist, only the next 30 from the date
 
     // Correct way to use order
     let data = await Meeting.findAll({
@@ -910,6 +941,7 @@ const CanBook = async (req, res) => {
       retired,
       created_user_id,
       repeats,
+      allDay,
     } = req.body;
 
     // Validate the incoming data (optional but recommended)
@@ -978,16 +1010,31 @@ const CanBook = async (req, res) => {
       let overlaping = false;
       if (meeting.id != id) {
         overlaping =
-          newStartTime < meetingEnd &&
-          newEndTime > meetingStart &&
-          meeting.room == room &&
-          (meeting.status === "Approved" ||
-            meeting.status === "Waiting on Approval");
+          (newStartTime < meetingEnd &&
+            getDate(newStartTime) == getDate(meetingStart) &&
+            getYear(newStartTime) == getYear(meetingStart) &&
+            getMonth(newStartTime) == getMonth(meetingStart) &&
+            newEndTime > meetingStart &&
+            getDate(newEndTime) == getDate(meetingEnd) &&
+            getYear(newEndTime) == getYear(meetingEnd) &&
+            getMonth(newEndTime) == getMonth(meetingEnd) &&
+            meeting.room == room &&
+            (meeting.status === "Approved" ||
+              meeting.status === "Waiting on Approval")) ||
+          ((meeting.all_day || allDay) &&
+            meeting.room == room &&
+            getTime(newStartTime) == getTime(meetingStart) &&
+            getTime(meetingEnd) == getTime(newEndTime) &&
+            getDate(newStartTime) == getDate(meetingStart) &&
+            getYear(newStartTime) == getYear(meetingStart) &&
+            getMonth(newStartTime) == getMonth(meetingStart) &&
+            getDate(newEndTime) == getDate(meetingEnd) &&
+            getYear(newEndTime) == getYear(meetingEnd) &&
+            getMonth(newEndTime) == getMonth(meetingEnd));
       }
       // Check if the new meeting overlaps with an existing meeting
       return overlaping;
     });
-
     if (!isOverlapping && repeats != "") {
       const meeting = {
         start_time,
@@ -1012,11 +1059,27 @@ const CanBook = async (req, res) => {
 
         // Check if the new meeting overlaps with an existing meeting
         return (
-          newStartTime < meetingEnd &&
-          newEndTime > meetingStart &&
-          meeting.room == room &&
-          (meeting.status === "Approved" ||
-            meeting.status === "Waiting on Approval")
+          (newStartTime < meetingEnd &&
+            getDate(newStartTime) == getDate(meetingEnd) &&
+            getYear(newStartTime) == getYear(meetingEnd) &&
+            getMonth(newStartTime) == getMonth(meetingEnd) &&
+            newEndTime > meetingStart &&
+            getDate(newEndTime) == getDate(meetingStart) &&
+            getYear(newEndTime) == getYear(meetingStart) &&
+            getMonth(newEndTime) == getMonth(meetingStart) &&
+            meeting.room == room &&
+            (meeting.status === "Approved" ||
+              meeting.status === "Waiting on Approval")) ||
+          ((meeting.all_day || allDay) &&
+            meeting.room == room &&
+            getTime(newStartTime) == getTime(meetingStart) &&
+            getTime(meetingEnd) == getTime(newEndTime) &&
+            getDate(newStartTime) == getDate(meetingStart) &&
+            getYear(newStartTime) == getYear(meetingStart) &&
+            getMonth(newStartTime) == getMonth(meetingStart) &&
+            getDate(newEndTime) == getDate(meetingEnd) &&
+            getYear(newEndTime) == getYear(meetingEnd) &&
+            getMonth(newEndTime) == getMonth(meetingEnd))
         );
       });
     }
@@ -1026,7 +1089,7 @@ const CanBook = async (req, res) => {
       isOverlapping = blockedDates.some((meeting) => {
         const meetingStart = new Date(meeting.start_time);
         const meetingEnd = new Date(meeting.end_time);
-        // Check if the new meeting overlaps with an existing meeting
+        // Check if the new meeting overlaps with an blocked dates
         return newStartTime < meetingEnd && newEndTime > meetingStart;
       });
       if (isOverlapping) {
@@ -1035,6 +1098,41 @@ const CanBook = async (req, res) => {
           book: false,
         });
       }
+    }
+
+    // Check if its overlaping any standard meetings.
+    if (!isOverlapping) {
+      isOverlapping = meetings.some((meeting) => {
+        const meetingStart = new Date(meeting.start_time);
+        const meetingEnd = new Date(meeting.end_time);
+        let overlaping = false;
+        if (meeting.id != id) {
+          overlaping =
+            (newStartTime < meetingEnd &&
+              getDate(newStartTime) == getDate(meetingEnd) &&
+              getYear(newStartTime) == getYear(meetingEnd) &&
+              getMonth(newStartTime) == getMonth(meetingEnd) &&
+              newEndTime > meetingStart &&
+              getDate(newEndTime) == getDate(meetingStart) &&
+              getYear(newEndTime) == getYear(meetingStart) &&
+              getMonth(newEndTime) == getMonth(meetingStart) &&
+              meeting.room == room &&
+              (meeting.status === "Approved" ||
+                meeting.status === "Waiting on Approval")) ||
+            ((meeting.all_day || allDay) &&
+              meeting.room == room &&
+              getTime(newStartTime) == getTime(meetingStart) &&
+              getTime(meetingEnd) == getTime(newEndTime) &&
+              getDate(newStartTime) == getDate(meetingStart) &&
+              getYear(newStartTime) == getYear(meetingStart) &&
+              getMonth(newStartTime) == getMonth(meetingStart) &&
+              getDate(newEndTime) == getDate(meetingEnd) &&
+              getYear(newEndTime) == getYear(meetingEnd) &&
+              getMonth(newEndTime) == getMonth(meetingEnd));
+        }
+        // Check if the new meeting overlaps with an existing meeting
+        return overlaping;
+      });
     }
 
     // If there is an overlapping meeting, return a conflict message

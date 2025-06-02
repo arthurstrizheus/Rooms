@@ -118,7 +118,13 @@ const MeetingFourm = ({
   const [special, setSpecial] = useState([]);
   const [meetingName, setMeetingName] = useState("");
   const [showDesc, setShowDesc] = useState(false);
-  const [allDay, setAllDay] = useState(meeting?.all_day || false);
+  const [allDay, setAllDay] = useState(
+    meeting?.all_day || meeting?.allDay
+      ? meeting?.view == "dayGridMonth"
+        ? false
+        : true
+      : false
+  );
   const times = [];
   const multiDayMeet = isMultipleDayMeeting(meeting);
 
@@ -166,7 +172,10 @@ const MeetingFourm = ({
         setStartTime("12:00 AM"); // Because time loses all meaning after Day 1.
         setEndTime("12:00 AM"); // It's always midnight somewhere, right?
       } else {
-        if (meeting.all_day) {
+        if (
+          meeting?.all_day ||
+          (meeting?.allDay && meeting?.view == "dayGridMonth")
+        ) {
           // The all-day event! The grown-up equivalent of "do not disturb."
           setStartTime("12:00 AM"); // Just pretend it's midnight all day.
           setEndTime("12:00 AM"); // See above, but with more existential dread.
@@ -253,7 +262,6 @@ const MeetingFourm = ({
   };
 
   const isSelected = (id) => special.indexOf(id) !== -1;
-  console.log(meeting);
 
   const onSubbmit = () => {
     if (update) {
@@ -332,7 +340,7 @@ const MeetingFourm = ({
               });
             break;
           case "current":
-            CheckPostMeeting(user?.id, meeting)
+            CheckPostMeeting(user?.id, { ...meeting, allDay })
               .then((resp) => {
                 if (resp?.book) {
                   UpdateParentOnlyMeeting(meeting.id, meeting)
@@ -384,7 +392,7 @@ const MeetingFourm = ({
               });
             break;
           default:
-            CheckPostMeeting(user?.id, meeting)
+            CheckPostMeeting(user?.id, { ...meeting, allDay })
               .then((resp) => {
                 if (resp?.book) {
                   UpdateMeeting(user?.id, meeting)
@@ -421,7 +429,7 @@ const MeetingFourm = ({
         update ? date : meeting?.all_day ? meeting?.start : meeting?.end,
         endTime
       );
-      if (start >= end) {
+      if (start >= end && !allDay) {
         openSnackbar(
           "End time cannot be less than or equal to the start time",
           {
@@ -463,7 +471,7 @@ const MeetingFourm = ({
           retired: false,
           created_user_id: user?.id,
           repeats: repeats,
-          all_day: allDay,
+          allDay,
         };
         CheckPostMeeting(user?.id, newMeeting).then((resp) => {
           if (resp?.book) {
@@ -512,7 +520,13 @@ const MeetingFourm = ({
       container
       sx={{
         width: showDesc ? "600px" : "350px",
-        height: showDesc ? "410px" : multiDayMeet ? "400px" : "380px",
+        height: showDesc
+          ? "410px"
+          : multiDayMeet
+          ? "400px"
+          : allDay
+          ? "330px"
+          : "380px",
         transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
         overflow: "hidden",
       }}
