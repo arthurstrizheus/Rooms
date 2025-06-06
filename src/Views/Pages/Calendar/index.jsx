@@ -12,7 +12,14 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import timelinePlugin from "@fullcalendar/timeline";
 import interactionPlugin from "@fullcalendar/interaction";
-import { startOfMonth, startOfWeek } from "date-fns";
+import {
+  startOfMonth,
+  startOfWeek,
+  getDate,
+  getMonth,
+  getSeconds,
+  getYear,
+} from "date-fns";
 
 // project imports
 import CalendarStyled from "./CalendarStyled";
@@ -69,6 +76,31 @@ const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
     };
   });
 };
+
+function isMultipleDayMeeting(meeting) {
+  if (!meeting?.start || !meeting?.end) {
+    // There is no meeting we can all go home
+    return false;
+  }
+  const start = new Date(meeting.start);
+  const end = new Date(meeting.end);
+
+  if (meeting.all_day || meeting.allDay) {
+    // For allDay events, end is exclusive. Nothing makes sense, so check for >1 day.
+    const diff = (end - start) / (1000 * 60 * 60 * 24);
+    return diff > 1;
+  } else {
+    // Compare local calendar days, like civilized people do.
+    return (
+      getYear(start) !== getYear(end) ||
+      getMonth(start) !== getMonth(end) ||
+      (getDate(start) !== getDate(end) &&
+        getHours(end) != 0 &&
+        getMinutes(end) != 0 &&
+        getSeconds(end) != 0)
+    );
+  }
+}
 
 // ==============================|| APPLICATION CALENDAR ||============================== //
 
@@ -167,13 +199,13 @@ const Calendar = ({
       const calendarApi = calendarEl.getApi();
       calendarApi.unselect();
     }
-
-    setSelectedRange({
+    const meet = {
       start: arg.start,
       end: arg.end,
       allDay: arg.allDay,
       view: defaultView,
-    });
+    };
+    setSelectedRange({ ...meet, allDay: isMultipleDayMeeting(meet) });
     setOpenMeetingDialog(true);
   };
 

@@ -38,6 +38,7 @@ import ShortSelectObject from "../../../Components/ShortSelectObject";
 import TuneIcon from "@mui/icons-material/Tune";
 import CheckIcon from "@mui/icons-material/Check";
 import { GetUsers } from "../../../Utilites/Functions/ApiFunctions";
+import { filterTimesAfterCutoff } from "../../../Utilites/Functions/TimeUtilities";
 import {
   DeleteSpecialPermission,
   GetSpecialPermissionsForMeeting,
@@ -54,7 +55,7 @@ function isMultipleDayMeeting(meeting) {
   const start = new Date(meeting.start);
   const end = new Date(meeting.end);
 
-  if (meeting.all_day) {
+  if (meeting.all_day || meeting.allDay) {
     // For allDay events, end is exclusive. Nothing makes sense, so check for >1 day.
     const diff = (end - start) / (1000 * 60 * 60 * 24);
     return diff > 1;
@@ -94,6 +95,16 @@ const isLateMeeting = (meeting) => {
   );
 };
 
+function getPreviousDay(d) {
+  // Coerce input into a Date object
+  const date = d instanceof Date ? new Date(d) : new Date(d);
+
+  // Subtract one day—setDate handles rollovers (e.g., 1 → last day of previous month)
+  date.setDate(date.getDate() - 1);
+
+  return date;
+}
+
 const MeetingFourm = ({
   date,
   meeting,
@@ -112,7 +123,7 @@ const MeetingFourm = ({
   const [selectedRoom, setSelectedRoom] = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState("12:00 AM");
-  const [endTime, setEndTime] = useState("12:00 AM");
+  const [endTime, setEndTime] = useState("12:15 AM");
   const [repeats, setRepeats] = useState("");
   const [users, setUsers] = useState([]);
   const [special, setSpecial] = useState([]);
@@ -166,19 +177,19 @@ const MeetingFourm = ({
     // Behold! The Tower of Nested Ifs: A monument to indecision and existential dread.
     if (!update) {
       // We only want to update when we're NOT updating. Because logic is for mortals.
-
       if (multiDayMeet) {
         // Ah, a meeting that spans multiple days! Surely, nobody will ever actually survive one of these.
         setStartTime("12:00 AM"); // Because time loses all meaning after Day 1.
-        setEndTime("12:00 AM"); // It's always midnight somewhere, right?
+        setEndTime("12:15 AM"); // It's always midnight somewhere, right?
       } else {
         if (
           meeting?.all_day ||
-          (meeting?.allDay && meeting?.view == "dayGridMonth")
+          meeting?.allDay ||
+          meeting?.view == "dayGridMonth"
         ) {
           // The all-day event! The grown-up equivalent of "do not disturb."
           setStartTime("12:00 AM"); // Just pretend it's midnight all day.
-          setEndTime("12:00 AM"); // See above, but with more existential dread.
+          setEndTime("12:15 AM"); // See above, but with more existential dread.
         } else {
           // Finally, a meeting that dares to have an actual start and end time.
           setStartTime(
@@ -237,6 +248,10 @@ const MeetingFourm = ({
   };
 
   const onChangeStartTime = (e) => {
+    const newTimeList = filterTimesAfterCutoff(times, e);
+    if (!newTimeList.includes(endTime)) {
+      setEndTime(newTimeList[0]);
+    }
     setStartTime(e);
   };
 
@@ -425,10 +440,16 @@ const MeetingFourm = ({
       }
     } else {
       const start = setTime(update ? date : meeting?.start, startTime);
-      const end = setTime(
-        update ? date : meeting?.all_day ? meeting?.start : meeting?.end,
-        endTime
-      );
+      let end = setTime(meeting?.end, endTime);
+      if (multiDayMeet) {
+        end = getPreviousDay(end);
+      } else if (meeting.view == "dayGridMonth") {
+        end.setDate(start.getDate());
+      }
+      // console.log(multiDayMeet, allDay);
+      // console.log(start);
+      // console.log(end);
+      // return;
       if (start >= end && !allDay) {
         openSnackbar(
           "End time cannot be less than or equal to the start time",
@@ -522,9 +543,11 @@ const MeetingFourm = ({
         width: showDesc ? "600px" : "350px",
         height: showDesc
           ? "410px"
-          : multiDayMeet
+          : multiDayMeet && !allDay
           ? "400px"
-          : allDay
+          : allDay && multiDayMeet
+          ? "355px"
+          : allDay && !multiDayMeet
           ? "330px"
           : "380px",
         transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
@@ -544,6 +567,7 @@ const MeetingFourm = ({
         >
           <Typography fontSize={28}>Book Room</Typography>
           <Typography
+            component="div"
             fontSize={16}
             color={theme.palette.secondary.light}
             marginTop={"-5px"}
@@ -567,7 +591,7 @@ const MeetingFourm = ({
                   })}{" "}
                 </Typography>
                 <Typography>
-                  {meeting?.end?.toLocaleDateString("en-US", {
+                  {getPreviousDay(meeting?.end)?.toLocaleDateString("en-US", {
                     weekday: "long",
                     day: "numeric",
                     month: "long",
@@ -634,7 +658,7 @@ const MeetingFourm = ({
                     onChange={onChangeStartTime}
                   />
                   <ShortSelect
-                    items={times}
+                    items={filterTimesAfterCutoff(times, startTime)}
                     label={"End Time"}
                     value={endTime}
                     onChange={onChangeEndTime}
