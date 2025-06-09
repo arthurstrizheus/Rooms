@@ -1,5 +1,8 @@
 import { useTheme } from "@emotion/react";
-import { getAmPm } from "../../../Utilites/Functions/CommonFunctions";
+import {
+  formatDate,
+  getAmPm,
+} from "../../../Utilites/Functions/CommonFunctions";
 import {
   Grid,
   Stack,
@@ -129,6 +132,7 @@ const DisplayMeeting = ({
     setShowParentWarning(false);
     handleUpdateEvent();
   };
+  console.log(meeting);
 
   return (
     <Box sx={{ display: "flex", flexGrow: 1 }}>
@@ -203,10 +207,19 @@ const DisplayMeeting = ({
                 letterSpacing={1}
                 color={theme.palette.secondary.main}
               >
-                {start.getHours()}:{String(start.getMinutes()).padStart(2, "0")}
+                {start.getHours() > 12
+                  ? start.getHours() - 12
+                  : start.getHours() < 1
+                  ? "12"
+                  : start.getHours()}
+                :{String(start.getMinutes()).padStart(2, "0")}
                 {getAmPm(start)} -{" "}
-                {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:
-                {String(end.getMinutes()).padStart(2, "0")}
+                {end.getHours() > 12
+                  ? end.getHours() - 12
+                  : end.getHours() < 1
+                  ? "12"
+                  : end.getHours()}
+                :{String(end.getMinutes()).padStart(2, "0")}
                 {getAmPm(end)}
               </Typography>
               <Typography
@@ -409,10 +422,19 @@ const DisplayMeeting = ({
                 letterSpacing={1}
                 color={theme.palette.secondary.main}
               >
-                {start.getHours()}:{String(start.getMinutes()).padStart(2, "0")}
+                {start.getHours() > 12
+                  ? start.getHours() - 12
+                  : start.getHours() < 1
+                  ? "12"
+                  : start.getHours()}
+                :{String(start.getMinutes()).padStart(2, "0")}
                 {getAmPm(start)} -{" "}
-                {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:
-                {String(end.getMinutes()).padStart(2, "0")}
+                {end.getHours() > 12
+                  ? end.getHours() - 12
+                  : end.getHours() < 1
+                  ? "12"
+                  : end.getHours()}
+                :{String(end.getMinutes()).padStart(2, "0")}
                 {getAmPm(end)}
               </Typography>
               <Typography
@@ -543,6 +565,7 @@ const DisplayMeeting = ({
           minWidth: "300px",
           minHeight: "300px",
           overflow: "hidden",
+          paddingBottom: "5px",
         }}
       >
         <CloseIcon
@@ -600,10 +623,19 @@ const DisplayMeeting = ({
               letterSpacing={1}
               color={theme.palette.secondary.main}
             >
-              {start.getHours()}:{String(start.getMinutes()).padStart(2, "0")}
+              {start.getHours() > 12
+                ? start.getHours() - 12
+                : start.getHours() < 1
+                ? "12"
+                : start.getHours()}
+              :{String(start.getMinutes()).padStart(2, "0")}
               {getAmPm(start)} -{" "}
-              {end.getHours() > 12 ? end.getHours() - 12 : end.getHours()}:
-              {String(end.getMinutes()).padStart(2, "0")}
+              {end.getHours() > 12
+                ? end.getHours() - 12
+                : end.getHours() < 1
+                ? "12"
+                : end.getHours()}
+              :{String(end.getMinutes()).padStart(2, "0")}
               {getAmPm(end)}
             </Typography>
             <Typography
@@ -642,12 +674,25 @@ const DisplayMeeting = ({
                   Repeats:
                 </Typography>
               )}
+              {meeting.UpdatedUser && (
+                <Typography
+                  variant="body1"
+                  color={theme.palette.primary.text.dark}
+                >
+                  Last Updated By:
+                </Typography>
+              )}
             </Stack>
             <Stack direction={"column"} spacing={1}>
               <Typography variant="body1">{meeting.organizer}</Typography>
               <Typography variant="body1">{type}</Typography>
               {meeting.repeats && (
                 <Typography variant="body1">{meeting.repeats}</Typography>
+              )}
+              {meeting.UpdatedUser && (
+                <Tooltip title={meeting.UpdatedUser.email}>
+                  <Typography variant="body1">{`${meeting.UpdatedUser.first_name} ${meeting.UpdatedUser.last_name}`}</Typography>
+                </Tooltip>
               )}
             </Stack>
           </Stack>

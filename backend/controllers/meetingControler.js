@@ -25,6 +25,7 @@ const {
   getMonth,
   getTime,
 } = require("date-fns");
+const { isUserDev } = require("../functions/utilities");
 
 async function GetNextParentMeeting(userId, meeting) {
   const meetings = await Meeting.findAll({
@@ -243,44 +244,101 @@ async function CreateRepeatingMeetings(
   const recurrenceMeetingIds = recurrenceMeetings?.map((rm) => rm.meeting_id);
   let latestMeetings = [];
   if (userOnly) {
-    latestMeetings = await Meeting.findAll({
-      attributes: [
-        "recurrence_id",
-        [Sequelize.fn("MAX", Sequelize.col("start_time")), "latest_start_time"],
-      ],
-      where: {
-        created_user_id: userId,
-        recurrence_id: {
-          [Sequelize.Op.not]: null,
+    if (isUserDev(userId)) {
+      latestMeetings = await Meeting.findAll({
+        attributes: [
+          "recurrence_id",
+          [
+            Sequelize.fn("MAX", Sequelize.col("start_time")),
+            "latest_start_time",
+          ],
+        ],
+        where: {
+          created_user_id: userId,
+          recurrence_id: {
+            [Sequelize.Op.not]: null,
+          },
+          status: {
+            [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+          },
+          id: {
+            [Sequelize.Op.in]: recurrenceMeetingIds,
+          },
         },
-        status: {
-          [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+        group: ["recurrence_id"],
+      });
+    } else {
+      latestMeetings = await Meeting.findAll({
+        attributes: [
+          "recurrence_id",
+          [
+            Sequelize.fn("MAX", Sequelize.col("start_time")),
+            "latest_start_time",
+          ],
+        ],
+        where: {
+          created_user_id: userId,
+          recurrence_id: {
+            [Sequelize.Op.not]: null,
+          },
+          status: {
+            [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+          },
+          id: {
+            [Sequelize.Op.in]: recurrenceMeetingIds,
+          },
+          dev: false,
         },
-        id: {
-          [Sequelize.Op.in]: recurrenceMeetingIds,
-        },
-      },
-      group: ["recurrence_id"],
-    });
+        group: ["recurrence_id"],
+      });
+    }
   } else {
-    latestMeetings = await Meeting.findAll({
-      attributes: [
-        "recurrence_id",
-        [Sequelize.fn("MAX", Sequelize.col("start_time")), "latest_start_time"],
-      ],
-      where: {
-        recurrence_id: {
-          [Sequelize.Op.not]: null,
+    if (isUserDev(userId)) {
+      latestMeetings = await Meeting.findAll({
+        attributes: [
+          "recurrence_id",
+          [
+            Sequelize.fn("MAX", Sequelize.col("start_time")),
+            "latest_start_time",
+          ],
+        ],
+        where: {
+          recurrence_id: {
+            [Sequelize.Op.not]: null,
+          },
+          status: {
+            [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+          },
+          id: {
+            [Sequelize.Op.in]: recurrenceMeetingIds,
+          },
         },
-        status: {
-          [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+        group: ["recurrence_id"],
+      });
+    } else {
+      latestMeetings = await Meeting.findAll({
+        attributes: [
+          "recurrence_id",
+          [
+            Sequelize.fn("MAX", Sequelize.col("start_time")),
+            "latest_start_time",
+          ],
+        ],
+        where: {
+          recurrence_id: {
+            [Sequelize.Op.not]: null,
+          },
+          status: {
+            [Sequelize.Op.notIn]: ["Canceled", "Waiting on Approval"],
+          },
+          id: {
+            [Sequelize.Op.in]: recurrenceMeetingIds,
+          },
+          dev: false,
         },
-        id: {
-          [Sequelize.Op.in]: recurrenceMeetingIds,
-        },
-      },
-      group: ["recurrence_id"],
-    });
+        group: ["recurrence_id"],
+      });
+    }
   }
 
   const recurrenceData = latestMeetings
@@ -304,6 +362,13 @@ async function CreateRepeatingMeetings(
         { start_time: { [Sequelize.Op.in]: latestStartTimes } },
       ],
     },
+    include: [
+      {
+        model: User,
+        as: "UpdatedUser",
+        attributes: ["id", "first_name", "last_name", "email"],
+      },
+    ],
     order: [["start_time", "DESC"]],
   });
 
@@ -323,6 +388,13 @@ async function CreateRepeatingMeetings(
           },
           status: "Approved",
         },
+        include: [
+          {
+            model: User,
+            as: "UpdatedUser",
+            attributes: ["id", "first_name", "last_name", "email"],
+          },
+        ],
       });
       const meetIds = meetingsUserHasSpecialAccess?.map((mt) => mt.id);
       if (
@@ -366,6 +438,13 @@ async function CreateRepeatingMeetings(
           [Sequelize.Op.between]: [new Date(meeting.start_time), extension],
         },
       },
+      include: [
+        {
+          model: User,
+          as: "UpdatedUser",
+          attributes: ["id", "first_name", "last_name", "email"],
+        },
+      ],
     });
 
     // Build a set of “occupied” buckets based on freq:
@@ -450,6 +529,10 @@ async function CreateRepeatingMeetings(
         // Oh look: a real meeting already snagged this slot. No ghost allowed!
         continue;
       }
+      let updatedUser = null;
+      if (meeting.dataValues.updated_user_id) {
+        updatedUser = await User.findByPk(meeting.dataValues.updated_user_id);
+      }
 
       // Overlapping‑check… if it still passes, push the fake
       const fakeMeet = {
@@ -458,6 +541,7 @@ async function CreateRepeatingMeetings(
         start_time: currentStartTime.toISOString(),
         end_time: currentEndTime.toISOString(),
         recurrence_id: meeting.recurrence_id,
+        updatedUser: updatedUser ? updatedUser : null,
       };
       // Only push non-overlapping fake meetings
       // console.log('New Fake Meet', fakeMeet);
@@ -537,6 +621,7 @@ const SetStatus = async (req, res) => {
         ...meeting,
         id: null,
         status: status,
+        updated_user_id: userId,
       });
       res.status(200).json(newResource);
     } else {
@@ -567,17 +652,24 @@ const SetStatus = async (req, res) => {
             id: null,
           });
 
-          await recurrence.update({ meeting_id: newMeeting.id });
+          await recurrence.update({
+            meeting_id: newMeeting.id,
+            updated_user_id: userId,
+          });
         } else {
-          await recurrence.update({ meeting_id: newParent.id });
+          await recurrence.update({
+            meeting_id: newParent.id,
+            updated_user_id: userId,
+          });
         }
       } else if (recurrence && status == "Declined") {
-        await recurrence.update({ active: false });
+        await recurrence.update({ active: false, updated_user_id: userId });
       }
       // Update the resource record in the database
 
       await resource.update({
         status,
+        updated_user_id: userId,
       });
       // Return the updated record as a JSON response
       res.status(200).json(resource);
@@ -703,6 +795,13 @@ const GetAllUserCreated = async (req, res) => {
     let data = await Meeting.findAll({
       where: { created_user_id: id },
       order: [["createdAt", "DESC"]], // Order by 'createdAt' field in ascending order
+      include: [
+        {
+          model: User,
+          as: "UpdatedUser",
+          attributes: ["id", "first_name", "last_name", "email"],
+        },
+      ],
     });
     if (fakeMeets?.length > 0) {
       fakeMeets?.map((fm) => data.push(fm));
@@ -768,6 +867,13 @@ const GetAllUserCanSee = async (req, res) => {
             [Sequelize.Op.between]: [dateStart, dateEnd],
           },
         },
+        include: [
+          {
+            model: User,
+            as: "UpdatedUser",
+            attributes: ["id", "first_name", "last_name", "email"],
+          },
+        ],
       });
       // console.log('fake meets',fakeMeets.length);
       if (fakeMeets?.length > 0) {
@@ -792,6 +898,13 @@ const GetAllUserCanSee = async (req, res) => {
           [Sequelize.Op.between]: [dateStart, dateEnd],
         },
       },
+      include: [
+        {
+          model: User,
+          as: "UpdatedUser",
+          attributes: ["id", "first_name", "last_name", "email"],
+        },
+      ],
     });
 
     // If the user is not part of any group, return an empty array
@@ -821,6 +934,13 @@ const GetAllUserCanSee = async (req, res) => {
           [Sequelize.Op.between]: [dateStart, dateEnd],
         },
       },
+      include: [
+        {
+          model: User,
+          as: "UpdatedUser",
+          attributes: ["id", "first_name", "last_name", "email"],
+        },
+      ],
     });
 
     if (fakeMeets?.length > 0) {
@@ -867,6 +987,13 @@ const GetAllNeedsApproval = async (req, res) => {
           },
           status: "Waiting on Approval",
         },
+        include: [
+          {
+            model: User,
+            as: "UpdatedUser",
+            attributes: ["id", "first_name", "last_name", "email"],
+          },
+        ],
       });
       return res.status(200).json(meets);
     }
@@ -910,6 +1037,13 @@ const GetAllNeedsApproval = async (req, res) => {
           room: roomIds,
           status: "Waiting on Approval",
         },
+        include: [
+          {
+            model: User,
+            as: "UpdatedUser",
+            attributes: ["id", "first_name", "last_name", "email"],
+          },
+        ],
       });
 
       // Return the filtered meetings the user can see
@@ -1327,6 +1461,7 @@ const Update = async (req, res) => {
               : "Approved"
             : "Approved",
         created_user_id,
+        updated_user_id: userId,
       });
       if (repeats != null && repeats != "" && !recurrence_id) {
         const recurrence = await MeetingRecurrence.create({
@@ -1467,6 +1602,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             : "Approved"
           : "Approved",
       created_user_id,
+      updated_user_id: userId,
     });
     console.log("Updated meeting", new Date(start_time), new Date(end_time));
     // Return the updated record as a JSON response
@@ -1567,6 +1703,7 @@ const UpdateAllRecurrence = async (req, res) => {
       organizer,
       description,
       name,
+      updated_user_id: userId,
       status:
         status !== "Approved"
           ? !user.admin
@@ -1664,6 +1801,7 @@ const UpdateAllNextInRecurrence = async (req, res) => {
       ...meeting,
       created_user_id: userId,
       status: meetingStatus,
+      updated_user_id: userId,
       id: null,
     });
 
@@ -1780,6 +1918,7 @@ const UpdateCurrentInRecurrence = async (req, res) => {
       ...meeting,
       created_user_id: userId,
       status: meetingStatus,
+      updated_user_id: userId,
       id: null,
     });
 
@@ -1807,7 +1946,7 @@ const Delete = async (req, res) => {
     }
 
     // Delete the resource record from the database
-    await resource.destroy();
+    await resource.update({ status: "Deleted", updated_user_id: userId });
 
     // Return a success message
     res.status(200).json({ message: "Resource deleted successfully" });
@@ -1844,7 +1983,7 @@ const CancelAll = async (req, res) => {
     },
   });
   for (const meet of meetings) {
-    await meet.update({ status: "Canceled" });
+    await meet.update({ status: "Canceled", updated_user_id: userId });
   }
 
   await recurrence.update({ active: false, repeat_until: today });

@@ -63,9 +63,17 @@ const Meeting = sequelize.define(
     },
     all_day: {
       type: DataTypes.BOOLEAN,
-      defaultValue: 0,
+      defaultValue: false,
     },
     created_user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    dev: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    updated_user_id: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },

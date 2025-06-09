@@ -446,10 +446,10 @@ const MeetingFourm = ({
       } else if (meeting.view == "dayGridMonth") {
         end.setDate(start.getDate());
       }
-      // console.log(multiDayMeet, allDay);
-      // console.log(start);
-      // console.log(end);
-      // return;
+      //console.log(multiDayMeet, allDay);
+      console.log(start);
+      console.log(end);
+      //return;
       if (start >= end && !allDay) {
         openSnackbar(
           "End time cannot be less than or equal to the start time",

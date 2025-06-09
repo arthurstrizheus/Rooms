@@ -385,7 +385,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -399,7 +399,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -413,7 +413,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -427,7 +427,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -446,7 +446,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -460,7 +460,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -474,7 +474,7 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled"
+                              row.status == "Canceled" || "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
