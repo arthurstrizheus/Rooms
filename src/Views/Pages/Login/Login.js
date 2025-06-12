@@ -20,6 +20,7 @@ import {
   Select,
   MenuItem,
   debounce,
+  CircularProgress,
 } from "@mui/material";
 import LockIcon from "@mui/icons-material/Lock";
 import {
@@ -52,6 +53,7 @@ function Copyright(props) {
 }
 
 export default function Login({ setLoading }) {
+  const [bgLoaded, setBgLoaded] = useState(false);
   const navigate = useNavigate();
   const theme = useTheme();
   const { setUser, login } = useAuth();
@@ -88,6 +90,12 @@ export default function Login({ setLoading }) {
       setRememberMe(true);
       setEmail(email || "");
     }
+  }, []);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/loginBackground.jpg";
+    img.onload = () => setBgLoaded(true);
   }, []);
 
   const handleSubmit = (event) => {
@@ -161,137 +169,182 @@ export default function Login({ setLoading }) {
   );
 
   return (
-    <Container component="main" maxWidth="xs">
-      <CssBaseline />
+    <Box sx={{ width: "100vw", height: "100vh", overflow: "hidden" }}>
+      {!bgLoaded && (
+        <Box
+          sx={{
+            width: "100vw",
+            height: "100vh",
+            position: "absolute",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 999,
+            backgroundColor: "#fff", // Optional: solid color to cover paint
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      )}
+
       <Box
         sx={{
-          marginTop: 8,
+          backgroundImage: 'url("/loginBackground.jpg")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          width: "100vw",
+          height: "100vh",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
+          opacity: bgLoaded ? 1 : 0,
+          transition: "opacity 0.8s ease-in",
         }}
       >
-        <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
-          <LockIcon />
-        </Avatar>
-        <Typography component="h1" variant="h5">
-          Sign in
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-          <FormControl variant="outlined" fullWidth required>
-            <InputLabel htmlFor="email">S-E-A Username</InputLabel>
-            <OutlinedInput
-              id="email"
-              name="Email"
-              label="S-E-A Username"
-              placeholder="S-E-A Username"
-              type="username"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                debouncedCheckUserAd(e.target.value);
+        {bgLoaded && (
+          <Container component="main" maxWidth={"xs"}>
+            <CssBaseline />
+            <Box
+              sx={{
+                marginTop: 8,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                backgroundColor: "white",
+                borderRadius: "15px",
+                padding: "15px",
               }}
-              onBlur={() =>
-                UserExistsInAD({ username: email }).then((resp) =>
-                  setShowLocations(!resp)
-                )
-              }
-              autoFocus
-            />
-          </FormControl>
-          <FormControl
-            variant="outlined"
-            fullWidth
-            required
-            sx={{ marginTop: "20px" }}
-          >
-            <InputLabel htmlFor="password">Password</InputLabel>
-            <OutlinedInput
-              id="password"
-              name="Password"
-              label="Password"
-              placeholder="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </FormControl>
-          {showLocations ? (
-            <FormControl
-              variant="standard"
-              sx={{ minWidth: 160, width: "100%" }}
             >
-              <InputLabel id="demo-simple-select-standard-label">
-                Location *
-              </InputLabel>
-              <Select
-                labelId="demo-simple-select-standard-label"
-                id="location"
-                required
-                value={location?.officeid || ""}
-                name="location"
-                label="Location"
-                onChange={(e) => {
-                  const selectedItem = locations?.find(
-                    (itm) => itm?.officeid === e.target.value
-                  );
-                  setLocation(selectedItem); // Return the entire object
-                }}
+              <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
+                <LockIcon />
+              </Avatar>
+              <Typography component="h1" variant="h5">
+                Sign in
+              </Typography>
+              <Box
+                component="form"
+                onSubmit={handleSubmit}
+                noValidate
+                sx={{ mt: 1 }}
               >
-                {locations?.length > 0 &&
-                  locations?.map((itm, index) => (
-                    <MenuItem key={index} value={itm?.officeid}>
-                      {itm?.Alias}
-                    </MenuItem>
-                  ))}
-              </Select>
-            </FormControl>
-          ) : (
-            <></>
-          )}
+                <FormControl variant="outlined" fullWidth required>
+                  <InputLabel htmlFor="email">S-E-A Username</InputLabel>
+                  <OutlinedInput
+                    id="email"
+                    name="Email"
+                    label="S-E-A Username"
+                    placeholder="S-E-A Username"
+                    type="username"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      debouncedCheckUserAd(e.target.value);
+                    }}
+                    onBlur={() =>
+                      UserExistsInAD({ username: email }).then((resp) =>
+                        setShowLocations(!resp)
+                      )
+                    }
+                    autoFocus
+                  />
+                </FormControl>
+                <FormControl
+                  variant="outlined"
+                  fullWidth
+                  required
+                  sx={{ marginTop: "20px" }}
+                >
+                  <InputLabel htmlFor="password">Password</InputLabel>
+                  <OutlinedInput
+                    id="password"
+                    name="Password"
+                    label="Password"
+                    placeholder="Password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </FormControl>
+                {showLocations ? (
+                  <FormControl
+                    variant="standard"
+                    sx={{ minWidth: 160, width: "100%" }}
+                  >
+                    <InputLabel id="demo-simple-select-standard-label">
+                      Location *
+                    </InputLabel>
+                    <Select
+                      labelId="demo-simple-select-standard-label"
+                      id="location"
+                      required
+                      value={location?.officeid || ""}
+                      name="location"
+                      label="Location"
+                      onChange={(e) => {
+                        const selectedItem = locations?.find(
+                          (itm) => itm?.officeid === e.target.value
+                        );
+                        setLocation(selectedItem); // Return the entire object
+                      }}
+                    >
+                      {locations?.length > 0 &&
+                        locations?.map((itm, index) => (
+                          <MenuItem key={index} value={itm?.officeid}>
+                            {itm?.Alias}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                ) : (
+                  <></>
+                )}
 
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={rememberMe}
-                onChange={handleRememberMeChange}
-                color="primary"
-              />
-            }
-            label="Remember me"
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="outlined"
-            sx={{
-              mt: 3,
-              mb: 2,
-              ":hover": { background: theme.palette.primary.lightHover },
-            }}
-          >
-            Sign In
-          </Button>
-          {showPass ? (
-            <Grid container>
-              <Grid item xs>
-                <Link href="#" variant="body2">
-                  Forgot password?
-                </Link>
-              </Grid>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={rememberMe}
+                      onChange={handleRememberMeChange}
+                      color="primary"
+                    />
+                  }
+                  label="Remember me"
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="outlined"
+                  sx={{
+                    mt: 3,
+                    mb: 2,
+                    ":hover": { background: theme.palette.primary.lightHover },
+                  }}
+                >
+                  Sign In
+                </Button>
+                {showPass ? (
+                  <Grid container>
+                    <Grid item xs>
+                      <Link href="#" variant="body2">
+                        Forgot password?
+                      </Link>
+                    </Grid>
 
-              <Grid item>
-                <Link href="/signup" variant="body2">
-                  {"Don't have an account? Sign Up"}
-                </Link>
-              </Grid>
-            </Grid>
-          ) : (
-            <></>
-          )}
-        </Box>
+                    <Grid item>
+                      <Link href="/signup" variant="body2">
+                        {"Don't have an account? Sign Up"}
+                      </Link>
+                    </Grid>
+                  </Grid>
+                ) : (
+                  <></>
+                )}
+              </Box>
+            </Box>
+            <Copyright sx={{ mt: 8, mb: 4 }} />
+          </Container>
+        )}
       </Box>
-      <Copyright sx={{ mt: 8, mb: 4 }} />
-    </Container>
+    </Box>
   );
 }
