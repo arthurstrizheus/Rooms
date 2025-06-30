@@ -24,6 +24,8 @@ const AppRoutes = ({
   setSelectedDate,
   setBannerText,
   loading,
+  drawerOpen,
+  setDrawerOpen,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -81,13 +83,14 @@ const AppRoutes = ({
 
   return (
     <Routes>
-      <Route path="/login" exact element={<LogIn setLoading={setLoading} />} />
-      <Route path="/" exact element={<LogIn setLoading={setLoading} />} />
       <Route
-        path="/signup"
+        path="/login"
         exact
-        element={<SignUp setLoading={setLoading} />}
+        element={
+          <LogIn setLoading={setLoading} setDrawerOpen={setDrawerOpen} />
+        }
       />
+      <Route path="/" exact element={<LogIn setLoading={setLoading} />} />
       <Route
         path="/schedule/type/day"
         element={
@@ -98,6 +101,7 @@ const AppRoutes = ({
             loading={loading}
             defaultView={"timeGridDay"}
             range={"Day"}
+            drawerOpen={drawerOpen}
           />
         }
       />

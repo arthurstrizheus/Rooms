@@ -5,6 +5,7 @@ import { PickersDay } from "@mui/x-date-pickers/PickersDay";
 import { isSameWeek } from "date-fns";
 import { enUS } from "date-fns/locale"; // Because Sunday is the lord's day, obviously
 import { DateCalendar, LocalizationProvider } from "@mui/x-date-pickers";
+import { Box } from "@mui/material";
 
 // A gloriously overengineered way to make Sunday the first day of the week.
 // Because who needs consistency with the rest of the world, eh?
@@ -82,26 +83,46 @@ export default function WeekPicker({ selectedDate, setSelectedDate }) {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enUS}>
-      <DateCalendar
-        views={["day"]}
-        value={selectedDate}
-        onChange={(newValue) => setSelectedDate(newValue)}
-        showDaysOutsideCurrentMonth
-        displayWeekNumber={false}
-        slots={{ day: Day }}
-        slotProps={{
-          day: (ownerState) => ({
-            selectedDay: selectedDate,
-            hoveredDay,
-            onPointerEnter: () => setHoveredDay(ownerState.day),
-            onPointerLeave: () => setHoveredDay(null),
-          }),
+      <Box
+        sx={{
+          width: "100%",
+          overflowX: "hidden",
+          display: "flex",
+          justifyContent: "center",
+          padding: 1,
+          boxSizing: "border-box",
+          "& .MuiPickersCalendarHeader-root": {
+            flexWrap: "wrap", // make the header wrap on small screens
+          },
+          "& .MuiPickersSlideTransition-root": {
+            width: "100%", // force calendar body to scale
+          },
+          "& .MuiDayCalendar-weekContainer": {
+            justifyContent: "space-between", // spread days evenly
+          },
         }}
-        // Tell MUI itself that weeks start on Sunday, in case it draws headers differently.
-        componentsProps={{
-          dayOfWeek: { weekStartsOn: 0 },
-        }}
-      />
+      >
+        <DateCalendar
+          views={["day"]}
+          value={selectedDate}
+          onChange={(newValue) => setSelectedDate(newValue)}
+          showDaysOutsideCurrentMonth
+          displayWeekNumber={false}
+          slots={{ day: Day }}
+          slotProps={{
+            day: (ownerState) => ({
+              selectedDay: selectedDate,
+              hoveredDay,
+              onPointerEnter: () => setHoveredDay(ownerState.day),
+              onPointerLeave: () => setHoveredDay(null),
+            }),
+          }}
+          // Tell MUI itself that weeks start on Sunday, in case it draws headers differently.
+          componentsProps={{
+            dayOfWeek: { weekStartsOn: 0 },
+          }}
+        />
+      </Box>
     </LocalizationProvider>
   );
 }

@@ -1,48 +1,90 @@
 import { useTheme } from "@emotion/react";
-import { Grid, LinearProgress, Typography, Stack } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import IconButton from "@mui/material/IconButton";
+import { LinearProgress, Typography, Stack, Box } from "@mui/material";
 import DateSelector from "./Components/DateSelector";
+import { isMobile } from "react-device-detect";
 
-const Banner = ({ bannerText, loading, selectedDate, setSelectedDate }) => {
+const Banner = ({
+  bannerText,
+  loading,
+  selectedDate,
+  setSelectedDate,
+  onOpenDrawer,
+  drawerOpen,
+}) => {
   const theme = useTheme();
+
   return (
-    <Stack direction={"column"} position={"relative"} width={"100%"}>
+    <Stack direction="column" width="100%">
       <Stack
         sx={{
           backgroundColor: theme.palette.background.default,
-          minHeight: "102px",
-          paddingTop: "30px",
-          paddingLeft: "30px",
-          paddingRight: "30px",
+          padding: "30px",
         }}
-        direction={"row"}
-        spacing={"space-between"}
+        direction="row"
+        alignItems="center"
       >
-        <Grid item sx={{ width: "100%", minWidth: "400px" }}>
-          <Typography
-            sx={{
-              fontSize: "2.5rem", // Adjust to your desired size
-              fontFamily: "Calibri", // Use the imported font
-              fontWeight: "light",
-              letterSpacing: "0.05em", // Adjust letter spacing
-              color: "inherit", // Ensures it inherits the color, or set a specific color
-              minWidth: "fit-content",
-            }}
-          >
-            {bannerText}
-          </Typography>
-        </Grid>
-        <Grid item sx={{ width: "100%" }}>
-          {(bannerText == "Month Schedule" ||
-            bannerText == "Week Schedule" ||
-            bannerText == "Day Schedule") && (
-            <DateSelector
-              selectedDate={selectedDate}
-              setSelectedDate={setSelectedDate}
-            />
-          )}
-        </Grid>
-        <Grid item sx={{ width: "100%" }}></Grid>
+        {isMobile && (
+          <Box sx={{ width: "30%", display: "flex", flexDirection: "row" }}>
+            {!drawerOpen && (
+              <IconButton onClick={onOpenDrawer} sx={{ mr: 2 }}>
+                <MenuIcon />
+              </IconButton>
+            )}
+
+            {(bannerText === "Month Schedule" ||
+              bannerText === "Week Schedule" ||
+              bannerText === "Day Schedule") && (
+              <DateSelector
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+              />
+            )}
+          </Box>
+        )}
+        {/* Drawer toggle button */}
+        {!isMobile && (
+          <Box sx={{ display: "flex", flexDirection: "row", flexGrow: 1 }}>
+            <Box sx={{ width: "30%", display: "flex", flexDirection: "row" }}>
+              {!drawerOpen && (
+                <IconButton onClick={onOpenDrawer} sx={{ mr: 2 }}>
+                  <MenuIcon />
+                </IconButton>
+              )}
+
+              <Typography
+                sx={{
+                  fontSize: "2rem",
+                  fontFamily: "Calibri",
+                  fontWeight: "light",
+                  letterSpacing: "0.05em",
+                  color: "inherit",
+                }}
+              >
+                {bannerText}
+              </Typography>
+            </Box>
+            <Box sx={{ width: "30%", display: "flex", flexDirection: "row" }}>
+              {!drawerOpen && (
+                <IconButton onClick={onOpenDrawer} sx={{ mr: 2 }}>
+                  <MenuIcon />
+                </IconButton>
+              )}
+
+              {(bannerText === "Month Schedule" ||
+                bannerText === "Week Schedule" ||
+                bannerText === "Day Schedule") && (
+                <DateSelector
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                />
+              )}
+            </Box>
+          </Box>
+        )}
       </Stack>
+
       {loading && (
         <LinearProgress
           sx={{

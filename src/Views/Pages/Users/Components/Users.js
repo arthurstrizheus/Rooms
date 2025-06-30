@@ -364,7 +364,15 @@ export default function Users({ setLoading }) {
           />
         </Tooltip>
       )}
-      <Box sx={{ width: "200px", position: "absolute", right: 120, top: 122 }}>
+      <Box
+        sx={{
+          width: "200px",
+          position: "absolute",
+          right: 5,
+          top: 60,
+          zIndex: 999,
+        }}
+      >
         <FormControl variant="standard" sx={{ minWidth: 160, width: "100%" }}>
           <InputLabel id="demo-simple-select-standard-label">
             Filter By Location

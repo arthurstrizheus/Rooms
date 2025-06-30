@@ -16,6 +16,7 @@ import WeekPicker from "./WeekPicker";
 import MonthSelector from "./MonthSelector";
 import ArrowBackIosIcon from "@mui/icons-material/ArrowBackIosOutlined";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIosOutlined";
+import { isMobile } from "react-device-detect";
 
 const DateSelector = ({ selectedDate, setSelectedDate }) => {
   const [open, setOpen] = useState(false);
@@ -68,12 +69,13 @@ const DateSelector = ({ selectedDate, setSelectedDate }) => {
     <Box
       sx={{
         textAlign: "center",
-        minWidth: "430px",
-        padding: "10px",
+        minWidth: isMobile ? "250px" : "450px",
+        padding: isMobile ? "5px" : "10px",
         borderRadius: "8px",
-        width: "fit-content",
-        marginBottom: "10px",
+        border: "1px solid black",
+        marginBottom: isMobile ? "0px" : "10px",
         background: theme.palette.background.fill.light.main,
+        width: "fit-content",
       }}
     >
       <Box
@@ -83,7 +85,7 @@ const DateSelector = ({ selectedDate, setSelectedDate }) => {
           <ArrowBackIosIcon />
         </IconButton>
         <Typography
-          variant="h4"
+          variant={isMobile ? "h6" : "h4"}
           sx={{
             margin: "0 8px",
             fontFamily: "Courier New, sans-serif",

@@ -268,6 +268,7 @@ export default function Rooms({ setLoading }) {
       <Paper
         sx={{
           height: "100%",
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -311,8 +312,8 @@ export default function Rooms({ setLoading }) {
           sx={{
             width: "200px",
             position: "absolute",
-            right: 120,
-            top: 122,
+            right: 5,
+            top: 60,
             zIndex: 99,
           }}
         >

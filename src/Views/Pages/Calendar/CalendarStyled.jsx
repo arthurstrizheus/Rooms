@@ -64,13 +64,25 @@ const ExperimentalStyled = styled("div")(({ theme }) => ({
 
   // popover when multiple events
   "& .fc .fc-more-popover": {
-    border: "none",
+    maxWidth: "90vw",
+    width: "fit-content",
+    maxHeight: "60vh",
+    overflowY: "auto",
+    boxShadow: theme.shadows[4],
     borderRadius: "14px",
+    border: "none",
+    [`@media (max-width: 600px)`]: {
+      width: "95vw",
+      maxHeight: "70vh",
+    },
   },
   "& .fc .fc-more-popover .fc-popover-body": {
+    maxHeight: "50vh",
+    overflowY: "auto",
     backgroundColor: theme.palette.primary.lightHover,
     borderBottomLeftRadius: "12px",
     borderBottomRightRadius: "12px",
+    padding: "8px",
   },
   "& .fc .fc-popover-header": {
     padding: 12,
@@ -115,6 +127,22 @@ const ExperimentalStyled = styled("div")(({ theme }) => ({
   "& .fc .fc-timegrid-col.fc-day-sat:not(.fc-day-today), \
   .fc .fc-timegrid-col.fc-day-sun:not(.fc-day-today)": {
     backgroundColor: theme.palette.background.paper,
+  },
+
+  // Fix the timegrid event padding and enforce min height
+  "& .fc-timegrid-event-harness-inset .fc-timegrid-event, \
+.fc-timegrid-event.fc-event-mirror, \
+.fc-timegrid-more-link": {
+    padding: 2, // was 8
+    margin: 1, // was 2
+    minHeight: 24, // Enforce enough height for text to fit
+  },
+
+  // You can also reduce inner padding on event content
+  "& .fc-h-event .fc-event-main": {
+    padding: 2,
+    paddingLeft: 4,
+    fontSize: "0.5rem", // Optional: slightly smaller text if still overflowing
   },
 
   // —— Today override —— //

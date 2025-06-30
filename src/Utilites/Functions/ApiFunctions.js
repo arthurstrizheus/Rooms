@@ -55,6 +55,15 @@ export function showSuccess(msg) {
     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
   });
 }
+export function showWarning(msg) {
+  openSnackbar(msg, {
+    severity: "warning",
+    autoHideDuration: 4000,
+    anchorOrigin: { vertical: "top", horizontal: "center" },
+    alertProps: { variant: "filled" },
+    transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
+  });
+}
 
 // ------------------ GETTING DATA --------------------
 export async function GetLocations() {

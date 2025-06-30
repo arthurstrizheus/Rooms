@@ -58,7 +58,8 @@ function createData(
   start_time,
   duration,
   requested,
-  status
+  status,
+  meeting
 ) {
   return {
     id,
@@ -70,6 +71,7 @@ function createData(
     duration,
     requested,
     status,
+    meeting,
   };
 }
 
@@ -208,7 +210,6 @@ export default function MyBookings({ setLoading }) {
       const tps = await GetTypes();
       const rms = await GetRooms(user.id);
       const lcs = await GetLocations();
-      console.log(mts);
       setMeetings(mts);
       setRooms(rms);
       setLocations(lcs);
@@ -242,7 +243,8 @@ export default function MyBookings({ setLoading }) {
           ).padStart(2, "0")}${getDateAmPm(start)}m`,
           durationString,
           new Date(itm.createdAt),
-          itm.status
+          itm.status,
+          itm
         );
       });
 
@@ -259,6 +261,7 @@ export default function MyBookings({ setLoading }) {
     <Paper
       sx={{
         height: "100%",
+        width: "100%",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -355,7 +358,6 @@ export default function MyBookings({ setLoading }) {
               const backgroundColor = index % 2 === 0 ? "#f0f0f0" : "#ffffff"; // Alternate background color
               const isItemSelected = isSelected(index);
               const isItemOpen = isOpen(index);
-              const meeting = meetings[index];
               return (
                 <React.Fragment key={index}>
                   <StyledTableRow
@@ -385,7 +387,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status == "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -399,7 +402,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status === "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -413,7 +417,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status === "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -427,7 +432,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status === "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -446,7 +452,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status === "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -460,7 +467,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status === "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -474,7 +482,8 @@ export default function MyBookings({ setLoading }) {
                         <Typography
                           sx={{
                             textDecoration:
-                              row.status == "Canceled" || "Deleted"
+                              row.status === "Canceled" ||
+                              row.status === "Deleted"
                                 ? "line-through"
                                 : "none",
                           }}
@@ -502,12 +511,16 @@ export default function MyBookings({ setLoading }) {
                       <Collapse in={isItemOpen} timeout="auto" unmountOnExit>
                         <Box>
                           <RowMeeting
-                            meeting={meeting}
+                            meeting={row.meeting}
                             location={locations?.find(
-                              (lc) => lc.officeid === meeting.location
+                              (lc) => lc.officeid === row.meeting.location
                             )}
-                            room={rooms?.find((rm) => rm.id == meeting.room)}
-                            type={types?.find((tp) => tp.id === meeting.type)}
+                            room={rooms?.find(
+                              (rm) => rm.id == row.meeting.room
+                            )}
+                            type={types?.find(
+                              (tp) => tp.id === row.meeting.type
+                            )}
                             row={row}
                           />
                         </Box>

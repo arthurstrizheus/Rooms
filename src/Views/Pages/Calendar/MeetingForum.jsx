@@ -20,7 +20,7 @@ import {
   Box,
   Chip,
   FormHelperText,
-  OutlinedInput,
+  Autocomplete,
   TextField,
   Checkbox,
 } from "@mui/material";
@@ -740,69 +740,39 @@ const MeetingFourm = ({
                     </MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl sx={{ width: "100%" }} size={"small"}>
-                  <InputLabel id="demo-multiple-chip-label-full">
-                    Special Permissions
-                  </InputLabel>
-                  <Select
-                    labelId="demo-multiple-chip-label-full"
-                    id="demo-multiple-chip-full"
+                <FormControl sx={{ width: "100%" }} size="small">
+                  <Autocomplete
                     multiple
-                    value={special}
-                    onChange={handleSpecialChange}
-                    input={
-                      <OutlinedInput
-                        id="select-multiple-chip-full"
-                        label="Special Permissions"
-                      />
-                    }
-                    renderValue={(selected) => (
-                      <Box
-                        sx={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 0.5,
-                          maxHeight: 53,
-                          minHeight: 53,
-                          overflow: "auto",
-                          marginTop: "4px",
-                        }}
-                      >
-                        {selected?.map((value) => {
-                          const user = users?.find((gp) => gp.id === value);
-                          return (
-                            <Chip
-                              key={value}
-                              label={`${user?.first_name} ${user?.last_name}`}
-                              sx={{ maxHeight: 25, pointerEvents: "none" }}
-                            />
-                          );
-                        })}
-                      </Box>
+                    options={users.filter(
+                      (gp) => gp.access !== "Read" && gp.id !== user?.id
                     )}
-                    sx={{
-                      overflow: "hidden",
-                      minHeight: 55,
-                      maxWidth: 365,
-                      height: 55,
+                    value={users.filter((u) => special.includes(u.id))}
+                    onChange={(event, newValue) => {
+                      handleSpecialChange({
+                        target: { value: newValue.map((user) => user.id) },
+                      });
                     }}
-                  >
-                    {users
-                      .filter((gp) => gp.access != "Read" && gp.id !== user?.id)
-                      ?.map((user, index) => (
-                        <MenuItem
-                          key={index}
-                          value={user?.id}
-                          sx={{
-                            fontWeight: special.indexOf(user?.id)?.admin
-                              ? theme.typography.fontWeightRegular
-                              : theme.typography.fontWeightMedium,
-                          }}
-                        >
-                          {`${user?.first_name} ${user?.last_name}`}
-                        </MenuItem>
-                      ))}
-                  </Select>
+                    getOptionLabel={(option) =>
+                      `${option.first_name} ${option.last_name}`
+                    }
+                    isOptionEqualToValue={(option, value) =>
+                      option.id === value.id
+                    }
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <Chip
+                          key={option.id}
+                          label={`${option.first_name} ${option.last_name}`}
+                          {...getTagProps({ index })}
+                          sx={{ maxHeight: 25 }}
+                        />
+                      ))
+                    }
+                    renderInput={(params) => (
+                      <TextField {...params} label="Special Permissions" />
+                    )}
+                    sx={{ maxWidth: 365 }}
+                  />
                   <FormHelperText sx={{ whiteSpace: "nowrap" }}>
                     Allow users to see meeting
                   </FormHelperText>

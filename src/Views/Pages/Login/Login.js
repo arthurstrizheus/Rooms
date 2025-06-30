@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
+import { isMobile } from "react-device-detect";
 import {
   Grid,
   Typography,
@@ -52,7 +53,7 @@ function Copyright(props) {
   );
 }
 
-export default function Login({ setLoading }) {
+export default function Login({ setLoading, setDrawerOpen }) {
   const [bgLoaded, setBgLoaded] = useState(false);
   const navigate = useNavigate();
   const theme = useTheme();
@@ -126,6 +127,7 @@ export default function Login({ setLoading }) {
               localStorage.setItem("rememberMe", "false");
             }
             setLoading(false);
+            setDrawerOpen(isMobile ? false : true);
             navigate("/schedule/type/day");
           }
         }
@@ -159,13 +161,16 @@ export default function Login({ setLoading }) {
       localStorage.removeItem("rememberMe");
     }
   };
-  const debouncedCheckUserAd = useCallback(
-    debounce((user) => {
-      UserExistsInAD({ username: user }).then((resp) => {
-        setShowLocations(!resp);
-        setShowPass(!resp);
-      });
-    }, 1000)
+
+  const debouncedCheckUserAd = useMemo(
+    () =>
+      debounce((user) => {
+        UserExistsInAD({ username: user }).then((resp) => {
+          setShowLocations(!resp);
+          setShowPass(!resp);
+        });
+      }, 1000),
+    []
   );
 
   return (
@@ -322,23 +327,6 @@ export default function Login({ setLoading }) {
                 >
                   Sign In
                 </Button>
-                {showPass ? (
-                  <Grid container>
-                    <Grid item xs>
-                      <Link href="#" variant="body2">
-                        Forgot password?
-                      </Link>
-                    </Grid>
-
-                    <Grid item>
-                      <Link href="/signup" variant="body2">
-                        {"Don't have an account? Sign Up"}
-                      </Link>
-                    </Grid>
-                  </Grid>
-                ) : (
-                  <></>
-                )}
               </Box>
             </Box>
             <Copyright sx={{ mt: 8, mb: 4 }} />

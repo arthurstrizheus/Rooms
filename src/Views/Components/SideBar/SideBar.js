@@ -25,7 +25,7 @@ import CorporateFareIcon from "@mui/icons-material/CorporateFareOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import DeveloperModeIcon from "@mui/icons-material/DeveloperMode";
-import logo from "../../../Assets/Images/sea-logo.png";
+import { isMobile } from "react-device-detect";
 import "./SideBar.css";
 import { useAuth } from "../../../Utilites/AuthContext";
 
@@ -140,19 +140,10 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
       wrap="nowrap"
       sx={{
         width: 300,
-        height: "100vh",
+        height: "100%",
         backgroundColor: theme.palette.background.paper,
       }}
     >
-      <Grid
-        container
-        justifyContent="center"
-        alignItems="center"
-        sx={{ padding: 2 }}
-      >
-        <img src={logo} alt="Logo" style={{ width: "auto", height: 100 }} />
-      </Grid>
-      <Divider />
       <Grid
         item
         sx={{
@@ -209,7 +200,12 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                 onClick: () => handleMenuClick("approve"),
                 selected: nav.page == "approve",
               },
-            ]}
+            ]?.filter((itm) => {
+              if (isMobile) {
+                return itm.name !== "Daily View" && itm.name !== "Monthly View";
+              }
+              return true;
+            })}
           />
           <Divider />
           <MenuItem
@@ -289,23 +285,19 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
             </>
           )}
         </Box>
-      </Grid>
-      <Divider />
-      <Grid item sx={{ padding: 2 }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-        >
-          <Typography variant="body2" color={theme.palette.text.primary}>
-            {user?.first_name} {user?.last_name}
-          </Typography>
-          <Tooltip title="Log Out" arrow>
-            <IconButton onClick={handleLogout}>
-              <LogoutOutlinedIcon sx={{ color: theme.palette.error.main }} />
-            </IconButton>
-          </Tooltip>
-        </Stack>
+        <Divider />
+        <Grid item sx={{ padding: 2 }}>
+          <Stack direction="row" justifyContent="left" alignItems="center">
+            <Tooltip title="Log Out" arrow>
+              <IconButton onClick={handleLogout}>
+                <LogoutOutlinedIcon sx={{ color: theme.palette.error.main }} />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="body2" color={theme.palette.text.primary}>
+              {user?.first_name} {user?.last_name}
+            </Typography>
+          </Stack>
+        </Grid>
       </Grid>
     </Grid>
   );
@@ -348,7 +340,7 @@ const MenuItem = ({ title, icon, onToggle, items }) => {
               paddingTop: 1.5,
               paddingBottom: 1.5,
               paddingLeft: 0,
-              paddingLeft: 4,
+              paddingLeft: 3,
               cursor: "pointer",
               backgroundColor: item.selected
                 ? theme.palette.primary.selected

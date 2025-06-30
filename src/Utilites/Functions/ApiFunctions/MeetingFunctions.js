@@ -3,6 +3,7 @@ import {
   handleApiResponseError,
   showError,
   showSuccess,
+  showWarning,
 } from "../ApiFunctions";
 
 export async function PostMeeting(data) {
@@ -13,7 +14,12 @@ export async function PostMeeting(data) {
       showError(errorCheck.message);
       return null;
     }
-    showSuccess("Meeting created");
+    if (resp?.data?.status === "Waiting on Approval") {
+      showWarning("Waiting on Approval");
+    } else {
+      showSuccess("Meeting created");
+    }
+
     return resp.data;
   } catch (err) {
     return null;
@@ -216,6 +222,7 @@ export async function UpdateMeetingStatus(id, data) {
       );
 
     if (resp.status === 204 || resp.status === 200) {
+      showSuccess("Meeting Updated");
       return true; // Indicate success
     }
 

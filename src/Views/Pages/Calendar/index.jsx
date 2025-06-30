@@ -102,6 +102,55 @@ function isMultipleDayMeeting(meeting) {
   }
 }
 
+function useFixFullCalendarPopoverPosition() {
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const popover = document.querySelector(".fc-more-popover");
+      if (!popover) return;
+
+      const rect = popover.getBoundingClientRect();
+      const padding = 16;
+
+      let needsUpdate = false;
+
+      // Check horizontal overflow
+      if (rect.right > window.innerWidth - padding) {
+        popover.style.left = `${window.innerWidth - rect.width - padding}px`;
+        needsUpdate = true;
+      }
+
+      // Check vertical overflow
+      if (rect.bottom > window.innerHeight - padding) {
+        popover.style.top = `${window.innerHeight - rect.height - padding}px`;
+        needsUpdate = true;
+      }
+
+      // Prevent it from being positioned off the left/top
+      if (rect.left < padding) {
+        popover.style.left = `${padding}px`;
+        needsUpdate = true;
+      }
+
+      if (rect.top < padding) {
+        popover.style.top = `${padding}px`;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        popover.style.position = "fixed"; // Fix layout reflow issues
+        popover.style.zIndex = 1300; // Ensure it's above other content
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
+}
+
 // ==============================|| APPLICATION CALENDAR ||============================== //
 
 const Calendar = ({
@@ -111,8 +160,11 @@ const Calendar = ({
   setSelectedDate,
   defaultView,
   range,
+  drawerOpen,
 }) => {
+  useFixFullCalendarPopoverPosition();
   const calendarRef = useRef(null);
+  const containerRef = useRef();
   const { user } = useAuth();
   const matchSm = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
@@ -172,6 +224,21 @@ const Calendar = ({
       setView(newView);
     }
   };
+
+  useEffect(() => {
+    if (!containerRef.current || !calendarRef.current) return;
+
+    const calendarApi = calendarRef.current.getApi();
+    if (!calendarApi) return;
+
+    const observer = new ResizeObserver(() => {
+      calendarApi.updateSize();
+    });
+
+    observer.observe(containerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
 
   // set calendar view
   useEffect(() => {
@@ -402,7 +469,17 @@ const Calendar = ({
 
   // if (loading) return <></>;
   return (
-    <Grid height={"90%"} width={"100%"}>
+    <div
+      ref={containerRef}
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        flexGrow: 1,
+        minHeight: 0, // this is critical to allow flex children to grow
+        overflow: "hidden",
+      }}
+    >
       <Dialog
         open={openMeetingDialog}
         onClose={handleCloseForm}
@@ -468,10 +545,11 @@ const Calendar = ({
               selectable
               events={events}
               ref={calendarRef}
+              height={"auto"}
               rerenderDelay={10}
               initialDate={selectedDate}
               initialView={defaultView}
-              dayMaxEventRows={4}
+              dayMaxEventRows={3}
               eventDisplay="block"
               headerToolbar={false}
               allDayMaintainDuration
@@ -481,7 +559,6 @@ const Calendar = ({
               eventDrop={handleEventUpdate}
               eventClick={handleEventSelect}
               eventResize={handleEventUpdate}
-              height={matchSm ? "100%" : 720}
               slotDuration="00:15:00" // The time slot size (15 minutes)
               snapDuration="00:15:00" // Drag and drop snaps to these increments
               plugins={[
@@ -549,7 +626,7 @@ const Calendar = ({
           />
         )}
       </Dialog>
-    </Grid>
+    </div>
   );
 };
 

@@ -1,9 +1,28 @@
 import { Box, Typography } from "@mui/material";
+function isFifteenMinutesOrLess(timeRange) {
+  if (!timeRange || typeof timeRange !== "string") return false;
 
+  const [start, end] = timeRange.split(" - ");
+  if (!start || !end) return false;
+
+  const parseTime = (t) => {
+    const [hours, minutes] = t.split(":").map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const startMinutes = parseTime(start);
+  const endMinutes = parseTime(end);
+
+  const diff = endMinutes - startMinutes;
+  console.log(diff);
+
+  return diff > 0 && diff <= 15;
+}
 function RenderEventContent(arg) {
   const { view, event } = arg;
   const roomName = event.extendedProps.roomName;
   const title = event.title;
+  const small = isFifteenMinutesOrLess(arg?.timeText);
 
   // 1) MONTH (dayGrid) — block, ellipsis in two lines
   if (view.type === "dayGridMonth") {
@@ -58,10 +77,14 @@ function RenderEventContent(arg) {
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
+          flexDirection: small ? "row" : "column",
         }}
       >
         <Typography variant="body2">{title}</Typography>
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+        <Typography
+          variant="caption"
+          sx={{ color: "text.secondary", marginLeft: small ? 1 : 0 }}
+        >
           {roomName}
         </Typography>
       </Box>
