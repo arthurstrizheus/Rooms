@@ -128,7 +128,7 @@ export default function Login({ setLoading, setDrawerOpen }) {
             }
             setLoading(false);
             setDrawerOpen(isMobile ? false : true);
-            navigate("/schedule/type/day");
+            navigate(isMobile ? "/schedule/type/day" : "/schedule/type/month");
           }
         }
       });

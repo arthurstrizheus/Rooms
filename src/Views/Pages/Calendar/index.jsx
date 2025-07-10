@@ -62,7 +62,7 @@ const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
       : "Unknown room";
 
     return {
-      id: meeting.id === -1 ? idx : meeting.id,
+      id: meeting.id === -1 ? `meeting-${idx}` : meeting.id,
       title: meeting.name, // just the name here
       start: meeting.start_time,
       end: meeting.end_time,
