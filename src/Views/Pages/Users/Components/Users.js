@@ -335,7 +335,15 @@ export default function Users({ setLoading }) {
   }, [filterLocation, users, update]);
 
   return (
-    <Box sx={{ height: "100%", width: "100%", display: "flex", flexGrow: 1 }}>
+    <Box
+      sx={{
+        height: "100%",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+      }}
+    >
       <AddNewUser
         open={editUserOpen}
         setOpen={setEditUserOpen}
@@ -346,76 +354,89 @@ export default function Users({ setLoading }) {
         selectedUser={selectedUser}
         setUpdate={setUpdate}
       />
-      {user?.admin && (
-        <Tooltip title={"Add User"}>
-          <AddIcon
-            sx={{
-              position: "absolute",
-              right: 40,
-              zIndex: 2,
-              top: 130,
-              color: "green",
-              cursor: "pointer",
-              ":hover": { color: "lightgreen" },
-              height: "30px",
-              width: "30px",
-            }}
-            onClick={handleAdduser}
-          />
-        </Tooltip>
-      )}
+
+      {/* Header section with controls */}
       <Box
         sx={{
-          width: "200px",
-          position: "absolute",
-          right: 5,
-          top: 60,
-          zIndex: 999,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "10px 20px",
+          minHeight: "60px",
+          position: "relative",
         }}
       >
-        <FormControl variant="standard" sx={{ minWidth: 160, width: "100%" }}>
-          <InputLabel id="demo-simple-select-standard-label">
-            Filter By Location
-          </InputLabel>
-          <Select
-            sx={{ width: "100%" }}
-            labelId="demo-simple-select-standard-label"
-            id="demo-simple-select-standard"
-            value={
-              filterLocation?.officeid === 0
-                ? 0
-                : filterLocation?.officeid
-                ? filterLocation.officeid
-                : ""
-            }
-            onChange={(e) => {
-              const selectedItem = locations?.find(
-                (itm) => itm.officeid === e.target.value
-              );
-              setFilterLocation(selectedItem); // Return the entire object
-            }}
-          >
-            {locations?.map((itm, index) => (
-              <MenuItem key={index} value={itm.officeid}>
-                {itm.Alias}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Box sx={{ flex: 1 }} /> {/* Spacer */}
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          <Box sx={{ width: "200px" }}>
+            <FormControl
+              variant="standard"
+              sx={{ minWidth: 160, width: "100%" }}
+            >
+              <InputLabel id="demo-simple-select-standard-label">
+                Filter By Location
+              </InputLabel>
+              <Select
+                sx={{ width: "100%" }}
+                labelId="demo-simple-select-standard-label"
+                id="demo-simple-select-standard"
+                value={
+                  filterLocation?.officeid === 0
+                    ? 0
+                    : filterLocation?.officeid
+                    ? filterLocation.officeid
+                    : ""
+                }
+                onChange={(e) => {
+                  const selectedItem = locations?.find(
+                    (itm) => itm.officeid === e.target.value
+                  );
+                  setFilterLocation(selectedItem);
+                }}
+              >
+                {locations?.map((itm, index) => (
+                  <MenuItem key={index} value={itm.officeid}>
+                    {itm.Alias}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+
+          {user?.admin && (
+            <Tooltip title={"Add User"}>
+              <AddIcon
+                sx={{
+                  color: "green",
+                  cursor: "pointer",
+                  ":hover": { color: "lightgreen" },
+                  height: "30px",
+                  width: "30px",
+                }}
+                onClick={handleAdduser}
+              />
+            </Tooltip>
+          )}
+        </Box>
       </Box>
+
+      {/* Table section */}
       <Paper
         sx={{
-          height: "100%",
+          flex: 1,
           display: "flex",
-          flexGrow: 1,
           flexDirection: "column",
+          margin: "0 20px 20px 20px",
+          overflow: "hidden",
         }}
       >
-        <TableContainer
-          sx={{ flexGrow: 1, height: "100%", overflow: "hidden" }}
-        >
-          <Table sx={{ minWidth: 700 }} aria-label="customized table">
-            <TableHead sx={{ position: "sticky", top: 0, zIndex: 1 }}>
+        <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+          <Table
+            sx={{ minWidth: 700 }}
+            aria-label="customized table"
+            stickyHeader
+          >
+            <TableHead>
               <TableRow>
                 <StyledTableCell padding="checkbox">
                   <Checkbox
@@ -491,7 +512,7 @@ export default function Users({ setLoading }) {
               {paginatedRows?.map((row, index) => {
                 const isItemSelected = isSelected(row.id);
                 const isItemOpen = isOpen(row.id);
-                const backgroundColor = index % 2 === 0 ? "#f0f0f0" : "#ffffff"; // Alternate background color
+                const backgroundColor = index % 2 === 0 ? "#f0f0f0" : "#ffffff";
                 const rowUser = filteredUsers?.find((mt) => mt.id === row.id);
                 const location = locations?.find(
                   (lc) => lc.officeid == rowUser?.location
@@ -513,7 +534,7 @@ export default function Users({ setLoading }) {
                       <StyledTableCell padding="checkbox">
                         <Checkbox
                           onClick={(event) => {
-                            event.stopPropagation(); // Prevent the event from bubbling up
+                            event.stopPropagation();
                             handleClick(event, row.id);
                           }}
                           checked={isItemSelected}
@@ -607,50 +628,57 @@ export default function Users({ setLoading }) {
             </TableBody>
           </Table>
         </TableContainer>
-        {user?.admin && (
-          <Stack
-            direction={"row"}
-            sx={{
-              alignItems: "center",
-              marginLeft: "30px",
-              bottom: 10,
-              marginBottom: "-50px",
-            }}
-            spacing={2}
-            zIndex={1}
-          >
-            <Typography sx={{ whiteSpace: "nowrap" }}>I Want To </Typography>
-            <ShortSelect
-              value={action}
-              items={["Activate", "Deactivate", "Remove"]}
-              label={"Action"}
-              variant={"outlined"}
-              onChange={(e) => setAction(e)}
-              width={"120px"}
-              disabled={selected?.length == 0}
-            />
-            <Typography sx={{ whiteSpace: "nowrap" }}>Selected</Typography>
-            <Button
-              onClick={handleSubmit}
-              variant="outlined"
+
+        {/* Bottom section with actions and pagination */}
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            borderTop: "1px solid #e0e0e0",
+          }}
+        >
+          {user?.admin && (
+            <Stack
+              direction={"row"}
               sx={{
-                background: selected?.length == 0 ? "" : "rgba(0,200,0,.3)",
-                ":hover": { background: "rgba(0,200,0,.5)" },
+                alignItems: "center",
+                padding: "10px 20px",
               }}
+              spacing={2}
             >
-              Submit
-            </Button>
-          </Stack>
-        )}
-        <TablePagination
-          sx={{ overflow: "hidden" }}
-          component="div"
-          count={filteredUsers.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        />
+              <Typography sx={{ whiteSpace: "nowrap" }}>I Want To </Typography>
+              <ShortSelect
+                value={action}
+                items={["Activate", "Deactivate", "Remove"]}
+                label={"Action"}
+                variant={"outlined"}
+                onChange={(e) => setAction(e)}
+                width={"120px"}
+                disabled={selected?.length == 0}
+              />
+              <Typography sx={{ whiteSpace: "nowrap" }}>Selected</Typography>
+              <Button
+                onClick={handleSubmit}
+                variant="outlined"
+                sx={{
+                  background: selected?.length == 0 ? "" : "rgba(0,200,0,.3)",
+                  ":hover": { background: "rgba(0,200,0,.5)" },
+                }}
+              >
+                Submit
+              </Button>
+            </Stack>
+          )}
+
+          <TablePagination
+            component="div"
+            count={filteredUsers.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        </Box>
       </Paper>
     </Box>
   );
