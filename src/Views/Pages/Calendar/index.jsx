@@ -545,7 +545,7 @@ const Calendar = ({
               selectable
               events={events}
               ref={calendarRef}
-              height={"auto"}
+              height={"calc(100vh - 170px)"}
               rerenderDelay={10}
               initialDate={selectedDate}
               initialView={defaultView}
@@ -554,6 +554,7 @@ const Calendar = ({
               headerToolbar={false}
               allDayMaintainDuration
               eventContent={RenderEventContent}
+              fixedWeekCount={false} // dont show weeks from other months
               eventResizableFromStart
               select={handleRangeSelect}
               eventDrop={handleEventUpdate}

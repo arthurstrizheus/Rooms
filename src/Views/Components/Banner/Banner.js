@@ -20,7 +20,7 @@ const Banner = ({
       <Stack
         sx={{
           backgroundColor: theme.palette.background.default,
-          padding: "30px",
+          padding: "20px",
         }}
         direction="row"
         alignItems="center"
