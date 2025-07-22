@@ -64,7 +64,7 @@ function App() {
       const user = JSON.parse(localStorage.getItem("user"));
       setUser(user);
       login(user);
-      navigate("/schedule/type/day");
+      navigate(isMobile ? "/schedule/type/week" : "/schedule/type/month");
       setOpen(isMobile ? false : true);
     }
 
@@ -81,7 +81,7 @@ function App() {
       login(user);
       setOpen(isMobile ? false : true);
       if (localStorage.getItem("lastLocation") === "/") {
-        navigate("/schedule/type/day");
+        navigate(isMobile ? "/schedule/type/week" : "/schedule/type/month");
       } else {
         navigate(localStorage.getItem("lastLocation"));
       }

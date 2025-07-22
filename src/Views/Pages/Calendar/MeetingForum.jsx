@@ -646,6 +646,7 @@ const MeetingFourm = ({
               <ShortSelectObject
                 items={rooms}
                 label={"Room"}
+                secondary={"capacity"}
                 value={selectedRoom}
                 onChange={setSelectedRoom}
               />
