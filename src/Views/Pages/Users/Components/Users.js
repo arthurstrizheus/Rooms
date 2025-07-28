@@ -340,8 +340,7 @@ export default function Users({ setLoading }) {
         height: "100%",
         width: "100%",
         display: "flex",
-        flexDirection: "column",
-        position: "relative",
+        flexGrow: 1,
       }}
     >
       <AddNewUser
@@ -356,68 +355,60 @@ export default function Users({ setLoading }) {
       />
 
       {/* Header section with controls */}
+      <Tooltip title={"Add User"}>
+        <AddIcon
+          sx={{
+            position: "absolute",
+            right: 40,
+            zIndex: 999999,
+            top: 130,
+            color: "green",
+            cursor: "pointer",
+            ":hover": { color: "lightgreen" },
+            height: "30px",
+            width: "30px",
+          }}
+          onClick={handleAdduser}
+        />
+      </Tooltip>
       <Box
         sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "10px 20px",
-          minHeight: "60px",
-          position: "relative",
+          width: "200px",
+          position: "absolute",
+          right: 5,
+          top: 60,
+          zIndex: 999,
         }}
       >
-        <Box sx={{ flex: 1 }} /> {/* Spacer */}
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <Box sx={{ width: "200px" }}>
-            <FormControl
-              variant="standard"
-              sx={{ minWidth: 160, width: "100%" }}
-            >
-              <InputLabel id="demo-simple-select-standard-label">
-                Filter By Location
-              </InputLabel>
-              <Select
-                sx={{ width: "100%" }}
-                labelId="demo-simple-select-standard-label"
-                id="demo-simple-select-standard"
-                value={
-                  filterLocation?.officeid === 0
-                    ? 0
-                    : filterLocation?.officeid
-                    ? filterLocation.officeid
-                    : ""
-                }
-                onChange={(e) => {
-                  const selectedItem = locations?.find(
-                    (itm) => itm.officeid === e.target.value
-                  );
-                  setFilterLocation(selectedItem);
-                }}
-              >
-                {locations?.map((itm, index) => (
-                  <MenuItem key={index} value={itm.officeid}>
-                    {itm.Alias}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-
-          {user?.admin && (
-            <Tooltip title={"Add User"}>
-              <AddIcon
-                sx={{
-                  color: "green",
-                  cursor: "pointer",
-                  ":hover": { color: "lightgreen" },
-                  height: "30px",
-                  width: "30px",
-                }}
-                onClick={handleAdduser}
-              />
-            </Tooltip>
-          )}
-        </Box>
+        <FormControl variant="standard" sx={{ minWidth: 160, width: "100%" }}>
+          <InputLabel id="demo-simple-select-standard-label">
+            Filter By Location
+          </InputLabel>
+          <Select
+            sx={{ width: "100%" }}
+            labelId="demo-simple-select-standard-label"
+            id="demo-simple-select-standard"
+            value={
+              filterLocation?.officeid === 0
+                ? 0
+                : filterLocation?.officeid
+                ? filterLocation.officeid
+                : ""
+            }
+            onChange={(e) => {
+              const selectedItem = locations?.find(
+                (itm) => itm.officeid === e.target.value
+              );
+              setFilterLocation(selectedItem); // Return the entire object
+            }}
+          >
+            {locations?.map((itm, index) => (
+              <MenuItem key={index} value={itm.officeid}>
+                {itm.Alias}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Box>
 
       {/* Table section */}
@@ -426,7 +417,6 @@ export default function Users({ setLoading }) {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          margin: "0 20px 20px 20px",
           overflow: "hidden",
         }}
       >
@@ -633,7 +623,7 @@ export default function Users({ setLoading }) {
         <Box
           sx={{
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             borderTop: "1px solid #e0e0e0",
           }}
         >
