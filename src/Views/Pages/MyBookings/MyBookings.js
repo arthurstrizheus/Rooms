@@ -255,7 +255,7 @@ export default function MyBookings({ setLoading }) {
     } else {
       setPaginatedRows([]);
     }
-  }, [meetings]);
+  }, [meetings, page, rowsPerPage, update]);
 
   return (
     <Paper

@@ -166,7 +166,7 @@ export default function Resources({ setLoading }) {
     setPaginatedRows(
       data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
     );
-  }, [filterLocation, resources]);
+  }, [filterLocation, resources, page, rowsPerPage, update]);
 
   return (
     <Box sx={{ height: "100%", width: "100%", display: "flex", flexGrow: 1 }}>

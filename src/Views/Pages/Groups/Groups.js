@@ -192,7 +192,7 @@ export default function Groups({ setLoading }) {
     setPaginatedRows(
       sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
     );
-  }, [groups, filterLocation, update]);
+  }, [groups, filterLocation, update, page, rowsPerPage]);
 
   return (
     <Box sx={{ height: "100%", width: "100%", display: "flex", flexGrow: 1 }}>

@@ -297,7 +297,7 @@ export default function ApprovalQueue({ setLoading }) {
     } else {
       setPaginatedRows([]);
     }
-  }, [meetings, filterLocation, update]);
+  }, [meetings, filterLocation, update, page, rowsPerPage]);
 
   return (
     <Box

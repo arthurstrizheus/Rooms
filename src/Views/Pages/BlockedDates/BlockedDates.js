@@ -203,7 +203,7 @@ export default function BlockedDates({ setLoading }) {
     } else {
       setPaginatedRows([]);
     }
-  }, [filterLocation, rooms, blockedDates]);
+  }, [filterLocation, rooms, blockedDates, page, rowsPerPage, update]);
 
   return (
     <React.Fragment>

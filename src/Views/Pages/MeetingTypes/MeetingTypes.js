@@ -167,7 +167,7 @@ export default function MeetingTypes({ setLoading }) {
     } else {
       setPaginatedRows([]);
     }
-  }, [types, update]);
+  }, [types, update, page, rowsPerPage]);
 
   return (
     <React.Fragment>

@@ -251,7 +251,7 @@ export default function Rooms({ setLoading }) {
     } else {
       setPaginatedRows([]);
     }
-  }, [filterLocation, rooms, update]);
+  }, [filterLocation, rooms, update, page, rowsPerPage]);
 
   return (
     <React.Fragment>

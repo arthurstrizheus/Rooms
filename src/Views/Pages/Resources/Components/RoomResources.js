@@ -180,7 +180,7 @@ export default function RoomResources({ setLoading }) {
         data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
       );
     }
-  }, [filterLocation, roomResources]);
+  }, [filterLocation, roomResources, page, rowsPerPage, update, rooms]);
 
   return (
     <Box sx={{ height: "100%", width: "100%", display: "flex", flexGrow: 1 }}>
