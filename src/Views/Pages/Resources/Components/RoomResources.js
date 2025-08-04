@@ -211,7 +211,7 @@ export default function RoomResources({ setLoading }) {
               position: "absolute",
               right: 40,
               zIndex: 2,
-              top: 130,
+              top: 110,
               color: "darkgreen",
               cursor: "pointer",
               ":hover": { color: "green" },
@@ -228,7 +228,7 @@ export default function RoomResources({ setLoading }) {
                 position: "absolute",
                 right: 70,
                 zIndex: 2,
-                top: 130,
+                top: 110,
                 color: "red",
                 cursor: "pointer",
                 ":hover": { color: "darkred" },
@@ -239,7 +239,7 @@ export default function RoomResources({ setLoading }) {
             />
           </Tooltip>
         )}
-        <Box sx={{ width: "200px", position: "absolute", right: 5, top: 75 }}>
+        <Box sx={{ width: "200px", position: "absolute", right: 5, top: 60 }}>
           <FormControl variant="standard" sx={{ minWidth: 160, width: "100%" }}>
             <InputLabel id="demo-simple-select-standard-label">
               Filter By Location

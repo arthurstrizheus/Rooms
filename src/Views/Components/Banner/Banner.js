@@ -91,9 +91,7 @@ const Banner = ({
             "& .MuiLinearProgress-bar": {
               backgroundColor: theme.palette.secondary.light,
             },
-            bottom: 0,
             width: "100%",
-            position: "absolute",
           }}
         />
       )}

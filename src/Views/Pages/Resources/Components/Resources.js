@@ -192,7 +192,7 @@ export default function Resources({ setLoading }) {
               position: "absolute",
               right: 40,
               zIndex: 2,
-              top: 130,
+              top: 110,
               color: "darkgreen",
               cursor: "pointer",
               ":hover": { color: "green" },
@@ -209,7 +209,7 @@ export default function Resources({ setLoading }) {
                 position: "absolute",
                 right: 70,
                 zIndex: 2,
-                top: 130,
+                top: 110,
                 color: "red",
                 cursor: "pointer",
                 ":hover": { color: "darkred" },
@@ -225,7 +225,7 @@ export default function Resources({ setLoading }) {
             width: "200px",
             position: "absolute",
             right: 5,
-            top: 75,
+            top: 60,
             zIndex: 999,
           }}
         >

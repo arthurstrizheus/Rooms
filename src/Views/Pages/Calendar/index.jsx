@@ -255,7 +255,9 @@ const Calendar = ({
 
   useEffect(() => {
     if (meetingTypes?.length) {
+      setLoading(true);
       setEvents(transposeMeetingToEvent(meetings, meetingTypes, rooms));
+      setLoading(false);
     }
   }, [meetings, meetingTypes]);
 

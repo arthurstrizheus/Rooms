@@ -361,7 +361,7 @@ export default function Users({ setLoading }) {
             position: "absolute",
             right: 40,
             zIndex: 999999,
-            top: 130,
+            top: 110,
             color: "green",
             cursor: "pointer",
             ":hover": { color: "lightgreen" },
