@@ -23,12 +23,14 @@ import {
   CancelFollowingMeetingsInRecurrence,
   UpdateMeetingStatus,
 } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import RemoveRoadIcon from "@mui/icons-material/RemoveRoad";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import EditRoadIcon from "@mui/icons-material/EditRoad";
+import ImageViewer from "../../../Components/ImageViewer";
+import { GetRoomImage } from "../../../Utilites/Functions/ApiFunctions/RoomFunctions";
 
 const DisplayMeeting = ({
   meeting,
@@ -44,6 +46,23 @@ const DisplayMeeting = ({
   const { user } = useAuth();
   const [showWarning, setShowWarning] = useState(false);
   const [showParentWarning, setShowParentWarning] = useState(false);
+  const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
+
+  useEffect(() => {
+    async function fetchRoomImage() {
+      if (room?.image_url) {
+        try {
+          const image = await GetRoomImage(room.image_url);
+          setRoomImage(image);
+        } catch (error) {
+          console.error("Error fetching room image:", error);
+        }
+      } else {
+        console.warn("No image URL provided for the room.");
+      }
+    }
+    fetchRoomImage();
+  }, [room]);
 
   if (!meeting) {
     console.log("No meeting");
@@ -53,7 +72,7 @@ const DisplayMeeting = ({
   const end = new Date(meeting?.end_time);
   const color = types?.find((tp) => tp?.id == meeting?.type)?.color;
   const type = types?.find((tp) => tp?.id == meeting?.type)?.value;
-  const room = rooms?.find((rm) => rm?.id == meeting?.room)?.value;
+  const room = rooms?.find((rm) => rm?.id == meeting?.room);
   const location = locations?.find(
     (lc) => lc?.officeid == meeting?.location
   )?.Alias;
@@ -132,7 +151,6 @@ const DisplayMeeting = ({
     setShowParentWarning(false);
     handleUpdateEvent();
   };
-  console.log(meeting);
 
   return (
     <Box sx={{ display: "flex", flexGrow: 1 }}>
@@ -228,7 +246,7 @@ const DisplayMeeting = ({
                 fontSize={14}
                 paddingLeft={"3px"}
               >
-                SEA {location} / {room}
+                SEA {location} / {room?.value}
               </Typography>
             </Stack>
           </Grid>
@@ -443,7 +461,7 @@ const DisplayMeeting = ({
                 fontSize={14}
                 paddingLeft={"3px"}
               >
-                SEA {location} / {room}
+                SEA {location} / {room?.value}
               </Typography>
             </Stack>
           </Grid>
@@ -601,7 +619,24 @@ const DisplayMeeting = ({
             spacing={"-5px"}
             sx={{ paddingLeft: "5px" }}
           >
-            <Typography variant="h5">{meeting.name}</Typography>
+            <Stack direction={"row"} sx={{ justifyContent: "space-between" }}>
+              <Typography variant="h5">{meeting.name}</Typography>
+              {room?.image_url && (
+                <ImageViewer
+                  src={roomImage}
+                  alt={`${room?.value} room image`}
+                  style={{
+                    maxWidth: "100px",
+                    marginRight: "10px",
+                    maxHeight: "60px",
+                    objectFit: "cover",
+                    borderRadius: "4px",
+                    border: "1px solid #ddd",
+                  }}
+                />
+              )}
+            </Stack>
+
             <Typography variant="caption" fontSize={14} paddingLeft={"3px"}>
               {new Date(meeting.start_time).toLocaleDateString("en-US", {
                 weekday: "long",
@@ -644,7 +679,7 @@ const DisplayMeeting = ({
               fontSize={14}
               paddingLeft={"3px"}
             >
-              SEA {location} / {room}
+              SEA {location} / {room?.value}
             </Typography>
           </Stack>
         </Grid>

@@ -7,6 +7,7 @@ import {
   setTime,
 } from "../../../Utilites/Functions/CommonFunctions";
 import { useAuth } from "../../../Utilites/AuthContext";
+import ImageViewer from "../../../Components/ImageViewer";
 import { openSnackbar } from "../../../Utilites/SnackbarContext";
 import {
   Grid,
@@ -23,6 +24,7 @@ import {
   Autocomplete,
   TextField,
   Checkbox,
+  useMediaQuery,
 } from "@mui/material";
 import {
   CheckPostMeeting,
@@ -45,6 +47,7 @@ import {
   PostSpecialPermission,
 } from "../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
 import { getDate, getMonth, getSeconds, getTime, getYear } from "date-fns";
+import { GetRoomImage } from "../../../Utilites/Functions/ApiFunctions/RoomFunctions";
 
 // Welcome to Date Sanity™! All passengers please keep your arms inside the function at all times.
 function isMultipleDayMeeting(meeting) {
@@ -117,6 +120,7 @@ const MeetingFourm = ({
   onClose,
 }) => {
   const theme = useTheme();
+  const downMD = useMediaQuery((theme) => theme.breakpoints.down("md"));
   const { user } = useAuth();
   const [color, setColor] = useState(null);
   const [type, setType] = useState("");
@@ -129,6 +133,7 @@ const MeetingFourm = ({
   const [special, setSpecial] = useState([]);
   const [meetingName, setMeetingName] = useState("");
   const [showDesc, setShowDesc] = useState(false);
+  const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
   const [allDay, setAllDay] = useState(
     meeting?.all_day || meeting?.allDay
       ? meeting?.view == "dayGridMonth"
@@ -241,6 +246,22 @@ const MeetingFourm = ({
       // The else saga ends. Nobody claps, but you feel a vague sense of accomplishment.
     }
   }, []);
+
+  useEffect(() => {
+    async function fetchRoomImage() {
+      if (selectedRoom?.image_url) {
+        try {
+          const image = await GetRoomImage(selectedRoom.image_url);
+          setRoomImage(image);
+        } catch (error) {
+          console.error("Error fetching room image:", error);
+        }
+      } else {
+        console.warn("No image URL provided for the room.");
+      }
+    }
+    fetchRoomImage();
+  }, [selectedRoom]);
 
   const onChangeMeetingType = (e) => {
     setColor((meetingTypes?.find((m) => m.value == e.value)).color);
@@ -540,18 +561,26 @@ const MeetingFourm = ({
     <Grid
       container
       sx={{
-        width: showDesc ? "600px" : "350px",
+        width: showDesc && !downMD ? "600px" : downMD ? "330px" : "350px",
         height: showDesc
-          ? "410px"
+          ? downMD
+            ? "600px"
+            : "390px"
           : multiDayMeet && !allDay
-          ? "400px"
+          ? downMD
+            ? "600px"
+            : "370px"
           : allDay && multiDayMeet
-          ? "355px"
+          ? downMD
+            ? "600px"
+            : "335px"
           : allDay && !multiDayMeet
-          ? "330px"
-          : "380px",
+          ? downMD
+            ? "600px"
+            : "30px"
+          : "360px",
         transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
-        overflow: "hidden",
+        overflow: downMD ? "auto" : "hidden",
       }}
     >
       <Stack direction={"column"} sx={{ width: "100%", height: "100%" }}>
@@ -559,13 +588,37 @@ const MeetingFourm = ({
           container
           direction={"column"}
           sx={{
-            paddingTop: "20px",
+            paddingTop: downMD ? "0px" : "20px",
             paddingLeft: "20px",
             paddingBottom: "20px",
             borderBottom: `4px solid ${color ? color : "#91E041"}`,
           }}
         >
-          <Typography fontSize={28}>Book Room</Typography>
+          <Grid
+            item
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              paddingRight: 2,
+            }}
+          >
+            <Typography fontSize={28}>Book Room</Typography>
+            {selectedRoom?.image_url && (
+              <ImageViewer
+                src={roomImage}
+                alt={`${selectedRoom?.value} room image`}
+                style={{
+                  maxWidth: "100px",
+                  maxHeight: "60px",
+                  objectFit: "cover",
+                  borderRadius: "4px",
+                  border: "1px solid #ddd",
+                }}
+              />
+            )}
+          </Grid>
+
           <Typography
             component="div"
             fontSize={16}
@@ -614,11 +667,19 @@ const MeetingFourm = ({
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
+            alignItems: "center",
+            paddingLeft: downMD ? 1 : "10px",
+            paddingRight: downMD ? 1 : "10px",
           }}
         >
           <Stack
-            direction={showDesc ? "row" : "column"}
-            sx={{ padding: "20px" }}
+            direction={showDesc && !downMD ? "row" : "column"}
+            sx={{
+              paddingTop: "20px",
+              display: "flex",
+              flexGrow: 1,
+              width: "100%",
+            }}
             spacing={2}
           >
             <Box
@@ -626,7 +687,7 @@ const MeetingFourm = ({
                 display: "flex",
                 flexDirection: "column",
                 gap: 1,
-                maxWidth: !showDesc ? "350px" : "600px",
+                maxWidth: !showDesc && !downMD ? "350px" : "600px",
                 flexGrow: 1,
               }}
             >
@@ -672,6 +733,7 @@ const MeetingFourm = ({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "flex-start",
+                    marginBottom: downMD ? -1.5 : 0,
                   }}
                 >
                   <Checkbox
@@ -787,7 +849,13 @@ const MeetingFourm = ({
               flexDirection: "row",
               gap: 1,
               flexGrow: 1,
-              padding: "4px",
+              width: downMD ? "90%" : "100%",
+              justifyContent: "center",
+              textAlign: "center",
+              justifyItems: "center",
+              alignItems: "center",
+              justifySelf: "center",
+              paddingTop: "10px",
             }}
           >
             <Button

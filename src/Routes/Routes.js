@@ -17,6 +17,7 @@ import BlockedDates from "../Views/Pages/BlockedDates/BlockedDates";
 import Development from "../Views/Pages/Development/Development";
 import NotFoundPage from "../Views/Pages/Errors/NotFoundPage";
 import Calendar from "../Views/Pages/Calendar";
+import { useMediaQuery } from "@mui/system";
 
 const AppRoutes = ({
   setLoading,
@@ -30,6 +31,7 @@ const AppRoutes = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const matchSm = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
   useEffect(() => {
     // Determine the banner text based on the current path
@@ -113,7 +115,7 @@ const AppRoutes = ({
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
             loading={loading}
-            defaultView={"timeGridWeek"}
+            defaultView={matchSm ? "listWeek" : "timeGridWeek"}
             range={"Week"}
           />
         }

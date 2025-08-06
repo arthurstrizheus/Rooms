@@ -5,6 +5,8 @@ import {Grid, Stack, Typography, Box, Tooltip, Chip, Button} from "@mui/material
 import { useAuth } from "../../../../Utilites/AuthContext";
 import EventBusyIcon from '@mui/icons-material/EventBusyOutlined';
 import { GetRoomResources } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
+import ImageViewer from "../../../../Components/ImageViewer";
+import { GetRoomImage } from "../../../../Utilites/Functions/ApiFunctions/RoomFunctions";
 
 
 const rowItem = (name, value, color) => {
@@ -40,6 +42,24 @@ const rowItem = (name, value, color) => {
 const RowRoom = ({location, row, rowRoom, groups, roomgroups, setOpen}) => {
     const [roomGroups, setRoomGroups] = useState([]);
     const [roomResources, setRoomResources] = useState([]);
+    const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
+
+    useEffect(() => {
+        async function fetchRoomImage() {
+            if (row?.image_url) {
+                try {
+                    const image = await GetRoomImage(row.image_url);
+                    setRoomImage(image);
+                } catch (error) {
+                    console.error("Error fetching room image:", error);
+                }
+            } else {
+                console.warn("No image URL provided for the room.");
+            }
+        }
+        fetchRoomImage();
+    }, [row]);
+
     const {user} = useAuth();
 
     useEffect(() => {
@@ -98,6 +118,20 @@ const RowRoom = ({location, row, rowRoom, groups, roomgroups, setOpen}) => {
                             ))
                             , theme.palette.primary.text.dark)}
                         {rowItem('Room Resources',roomResources?.map(resource => resource.name).join(', '), theme.palette.primary.text.dark)}
+                        {row?.image_url && rowItem('Image', 
+                            <ImageViewer 
+                                src={roomImage} 
+                                alt={`${row?.value} room image`}
+                                style={{
+                                    maxWidth: '300px',
+                                    maxHeight: '260px',
+                                    objectFit: 'cover',
+                                    borderRadius: '4px',
+                                    border: '1px solid #ddd'
+                                }}
+                            />, 
+                            theme.palette.primary.text.dark
+                        )}
                     </Stack>
                 </Grid>
                 <Grid sx={{background:'white', borderRadius:'10px', minWidth:'550px', overflow:'hidden', display:'flex'}}>

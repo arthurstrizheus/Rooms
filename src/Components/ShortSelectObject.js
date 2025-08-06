@@ -6,6 +6,7 @@ import {
   MenuItem,
   Typography,
 } from "@mui/material";
+
 const ShortSelect = ({
   onChange,
   value,
@@ -51,10 +52,14 @@ const ShortSelect = ({
         onOpen={handleOpen}
         onClose={handleClose}
         label={label}
+        renderValue={(selected) => {
+          const selectedItem = items?.find((itm) => itm.id === selected);
+          return selectedItem ? selectedItem.value : ""; // Show only the name
+        }}
         MenuProps={{
           PaperProps: {
             style: {
-              maxHeight: 200, // Maximum height of the dropdown menu
+              maxHeight: 100, // Maximum height of the dropdown menu
             },
           },
         }}

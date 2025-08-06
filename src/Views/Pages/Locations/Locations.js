@@ -107,7 +107,7 @@ export default function Locations() {
         sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
       );
     });
-  }, [locations, page, rowsPerPage]);
+  }, [locations, page, rowsPerPage, orderBy, order]);
 
   return (
     <Paper

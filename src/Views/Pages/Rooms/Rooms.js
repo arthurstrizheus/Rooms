@@ -54,8 +54,8 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
   },
 }));
 
-function createData(id, room, location, capacity, color) {
-  return { id, room, location, capacity, color };
+function createData(id, room, location, capacity, color, image_url) {
+  return { id, room, location, capacity, color, image_url };
 }
 
 function descendingComparator(a, b, orderBy) {
@@ -240,7 +240,8 @@ export default function Rooms({ setLoading }) {
           itm.value,
           itm.location,
           itm.capacity,
-          itm.color
+          itm.color,
+          itm.image_url
         );
       });
 
@@ -251,7 +252,7 @@ export default function Rooms({ setLoading }) {
     } else {
       setPaginatedRows([]);
     }
-  }, [filterLocation, rooms, update, page, rowsPerPage]);
+  }, [filterLocation, rooms, update, page, rowsPerPage, orderBy, order]);
 
   return (
     <React.Fragment>
@@ -376,6 +377,15 @@ export default function Rooms({ setLoading }) {
                 </StyledTableCell>
                 <StyledTableCell align="left">
                   <TableSortLabel
+                    active={orderBy === "color"}
+                    direction={orderBy === "color" ? order : "asc"}
+                    onClick={(event) => handleRequestSort(event, "color")}
+                  >
+                    Color
+                  </TableSortLabel>
+                </StyledTableCell>
+                <StyledTableCell align="left">
+                  <TableSortLabel
                     active={orderBy === "organizer"}
                     direction={orderBy === "organizer" ? order : "asc"}
                     onClick={(event) => handleRequestSort(event, "organizer")}
@@ -431,6 +441,16 @@ export default function Rooms({ setLoading }) {
                       </StyledTableCell>
                       <StyledTableCell component="th" scope="row">
                         {row.room}
+                      </StyledTableCell>
+                      <StyledTableCell align="left">
+                        <Box
+                          sx={{
+                            width: "60px",
+                            height: "20px",
+                            border: "1px solid black",
+                            background: row.color,
+                          }}
+                        />
                       </StyledTableCell>
                       <StyledTableCell align="left">
                         {location.Alias}

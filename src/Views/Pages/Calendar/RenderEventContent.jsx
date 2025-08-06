@@ -14,7 +14,6 @@ function isFifteenMinutesOrLess(timeRange) {
   const endMinutes = parseTime(end);
 
   const diff = endMinutes - startMinutes;
-  console.log(diff);
 
   return diff > 0 && diff <= 15;
 }

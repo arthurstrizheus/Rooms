@@ -66,12 +66,6 @@ const Banner = ({
               </Typography>
             </Box>
             <Box sx={{ width: "30%", display: "flex", flexDirection: "row" }}>
-              {!drawerOpen && (
-                <IconButton onClick={onOpenDrawer} sx={{ mr: 2 }}>
-                  <MenuIcon />
-                </IconButton>
-              )}
-
               {(bannerText === "Month Schedule" ||
                 bannerText === "Week Schedule" ||
                 bannerText === "Day Schedule") && (

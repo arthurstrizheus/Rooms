@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "@emotion/react";
+import { useTheme, useMediaQuery } from "@mui/material";
 import {
   Grid,
   Stack,
@@ -17,10 +17,14 @@ import {
   OutlinedInput,
   FormHelperText,
   Chip,
+  IconButton,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { PhotoCamera, Delete } from "@mui/icons-material";
 import { SketchPicker } from "react-color";
 import { showError } from "../../../../Utilites/Functions/ApiFunctions";
 import {
+  GetRoomImage,
   PostRoom,
   UpdateRoom,
 } from "../../../../Utilites/Functions/ApiFunctions/RoomFunctions";
@@ -41,6 +45,7 @@ const AddNewRoom = ({
   setUpdate,
 }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm")); // Check if the screen size is small
   const { user } = useAuth();
   const ariaLabel = { "aria-label": "description" };
   const [color, setColor] = useState("22194D");
@@ -51,6 +56,8 @@ const AddNewRoom = ({
   const [readAccess, setReadAccess] = useState([]);
   const [oldFullControl, setOldFullControl] = useState([]);
   const [oldReadAccess, setOldReadAccess] = useState([]);
+  const [roomImage, setRoomImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const onClose = () => {
     setOpen(false);
@@ -62,6 +69,8 @@ const AddNewRoom = ({
     setReadAccess([]);
     setOldFullControl([]);
     setOldReadAccess([]);
+    setRoomImage(null);
+    setImagePreview(null);
     setUpdate((prev) => prev + 1);
   };
 
@@ -69,16 +78,61 @@ const AddNewRoom = ({
     setColor(newColor.hex);
   };
 
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        showError("Please select a valid image file");
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        showError("Image size should be less than 5MB");
+        return;
+      }
+
+      setRoomImage(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setRoomImage(null);
+    setImagePreview(null);
+  };
+
   const onSubmit = () => {
     if (roomName != "" && color != "" && location) {
+      const roomData = {
+        value: roomName,
+        color: color,
+        location: location.officeid,
+        capacity: capacity,
+        created_user_id: user?.id,
+      };
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      Object.keys(roomData).forEach((key) => {
+        formData.append(key, roomData[key]);
+      });
+
+      if (roomImage) {
+        formData.append("room_image", roomImage); // Append the image file
+      } else {
+        formData.delete("room_image");
+      }
+
       if (!selectedRoom?.id) {
-        PostRoom({
-          value: roomName,
-          color: color,
-          location: location.officeid,
-          capacity: capacity,
-          created_user_id: user?.id,
-        }).then(async (resp) => {
+        PostRoom(formData).then(async (resp) => {
           if (resp) {
             let promises = fullControl?.map(async (fc) =>
               PostRoomGroup({
@@ -100,13 +154,7 @@ const AddNewRoom = ({
           }
         });
       } else {
-        UpdateRoom(selectedRoom?.id, {
-          value: roomName,
-          color: color,
-          location: location.officeid,
-          capacity: capacity,
-          created_user_id: user?.id,
-        }).then(async (resp) => {
+        UpdateRoom(selectedRoom?.id, formData).then(async (resp) => {
           if (resp) {
             // Add new groups
             let promises = fullControl?.map((fc) =>
@@ -183,6 +231,16 @@ const AddNewRoom = ({
       setColor(selectedRoom.color);
       setCapacity(selectedRoom.capacity);
 
+      async function fetchRoomImage() {
+        const image = await GetRoomImage(selectedRoom.image_url);
+        setImagePreview(image);
+      }
+
+      // Set existing image preview if available
+      if (selectedRoom.image_url) {
+        fetchRoomImage();
+      }
+
       const roomsGroups = [];
       roomGroups
         .filter((gp) => gp.room_id == selectedRoom.id)
@@ -202,41 +260,137 @@ const AddNewRoom = ({
   }, [selectedRoom, roomLocation]);
 
   return (
-    <Dialog open={!!open} onClose={onClose} maxWidth={"lg"}>
+    <Dialog
+      open={!!open}
+      onClose={onClose}
+      maxWidth={"lg"}
+      fullScreen={isMobile} // Make dialog fullscreen on mobile
+    >
       <Grid
         sx={{
-          width: "fit-content",
+          width: "100%",
           textAlign: "center",
-          paddingBottom: "5px",
+          padding: isMobile ? "10px" : "20px",
+          minHeight: "65vh",
           height: "fit-content",
         }}
       >
+        <IconButton
+          onClick={onClose}
+          size="small"
+          sx={{
+            position: "absolute",
+            right: 5,
+            top: 5,
+            color: "white",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            width: 24,
+            height: 24,
+            zIndex: 1,
+            justifySelf: "right",
+            "&:hover": {
+              backgroundColor: "rgba(0, 0, 0, 0.9)",
+            },
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
         <Typography
           variant="h5"
           textAlign={"center"}
           width={"100%"}
           fontFamily={"Courier New, sans-serif"}
           marginBottom={1}
-          marginTop={1}
+          marginTop={-1}
         >
           Add Room
         </Typography>
         <Divider width={"100%"} />
         <Stack
-          direction={"row"}
-          sx={{ minWidth: "600px", minHeight: "380px", padding: "20px" }}
+          direction={isMobile ? "column" : "row"} // Stack vertically on mobile
+          sx={{
+            minWidth: isMobile ? "100%" : "600px",
+            minHeight: "380px",
+            padding: isMobile ? "10px" : "20px",
+          }}
           spacing={2}
         >
-          <Stack direction={"column"}>
+          <Stack
+            direction={"column"}
+            sx={{ flex: 1, marginBottom: isMobile ? 20 : 0 }}
+          >
             <Input
               value={roomName}
               onChange={(e) => setRoomName(e.target.value)}
               placeholder="Room Name"
               inputProps={ariaLabel}
+              sx={{ marginBottom: "10px" }}
             />
+
+            {/* Image Upload Section */}
+            <Box sx={{ marginBottom: "10px" }}>
+              <Typography
+                variant="body2"
+                sx={{ marginBottom: 1, textAlign: "left" }}
+              >
+                Room Image
+              </Typography>
+
+              {imagePreview ? (
+                <Box sx={{ position: "relative", display: "inline-block" }}>
+                  <img
+                    src={imagePreview}
+                    alt="Room preview"
+                    style={{
+                      width: "100%",
+                      maxWidth: "200px",
+                      height: "120px",
+                      objectFit: "cover",
+                      borderRadius: "8px",
+                      border: "1px solid #ccc",
+                    }}
+                  />
+                  <IconButton
+                    onClick={removeImage}
+                    sx={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      backgroundColor: "rgba(255,255,255,0.8)",
+                      "&:hover": {
+                        backgroundColor: "rgba(255,255,255,1)",
+                      },
+                    }}
+                    size="small"
+                  >
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </Box>
+              ) : (
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<PhotoCamera />}
+                  sx={{
+                    width: "100%",
+                    maxWidth: "200px",
+                    height: "120px",
+                  }}
+                >
+                  Upload Image
+                  <input
+                    hidden
+                    accept="image/*"
+                    type="file"
+                    onChange={handleImageUpload}
+                  />
+                </Button>
+              )}
+            </Box>
+
             <Stack
-              direction={"row"}
-              sx={{ width: "100%", maxHeight: "60px", marginTop: "10px" }}
+              direction={isMobile ? "column" : "row"}
+              sx={{ width: "100%", marginTop: "10px" }}
               spacing={1}
             >
               <FormControl
@@ -305,8 +459,8 @@ const AddNewRoom = ({
                       sx={{
                         display: "flex",
                         flexWrap: "wrap",
-                        gap: 0.5,
-                        maxHeight: 105,
+                        gap: 0.2,
+                        maxHeight: 60,
                         overflowY: "auto",
                         marginTop: "4px",
                       }}
@@ -323,9 +477,9 @@ const AddNewRoom = ({
                     </Box>
                   )}
                   sx={{
-                    minHeight: 80, // Maximum height for the Select component
+                    minHeight: 60, // Maximum height for the Select component
                     maxWidth: 365,
-                    height: 110,
+                    height: 60,
                   }}
                 >
                   {groups
@@ -388,13 +542,13 @@ const AddNewRoom = ({
                     </Box>
                   )}
                   sx={{
-                    minHeight: 80, // Maximum height for the Select component
+                    minHeight: 60, // Maximum height for the Select component
                     maxWidth: 365,
-                    height: 110,
+                    height: 60,
                   }}
                 >
                   {groups
-                    .filter((gp) => gp.access != "Full")
+                    .filter((gp) => gp.access !== "Full")
                     ?.map((name, index) => (
                       <MenuItem
                         key={index}
@@ -411,43 +565,48 @@ const AddNewRoom = ({
                     ))}
                 </Select>
                 <FormHelperText>
-                  Who can Read / View mettings and room
+                  Who can Read / View meetings and room
                 </FormHelperText>
               </FormControl>
             </Stack>
           </Stack>
-          <Grid
-            sx={{
-              border: "1px solid black",
-              borderRadius: "20px",
-              marginTop: "20px",
-              padding: "10px",
-            }}
-          >
-            <Stack direction={"row"} padding={"10px"} spacing={1}>
-              <Typography marginLeft={"10px"}>Select Room Color</Typography>
-              <Box
-                width={"40px"}
-                height={"20px"}
-                backgroundColor={color}
-                border={"1px solid black"}
-              />
-            </Stack>
-            <Box sx={{ width: "100%" }} justifyContent={"center"}>
-              <SketchPicker color={color} onChange={(e) => handleChange(e)} />
-            </Box>
-          </Grid>
+          <Stack direction={"column"}>
+            <Grid
+              sx={{
+                border: "1px solid black",
+                borderRadius: "20px",
+                padding: "10px",
+                marginTop: isMobile ? 15 : 0,
+              }}
+            >
+              <Stack direction={"row"} padding={"10px"} spacing={1}>
+                <Typography marginLeft={"10px"}>Select Room Color</Typography>
+                <Box
+                  width={"40px"}
+                  height={"20px"}
+                  sx={{
+                    backgroundColor: color,
+                    border: "1px solid black",
+                  }}
+                />
+              </Stack>
+              <Box sx={{ width: "100%" }} justifyContent={"center"}>
+                <SketchPicker color={color} onChange={(e) => handleChange(e)} />
+              </Box>
+            </Grid>
+            <Button
+              variant="outlined"
+              sx={{
+                backgroundColor: "rgba(0,170,0,.2)",
+                ":hover": { backgroundColor: "rgba(0,200,0,.4)" },
+                marginTop: "10px",
+              }}
+              onClick={onSubmit}
+            >
+              Submit
+            </Button>
+          </Stack>
         </Stack>
-        <Button
-          variant="outlined"
-          sx={{
-            backgroundColor: "rgba(0,170,0,.2)",
-            ":hover": { backgroundColor: "rgba(0,200,0,.4)" },
-          }}
-          onClick={onSubmit}
-        >
-          Submit
-        </Button>
       </Grid>
     </Dialog>
   );

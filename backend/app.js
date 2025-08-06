@@ -1,4 +1,6 @@
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
 require("dotenv").config(); // Must be at the top of the file
 const bodyParser = require("body-parser");
 // const cors = require('cors');
@@ -36,10 +38,22 @@ const specialPermissionsRouter = require("./routes/specialPermissions");
 const recurrenceRouter = require("./routes/meetingrecurrences");
 const matterManagerRoutes = require("./routes/matterManagerRoutes");
 const zscalerRouter = require("./routes/zscaler");
+const errorHandler = require("./middleware/errorHandler");
 const app = express();
+
+// Ensure the uploads directory exists
+const uploadsDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("Uploads directory created.");
+}
 
 app.use(bodyParser.json());
 app.use(express.json());
+
+// Serve static files from the uploads directory
+app.use("/uploads", express.static(uploadsDir));
+
 app.use("/api/mattermanager", matterManagerRoutes);
 app.use("/api/blockeddates", blockedDatesRouter);
 app.use("/api/groupusers", groupUsersRouter);
@@ -118,5 +132,8 @@ const startServer = async () => {
     console.error("Unable to connect to the database:", err);
   }
 };
+
+// Error-handling middleware (must be the last middleware)
+app.use(errorHandler);
 
 startServer();

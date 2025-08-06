@@ -19,12 +19,13 @@ import {
   getMonth,
   getSeconds,
   getYear,
+  getHours,
+  getMinutes,
 } from "date-fns";
 
 // project imports
 import CalendarStyled from "./CalendarStyled";
 import RenderEventContent from "./RenderEventContent";
-import Loader from "../../Components/Loader";
 import SubCard from "../../Components/SubCard";
 
 // assets
@@ -38,7 +39,6 @@ import {
   showError,
   showSuccess,
 } from "../../../Utilites/Functions/ApiFunctions";
-import { Grid, Stack, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import MeetingFourm from "./MeetingForum";
 import MeetingUpdateWarning from "./MeetingUpdateWarning";
@@ -52,6 +52,7 @@ import {
 } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
 
 import { IsMeetingParentRecurrence } from "../../../Utilites/Functions/ApiFunctions/MeetingRecurrencesFunctions";
+import { Button, Typography } from "@mui/material";
 
 const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
   return (meetings || []).map((meeting, idx) => {
@@ -166,7 +167,7 @@ const Calendar = ({
   const calendarRef = useRef(null);
   const containerRef = useRef();
   const { user } = useAuth();
-  const matchSm = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const matchMD = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
   // fetch data
   const [meetings, setMeetings] = useState([]);
@@ -181,7 +182,7 @@ const Calendar = ({
   const [selectedRange, setSelectedRange] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
-  const [view, setView] = useState(matchSm ? "listWeek" : defaultView);
+  const [view, setView] = useState(matchMD ? "listWeek" : defaultView);
   const [showParentWarning, setShowParentWarning] = useState(false);
   const [updateEvent, setUpdateEvent] = useState(null);
   // dayGridMonth, timeGridWeek, timeGridDay
@@ -242,8 +243,8 @@ const Calendar = ({
 
   // set calendar view
   useEffect(() => {
-    handleViewChange(matchSm ? "listWeek" : defaultView);
-  }, [matchSm, defaultView]);
+    handleViewChange(matchMD ? "listWeek" : defaultView);
+  }, [matchMD, defaultView]);
 
   useEffect(() => {
     const calendarEl = calendarRef.current;
@@ -320,11 +321,6 @@ const Calendar = ({
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const handleEventCreate = async (data) => {
-    // TODO implement
-    handleModalClose();
   };
 
   const handleUpdateEvent = async (eventId, update) => {
@@ -447,15 +443,6 @@ const Calendar = ({
     setShowParentWarning(false);
   };
 
-  const handleEventDelete = async (id) => {
-    try {
-      // TODO implement
-      handleModalClose();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedEvent(null);
@@ -537,71 +524,130 @@ const Calendar = ({
         />
       </Dialog>
 
-      {view ? (
-        <CalendarStyled>
-          <SubCard>
-            <FullCalendar
-              weekends
-              editable
-              droppable
-              selectable
-              events={events}
-              ref={calendarRef}
-              height={"calc(100vh - 170px)"}
-              rerenderDelay={10}
-              initialDate={selectedDate}
-              initialView={defaultView}
-              dayMaxEventRows={3}
-              eventDisplay="block"
-              headerToolbar={false}
-              allDayMaintainDuration
-              eventContent={RenderEventContent}
-              fixedWeekCount={false} // dont show weeks from other months
-              eventResizableFromStart
-              select={handleRangeSelect}
-              eventDrop={handleEventUpdate}
-              eventClick={handleEventSelect}
-              eventResize={handleEventUpdate}
-              slotDuration="00:15:00" // The time slot size (15 minutes)
-              snapDuration="00:15:00" // Drag and drop snaps to these increments
-              plugins={[
-                listPlugin,
-                dayGridPlugin,
-                timelinePlugin,
-                timeGridPlugin,
-                interactionPlugin,
-              ]}
-              dayCellDidMount={(info) => {
-                if (info.view.type === "dayGridMonth") {
-                  const plusIconContainer = document.createElement("div");
-                  plusIconContainer.style.position = "absolute";
-                  plusIconContainer.style.bottom = "4px";
-                  plusIconContainer.style.right = "4px";
-                  plusIconContainer.style.cursor = "pointer";
-                  plusIconContainer.style.display = "none";
-                  plusIconContainer.style.zIndex = "10";
-
-                  // Render the React icon into the container
-                  ReactDOM.createRoot(plusIconContainer).render(
-                    <AddIcon fontSize="small" />
-                  );
-
-                  info.el.style.position = "relative";
-                  info.el.appendChild(plusIconContainer);
-
-                  info.el.addEventListener("mouseenter", () => {
-                    plusIconContainer.style.display = "block";
-                  });
-                  info.el.addEventListener("mouseleave", () => {
-                    plusIconContainer.style.display = "none";
-                  });
-                }
-              }}
-            />
-          </SubCard>
-        </CalendarStyled>
+      {events?.length === 0 && matchMD ? (
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <Typography variant="body1" gutterBottom>
+            No events to display.
+          </Typography>
+          <Button
+            style={{
+              padding: "10px 20px",
+              backgroundColor: "#1976d2",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+            onClick={() =>
+              handleRangeSelect({
+                start: new Date(),
+                end: new Date(new Date().setHours(23, 59, 59, 999)),
+                allDay: false,
+              })
+            }
+          >
+            Add Event
+          </Button>
+        </div>
       ) : (
-        <></>
+        view && (
+          <>
+            {matchMD && (
+              <Button
+                variant="outlined"
+                fullWidth
+                size="small"
+                onClick={() =>
+                  handleRangeSelect({
+                    start: new Date(),
+                    end: new Date(new Date().setHours(23, 59, 59, 999)),
+                    allDay: false,
+                  })
+                }
+              >
+                Add Event
+              </Button>
+            )}
+            <CalendarStyled>
+              <SubCard>
+                <FullCalendar
+                  weekends
+                  editable
+                  droppable
+                  selectable
+                  events={events}
+                  ref={calendarRef}
+                  height={"calc(100vh - 170px)"}
+                  rerenderDelay={10}
+                  initialDate={selectedDate}
+                  initialView={defaultView || "listWeek"}
+                  dayMaxEventRows={3}
+                  eventDisplay="block"
+                  headerToolbar={false}
+                  allDayMaintainDuration
+                  eventContent={RenderEventContent}
+                  fixedWeekCount={false} // dont show weeks from other months
+                  eventResizableFromStart
+                  select={handleRangeSelect}
+                  eventDrop={handleEventUpdate}
+                  eventClick={handleEventSelect}
+                  eventResize={handleEventUpdate}
+                  slotDuration="00:15:00" // The time slot size (15 minutes)
+                  snapDuration="00:15:00" // Drag and drop snaps to these increments
+                  plugins={[
+                    listPlugin,
+                    dayGridPlugin,
+                    timelinePlugin,
+                    timeGridPlugin,
+                    interactionPlugin,
+                  ]}
+                  dayCellDidMount={(info) => {
+                    if (info.view.type === "dayGridMonth") {
+                      const plusIconContainer = document.createElement("div");
+                      plusIconContainer.style.position = "absolute";
+                      plusIconContainer.style.bottom = "4px";
+                      plusIconContainer.style.right = "4px";
+                      plusIconContainer.style.cursor = "pointer";
+                      plusIconContainer.style.display = "none";
+                      plusIconContainer.style.zIndex = "10";
+
+                      // Render the React icon into the container
+                      ReactDOM.createRoot(plusIconContainer).render(
+                        <AddIcon fontSize="small" />
+                      );
+
+                      info.el.style.position = "relative";
+                      info.el.appendChild(plusIconContainer);
+
+                      info.el.addEventListener("mouseenter", () => {
+                        plusIconContainer.style.display = "block";
+                      });
+                      info.el.addEventListener("mouseleave", () => {
+                        plusIconContainer.style.display = "none";
+                      });
+                    } else if (
+                      info.view.type === "timeGridWeek" ||
+                      info.view.type === "timeGridDay"
+                    ) {
+                      info.el.style.cursor = "pointer";
+                      info.el.addEventListener("click", () => {
+                        console.log("click");
+                        const start = info.date;
+                        const end = new Date(start);
+                        end.setHours(23, 59, 59, 999); // Set end time to the end of the day
+                        handleRangeSelect({
+                          start,
+                          end,
+                          allDay: false,
+                        });
+                      });
+                    }
+                  }}
+                />
+              </SubCard>
+            </CalendarStyled>
+          </>
+        )
       )}
 
       {/* Dialog renders its body even if not open */}

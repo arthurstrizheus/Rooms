@@ -332,7 +332,7 @@ export default function Users({ setLoading }) {
     setPaginatedRows(
       sortedRows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
     );
-  }, [filterLocation, users, update, page, rowsPerPage]);
+  }, [filterLocation, users, update, page, rowsPerPage, orderBy, order]);
 
   return (
     <Box
