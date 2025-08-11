@@ -91,7 +91,7 @@ const RowRoom = ({location, row, rowRoom, groups, roomgroups, setOpen}) => {
                         <Typography component="div" variant="h6" paddingLeft={'10px'} >
                             Room
                         </Typography>
-                        {user?.admin &&
+                        {(user?.admin || user?.office_admin == location) &&
                             <Button variant="outlined" onClick={() => setOpen(rowRoom, location)}  startIcon={<EventBusyIcon/>} sx={{':hover':{backgroundColor:'rgba(255, 187, 0, .1)'}}}>
                                 Edit
                             </Button>

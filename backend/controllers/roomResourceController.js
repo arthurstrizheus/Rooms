@@ -1,13 +1,13 @@
-const { Sequelize } = require('sequelize');
-const { RoomResource, Resource } = require('../models');
+const { Sequelize } = require("sequelize");
+const { RoomResource, Resource, Room } = require("../models");
 
 const GetAll = async (req, res) => {
     try {
         const data = await RoomResource.findAll();
         res.json(data);
     } catch (err) {
-        console.error('Error fetching room groups:', err);
-        res.status(500).send('Server error');
+        console.error("Error fetching room groups:", err);
+        res.status(500).send("Server error");
     }
 };
 
@@ -16,10 +16,10 @@ const GetAllForRoom = async (req, res) => {
     try {
         // Fetch all RoomResource entries related to the roomId
         const data = await RoomResource.findAll({ where: { room_id: roomId } });
-        
+
         // Extract resource IDs and log them to ensure they are correct
-        const resourceIds = data?.map(rc => rc.resource_id);
-        
+        const resourceIds = data?.map((rc) => rc.resource_id);
+
         // Check if resourceIds is an array and contains valid values
         if (!Array.isArray(resourceIds) || !resourceIds.length) {
             return [];
@@ -29,15 +29,15 @@ const GetAllForRoom = async (req, res) => {
         const resources = await Resource.findAll({
             where: {
                 id: {
-                    [Sequelize.Op.in]: resourceIds // Ensure it's an array of IDs
-                }
-            }
+                    [Sequelize.Op.in]: resourceIds, // Ensure it's an array of IDs
+                },
+            },
         });
 
         res.json(resources);
     } catch (err) {
-        console.error('Error fetching room resources:', err);
-        res.status(500).send('Server error');
+        console.error("Error fetching room resources:", err);
+        res.status(500).send("Server error");
     }
 };
 
@@ -48,7 +48,20 @@ const Post = async (req, res) => {
 
         // Validate the incoming data (optional but recommended)
         if (!room_id || !resource_id || !created_user_id) {
-            return res.status(400).json({ message: 'room_id, resource_id, and created_user_id are required' });
+            return res.status(400).json({
+                message:
+                    "room_id, resource_id, and created_user_id are required",
+            });
+        }
+        const room = await Room.findByPk(room_id);
+        if (!room) {
+            return res.status(404).json({ message: "Room not found" });
+        }
+
+        if (req.user?.office_admin != room.location && !req.user?.admin) {
+            return res.status(403).json({
+                message: "Cannot create room resources for another office.",
+            });
         }
         // Create a new resource record in the database
         const newResource = await RoomResource.create({
@@ -60,25 +73,38 @@ const Post = async (req, res) => {
         // Return the created record as a JSON response
         res.status(201).json(newResource);
     } catch (err) {
-        console.error('Error creating resource:', err);
-        res.status(500).json({ message: 'Server error' });
+        console.error("Error creating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
 };
 
 const Update = async (req, res) => {
     try {
-        const { id } = req.params;  // Extract ID from URL parameters
-        const { room_id, resource_id, created_user_id } = req.body;  // Extract data from the request body
+        const { id } = req.params; // Extract ID from URL parameters
+        const { room_id, resource_id, created_user_id } = req.body; // Extract data from the request body
 
         // Validate the incoming data (optional but recommended)
         if (!room_id || !resource_id || !created_user_id) {
-            return res.status(400).json({ message: 'room_id, resource_id, and created_user_id are required' });
+            return res.status(400).json({
+                message:
+                    "room_id, resource_id, and created_user_id are required",
+            });
         }
 
         // Find the existing resource by ID
         const resource = await RoomResource.findByPk(id);
         if (!resource) {
-            return res.status(404).json({ message: 'Resource not found' });
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        const room = await Room.findByPk(room_id);
+        if (!room) {
+            return res.status(404).json({ message: "Room not found" });
+        }
+
+        if (req.user?.office_admin != room.location && !req.user?.admin) {
+            return res.status(403).json({
+                message: "Cannot modify room resources for another office.",
+            });
         }
 
         // Update the resource record in the database
@@ -91,29 +117,37 @@ const Update = async (req, res) => {
         // Return the updated record as a JSON response
         res.status(200).json(resource);
     } catch (err) {
-        console.error('Error updating resource:', err);
-        res.status(500).json({ message: 'Server error' });
+        console.error("Error updating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
 };
 
 const Delete = async (req, res) => {
     try {
-        const { id } = req.params;  // Extract ID from URL parameters
+        const { id } = req.params; // Extract ID from URL parameters
 
         // Find the existing resource by ID
         const resource = await RoomResource.findByPk(id);
         if (!resource) {
-            return res.status(404).json({ message: 'Resource not found' });
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        const room_id = resource.room_id;
+        const room = await Room.findByPk(room_id);
+
+        if (req.user?.office_admin != room.location && !req.user?.admin) {
+            return res.status(403).json({
+                message: "Cannot delete room resources for another office.",
+            });
         }
 
         // Delete the resource record from the database
         await resource.destroy();
 
         // Return a success message
-        res.status(200).json({ message: 'Resource deleted successfully' });
+        res.status(200).json({ message: "Resource deleted successfully" });
     } catch (err) {
-        console.error('Error deleting resource:', err);
-        res.status(500).json({ message: 'Server error' });
+        console.error("Error deleting resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
 };
 
@@ -122,5 +156,5 @@ module.exports = {
     Post,
     Update,
     Delete,
-    GetAllForRoom
+    GetAllForRoom,
 };

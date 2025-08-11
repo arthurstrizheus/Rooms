@@ -89,7 +89,7 @@ export default function Rooms({ setLoading }) {
   const theme = useTheme();
   const { user } = useAuth();
   const [order, setOrder] = useState("asc");
-  const [orderBy, setOrderBy] = useState("name");
+  const [orderBy, setOrderBy] = useState("room");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [selected, setSelected] = useState([]);
@@ -368,9 +368,9 @@ export default function Rooms({ setLoading }) {
                 </StyledTableCell>
                 <StyledTableCell align="left">
                   <TableSortLabel
-                    active={orderBy === "name"}
-                    direction={orderBy === "name" ? order : "asc"}
-                    onClick={(event) => handleRequestSort(event, "name")}
+                    active={orderBy === "room"}
+                    direction={orderBy === "room" ? order : "asc"}
+                    onClick={(event) => handleRequestSort(event, "room")}
                   >
                     Room
                   </TableSortLabel>

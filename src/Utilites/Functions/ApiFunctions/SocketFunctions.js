@@ -1,10 +1,10 @@
 import axios from "axios";
 import { handleApiResponseError, showError } from "../ApiFunctions";
 
-export async function PostGroupUser(data) {
+export async function GetConnectedUsers() {
     try {
         const resp = await axios
-            .post("/api/groupusers", data)
+            .get("/api/connected-users")
             .catch((resp) => resp);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
@@ -13,50 +13,44 @@ export async function PostGroupUser(data) {
         }
         return resp.data;
     } catch (err) {
+        showError("An unexpected error occurred.", err);
         return null;
     }
 }
 
-export async function DeleteGroupUser(id) {
+export async function GetConnectionStatus() {
     try {
         const resp = await axios
-            .delete(`/api/groupusers/${id}`)
+            .get("/api/connected-users/stats")
             .catch((resp) => resp);
-
-        if (resp.status === 204 || resp.status === 200) {
-            return true; // Indicate success
-        }
-
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
-            return false;
+            return null;
         }
-
-        return true;
+        return resp.data;
     } catch (err) {
-        return false;
+        showError("An unexpected error occurred.", err);
+        return null;
     }
 }
 
-export async function DeleteGroupUserById(data) {
+// Force logout a single user
+export async function ForceLogoutUser(data) {
     try {
         const resp = await axios
-            .delete(`/api/groupusers`, { data: data })
+            .post(`/api/connected-users/logout/${data.userId}`, {
+                reason: data.reason,
+            })
             .catch((resp) => resp);
-
-        if (resp.status === 204 || resp.status === 200) {
-            return true; // Indicate success
-        }
-
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
-            return false;
+            return null;
         }
-
-        return true;
+        return resp.data;
     } catch (err) {
-        return false;
+        showError("An unexpected error occurred.", err);
+        return null;
     }
 }

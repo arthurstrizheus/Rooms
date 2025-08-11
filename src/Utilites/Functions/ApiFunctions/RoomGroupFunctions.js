@@ -1,13 +1,19 @@
 import axios from "axios";
-import { handleApiResponseError, showError, showSuccess } from "../ApiFunctions";
+import {
+    handleApiResponseError,
+    showError,
+    showSuccess,
+} from "../ApiFunctions";
 
 export async function PostRoomGroup(data) {
     try {
-        const resp = await axios.post('/api/roomgroups',data);
+        const resp = await axios
+            .post("/api/roomgroups", data)
+            .catch((resp) => resp);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
-            return null;  
+            return null;
         }
         return resp.data;
     } catch (err) {
@@ -17,12 +23,14 @@ export async function PostRoomGroup(data) {
 
 export async function DeleteRoomGroup(id) {
     try {
-        const resp = await axios.delete( `/api/roomgroups/${id}`);
-        
+        const resp = await axios
+            .delete(`/api/roomgroups/${id}`)
+            .catch((resp) => resp);
+
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
         }
-        
+
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -36,18 +44,20 @@ export async function DeleteRoomGroup(id) {
 
 export async function DeleteRoomGroupByRoomId(data) {
     try {
-        const resp = await axios.delete( `/api/roomgroups`, {data:data});
-        
+        const resp = await axios
+            .delete(`/api/roomgroups`, { data: data })
+            .catch((resp) => resp);
+
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
         }
-        
+
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
-        
+
         return true;
     } catch (err) {
         return false;

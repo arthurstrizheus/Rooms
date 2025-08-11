@@ -1,15 +1,21 @@
 import axios from "axios";
-import { handleApiResponseError, showError, showSuccess } from "../ApiFunctions";
+import {
+    handleApiResponseError,
+    showError,
+    showSuccess,
+} from "../ApiFunctions";
 
 export async function PostGroup(data) {
     try {
-        const resp = await axios.post('/api/groups',data);
+        const resp = await axios
+            .post("/api/groups", data)
+            .catch((resp) => resp);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
-            return null;  
+            return null;
         }
-        showSuccess('Group created');
+        showSuccess("Group created");
         return resp.data;
     } catch (err) {
         return null;
@@ -18,19 +24,21 @@ export async function PostGroup(data) {
 
 export async function DeleteGroup(id) {
     try {
-        const resp = await axios.delete( `/api/groups/${id}`);
-        
+        const resp = await axios
+            .delete(`/api/groups/${id}`)
+            .catch((resp) => resp);
+
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess('Group deleted');
+            showSuccess("Group deleted");
             return true; // Indicate success
         }
-        
+
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
-        showSuccess('Group deleted');
+        showSuccess("Group deleted");
         return true;
     } catch (err) {
         return false;

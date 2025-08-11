@@ -4,6 +4,7 @@ const ActiveDirectory = require("activedirectory2");
 const ldapConfig = require("../ldapConfig");
 const ad = new ActiveDirectory(ldapConfig);
 const util = require("util");
+const jwt = require("jsonwebtoken");
 
 // Promisify the callback-based functions
 const findUserAsync = util.promisify(ad.findUser.bind(ad));
@@ -12,463 +13,577 @@ const authenticateAsync = util.promisify(ad.authenticate.bind(ad));
 const saltRounds = 10;
 
 async function hashPassword(plainPassword) {
-  try {
-    const hash = await bcrypt.hash(plainPassword, saltRounds);
-    // Store the hash in your database
-    return hash;
-  } catch (error) {
-    console.error("Error hashing password:", error);
-    throw error;
-  }
+    try {
+        const hash = await bcrypt.hash(plainPassword, saltRounds);
+        // Store the hash in your database
+        return hash;
+    } catch (error) {
+        console.error("Error hashing password:", error);
+        throw error;
+    }
 }
 
 async function verifyPassword(plainPassword, hash) {
-  try {
-    const isMatch = await bcrypt.compare(plainPassword, hash);
-    return isMatch;
-  } catch (error) {
-    console.error("Error verifying password:", error);
-    throw error;
-  }
+    try {
+        const isMatch = await bcrypt.compare(plainPassword, hash);
+        return isMatch;
+    } catch (error) {
+        console.error("Error verifying password:", error);
+        throw error;
+    }
 }
 
 const GetAll = async (req, res) => {
-  try {
-    const data = await User.findAll();
-    const noPass = data?.map((usr) => {
-      const userObj = usr.get({ plain: true }); // Convert Sequelize instance to plain object
-      return { ...userObj, password: undefined }; // Remove the password
-    });
-    res.json(noPass); // Send the users without the password field
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    res.status(500).send("Server error");
-  }
+    try {
+        let data = [];
+        if (req.user?.admin || req.user?.office_admin > 0) {
+            data = await User.findAll();
+        }
+        const noPass = data?.map((usr) => {
+            const userObj = usr.get({ plain: true }); // Convert Sequelize instance to plain object
+            return { ...userObj, password: undefined }; // Remove the password
+        });
+        res.json(noPass); // Send the users without the password field
+    } catch (err) {
+        console.error("Error fetching users:", err);
+        res.status(500).send("Server error");
+    }
 };
 
 const Post = async (req, res) => {
-  try {
-    // Extract data from the request body
-    const {
-      email,
-      password,
-      admin,
-      first_name,
-      last_name,
-      location,
-      last_login,
-      created_user_id,
-      active,
-    } = req.body;
-
-    // Validate the incoming data (optional but recommended)
-    if (!email || !password || !first_name || !last_name) {
-      return res.status(400).json({
-        message:
-          "email, password, first_name, last_name, last_login, and created_user_id are required",
-      });
-    }
-    const usr = await User.findOne({ where: { email: email } });
-    if (usr) {
-      return res
-        .status(409)
-        .json({ message: "User with this email already exists" });
-    }
-    let passHash = "";
     try {
-      passHash = await hashPassword(password);
-    } catch {
-      console.error("Error creating resource:", err);
-      res.status(500).json({ message: "Server error" });
+        // Extract data from the request body
+        const {
+            email,
+            password,
+            admin,
+            first_name,
+            last_name,
+            location,
+            last_login,
+            created_user_id,
+            office_admin,
+            active,
+        } = req.body;
+
+        // Validate the incoming data
+        if (!email || !password || !first_name || !last_name) {
+            return res.status(400).json({
+                message:
+                    "email, password, first_name, last_name, last_login, and created_user_id are required",
+            });
+        }
+        if (admin && !req.user?.admin) {
+            return res.status(403).json({
+                message: "Admin privileges required to add user as an admin",
+            });
+        }
+        const usr = await User.findOne({ where: { email: email } });
+        if (usr) {
+            return res
+                .status(409)
+                .json({ message: "User with this email already exists" });
+        }
+        let passHash = "";
+        try {
+            passHash = await hashPassword(password);
+        } catch (err) {
+            console.error("Error creating resource:", err);
+            return res
+                .status(500)
+                .json({ message: "Server error", error: err });
+        }
+
+        // Create a new resource record in the database
+        const newResource = await User.create({
+            email,
+            password: passHash,
+            admin,
+            first_name,
+            last_name,
+            active,
+            office_admin: office_admin || null,
+            location: location ? location : 0,
+            last_login: created_user_id ? null : new Date().toISOString(),
+            created_user_id: created_user_id ? created_user_id : null,
+        });
+
+        await GroupUser.create({
+            user_id: newResource.id,
+            group_id: 12,
+        });
+
+        await GroupUser.create({
+            user_id: newResource.id,
+            group_id: 13,
+        });
+
+        const userWithoutPassword = {
+            ...newResource.get(),
+            password: undefined,
+        };
+        // Return the created record as a JSON response
+        res.status(201).json(userWithoutPassword);
+    } catch (err) {
+        console.error("Error creating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Create a new resource record in the database
-    const newResource = await User.create({
-      email,
-      password: passHash,
-      admin,
-      first_name,
-      last_name,
-      active,
-      location: location ? location : 0,
-      last_login: created_user_id ? null : new Date().toISOString(),
-      created_user_id: created_user_id ? created_user_id : null,
-    });
-
-    await GroupUser.create({
-      user_id: newResource.id,
-      group_id: 12,
-    });
-
-    await GroupUser.create({
-      user_id: newResource.id,
-      group_id: 13,
-    });
-
-    const userWithoutPassword = { ...newResource.get(), password: undefined };
-    // Return the created record as a JSON response
-    res.status(201).json(userWithoutPassword);
-  } catch (err) {
-    console.error("Error creating resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 const Update = async (req, res) => {
-  try {
-    const { id } = req.params; // Extract ID from URL parameters
-    const { email, admin, first_name, last_name, location } = req.body; // Extract data from the request body
+    try {
+        const { id } = req.params; // Extract ID from URL parameters
+        const { email, admin, first_name, last_name, location, office_admin } =
+            req.body; // Extract data from the request body
 
-    // Validate the incoming data (optional but recommended)
-    if (!email || !first_name || !last_name) {
-      return res
-        .status(400)
-        .json({ message: "email, first_name, and last_name are required" });
+        // Validate the incoming data (optional but recommended)
+        if (!email || !first_name || !last_name) {
+            return res.status(400).json({
+                message: "email, first_name, and last_name are required",
+            });
+        }
+
+        // Find the existing resource by ID
+        const resource = await User.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+            return res
+                .status(403)
+                .json({ message: "Cannot modify users from another office." });
+        }
+        if (admin && !req.user?.admin) {
+            return res.status(403).json({
+                message:
+                    "Admin privileges required to add or modify user that is an admin",
+            });
+        }
+
+        // Update the resource record in the database
+        await resource.update({
+            email,
+            admin,
+            first_name,
+            last_name,
+            location: location ? location : 0,
+            office_admin: office_admin || null,
+        });
+
+        // Return the updated record as a JSON response
+        res.status(200).json(resource);
+    } catch (err) {
+        console.error("Error updating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Find the existing resource by ID
-    const resource = await User.findByPk(id);
-    if (!resource) {
-      return res.status(404).json({ message: "Resource not found" });
-    }
-
-    // Update the resource record in the database
-    await resource.update({
-      email,
-      admin,
-      first_name,
-      last_name,
-      location: location ? location : 0,
-    });
-
-    // Return the updated record as a JSON response
-    res.status(200).json(resource);
-  } catch (err) {
-    console.error("Error updating resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 const UpdateDetails = async (req, res) => {
-  try {
-    const { id } = req.params; // Extract ID from URL parameters
-    const { first_name, last_name, location } = req.body; // Extract data from the request body
+    try {
+        const { id } = req.params; // Extract ID from URL parameters
+        const { first_name, last_name, location } = req.body; // Extract data from the request body
 
-    // Validate the incoming data (optional but recommended)
-    if (!first_name || !last_name) {
-      return res
-        .status(400)
-        .json({ message: "first_name, and last_name are required" });
+        // Validate the incoming data (optional but recommended)
+        if (!first_name || !last_name) {
+            return res
+                .status(400)
+                .json({ message: "first_name, and last_name are required" });
+        }
+
+        // Find the existing resource by ID
+        const resource = await User.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+
+        // Update the resource record in the database
+        await resource.update({
+            first_name,
+            last_name,
+            location: location ? location : 0,
+        });
+
+        // Return the updated record as a JSON response
+        res.status(200).json(resource);
+    } catch (err) {
+        console.error("Error updating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Find the existing resource by ID
-    const resource = await User.findByPk(id);
-    if (!resource) {
-      return res.status(404).json({ message: "Resource not found" });
-    }
-
-    // Update the resource record in the database
-    await resource.update({
-      first_name,
-      last_name,
-      location: location ? location : 0,
-    });
-
-    // Return the updated record as a JSON response
-    res.status(200).json(resource);
-  } catch (err) {
-    console.error("Error updating resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 const UpdatePassword = async (req, res) => {
-  try {
-    const { id } = req.params; // Extract ID from URL parameters
-    const { password } = req.body; // Extract data from the request body
-
-    // Validate the incoming data (optional but recommended)
-    if (!password) {
-      return res.status(400).json({ message: "password is required" });
-    }
-
-    let passHash = "";
     try {
-      passHash = await hashPassword(password);
-    } catch {
-      console.error("Error creating resource:", err);
-      res.status(500).json({ message: "Server error" });
+        const { id } = req.params; // Extract ID from URL parameters
+        const { password } = req.body; // Extract data from the request body
+
+        // Validate the incoming data (optional but recommended)
+        if (!password) {
+            return res.status(400).json({ message: "password is required" });
+        }
+
+        let passHash = "";
+        try {
+            passHash = await hashPassword(password);
+        } catch {
+            console.error("Error creating resource:", err);
+            res.status(500).json({ message: "Server error" });
+        }
+
+        // Find the existing resource by ID
+        const resource = await User.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+
+        // Update the resource record in the database
+        await resource.update({
+            password: passHash,
+        });
+
+        // Return the updated record as a JSON response
+        res.status(200).json(resource);
+    } catch (err) {
+        console.error("Error updating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Find the existing resource by ID
-    const resource = await User.findByPk(id);
-    if (!resource) {
-      return res.status(404).json({ message: "Resource not found" });
-    }
-
-    // Update the resource record in the database
-    await resource.update({
-      password: passHash,
-    });
-
-    // Return the updated record as a JSON response
-    res.status(200).json(resource);
-  } catch (err) {
-    console.error("Error updating resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 const Delete = async (req, res) => {
-  try {
-    const { id } = req.params; // Extract ID from URL parameters
+    try {
+        const { id } = req.params; // Extract ID from URL parameters
 
-    // Find the existing resource by ID
-    const resource = await User.findByPk(id);
-    if (!resource) {
-      return res.status(404).json({ message: "Resource not found" });
+        // Find the existing resource by ID
+        const resource = await User.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+            return res
+                .status(403)
+                .json({ message: "Cannot modify users from another office." });
+        }
+        if (resource.admin && !req.user?.admin) {
+            return res.status(403).json({
+                message:
+                    "Admin privileges required to remove user that is an admin",
+            });
+        }
+
+        // Delete the resource record from the database
+        await resource.destroy();
+
+        // Return a success message
+        res.status(200).json({ message: "Resource deleted successfully" });
+    } catch (err) {
+        console.error("Error deleting resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Delete the resource record from the database
-    await resource.destroy();
-
-    // Return a success message
-    res.status(200).json({ message: "Resource deleted successfully" });
-  } catch (err) {
-    console.error("Error deleting resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 const Authenticate = async (req, res) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  try {
-    // Check if the user exists
-    const user = await User.findOne({ where: { email: email } });
+    try {
+        // Check if the user exists
+        const user = await User.findOne({ where: { email: email } });
 
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password." });
+        if (!user) {
+            return res
+                .status(401)
+                .json({ message: "Invalid email or password." });
+        }
+
+        // Compare the provided password with the stored hashed password
+        const isPasswordValid = await verifyPassword(password, user.password);
+
+        if (!isPasswordValid) {
+            return res
+                .status(401)
+                .json({ message: "Invalid email or password." });
+        } else if (!user.active) {
+            return res
+                .status(401)
+                .json({ message: "Account has been deactivated." });
+        }
+
+        await user.update({
+            last_login: new Date().toISOString(),
+        });
+
+        // Generate JWT token
+        const token = jwt.sign(
+            {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "24h" }
+        );
+
+        // Authentication successful, return the user object and token
+        const userWithoutPassword = { ...user.get(), password: undefined };
+        return res.status(200).json({
+            user: userWithoutPassword,
+            token: token,
+        });
+    } catch (error) {
+        console.error("Error during authentication:", error);
+        return res.status(500).json({ message: "Internal server error." });
     }
-
-    // Compare the provided password with the stored hashed password
-    const isPasswordValid = await verifyPassword(password, user.password);
-
-    if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid email or password." });
-    } else if (!user.active) {
-      return res.status(401).json({ message: "Account has been deactivated." });
-    }
-    await user.update({
-      last_login: new Date().toISOString(),
-    });
-    // Authentication successful, return the user object (omit password)
-    const userWithoutPassword = { ...user.get(), password: undefined };
-    return res.status(200).json(userWithoutPassword);
-  } catch (error) {
-    console.error("Error during authentication:", error);
-    return res.status(500).json({ message: "Internal server error." });
-  }
 };
 
 const userExistsInAd = async (req, res) => {
-  const { username } = req.body;
-
-  try {
-    // Validate input
-    if (!username) {
-      return res.status(400).json({ message: "Username required." });
-    }
-    let cleanUsername = username;
-    if (username.includes("@")) {
-      cleanUsername = username.split("@")[0];
-    }
-    // Find user in AD
-    let user;
     try {
-      user = await User.findOne({ where: { username: cleanUsername } });
-    } catch (err) {
-      console.error("Error finding user:", err);
-      return res.status(500).json({
-        message: "Failed to retrieve user information.",
-        data: err,
-      });
-    }
+        const { username } = req.body;
 
-    if (!user) {
-      return res.status(200).json(false);
-    } else {
-      return res.status(200).json(true);
+        if (!username) {
+            return res.status(400).json({
+                message: "Username is required",
+                exists: false,
+            });
+        }
+
+        // Your AD check logic here
+        // This should return true/false based on whether user exists in AD
+        const exists = await checkUserInAD(username); // Replace with your actual AD check function
+
+        res.json({ exists });
+    } catch (error) {
+        console.error("Error checking user in AD:", error);
+        res.status(500).json({
+            message: "Server error",
+            exists: false,
+        });
     }
-  } catch (error) {
-    console.error("Error during authentication:", error);
-    return res
-      .status(500)
-      .json({ message: "Internal server error.", data: error });
-  }
 };
 
 const AuthenticateAD = async (req, res) => {
-  const { email: username, password, location } = req.body;
+    const { email: username, password, location } = req.body;
 
-  try {
-    // Validate input
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ message: "Username and password are required." });
-    }
-    let cleanUsername = username;
-    if (username.includes("@")) {
-      cleanUsername = username.split("@")[0];
-    }
-    // Find user in AD
-    let user;
     try {
-      user = await findUserAsync(cleanUsername);
-    } catch (err) {
-      console.error("Error finding user:", err);
-      return res.status(500).json({
-        message: "Failed to retrieve user information.",
-        data: err,
-      });
-    }
+        // Validate input
+        if (!username || !password) {
+            return res
+                .status(400)
+                .json({ message: "Username and password are required." });
+        }
+        let cleanUsername = username;
+        if (username.includes("@")) {
+            cleanUsername = username.split("@")[0];
+        }
+        // Find user in AD
+        let user;
+        try {
+            user = await findUserAsync(cleanUsername);
+        } catch (err) {
+            console.error("Error finding user:", err);
+            return res.status(500).json({
+                message: "Failed to retrieve user information.",
+                data: err,
+            });
+        }
 
-    if (!user) {
-      return res
-        .status(401)
-        .json({ message: "User not found in S-E-A directory." });
-    }
+        if (!user) {
+            return res
+                .status(401)
+                .json({ message: "User not found in S-E-A directory." });
+        }
 
-    // Authenticate user
-    let auth;
+        // Authenticate user
+        let auth;
+        try {
+            auth = await authenticateAsync(
+                `${cleanUsername}@sealimited`,
+                password
+            );
+        } catch (err) {
+            console.error("Authentication error:", err);
+            return res.status(500).json({
+                message: "Failed to authenticate user in AD.",
+                data: err,
+            });
+        }
+
+        if (!auth) {
+            return res.status(401).json({ message: "Authentication failed." });
+        }
+        console.log(`User ${user?.displayName} authenticated in AD.`);
+
+        const [exUser, created] = await User.findOrCreate({
+            where: { username: cleanUsername }, // Use Auth0 user ID as unique identifier
+            defaults: {
+                username: cleanUsername,
+                email: `${cleanUsername}@sealimited.com`,
+                admin: false,
+                password: "",
+                first_name: user.givenName,
+                last_name: user.sn,
+                last_login: new Date().toISOString(),
+                created_user_id: null,
+                active: true,
+                location: location,
+            },
+        });
+
+        if (exUser) {
+            const userWithoutPassword = {
+                ...exUser.get(),
+                password: undefined,
+            };
+            const ids = await GroupUser.findAll({
+                where: { user_id: userWithoutPassword.id },
+            });
+            if (!ids?.length) {
+                await GroupUser.create({
+                    user_id: userWithoutPassword.id,
+                    group_id: 12,
+                });
+                await GroupUser.create({
+                    user_id: userWithoutPassword.id,
+                    group_id: 13,
+                });
+            }
+
+            // Generate JWT token
+            const token = jwt.sign(
+                {
+                    id: userWithoutPassword.id,
+                    email: userWithoutPassword.email,
+                    username: userWithoutPassword.username,
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: "24h" }
+            );
+
+            return res.status(200).json({
+                user: userWithoutPassword,
+                token: token,
+            });
+        } else if (created) {
+            const userWithoutPassword = {
+                ...created.get(),
+                password: undefined,
+            };
+            // Add user to All Group
+            await GroupUser.create({
+                user_id: userWithoutPassword.id,
+                group_id: 12,
+            });
+            await GroupUser.create({
+                user_id: userWithoutPassword.id,
+                group_id: 13,
+            });
+
+            // Generate JWT token
+            const token = jwt.sign(
+                {
+                    id: userWithoutPassword.id,
+                    email: userWithoutPassword.email,
+                    username: userWithoutPassword.username,
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: "24h" }
+            );
+
+            return res.status(200).json({
+                user: userWithoutPassword,
+                token: token,
+            });
+        } else {
+            return res
+                .status(401)
+                .json({ message: "User not found in the database." });
+        }
+    } catch (error) {
+        console.error("Error during authentication:", error);
+        return res
+            .status(500)
+            .json({ message: "Internal server error.", data: error });
+    }
+};
+
+// Add the missing checkUserInAD function
+const checkUserInAD = async (username) => {
     try {
-      auth = await authenticateAsync(`${cleanUsername}@sealimited`, password);
-    } catch (err) {
-      console.error("Authentication error:", err);
-      return res.status(500).json({
-        message: "Failed to authenticate user in AD.",
-        data: err,
-      });
-    }
+        let cleanUsername = username;
+        if (username.includes("@")) {
+            cleanUsername = username.split("@")[0];
+        }
 
-    if (!auth) {
-      return res.status(401).json({ message: "Authentication failed." });
+        const user = await findUserAsync(cleanUsername);
+        return !!user; // Return true if user exists, false otherwise
+    } catch (error) {
+        console.error("Error checking user in AD:", error);
+        return false;
     }
-    console.log(`User ${user?.displayName} authenticated in AD.`);
-
-    const [exUser, created] = await User.findOrCreate({
-      where: { username: cleanUsername }, // Use Auth0 user ID as unique identifier
-      defaults: {
-        username: cleanUsername,
-        email: `${cleanUsername}@sealimited.com`,
-        admin: false,
-        password: "",
-        first_name: user.givenName,
-        last_name: user.sn,
-        last_login: new Date().toISOString(),
-        created_user_id: null,
-        active: true,
-        location: location,
-      },
-    });
-
-    if (exUser) {
-      const userWithoutPassword = { ...exUser.get(), password: undefined };
-      const ids = await GroupUser.findAll({
-        where: { user_id: userWithoutPassword.id },
-      });
-      if (!ids?.length) {
-        await GroupUser.create({
-          user_id: userWithoutPassword.id,
-          group_id: 12,
-        });
-        await GroupUser.create({
-          user_id: userWithoutPassword.id,
-          group_id: 13,
-        });
-      }
-      return res.status(200).json(userWithoutPassword);
-    } else if (created) {
-      const userWithoutPassword = { ...created.get(), password: undefined };
-      // Add user to All Group
-      await GroupUser.create({
-        user_id: userWithoutPassword.id,
-        group_id: 12,
-      });
-      await GroupUser.create({
-        user_id: userWithoutPassword.id,
-        group_id: 13,
-      });
-      return res.status(200).json(userWithoutPassword);
-    } else {
-      return res
-        .status(401)
-        .json({ message: "User not found in the database." });
-    }
-  } catch (error) {
-    console.error("Error during authentication:", error);
-    return res
-      .status(500)
-      .json({ message: "Internal server error.", data: error });
-  }
 };
 
 const Deactivate = async (req, res) => {
-  try {
-    const { id } = req.params; // Extract ID from URL parameters
-    // Find the existing resource by ID
-    const resource = await User.findByPk(id);
-    if (!resource) {
-      return res.status(404).json({ message: "Resource not found" });
+    try {
+        const { id } = req.params; // Extract ID from URL parameters
+        // Find the existing resource by ID
+        const resource = await User.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+            return res
+                .status(403)
+                .json({ message: "Cannot modify users from another office." });
+        }
+
+        // Update the resource record in the database
+        await resource.update({
+            active: false,
+        });
+
+        // Return the updated record as a JSON response
+        res.status(200).json(resource);
+    } catch (err) {
+        console.error("Error updating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Update the resource record in the database
-    await resource.update({
-      active: false,
-    });
-
-    // Return the updated record as a JSON response
-    res.status(200).json(resource);
-  } catch (err) {
-    console.error("Error updating resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 const Activate = async (req, res) => {
-  try {
-    const { id } = req.params; // Extract ID from URL parameters
+    try {
+        const { id } = req.params; // Extract ID from URL parameters
 
-    // Find the existing resource by ID
-    const resource = await User.findByPk(id);
-    if (!resource) {
-      return res.status(404).json({ message: "Resource not found" });
+        // Find the existing resource by ID
+        const resource = await User.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+            return res
+                .status(403)
+                .json({ message: "Cannot modify users from another office." });
+        }
+
+        // Update the resource record in the database
+        await resource.update({
+            active: true,
+        });
+
+        // Return the updated record as a JSON response
+        res.status(200).json(resource);
+    } catch (err) {
+        console.error("Error updating resource:", err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    // Update the resource record in the database
-    await resource.update({
-      active: true,
-    });
-
-    // Return the updated record as a JSON response
-    res.status(200).json(resource);
-  } catch (err) {
-    console.error("Error updating resource:", err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 module.exports = {
-  GetAll,
-  Post,
-  Update,
-  Delete,
-  Authenticate,
-  Deactivate,
-  Activate,
-  UpdateDetails,
-  UpdatePassword,
-  AuthenticateAD,
-  userExistsInAd,
+    GetAll,
+    Post,
+    Update,
+    Delete,
+    Authenticate,
+    Deactivate,
+    Activate,
+    UpdateDetails,
+    UpdatePassword,
+    AuthenticateAD,
+    userExistsInAd,
 };

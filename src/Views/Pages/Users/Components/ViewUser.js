@@ -1,93 +1,262 @@
-import { darkenHexColorWithAplha, hexToRgba } from "../../../../Utilites/Functions/ColorFunctions";
+import {
+    darkenHexColorWithAplha,
+    hexToRgba,
+} from "../../../../Utilites/Functions/ColorFunctions";
 import { useTheme } from "@emotion/react";
 import { useAuth } from "../../../../Utilites/AuthContext";
-import {Grid, Stack, Typography, Button, Tooltip, Chip } from "@mui/material";
-import EventBusyIcon from '@mui/icons-material/EventBusyOutlined';
+import { Grid, Stack, Typography, Button, Tooltip, Chip } from "@mui/material";
+import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
 import React from "react";
 
 const rowItem = (name, value, color) => {
-    return(
+    return (
         <Grid container direction="row" wrap="wrap">
             <Grid item xs={4}>
-                <Typography 
-                    color={color} 
-                    variant="body2" 
-                    whiteSpace="nowrap"  // Prevents text from breaking onto the next line within its box
-                    overflow="hidden"    // Ensures any overflow is hidden
+                <Typography
+                    color={color}
+                    variant="body2"
+                    whiteSpace="nowrap" // Prevents text from breaking onto the next line within its box
+                    overflow="hidden" // Ensures any overflow is hidden
                     textOverflow="ellipsis" // Adds ellipsis if the text is too long
                 >
                     {name}
                 </Typography>
             </Grid>
-            <Grid item xs={8} display={'flex'}>
-                <Typography 
-                    variant="body2" 
-                    textAlign="left" 
-                    overflow="hidden" 
+            <Grid item xs={8} display={"flex"}>
+                <Typography
+                    variant="body2"
+                    textAlign="left"
+                    overflow="hidden"
                     textOverflow="ellipsis"
-                    whiteSpace="wrap" 
+                    whiteSpace="wrap"
                 >
                     {value}
                 </Typography>
             </Grid>
-        </Grid> 
+        </Grid>
     );
-}
+};
 
-const ViewUser = ({location, row, rowUser, setOpen}) => {
+const ViewUser = ({ location, row, rowUser, setOpen }) => {
     const theme = useTheme();
-    const {user} = useAuth();
-    return(
+    const { user } = useAuth();
+    return (
         <React.Fragment>
-            {rowUser && location && row &&
-            <Grid sx={{ height:'fit-content', padding:'10px', background: theme.palette.background.fill.light.lightHover}} >
-                <Stack direction={'row'} sx={{ padding:'10px', display:'flex'}} justifyContent={'space-around'}>
-                    <Grid sx={{background:'white', borderRadius:'10px', minWidth:'550px', overflow:'hidden', display:'flex'}}>
-                        <Typography variant="h6" paddingLeft={'10px'} sx={{display:'flex', flexDirection:'column', justifyContent:'space-between', background:`linear-gradient(135deg, rgba(${hexToRgba(theme.palette.background.fill.light.light, .5)}) 0%, rgba(${darkenHexColorWithAplha(theme.palette.background.fill.light.light, 60, .5)}) 100%)`}}>
-                            User Details
-                            {user?.admin &&
-                            <Button variant="outlined" onClick={() => setOpen(rowUser, location)} sx={{display:'flex', alignSelf:'start', marginBottom:'5px', textTransform: 'none', ':hover':{backgroundColor:'rgba(255, 187, 0, .1)'}}} startIcon={<EventBusyIcon sx={{color:'orange'}}/>}>
-                                Edit
-                            </Button>
-                            }
-                        </Typography>
-                        <Stack width={'100%'} direction={'column'} sx={{marginTop:'10px', paddingLeft:'20px', paddingBottom:'5px'}} spacing={2}>
-                            {rowItem('Name', row.name, theme.palette.primary.text.dark)}
-                            {rowItem('Email', row.email, theme.palette.primary.text.dark)}
-                            {rowItem('Admin', row.admin ? 'True' : 'False', theme.palette.primary.text.dark)}
-                            {rowItem('Last Login', new Date(rowUser?.last_login).toLocaleDateString('en-US', {hour:'numeric', minute:'numeric', weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }), theme.palette.primary.text.dark)}
-                            {rowItem('Groups', row.groups.length == 0 ? 'None' : 
-                                row.groups?.map((gp, index) => (
-                                    <Tooltip 
-                                        key={index}
-                                        arrow
-                                        title={
-                                            <Typography variant="body2">
-                                                {`${gp.access} Access`}
-                                            </Typography>
-                                        } 
+            {rowUser && location && row && (
+                <Grid
+                    sx={{
+                        height: "fit-content",
+                        padding: "10px",
+                        background:
+                            theme.palette.background.fill.light.lightHover,
+                    }}
+                >
+                    <Stack
+                        direction={"row"}
+                        sx={{ padding: "10px", display: "flex" }}
+                        justifyContent={"space-around"}
+                    >
+                        <Grid
+                            sx={{
+                                background: "white",
+                                borderRadius: "10px",
+                                minWidth: "550px",
+                                overflow: "hidden",
+                                display: "flex",
+                            }}
+                        >
+                            <Typography
+                                variant="h6"
+                                paddingLeft={"10px"}
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "space-between",
+                                    background: `linear-gradient(135deg, rgba(${hexToRgba(
+                                        theme.palette.background.fill.light
+                                            .light,
+                                        0.5
+                                    )}) 0%, rgba(${darkenHexColorWithAplha(
+                                        theme.palette.background.fill.light
+                                            .light,
+                                        60,
+                                        0.5
+                                    )}) 100%)`,
+                                }}
+                            >
+                                User Details
+                                {(user?.admin ||
+                                    user?.office_admin ==
+                                        location?.officeid) && (
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() =>
+                                            setOpen(rowUser, location)
+                                        }
+                                        sx={{
+                                            display: "flex",
+                                            alignSelf: "start",
+                                            marginBottom: "5px",
+                                            textTransform: "none",
+                                            ":hover": {
+                                                backgroundColor:
+                                                    "rgba(255, 187, 0, .1)",
+                                            },
+                                        }}
+                                        startIcon={
+                                            <EventBusyIcon
+                                                sx={{ color: "orange" }}
+                                            />
+                                        }
                                     >
-                                        <Chip sx={{cursor:'pointer', marginLeft:'2px', marginTop:'2px'}} label={gp.group_name} />
-                                    </Tooltip>
-                                ))
-                                , theme.palette.primary.text.dark)}
-                        </Stack>
-                    </Grid>
-                    <Grid sx={{ display:'flex', background:'white', borderRadius:'10px', minWidth:'550px', overflow:'hidden'}}>
-                        <Typography variant="h6" paddingLeft={'10px'} sx={{background:`linear-gradient(135deg, rgba(${hexToRgba(theme.palette.background.fill.light.light, .5)}) 0%, rgba(${darkenHexColorWithAplha(theme.palette.background.fill.light.light, 60, .5)}) 100%)`}}>User Location</Typography>
-                        <Stack width={'100%'} direction={'column'} sx={{marginTop:'10px', paddingLeft:'20px', paddingBottom:'5px'}} spacing={2}>
-                            {rowItem('Alias', location.Alias, theme.palette.primary.text.dark)}  
-                            {rowItem('Number', location.Number, theme.palette.primary.text.dark)}
-                            {rowItem('City', location.City, theme.palette.primary.text.dark)}
-                            {rowItem('State', location.state, theme.palette.primary.text.dark)}
-                            {rowItem('Zip', location.Zip, theme.palette.primary.text.dark)}
-                            {rowItem('Address', location.SAddress, theme.palette.primary.text.dark)}
-                            {rowItem('Airport', location.Airport, theme.palette.primary.text.dark)}
-                        </Stack>
-                    </Grid>
-                </Stack>
-            </Grid>
-            }
+                                        Edit
+                                    </Button>
+                                )}
+                            </Typography>
+                            <Stack
+                                width={"100%"}
+                                direction={"column"}
+                                sx={{
+                                    marginTop: "10px",
+                                    paddingLeft: "20px",
+                                    paddingBottom: "5px",
+                                }}
+                                spacing={2}
+                            >
+                                {rowItem(
+                                    "Name",
+                                    row.name,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Email",
+                                    row.email,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Admin",
+                                    row.admin ? "True" : "False",
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Last Login",
+                                    new Date(
+                                        rowUser?.last_login
+                                    ).toLocaleDateString("en-US", {
+                                        hour: "numeric",
+                                        minute: "numeric",
+                                        weekday: "long",
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                    }),
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Groups",
+                                    row.groups.length == 0
+                                        ? "None"
+                                        : row.groups?.map((gp, index) => (
+                                              <Tooltip
+                                                  key={index}
+                                                  arrow
+                                                  title={
+                                                      <Typography variant="body2">
+                                                          {`${gp.access} Access`}
+                                                      </Typography>
+                                                  }
+                                              >
+                                                  <Chip
+                                                      sx={{
+                                                          cursor: "pointer",
+                                                          marginLeft: "2px",
+                                                          marginTop: "2px",
+                                                      }}
+                                                      label={gp.group_name}
+                                                  />
+                                              </Tooltip>
+                                          )),
+                                    theme.palette.primary.text.dark
+                                )}
+                            </Stack>
+                        </Grid>
+                        <Grid
+                            sx={{
+                                display: "flex",
+                                background: "white",
+                                borderRadius: "10px",
+                                minWidth: "550px",
+                                overflow: "hidden",
+                            }}
+                        >
+                            <Typography
+                                variant="h6"
+                                paddingLeft={"10px"}
+                                sx={{
+                                    background: `linear-gradient(135deg, rgba(${hexToRgba(
+                                        theme.palette.background.fill.light
+                                            .light,
+                                        0.5
+                                    )}) 0%, rgba(${darkenHexColorWithAplha(
+                                        theme.palette.background.fill.light
+                                            .light,
+                                        60,
+                                        0.5
+                                    )}) 100%)`,
+                                }}
+                            >
+                                User Location
+                            </Typography>
+                            <Stack
+                                width={"100%"}
+                                direction={"column"}
+                                sx={{
+                                    marginTop: "10px",
+                                    paddingLeft: "20px",
+                                    paddingBottom: "5px",
+                                }}
+                                spacing={2}
+                            >
+                                {rowItem(
+                                    "Alias",
+                                    location.Alias,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Number",
+                                    location.Number,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "City",
+                                    location.City,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "State",
+                                    location.state,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Zip",
+                                    location.Zip,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Address",
+                                    location.SAddress,
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Airport",
+                                    location.Airport,
+                                    theme.palette.primary.text.dark
+                                )}
+                            </Stack>
+                        </Grid>
+                    </Stack>
+                </Grid>
+            )}
         </React.Fragment>
     );
 };

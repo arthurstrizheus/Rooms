@@ -3,8 +3,11 @@ import { handleApiResponseError, showError } from "../ApiFunctions";
 
 export async function PostResource(resource) {
     try {
-        const resp = await axios.post('/api/resources',resource);
+        const resp = await axios
+            .post("/api/resources", resource)
+            .catch((resp) => resp);
         const errorCheck = handleApiResponseError(resp);
+        console.log(resp, errorCheck);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return null;
@@ -17,18 +20,20 @@ export async function PostResource(resource) {
 
 export async function DeleteResource(resource_id) {
     try {
-        const resp = await axios.delete( `/api/resources/${resource_id}`);
-        
+        const resp = await axios
+            .delete(`/api/resources/${resource_id}`)
+            .catch((resp) => resp);
+
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
         }
-        
+
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
-        
+
         return true;
     } catch (err) {
         return false;
@@ -37,7 +42,9 @@ export async function DeleteResource(resource_id) {
 
 export async function PostRoomResource(resource) {
     try {
-        const resp = await axios.post('/api/roomresources',resource);
+        const resp = await axios
+            .post("/api/roomresources", resource)
+            .catch((resp) => resp);
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -51,13 +58,16 @@ export async function PostRoomResource(resource) {
 
 export async function GetRoomResources(roomId) {
     try {
-        const resp = await axios.get( `/api/roomresources/${roomId}?_=${new Date().getTime()}`, {
-            headers: {
-                'Cache-Control': 'no-cache', // Prevent caching
-                Pragma: 'no-cache',
-                Expires: '0',
-            },
-        });
+        const resp = await axios.get(
+            `/api/roomresources/${roomId}?_=${new Date().getTime()}`,
+            {
+                headers: {
+                    "Cache-Control": "no-cache", // Prevent caching
+                    Pragma: "no-cache",
+                    Expires: "0",
+                },
+            }
+        );
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
@@ -71,18 +81,18 @@ export async function GetRoomResources(roomId) {
 
 export async function DeleteRoomResource(resource_id) {
     try {
-        const resp = await axios.delete( `/api/roomresources/${resource_id}`);
-        
+        const resp = await axios.delete(`/api/roomresources/${resource_id}`);
+
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
         }
-        
+
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
             return false;
         }
-        
+
         return true;
     } catch (err) {
         return false;
