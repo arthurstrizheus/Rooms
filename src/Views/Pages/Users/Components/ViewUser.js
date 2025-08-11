@@ -37,9 +37,10 @@ const rowItem = (name, value, color) => {
     );
 };
 
-const ViewUser = ({ location, row, rowUser, setOpen }) => {
+const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
     const theme = useTheme();
     const { user } = useAuth();
+    console.log(row);
     return (
         <React.Fragment>
             {rowUser && location && row && (
@@ -136,6 +137,19 @@ const ViewUser = ({ location, row, rowUser, setOpen }) => {
                                 {rowItem(
                                     "Admin",
                                     row.admin ? "True" : "False",
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Office Admin",
+                                    row.office_admin
+                                        ? `${
+                                              locations?.find(
+                                                  (lc) =>
+                                                      lc.officeid ==
+                                                      row?.office_admin
+                                              )?.Alias
+                                          }`
+                                        : "None",
                                     theme.palette.primary.text.dark
                                 )}
                                 {rowItem(

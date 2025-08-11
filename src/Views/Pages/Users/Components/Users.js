@@ -72,9 +72,20 @@ function createData(
     groups,
     active,
     last_login,
-    admin
+    admin,
+    office_admin
 ) {
-    return { id, name, email, location, groups, active, last_login, admin };
+    return {
+        id,
+        name,
+        email,
+        location,
+        groups,
+        active,
+        last_login,
+        admin,
+        office_admin,
+    };
 }
 
 function descendingComparator(a, b, orderBy) {
@@ -342,7 +353,8 @@ export default function Users({ setLoading }) {
                           year: "numeric",
                       })
                     : "Has not Logged In",
-                itm.admin
+                itm.admin,
+                itm.office_admin
             );
         });
 
@@ -662,6 +674,43 @@ export default function Users({ setLoading }) {
                                                         />
                                                     </Tooltip>
                                                 )}
+                                                {(`${row.office_admin}` ==
+                                                    filterLocation?.officeid ||
+                                                    (filterLocation?.officeid ==
+                                                        "0" &&
+                                                        row.office_admin)) && (
+                                                    <Tooltip
+                                                        key={"Office Admin"}
+                                                        arrow
+                                                        title={
+                                                            <Typography variant="body2">
+                                                                {`Admin Access For ${
+                                                                    locations?.find(
+                                                                        (lc) =>
+                                                                            lc.officeid ==
+                                                                            `${row.office_admin}`
+                                                                    )?.Alias
+                                                                }`}
+                                                            </Typography>
+                                                        }
+                                                    >
+                                                        <Chip
+                                                            sx={{
+                                                                cursor: "pointer",
+                                                                color: "white",
+                                                                backgroundColor:
+                                                                    "#d4a900",
+                                                                marginLeft:
+                                                                    "2px",
+                                                                marginTop:
+                                                                    "2px",
+                                                            }}
+                                                            label={
+                                                                "Office Admin"
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                )}
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
                                                 {row.active}
@@ -686,6 +735,9 @@ export default function Users({ setLoading }) {
                                                     <Box>
                                                         <ViewUser
                                                             row={row}
+                                                            locations={
+                                                                locations
+                                                            }
                                                             location={location}
                                                             groups={groups}
                                                             userGroups={
