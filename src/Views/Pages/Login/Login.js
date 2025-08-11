@@ -183,8 +183,8 @@ export default function Login({ setLoading, setDrawerOpen }) {
         () =>
             debounce((user) => {
                 UserExistsInAD({ username: user }).then((resp) => {
-                    setShowLocations(!resp);
-                    setShowPass(!resp);
+                    setShowLocations(!resp.accountCreated);
+                    setShowPass(!resp.exists && !resp.accountCreated);
                 });
             }, 1000),
         []
@@ -275,7 +275,9 @@ export default function Login({ setLoading, setDrawerOpen }) {
                                             UserExistsInAD({
                                                 username: email,
                                             }).then((resp) =>
-                                                setShowLocations(!resp)
+                                                setShowLocations(
+                                                    !resp.accountCreated
+                                                )
                                             )
                                         }
                                         autoFocus

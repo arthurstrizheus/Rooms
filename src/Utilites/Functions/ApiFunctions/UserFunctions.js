@@ -137,6 +137,7 @@ export async function AuthenticateUserAD(data) {
         };
     } catch (err) {
         console.error("Authentication error:", err);
+        showError("Authentication failed. Please try again.");
         return null;
     }
 }
@@ -152,10 +153,16 @@ export async function UserExistsInAD(data) {
         }
 
         console.log("✅ AD user check result:", resp.data.exists);
-        return resp.data.exists;
+        return {
+            exists: resp.data.exists,
+            accountCreated: resp.data.accountCreated,
+        };
     } catch (err) {
         console.error("AD user check error:", err);
-        return false;
+        return {
+            exists: false,
+            accountCreated: false,
+        };
     }
 }
 

@@ -2,9 +2,7 @@ const { Group, GroupUser } = require("../models");
 
 const GetAll = async (req, res) => {
     try {
-        const data = await Group.findAll({
-            where: { location: req.user.location },
-        });
+        const data = await Group.findAll();
         res.json(data);
     } catch (err) {
         console.error("Error fetching room groups:", err);
@@ -23,7 +21,11 @@ const Post = async (req, res) => {
                     "room_id, resource_id, and created_user_id are required",
             });
         }
-        if (req.user.location !== location) {
+        if (
+            req.user.location !== location &&
+            !req.user.admin &&
+            req.user.office_admin != location
+        ) {
             return res
                 .status(403)
                 .json({ message: "You cannot add groups to this office." });
@@ -56,10 +58,14 @@ const Update = async (req, res) => {
                 message: "value, color, and created_user_id are required",
             });
         }
-        if (req.user.location !== location) {
+        if (
+            req.user.location !== resource.location &&
+            !req.user.admin &&
+            req.user.office_admin != resource.location
+        ) {
             return res
                 .status(403)
-                .json({ message: "You cannot add groups to this office." });
+                .json({ message: "You cannot update groups in this office." });
         }
 
         // Find the existing resource by ID
@@ -127,12 +133,14 @@ const Delete = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user.location !== resource.location) {
-            return res
-                .status(403)
-                .json({
-                    message: "You cannot delete groups from this office.",
-                });
+        if (
+            req.user.location !== resource.location &&
+            !req.user.admin &&
+            req.user.office_admin != resource.location
+        ) {
+            return res.status(403).json({
+                message: "You cannot delete groups from this office.",
+            });
         }
 
         // Delete the resource record from the database

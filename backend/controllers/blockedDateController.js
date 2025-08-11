@@ -3,14 +3,19 @@ const { BlockedDate, Room } = require("../models");
 
 const GetAll = async (req, res) => {
     try {
-        const rooms = await Room.findAll({
-            where: { location: req.user.location },
-        });
-        const roomIds = rooms.map((room) => room.id);
-        const data = await BlockedDate.findAll({
-            where: { room_id: { [Sequelize.Op.in]: roomIds } },
-        });
-        res.json(data);
+        if (req?.user && req?.admin) {
+            const data = await BlockedDate.findAll();
+            res.json(data);
+        } else {
+            const rooms = await Room.findAll({
+                where: { location: req.user.location },
+            });
+            const roomIds = rooms.map((room) => room.id);
+            const data = await BlockedDate.findAll({
+                where: { room_id: { [Sequelize.Op.in]: roomIds } },
+            });
+            res.json(data);
+        }
     } catch (err) {
         console.error("Error fetching room groups:", err);
         res.status(500).send("Server error");

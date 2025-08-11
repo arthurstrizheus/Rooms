@@ -352,6 +352,7 @@ async function CreateRepeatingMeetings(
                         [Sequelize.Op.in]: recurrenceMeetingIds,
                     },
                     dev: false,
+                    location: user.location,
                 },
                 group: ["recurrence_id"],
             });
@@ -863,7 +864,7 @@ const GetAllUserCanSee = async (req, res) => {
 
         const groups = await Group.findAll({
             where: {
-                group_name: "All",
+                group_name: "All SEA Staff",
             },
         });
         let groupsIds = groups.map((gp) => gp.id);
@@ -877,6 +878,7 @@ const GetAllUserCanSee = async (req, res) => {
                     start_time: {
                         [Sequelize.Op.between]: [dateStart, dateEnd],
                     },
+                    location: user?.location,
                 },
                 include: [
                     {
@@ -912,7 +914,24 @@ const GetAllUserCanSee = async (req, res) => {
             if (fakeMeets?.length > 0) {
                 fakeMeets?.map((fm) => meets.push(fm));
             }
-            return res.status(200).json(meets);
+            // Also grab all meetings that have the group of all
+            const allGroups = await Group.findAll({
+                where: { group_name: "All SEA Staff" },
+            });
+            const allIds = allGroups.map((gp) => gp.id);
+            const allRoomGroups = await RoomGroup.findAll({
+                where: { group_id: { [Sequelize.Op.in]: allIds } },
+            });
+            const roomsWithAll = allRoomGroups.map((rg) => rg.room_id);
+            return res
+                .status(200)
+                .json(
+                    meets?.filter(
+                        (mt) =>
+                            mt.location == user?.office_admin ||
+                            roomsWithAll.includes(mt.room)
+                    )
+                );
         }
 
         // Fetch all groups the user belongs to
@@ -1013,7 +1032,9 @@ const GetAllNeedsApproval = async (req, res) => {
 
         // If user is admin return all meetings
         const user = await User.findByPk(id);
-        const Allgroups = await Group.findAll({ where: { group_name: "All" } });
+        const Allgroups = await Group.findAll({
+            where: { group_name: "All SEA Staff" },
+        });
         let groupsIds = Allgroups.map((gp) => gp.id);
         groupsIds.push(user.location);
         if (user?.admin) {

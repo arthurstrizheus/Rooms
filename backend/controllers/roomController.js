@@ -1,5 +1,5 @@
 const { Sequelize } = require("sequelize");
-const { Room, User, GroupUser, RoomGroup } = require("../models");
+const { Room, User, GroupUser, RoomGroup, Group } = require("../models");
 const path = require("path");
 const fs = require("fs");
 
@@ -26,16 +26,27 @@ const GetRoomsUserCanSee = async (req, res, next) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
+        const allGroups = await Group.findAll({
+            where: { group_name: "All SEA Staff" },
+        });
+        const allIds = allGroups.map((gp) => gp.id);
+        const allRoomGroups = await RoomGroup.findAll({
+            where: { group_id: { [Sequelize.Op.in]: allIds } },
+        });
+        const roomsWithAll = allRoomGroups.map((rg) => rg.room_id);
 
         if (user?.admin) {
-            const rooms = await Room.findAll({
-                where: { location: user.location },
-            });
+            const rooms = await Room.findAll();
             return res.status(200).json(rooms);
         }
         if (user?.office_admin) {
             const rooms = await Room.findAll({
-                where: { location: req.user?.office_admin },
+                where: {
+                    [Sequelize.Op.or]: [
+                        { location: user.office_admin },
+                        { id: { [Sequelize.Op.in]: roomsWithAll } },
+                    ],
+                },
             });
             return res.status(200).json(rooms);
         }
@@ -77,7 +88,7 @@ const Post = async (req, res, next) => {
                     "Required fields missing: value, color, created_user_id",
             });
         }
-        console.log(req.user?.office_admin, location, !req.user?.admin);
+
         if (req.user?.office_admin != location && !req.user?.admin) {
             return res.status(403).json({
                 message: "Cannot create room for another office.",

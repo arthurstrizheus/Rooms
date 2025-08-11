@@ -8,7 +8,7 @@ const {
 const router = express.Router();
 
 // Middleware to restrict access to dev users only
-const devOnlyMiddleware = (req, res, next) => {
+const adminOnlyMiddleware = (req, res, next) => {
     try {
         // Get user from auth middleware (assuming auth middleware sets req.user)
         const user = req.user;
@@ -19,23 +19,17 @@ const devOnlyMiddleware = (req, res, next) => {
                 message: "Authentication required",
             });
         }
-
-        // Get allowed dev IDs from environment variable
-        const devIds = process.env.DEV_IDS
-            ? process.env.DEV_IDS.split(",").map((id) => parseInt(id.trim()))
-            : [];
-
-        // Check if user ID is in the allowed dev IDs
-        if (!devIds.includes(user.id)) {
+        // Check if user is an admin
+        if (!user.admin) {
             return res.status(403).json({
                 success: false,
-                message: "Access denied. Developer access required.",
+                message: "Access denied. Admin access required.",
             });
         }
 
         next();
     } catch (error) {
-        console.error("❌ Error in dev middleware:", error);
+        console.error("❌ Error in admin middleware:", error);
         return res.status(500).json({
             success: false,
             message: "Server error during access check",
@@ -44,7 +38,7 @@ const devOnlyMiddleware = (req, res, next) => {
 };
 
 // Apply dev middleware to all routes
-router.use(devOnlyMiddleware);
+router.use(adminOnlyMiddleware);
 
 // Get all connected users
 router.get("/", getAllConnectedUsers);

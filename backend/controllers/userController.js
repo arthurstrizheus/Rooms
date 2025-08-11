@@ -348,12 +348,21 @@ const userExistsInAd = async (req, res) => {
         // This should return true/false based on whether user exists in AD
         const exists = await checkUserInAD(username); // Replace with your actual AD check function
 
-        res.json({ exists });
+        const userAcc = await User.findOne({
+            where: {
+                username: username.includes("@")
+                    ? username.split("@")[0]
+                    : username,
+            },
+        });
+
+        res.json({ exists, accountCreated: !!userAcc || !userAcc.location });
     } catch (error) {
         console.error("Error checking user in AD:", error);
         res.status(500).json({
             message: "Server error",
             exists: false,
+            accountCreated: false,
         });
     }
 };
@@ -383,10 +392,12 @@ const AuthenticateAD = async (req, res) => {
                 data: err,
             });
         }
+        if (!user.location) {
+        }
 
         if (!user) {
             return res
-                .status(401)
+                .status(400)
                 .json({ message: "User not found in S-E-A directory." });
         }
 
@@ -444,6 +455,11 @@ const AuthenticateAD = async (req, res) => {
                     group_id: 13,
                 });
             }
+            if (!exUser.location && location) {
+                await exUser.update({
+                    location: location,
+                });
+            }
 
             // Generate JWT token
             const token = jwt.sign(
@@ -461,6 +477,12 @@ const AuthenticateAD = async (req, res) => {
                 token: token,
             });
         } else if (created) {
+            if (!location) {
+                return res
+                    .status(400)
+                    .json({ message: "Location is required." });
+            }
+
             const userWithoutPassword = {
                 ...created.get(),
                 password: undefined,

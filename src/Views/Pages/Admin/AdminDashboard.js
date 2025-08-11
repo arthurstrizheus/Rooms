@@ -40,11 +40,9 @@ import {
 } from "@mui/icons-material";
 import {
     GetLocations,
-    GetUserGroups,
     RunMatterManagerMonthlyGroupReport,
     showError,
     showSuccess,
-    showWarning,
 } from "../../../Utilites/Functions/ApiFunctions";
 import {
     GetConnectedUsers,
@@ -75,7 +73,7 @@ const AdminDashboard = ({ setLoading }) => {
         const location = locations.find((loc) => loc.officeid == locationId);
         if (location) {
             return (
-                location.name ||
+                location.Alias ||
                 location.city ||
                 location.City ||
                 `Location ${locationId}`
@@ -102,9 +100,6 @@ const AdminDashboard = ({ setLoading }) => {
             const response = await GetConnectedUsers();
             if (response?.success) {
                 setConnectedUsers(response.users || []);
-                if (response.users?.length === 0) {
-                    showWarning("No users currently connected");
-                }
             } else {
                 showError("Failed to fetch connected users");
             }
@@ -192,7 +187,16 @@ const AdminDashboard = ({ setLoading }) => {
     }, []);
 
     useEffect(() => {
-        if (tabValue === 1) {
+        if (
+            (tabValue === 1 &&
+                process.env.REACT_APP_DEV_IDS.split(",").includes(
+                    `${user?.id}`
+                )) ||
+            (tabValue === 0 &&
+                !process.env.REACT_APP_DEV_IDS.split(",").includes(
+                    `${user?.id}`
+                ))
+        ) {
             // Admin Dashboard tab
             fetchConnectedUsers();
             fetchConnectionStats();
@@ -202,11 +206,20 @@ const AdminDashboard = ({ setLoading }) => {
     // Auto-refresh every 30 seconds when on admin dashboard
     useEffect(() => {
         let interval;
-        if (tabValue === 1) {
+        if (
+            (tabValue === 1 &&
+                process.env.REACT_APP_DEV_IDS.split(",").includes(
+                    `${user?.id}`
+                )) ||
+            (tabValue === 0 &&
+                !process.env.REACT_APP_DEV_IDS.split(",").includes(
+                    `${user?.id}`
+                ))
+        ) {
             interval = setInterval(() => {
                 fetchConnectedUsers();
                 fetchConnectionStats();
-            }, 60000);
+            }, 300000);
         }
         return () => {
             if (interval) clearInterval(interval);
@@ -323,7 +336,14 @@ const AdminDashboard = ({ setLoading }) => {
                 )}
 
             {/* Admin Dashboard Tab */}
-            {tabValue === 1 && (
+            {((tabValue === 1 &&
+                process.env.REACT_APP_DEV_IDS.split(",").includes(
+                    `${user?.id}`
+                )) ||
+                (tabValue === 0 &&
+                    !process.env.REACT_APP_DEV_IDS.split(",").includes(
+                        `${user?.id}`
+                    ))) && (
                 <>
                     {/* Header */}
                     <Grid item xs={12} sx={{ mt: 3 }}>
