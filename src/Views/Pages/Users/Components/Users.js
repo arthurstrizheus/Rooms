@@ -43,6 +43,7 @@ import {
     DeactivateUser,
     DeleteUser,
 } from "../../../../Utilites/Functions/ApiFunctions/UserFunctions";
+import DisplayGroups from "../../../Components/DisplayGroups";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -342,7 +343,7 @@ export default function Users({ setLoading }) {
                 itm.id,
                 `${itm.first_name} ${itm.last_name}`,
                 itm.email,
-                locations?.find((lc) => lc.officeid == itm.location).Alias,
+                locations?.find((lc) => lc.officeid == itm.location)?.Alias,
                 usersGroupsByName,
                 itm.active ? "True" : "False",
                 itm.last_login
@@ -385,6 +386,7 @@ export default function Users({ setLoading }) {
                 userGroups={groupUsers}
                 selectedUser={selectedUser}
                 setUpdate={setUpdate}
+                filterLocation={filterLocation}
             />
 
             {/* Header section with controls */}
@@ -623,32 +625,9 @@ export default function Users({ setLoading }) {
                                                 align="left"
                                                 display="flex"
                                             >
-                                                {row.groups?.map(
-                                                    (gp, index) => (
-                                                        <Tooltip
-                                                            key={index}
-                                                            arrow
-                                                            title={
-                                                                <Typography variant="body2">
-                                                                    {`${gp.access} Access`}
-                                                                </Typography>
-                                                            }
-                                                        >
-                                                            <Chip
-                                                                sx={{
-                                                                    cursor: "pointer",
-                                                                    marginLeft:
-                                                                        "2px",
-                                                                    marginTop:
-                                                                        "2px",
-                                                                }}
-                                                                label={
-                                                                    gp.group_name
-                                                                }
-                                                            />
-                                                        </Tooltip>
-                                                    )
-                                                )}
+                                                <DisplayGroups
+                                                    groups={row.groups}
+                                                />
                                                 {row.admin && (
                                                     <Tooltip
                                                         key={"Admin"}

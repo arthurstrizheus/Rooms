@@ -7,6 +7,7 @@ import { useAuth } from "../../../../Utilites/AuthContext";
 import { Grid, Stack, Typography, Button, Tooltip, Chip } from "@mui/material";
 import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
 import React from "react";
+import DisplayGroups from "../../../Components/DisplayGroups";
 
 const rowItem = (name, value, color) => {
     return (
@@ -40,7 +41,7 @@ const rowItem = (name, value, color) => {
 const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
     const theme = useTheme();
     const { user } = useAuth();
-    console.log(row);
+
     return (
         <React.Fragment>
             {rowUser && location && row && (
@@ -168,28 +169,11 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                 )}
                                 {rowItem(
                                     "Groups",
-                                    row.groups.length == 0
-                                        ? "None"
-                                        : row.groups?.map((gp, index) => (
-                                              <Tooltip
-                                                  key={index}
-                                                  arrow
-                                                  title={
-                                                      <Typography variant="body2">
-                                                          {`${gp.access} Access`}
-                                                      </Typography>
-                                                  }
-                                              >
-                                                  <Chip
-                                                      sx={{
-                                                          cursor: "pointer",
-                                                          marginLeft: "2px",
-                                                          marginTop: "2px",
-                                                      }}
-                                                      label={gp.group_name}
-                                                  />
-                                              </Tooltip>
-                                          )),
+                                    row.groups.length == 0 ? (
+                                        "None"
+                                    ) : (
+                                        <DisplayGroups groups={row.groups} />
+                                    ),
                                     theme.palette.primary.text.dark
                                 )}
                             </Stack>

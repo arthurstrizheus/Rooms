@@ -867,9 +867,9 @@ const GetAllUserCanSee = async (req, res) => {
                 group_name: "All SEA Staff",
             },
         });
-        let groupsIds = groups.map((gp) => gp.id);
+        let allGroupIds = groups.map((gp) => gp.id);
         const user = await User.findByPk(id);
-        groupsIds.push(user.location);
+
         // If user is admin return all meetings
         if (user?.admin) {
             let meets = await Meeting.findAll({
@@ -968,11 +968,12 @@ const GetAllUserCanSee = async (req, res) => {
 
         // Extract group IDs the user belongs to
         const groupIds = groupUsers?.map((gu) => gu.group_id);
+        groupIds.push(...allGroupIds);
 
         // Find all room groups that match the user's group memberships
         const roomGroups = await RoomGroup.findAll({
             where: {
-                group_id: groupIds,
+                group_id: { [Sequelize.Op.in]: groupIds },
             },
         });
 

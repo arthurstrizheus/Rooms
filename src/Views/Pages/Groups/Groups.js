@@ -86,7 +86,7 @@ export default function Groups({ setLoading }) {
     const navigate = useNavigate();
     const theme = useTheme();
     const [order, setOrder] = useState("desc");
-    const [orderBy, setOrderBy] = useState("name");
+    const [orderBy, setOrderBy] = useState("group_name");
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const [selected, setSelected] = useState([]);
@@ -323,12 +323,17 @@ export default function Groups({ setLoading }) {
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
                                     <TableSortLabel
-                                        active={orderBy === "name"}
+                                        active={orderBy === "group_name"}
                                         direction={
-                                            orderBy === "name" ? order : "asc"
+                                            orderBy === "group_name"
+                                                ? order
+                                                : "asc"
                                         }
                                         onClick={(event) =>
-                                            handleRequestSort(event, "name")
+                                            handleRequestSort(
+                                                event,
+                                                "group_name"
+                                            )
                                         }
                                     >
                                         Name

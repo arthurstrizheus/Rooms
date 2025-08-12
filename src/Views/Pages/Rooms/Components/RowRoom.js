@@ -18,6 +18,7 @@ import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
 import { GetRoomResources } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
 import ImageViewer from "../../../../Components/ImageViewer";
 import { GetRoomImage } from "../../../../Utilites/Functions/ApiFunctions/RoomFunctions";
+import DisplayGroups from "../../../Components/DisplayGroups";
 
 const rowItem = (name, value, color) => {
     return (
@@ -195,24 +196,11 @@ const RowRoom = ({ location, row, rowRoom, groups, roomgroups, setOpen }) => {
                         )}
                         {rowItem(
                             "Access Groups",
-                            roomGroups.length == 0
-                                ? "None"
-                                : roomGroups?.map((gp, index) => (
-                                      <Tooltip
-                                          key={index}
-                                          arrow
-                                          title={
-                                              <Typography variant="body2">
-                                                  {`${gp.access} Access`}
-                                              </Typography>
-                                          }
-                                      >
-                                          <Chip
-                                              sx={{ cursor: "pointer" }}
-                                              label={gp.group_name}
-                                          />
-                                      </Tooltip>
-                                  )),
+                            roomGroups.length == 0 ? (
+                                "None"
+                            ) : (
+                                <DisplayGroups groups={roomGroups} />
+                            ),
                             theme.palette.primary.text.dark
                         )}
                         {rowItem(

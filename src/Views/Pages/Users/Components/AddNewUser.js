@@ -49,6 +49,7 @@ const AddNewUser = ({
     selectedUser,
     locations,
     setUpdate,
+    filterLocation,
 }) => {
     const theme = useTheme();
     const { user } = useAuth();
@@ -68,16 +69,18 @@ const AddNewUser = ({
 
     const onClose = () => {
         setOpen(false);
-        setLocation("");
-        setEmail("");
-        setFirstName("");
-        setPassword("");
-        setLastName("");
-        setAdmin(false);
-        setFullControl([]);
-        setReadAccess([]);
-        setOldFullControl([]);
-        setOldReadAccess([]);
+        if (!selectedUser) {
+            setLocation("");
+            setEmail("");
+            setFirstName("");
+            setPassword("");
+            setLastName("");
+            setAdmin(false);
+            setFullControl([]);
+            setReadAccess([]);
+            setOldFullControl([]);
+            setOldReadAccess([]);
+        }
     };
 
     const onSubmit = () => {
@@ -394,9 +397,12 @@ const AddNewUser = ({
                                     {groups
                                         .filter(
                                             (gp) =>
-                                                gp.access != "Read" &&
-                                                gp.id != 12 &&
-                                                gp.id != 13
+                                                (gp.access != "Read" &&
+                                                    gp.location ===
+                                                        filterLocation?.officeid) ||
+                                                (gp.access != "Read" &&
+                                                    filterLocation?.officeid ==
+                                                        0)
                                         )
                                         ?.map((name, index) => (
                                             <MenuItem
@@ -472,9 +478,12 @@ const AddNewUser = ({
                                     {groups
                                         .filter(
                                             (gp) =>
-                                                gp.access != "Full" &&
-                                                gp.id != 12 &&
-                                                gp.id != 13
+                                                (gp.access != "Full" &&
+                                                    gp.location ===
+                                                        filterLocation?.officeid) ||
+                                                (gp.access != "Full" &&
+                                                    filterLocation?.officeid ==
+                                                        0)
                                         )
                                         ?.map((name, index) => (
                                             <MenuItem
