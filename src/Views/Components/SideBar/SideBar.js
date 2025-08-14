@@ -299,6 +299,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                         direction="row"
                         justifyContent="left"
                         alignItems="center"
+                        spacing={1}
                     >
                         <Tooltip title="Log Out" arrow>
                             <IconButton onClick={handleLogout}>
@@ -307,12 +308,35 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                 />
                             </IconButton>
                         </Tooltip>
-                        <Typography
-                            variant="body2"
-                            color={theme.palette.text.primary}
+                        <Stack
+                            direction="column"
+                            justifyContent="center"
+                            alignItems="flex-start"
+                            spacing={0.5}
                         >
-                            {user?.first_name} {user?.last_name}
-                        </Typography>
+                            <Typography
+                                variant="body2"
+                                color={theme.palette.text.primary}
+                                sx={{ fontWeight: 500 }}
+                            >
+                                {user?.first_name} {user?.last_name}
+                            </Typography>
+                            <Box
+                                sx={{
+                                    backgroundColor: "transparent",
+                                    color: theme.palette.text.secondary,
+                                    px: 0.5,
+                                    py: 0.125,
+                                    borderRadius: 0.5,
+                                    fontSize: "0.6rem",
+                                    fontWeight: "normal",
+                                    alignSelf: "flex-start",
+                                    opacity: 0.7,
+                                }}
+                            >
+                                Version - {process.env.REACT_APP_VERSION}
+                            </Box>
+                        </Stack>
                     </Stack>
                 </Grid>
             </Grid>

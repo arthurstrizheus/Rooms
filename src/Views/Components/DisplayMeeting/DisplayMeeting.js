@@ -12,11 +12,15 @@ import {
     Divider,
     Tooltip,
     Box,
+    Chip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import PeopleIcon from "@mui/icons-material/People";
+import DevicesIcon from "@mui/icons-material/Devices";
 import { useAuth } from "../../../Utilites/AuthContext";
 import {
     CancelAllMeetingsInRecurrence,
@@ -36,6 +40,8 @@ const DisplayMeeting = ({
     meeting,
     types,
     rooms,
+    roomResources,
+    resources,
     locations,
     handleExit,
     setUpdate,
@@ -76,6 +82,34 @@ const DisplayMeeting = ({
     const location = locations?.find(
         (lc) => lc?.officeid == meeting?.location
     )?.Alias;
+
+    const formatCapacity = (capacity) => {
+        if (capacity === 0) return "Capacity: No limit";
+        if (capacity >= 1000) return "Capacity: Large";
+        return `Capacity: ${capacity} people`;
+    };
+
+    const getRoomResources = (roomId) => {
+        const roomResourceLinks =
+            roomResources?.filter((rr) => rr.room_id === roomId) || [];
+        return roomResourceLinks
+            .map((link) => {
+                const resource = resources?.find(
+                    (r) => r.id === link.resource_id
+                );
+                return resource;
+            })
+            .filter(Boolean); // Remove any undefined resources
+    };
+
+    const formatColor = (color) => {
+        if (!color) return "#grey";
+        // If color doesn't start with #, add it
+        if (color.match(/^[0-9A-Fa-f]{6}$/)) {
+            return `#${color}`;
+        }
+        return color;
+    };
 
     const handleEdit = () => {
         if (meeting.recurrence_id) {
@@ -719,15 +753,129 @@ const DisplayMeeting = ({
                             :{String(end.getMinutes()).padStart(2, "0")}
                             {getAmPm(end)}
                         </Typography>
-                        <Typography
-                            variant="body1"
-                            color={theme.palette.primary.text.dark}
-                            fontSize={14}
-                            paddingLeft={"3px"}
+                        <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={0.5}
+                            sx={{ paddingLeft: "3px" }}
                         >
-                            SEA {location} / {room?.value}
-                        </Typography>
+                            <Typography
+                                variant="body1"
+                                color={theme.palette.primary.text.dark}
+                                fontSize={14}
+                            >
+                                SEA {location} / {room?.value}
+                            </Typography>
+                            {/* Room Color Indicator next to room name */}
+                            {room?.color && (
+                                <Box
+                                    sx={{
+                                        width: 12,
+                                        height: 12,
+                                        backgroundColor: formatColor(
+                                            room.color
+                                        ),
+                                        borderRadius: "50%",
+                                        border: `1px solid ${theme.palette.divider}`,
+                                        ml: 0.5,
+                                    }}
+                                />
+                            )}
+                        </Stack>
                     </Stack>
+
+                    {/* Enhanced Room Information */}
+                    {room && (
+                        <Box sx={{ mt: 1, ml: 1 }}>
+                            <Stack
+                                direction="row"
+                                spacing={1}
+                                sx={{ flexWrap: "wrap", gap: 0.5 }}
+                            >
+                                {/* Capacity Info */}
+                                <Chip
+                                    icon={<PeopleIcon />}
+                                    label={formatCapacity(room.capacity)}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{
+                                        height: 22,
+                                        "& .MuiChip-label": {
+                                            fontSize: "0.7rem",
+                                        },
+                                        "& .MuiChip-icon": {
+                                            fontSize: "0.8rem",
+                                        },
+                                    }}
+                                />
+                            </Stack>
+
+                            {/* Room Resources */}
+                            {(() => {
+                                const roomResourceList = getRoomResources(
+                                    room.id
+                                );
+                                return (
+                                    roomResourceList.length > 0 && (
+                                        <Box sx={{ mt: 1 }}>
+                                            <Stack
+                                                direction="row"
+                                                spacing={0.5}
+                                                alignItems="center"
+                                                sx={{ flexWrap: "wrap" }}
+                                            >
+                                                <DevicesIcon
+                                                    sx={{
+                                                        fontSize: 14,
+                                                        color: theme.palette
+                                                            .text.secondary,
+                                                        mr: 0.5,
+                                                    }}
+                                                />
+                                                {roomResourceList
+                                                    .slice(0, 4)
+                                                    .map((resource) => (
+                                                        <Chip
+                                                            key={resource.id}
+                                                            label={
+                                                                resource.name
+                                                            }
+                                                            size="small"
+                                                            variant="filled"
+                                                            sx={{
+                                                                height: 18,
+                                                                "& .MuiChip-label":
+                                                                    {
+                                                                        fontSize:
+                                                                            "0.6rem",
+                                                                        px: 0.5,
+                                                                    },
+                                                            }}
+                                                        />
+                                                    ))}
+                                                {roomResourceList.length >
+                                                    4 && (
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                        sx={{
+                                                            fontSize: "0.6rem",
+                                                            ml: 0.5,
+                                                        }}
+                                                    >
+                                                        +
+                                                        {roomResourceList.length -
+                                                            4}{" "}
+                                                        more
+                                                    </Typography>
+                                                )}
+                                            </Stack>
+                                        </Box>
+                                    )
+                                );
+                            })()}
+                        </Box>
+                    )}
                 </Grid>
                 <Grid
                     item

@@ -168,7 +168,8 @@ const MeetingFourm = ({
     );
     const times = [];
     const multiDayMeet = isMultipleDayMeeting(meeting);
-    console.log(roomResources);
+
+    console.log(meeting);
 
     const formatTime = (h, m) => {
         const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
@@ -537,7 +538,9 @@ const MeetingFourm = ({
             if (multiDayMeet) {
                 end = getPreviousDay(end);
             } else if (meeting.view == "dayGridMonth") {
-                end.setDate(start.getDate());
+                // Set end to same date as start but keep the end time
+                const startDate = new Date(start);
+                end = setTime(startDate, endTime);
             }
             //console.log(multiDayMeet, allDay);
             console.log(start);

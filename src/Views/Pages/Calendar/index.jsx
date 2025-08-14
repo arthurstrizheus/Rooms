@@ -742,6 +742,8 @@ const Calendar = ({
                         }}
                         types={meetingTypes}
                         rooms={rooms}
+                        roomResources={roomResources}
+                        resources={resources}
                         locations={locations}
                         setUpdate={setUpdateTrigger}
                         setUpdateMode={setUpdateMode}
