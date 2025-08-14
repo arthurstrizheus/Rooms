@@ -21,7 +21,7 @@ const Post = async (req, res) => {
                 message: "value, color, and created_user_id are required",
             });
         }
-        if (!req.user?.admin || !req.user?.office_admin) {
+        if (!req.user?.admin && !req.user?.office_admin) {
             return res
                 .status(403)
                 .json({ message: "Only admins can create types." });
@@ -59,7 +59,7 @@ const Update = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (!req.user?.admin || !req.user?.office_admin) {
+        if (!req.user?.admin && !req.user?.office_admin) {
             return res
                 .status(403)
                 .json({ message: "Only admins can update types." });
@@ -89,7 +89,7 @@ const Delete = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (!req.user?.admin || !req.user?.office_admin) {
+        if (!req.user?.admin && !req.user?.office_admin) {
             return res
                 .status(403)
                 .json({ message: "Only admins can delete types." });

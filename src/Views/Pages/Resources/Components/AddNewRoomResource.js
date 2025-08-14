@@ -52,6 +52,7 @@ const AddNewRoomResource = ({
     };
     useEffect(() => {
         if (room?.id) {
+            console.log("here");
             setFilteredResources(
                 resources.filter(
                     (r) =>

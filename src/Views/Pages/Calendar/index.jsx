@@ -34,6 +34,8 @@ import { useAuth } from "../../../Utilites/AuthContext";
 import {
     GetLocations,
     GetMeetingsByUserId,
+    GetResources,
+    GetRoomResources,
     GetRooms,
     GetTypes,
     showError,
@@ -179,6 +181,8 @@ const Calendar = ({
     const [meetings, setMeetings] = useState([]);
     const [meetingTypes, setMeetingTypes] = useState([]);
     const [rooms, setRooms] = useState([]);
+    const [roomResources, setRoomResources] = useState([]);
+    const [resources, setResources] = useState([]);
     const [locations, setLocations] = useState([]);
     const [update, setUpdate] = useState(false);
     const [updateTrigger, setUpdateTrigger] = useState(0);
@@ -198,6 +202,8 @@ const Calendar = ({
         const data = async () => {
             const lcs = await GetLocations();
             const rms = await GetRooms(user?.id);
+            const rrs = await GetRoomResources();
+            const rec = await GetResources();
             const mts = await GetMeetingsByUserId(user?.id, {
                 date:
                     range == "Month"
@@ -207,10 +213,11 @@ const Calendar = ({
                         : selectedDate,
                 range: range,
             });
-            console.log(mts);
             const tps = await GetTypes();
 
             setRooms(rms);
+            setRoomResources(rrs);
+            setResources(rec);
             setMeetings(mts);
             setMeetingTypes(tps);
             setLocations(lcs);
@@ -517,6 +524,8 @@ const Calendar = ({
                             : selectedEvent
                     }
                     rooms={rooms}
+                    roomResources={roomResources}
+                    resources={resources}
                     meetingTypes={meetingTypes}
                     update={update}
                     setUpdate={setUpdate}
@@ -524,6 +533,7 @@ const Calendar = ({
                     setUpdateTrigger={setUpdateTrigger}
                     updateMode={updateMode}
                     onClose={handleCloseForm}
+                    locations={locations}
                 />
             </Dialog>
             <Dialog
@@ -652,12 +662,14 @@ const Calendar = ({
                                             plusIconContainer.style.zIndex =
                                                 "10";
 
-                                            // Render the React icon into the container
-                                            ReactDOM.createRoot(
-                                                plusIconContainer
-                                            ).render(
-                                                <AddIcon fontSize="small" />
-                                            );
+                                            // Render the React icon into the container using microtask
+                                            queueMicrotask(() => {
+                                                ReactDOM.createRoot(
+                                                    plusIconContainer
+                                                ).render(
+                                                    <AddIcon fontSize="small" />
+                                                );
+                                            });
 
                                             info.el.style.position = "relative";
                                             info.el.appendChild(

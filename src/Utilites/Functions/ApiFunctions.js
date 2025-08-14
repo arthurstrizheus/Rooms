@@ -355,6 +355,7 @@ export async function GetRoomResources() {
                 },
             }
         );
+
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);
