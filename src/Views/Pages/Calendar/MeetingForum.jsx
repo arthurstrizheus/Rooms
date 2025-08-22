@@ -169,8 +169,6 @@ const MeetingFourm = ({
     const times = [];
     const multiDayMeet = isMultipleDayMeeting(meeting);
 
-    console.log(meeting);
-
     const formatTime = (h, m) => {
         const hour = h === 0 ? 12 : h > 12 ? h - 12 : h;
         const ampm = h < 12 ? "AM" : "PM";
@@ -209,45 +207,36 @@ const MeetingFourm = ({
         // Behold! The Tower of Nested Ifs: A monument to indecision and existential dread.
         if (!update) {
             // We only want to update when we're NOT updating. Because logic is for mortals.
-            if (multiDayMeet) {
+            if (isMultipleDayMeeting(meeting)) {
                 // Ah, a meeting that spans multiple days! Surely, nobody will ever actually survive one of these.
                 setStartTime("12:00 AM"); // Because time loses all meaning after Day 1.
                 setEndTime("12:15 AM"); // It's always midnight somewhere, right?
+                setAllDay(true);
             } else {
-                if (
-                    meeting?.all_day ||
-                    meeting?.allDay ||
-                    meeting?.view == "dayGridMonth"
-                ) {
-                    // The all-day event! The grown-up equivalent of "do not disturb."
-                    setStartTime("12:00 AM"); // Just pretend it's midnight all day.
-                    setEndTime("12:15 AM"); // See above, but with more existential dread.
+                // Finally, a meeting that dares to have an actual start and end time.
+                setStartTime(
+                    `${String(getHours(meeting.start)).padStart(
+                        2,
+                        "0"
+                    )}:${String(getMinutes(meeting.start)).padStart(
+                        2,
+                        "0"
+                    )} ${getAmPm(meeting.start).toUpperCase()}`
+                );
+                if (isLateMeeting(meeting)) {
+                    // For those meetings that creep past your bedtime.
+                    setEndTime("12:00 AM"); // The official time for "why am I still here?"
                 } else {
-                    // Finally, a meeting that dares to have an actual start and end time.
-                    setStartTime(
-                        `${String(getHours(meeting.start)).padStart(
+                    // The fabled normal meeting, as rare as a polite reply-all.
+                    setEndTime(
+                        `${String(getHours(meeting.end) ?? 12).padStart(
                             2,
                             "0"
-                        )}:${String(getMinutes(meeting.start)).padStart(
+                        )}:${String(getMinutes(meeting.end)).padStart(
                             2,
                             "0"
-                        )} ${getAmPm(meeting.start).toUpperCase()}`
+                        )} ${getAmPm(meeting.end).toUpperCase()}`
                     );
-                    if (isLateMeeting(meeting)) {
-                        // For those meetings that creep past your bedtime.
-                        setEndTime("12:00 AM"); // The official time for "why am I still here?"
-                    } else {
-                        // The fabled normal meeting, as rare as a polite reply-all.
-                        setEndTime(
-                            `${String(getHours(meeting.end) ?? 12).padStart(
-                                2,
-                                "0"
-                            )}:${String(getMinutes(meeting.end)).padStart(
-                                2,
-                                "0"
-                            )} ${getAmPm(meeting.end).toUpperCase()}`
-                        );
-                    }
                 }
             }
             // Seek the Holy Grail of meeting types! It's always "meeting," because what else would it be?
@@ -266,24 +255,31 @@ const MeetingFourm = ({
             setColor(meetingType?.color); // For when you want your meetings as colorful as your calendar-induced anxiety.
             setRepeats(meeting.repeats); // Because the only thing better than one meeting is infinite meetings.
             setSelectedRoom(meetingRoom); // May the odds of getting a room with working A/C be ever in your favor.
-            setStartTime(
-                `${String(getHours(meeting.start_time)).padStart(
-                    2,
-                    "0"
-                )}:${String(getMinutes(meeting.start_time)).padStart(
-                    2,
-                    "0"
-                )} ${getAmPm(meeting.start_time).toUpperCase()}`
-            ); // Because being late by one minute ruins everything.
-            setEndTime(
-                `${String(getHours(meeting.end_time)).padStart(
-                    2,
-                    "0"
-                )}:${String(getMinutes(meeting.end_time)).padStart(
-                    2,
-                    "0"
-                )} ${getAmPm(meeting.end_time).toUpperCase()}`
-            ); // Endings are important. Like, actually leaving on time.
+            if (getTime(meeting.start_time) && getTime(meeting.end_time)) {
+                setStartTime(
+                    `${String(getHours(meeting.start_time)).padStart(
+                        2,
+                        "0"
+                    )}:${String(getMinutes(meeting.start_time)).padStart(
+                        2,
+                        "0"
+                    )} ${getAmPm(meeting.start_time).toUpperCase()}`
+                ); // Because being late by one minute ruins everything.
+                setEndTime(
+                    `${String(getHours(meeting.end_time)).padStart(
+                        2,
+                        "0"
+                    )}:${String(getMinutes(meeting.end_time)).padStart(
+                        2,
+                        "0"
+                    )} ${getAmPm(meeting.end_time).toUpperCase()}`
+                );
+            } else {
+                setEndTime("12:15 AM");
+                setStartTime("12:00 AM");
+                setAllDay(true);
+            }
+            // Endings are important. Like, actually leaving on time.
             setDescription(meeting.description); // Let your meeting description do what your calendar cannot: make sense.
 
             if (meeting.description != "" && meeting.description != null) {
@@ -640,12 +636,14 @@ const MeetingFourm = ({
                     showDesc && !downMD ? "600px" : downMD ? "330px" : "350px",
                 height: showDesc
                     ? downMD
-                        ? "600px"
+                        ? "620px"
+                        : multiDayMeet
+                        ? "420px"
                         : "390px"
                     : multiDayMeet && !allDay
                     ? downMD
                         ? "600px"
-                        : "370px"
+                        : "390px"
                     : allDay && multiDayMeet
                     ? downMD
                         ? "600px"
@@ -653,7 +651,7 @@ const MeetingFourm = ({
                     : allDay && !multiDayMeet
                     ? downMD
                         ? "600px"
-                        : "30px"
+                        : "320px"
                     : "360px",
                 transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
                 overflow: downMD ? "auto" : "hidden",
