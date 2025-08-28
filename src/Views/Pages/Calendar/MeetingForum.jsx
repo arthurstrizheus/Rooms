@@ -25,6 +25,7 @@ import {
     TextField,
     Checkbox,
     useMediaQuery,
+    CircularProgress,
 } from "@mui/material";
 import {
     CheckPostMeeting,
@@ -159,6 +160,7 @@ const MeetingFourm = ({
     const [showDesc, setShowDesc] = useState(false);
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
     const [showEquipment, setShowEquipment] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [allDay, setAllDay] = useState(
         meeting?.all_day || meeting?.allDay
             ? meeting?.view == "dayGridMonth"
@@ -329,6 +331,7 @@ const MeetingFourm = ({
     };
 
     const clearOnClose = () => {
+        setLoading(false);
         setStartTime("");
         setEndTime("");
         setSelectedRoom("");
@@ -349,6 +352,7 @@ const MeetingFourm = ({
     const isSelected = (id) => special.indexOf(id) !== -1;
 
     const onSubbmit = () => {
+        setLoading(true);
         if (update) {
             const start = setTime(date, startTime);
             const end = setTime(date, endTime);
@@ -416,9 +420,11 @@ const MeetingFourm = ({
                                             : DeleteSpecialPermission(itm)
                                     );
                                     Promise.all(promises).then(() => {
+                                        setLoading(false);
                                         clearOnClose();
                                     });
                                 }
+                                setLoading(false);
                             })
                             .catch(() => {
                                 clearOnClose();
@@ -450,10 +456,12 @@ const MeetingFourm = ({
                                                 );
                                                 Promise.all(promises).then(
                                                     () => {
+                                                        setLoading(false);
                                                         clearOnClose();
                                                     }
                                                 );
                                             }
+                                            setLoading(false);
                                         })
                                         .catch(() => {
                                             clearOnClose();
@@ -478,9 +486,11 @@ const MeetingFourm = ({
                                             : DeleteSpecialPermission(itm)
                                     );
                                     Promise.all(promises).then(() => {
+                                        setLoading(false);
                                         clearOnClose();
                                     });
                                 }
+                                setLoading(false);
                             })
                             .catch(() => {
                                 clearOnClose();
@@ -512,6 +522,7 @@ const MeetingFourm = ({
                                                 );
                                                 Promise.all(promises).then(
                                                     () => {
+                                                        setLoading(false);
                                                         clearOnClose();
                                                     }
                                                 );
@@ -521,6 +532,7 @@ const MeetingFourm = ({
                                             clearOnClose();
                                         });
                                 }
+                                setLoading(false);
                             })
                             .catch(() => {
                                 clearOnClose();
@@ -553,6 +565,7 @@ const MeetingFourm = ({
                         transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                     }
                 );
+                setLoading(false);
             } else if (!selectedRoom?.id) {
                 openSnackbar("No selected room", {
                     severity: "error",
@@ -561,6 +574,7 @@ const MeetingFourm = ({
                     alertProps: { variant: "filled" },
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
+                setLoading(false);
             } else if (meetingName == "") {
                 openSnackbar("No meeting name", {
                     severity: "error",
@@ -569,6 +583,7 @@ const MeetingFourm = ({
                     alertProps: { variant: "filled" },
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
+                setLoading(false);
             } else {
                 const newMeeting = {
                     name: meetingName,
@@ -600,12 +615,14 @@ const MeetingFourm = ({
                                         : DeleteSpecialPermission(itm)
                                 );
                                 Promise.all(promises).then(() => {
+                                    setLoading(false);
                                     clearOnClose();
                                 });
                             }
                         });
                         clearOnClose();
                     }
+                    setLoading(false);
                 });
             }
         }
@@ -783,7 +800,8 @@ const MeetingFourm = ({
                                 label={"Meeting name"}
                                 variant={"outlined"}
                                 disabled={
-                                    type?.value?.toLowerCase() === "equipment"
+                                    type?.value?.toLowerCase() ===
+                                        "equipment" || loading
                                 }
                                 autoFocus={true}
                                 onChange={(e) => setMeetingName(e)}
@@ -793,6 +811,7 @@ const MeetingFourm = ({
                                 label={"Meeting Type"}
                                 value={type}
                                 onChange={onChangeMeetingType}
+                                disabled={loading}
                             />
                             <ShortSelectRoom
                                 items={rooms}
@@ -804,6 +823,7 @@ const MeetingFourm = ({
                                 showInfo={true}
                                 roomResources={roomResources}
                                 resources={resources}
+                                disabled={loading}
                             />
                             {!allDay && (
                                 <Stack
@@ -816,6 +836,7 @@ const MeetingFourm = ({
                                         label={"Start Time"}
                                         value={startTime}
                                         onChange={onChangeStartTime}
+                                        disabled={loading}
                                     />
                                     <ShortSelect
                                         items={filterTimesAfterCutoff(
@@ -825,6 +846,7 @@ const MeetingFourm = ({
                                         label={"End Time"}
                                         value={endTime}
                                         onChange={onChangeEndTime}
+                                        disabled={loading}
                                     />
                                 </Stack>
                             )}
@@ -850,6 +872,7 @@ const MeetingFourm = ({
                                                 backgroundColor: "transparent",
                                             },
                                         }}
+                                        disabled={loading}
                                     />
                                     <Typography
                                         variant="body2"
@@ -879,6 +902,7 @@ const MeetingFourm = ({
                                     onChange={(e) =>
                                         setDescription(e.target.value)
                                     }
+                                    disabled={loading}
                                 />
                                 <FormControl
                                     variant="outlined"
@@ -897,6 +921,7 @@ const MeetingFourm = ({
                                         onChange={(e) =>
                                             setRepeats(e.target.value)
                                         }
+                                        disabled={loading}
                                     >
                                         <MenuItem key={0} value={""}>
                                             {"-- None --"}
@@ -929,6 +954,7 @@ const MeetingFourm = ({
                                         value={users.filter((u) =>
                                             special.includes(u.id)
                                         )}
+                                        disabled={loading}
                                         onChange={(event, newValue) => {
                                             handleSpecialChange({
                                                 target: {
@@ -999,6 +1025,7 @@ const MeetingFourm = ({
                                 },
                                 fontWeight: "bold",
                             }}
+                            disabled={loading}
                             startIcon={<TuneIcon />}
                         >
                             {showDesc ? "Basic" : "Advanced"}
@@ -1015,8 +1042,15 @@ const MeetingFourm = ({
                                 },
                                 fontWeight: "bold",
                             }}
+                            disabled={loading}
                             onClick={onSubbmit}
-                            startIcon={<CheckIcon />}
+                            startIcon={
+                                loading ? (
+                                    <CircularProgress size={16} />
+                                ) : (
+                                    <CheckIcon />
+                                )
+                            }
                         >
                             {update ? "Update" : "Book"}
                         </Button>

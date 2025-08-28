@@ -3,9 +3,15 @@ const { GroupUser, Group } = require("../models");
 
 const GetAll = async (req, res) => {
     try {
-        const groups = await Group.findAll({
-            where: { location: req.user.location },
-        });
+        const location = req.query.location;
+        let groups = [];
+        if (location == 0 || !location) {
+            groups = await Group.findAll();
+        } else {
+            groups = await Group.findAll({
+                where: { location: location },
+            });
+        }
         const groupIds = groups.map((group) => group.id);
         const data = await GroupUser.findAll({
             where: { group_id: { [Sequelize.Op.in]: groupIds } },
@@ -34,7 +40,7 @@ const Post = async (req, res) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (group.location !== req.user.location) {
+        if (group.location !== req.user.location && !req.user.admin) {
             return res.status(403).json({
                 message: "You cannot add users to this group from this office.",
             });
@@ -79,7 +85,7 @@ const Update = async (req, res) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (group.location !== req.user.location) {
+        if (group.location !== req.user.location && !req.user.admin) {
             return res.status(403).json({
                 message: "You cannot add users to this group from this office.",
             });
@@ -114,7 +120,7 @@ const Delete = async (req, res) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (group.location !== req.user.location) {
+        if (group.location !== req.user.location && !req.user.admin) {
             return res.status(403).json({
                 message:
                     "You cannot delete users from this group from this office.",
@@ -155,7 +161,7 @@ const DeleteByGroupId = async (req, res) => {
             return res.status(404).json({ message: "Group not found" });
         }
 
-        if (group.location !== req.user.location) {
+        if (group.location !== req.user.location && !req.user.admin) {
             return res.status(403).json({
                 message:
                     "You cannot delete users from this group from this office.",

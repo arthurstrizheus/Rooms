@@ -159,10 +159,10 @@ export async function GetGroups() {
         return [];
     }
 }
-export async function GetGroupUsers() {
+export async function GetGroupUsers(location) {
     try {
         const resp = await axios.get(
-            `/api/groupusers?_=${new Date().getTime()}`,
+            `/api/groupusers?location=${location}&_=${new Date().getTime()}`,
             {
                 headers: {
                     "Cache-Control": "no-cache", // Prevent caching

@@ -303,7 +303,9 @@ export default function Users({ setLoading }) {
 
             const lcs = await GetLocations();
             const grps = await GetGroups();
-            const groupUsers = await GetGroupUsers();
+            const groupUsers = await GetGroupUsers(
+                filterLocation?.officeid || 0
+            );
             const users = await GetUsers();
             setUsers(users.filter((usr) => usr.id !== user?.id));
             setGroups(grps);
@@ -333,6 +335,9 @@ export default function Users({ setLoading }) {
 
         const data = usrs?.map((itm) => {
             const Usersgroups = groupUsers.filter((ug) => ug.user_id == itm.id);
+            if (itm.id == 100) {
+                console.log(groupUsers);
+            }
             const usersGroupsByName = [];
             Usersgroups?.map((gp) =>
                 usersGroupsByName.push(
@@ -366,7 +371,24 @@ export default function Users({ setLoading }) {
                 page * rowsPerPage + rowsPerPage
             )
         );
-    }, [filterLocation, users, update, page, rowsPerPage, orderBy, order]);
+    }, [
+        filterLocation,
+        users,
+        update,
+        page,
+        rowsPerPage,
+        orderBy,
+        order,
+        groupUsers,
+    ]);
+
+    useEffect(() => {
+        const loc = async () => {
+            const usrgrps = await GetGroupUsers(filterLocation?.officeid || 0);
+            setGroupUsers(usrgrps);
+        };
+        loc();
+    }, [filterLocation]);
 
     return (
         <Box

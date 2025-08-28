@@ -41,6 +41,7 @@ const rowItem = (name, value, color) => {
 const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
     const theme = useTheme();
     const { user } = useAuth();
+    console.log(row.groups);
 
     return (
         <React.Fragment>

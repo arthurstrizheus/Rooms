@@ -161,7 +161,7 @@ export default function BlockedDates({ setLoading }) {
             const rms = await GetRooms(user.id);
             const rmgps = await GetRoomGroups();
             const blc = await GetBlockedDatess();
-            const usrgrps = await GetGroupUsers();
+            const usrgrps = await GetGroupUsers(filterLocation?.officeid || 0);
             const grps = await GetGroups();
 
             setLocations(lcs);
@@ -208,6 +208,20 @@ export default function BlockedDates({ setLoading }) {
             setPaginatedRows([]);
         }
     }, [filterLocation, rooms, blockedDates, page, rowsPerPage, update]);
+
+    useEffect(() => {
+        const loc = async () => {
+            const usrgrps = await GetGroupUsers(filterLocation?.officeid || 0);
+            const grps = await GetGroups();
+            const rmgps = await GetRoomGroups();
+            const rms = await GetRooms(user.id);
+            setRooms(UserAnyAccessRooms(usrgrps, grps, rmgps, rms, user));
+            setFullAccessRoms(
+                UserFullAccessRooms(usrgrps, grps, rmgps, rms, user)
+            );
+        };
+        loc();
+    }, [filterLocation]);
 
     return (
         <React.Fragment>

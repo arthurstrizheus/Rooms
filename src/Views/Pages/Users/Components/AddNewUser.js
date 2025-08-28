@@ -69,18 +69,18 @@ const AddNewUser = ({
 
     const onClose = () => {
         setOpen(false);
-        if (!selectedUser) {
-            setLocation("");
-            setEmail("");
-            setFirstName("");
-            setPassword("");
-            setLastName("");
-            setAdmin(false);
-            setFullControl([]);
-            setReadAccess([]);
-            setOldFullControl([]);
-            setOldReadAccess([]);
-        }
+        // if (!selectedUser) {
+        setLocation("");
+        setEmail("");
+        setFirstName("");
+        setPassword("");
+        setLastName("");
+        setAdmin(false);
+        setFullControl([]);
+        setReadAccess([]);
+        setOldFullControl([]);
+        setOldReadAccess([]);
+        // }
     };
 
     const onSubmit = () => {

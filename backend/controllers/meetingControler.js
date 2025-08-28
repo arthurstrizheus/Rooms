@@ -1231,14 +1231,12 @@ const CanBook = async (req, res) => {
                             meeting.status === "Waiting on Approval")) ||
                     ((meeting.all_day || allDay) &&
                         meeting.room == room &&
-                        getTime(newStartTime) == getTime(meetingStart) &&
-                        getTime(meetingEnd) == getTime(newEndTime) &&
-                        getDate(newStartTime) == getDate(meetingStart) &&
-                        getYear(newStartTime) == getYear(meetingStart) &&
-                        getMonth(newStartTime) == getMonth(meetingStart) &&
-                        getDate(newEndTime) == getDate(meetingEnd) &&
-                        getYear(newEndTime) == getYear(meetingEnd) &&
-                        getMonth(newEndTime) == getMonth(meetingEnd));
+                        ((getDate(newStartTime) == getDate(meetingStart) &&
+                            getYear(newStartTime) == getYear(meetingStart) &&
+                            getMonth(newStartTime) == getMonth(meetingStart)) ||
+                            (getDate(newEndTime) == getDate(meetingEnd) &&
+                                getYear(newEndTime) == getYear(meetingEnd) &&
+                                getMonth(newEndTime) == getMonth(meetingEnd))));
             }
             // Check if the new meeting overlaps with an existing meeting
             return overlaping;
@@ -1300,7 +1298,17 @@ const CanBook = async (req, res) => {
                 const meetingStart = new Date(meeting.start_time);
                 const meetingEnd = new Date(meeting.end_time);
                 // Check if the new meeting overlaps with an blocked dates
-                return newStartTime < meetingEnd && newEndTime > meetingStart;
+                return (
+                    (newStartTime < meetingEnd && newEndTime > meetingStart) ||
+                    ((meeting.all_day || allDay) &&
+                        meeting.room == room &&
+                        ((getDate(newStartTime) == getDate(meetingStart) &&
+                            getYear(newStartTime) == getYear(meetingStart) &&
+                            getMonth(newStartTime) == getMonth(meetingStart)) ||
+                            (getDate(newEndTime) == getDate(meetingEnd) &&
+                                getYear(newEndTime) == getYear(meetingEnd) &&
+                                getMonth(newEndTime) == getMonth(meetingEnd))))
+                );
             });
             if (isOverlapping) {
                 return res.status(409).json({
@@ -1332,14 +1340,16 @@ const CanBook = async (req, res) => {
                                 meeting.status === "Waiting on Approval")) ||
                         ((meeting.all_day || allDay) &&
                             meeting.room == room &&
-                            getTime(newStartTime) == getTime(meetingStart) &&
-                            getTime(meetingEnd) == getTime(newEndTime) &&
-                            getDate(newStartTime) == getDate(meetingStart) &&
-                            getYear(newStartTime) == getYear(meetingStart) &&
-                            getMonth(newStartTime) == getMonth(meetingStart) &&
-                            getDate(newEndTime) == getDate(meetingEnd) &&
-                            getYear(newEndTime) == getYear(meetingEnd) &&
-                            getMonth(newEndTime) == getMonth(meetingEnd));
+                            ((getDate(newStartTime) == getDate(meetingStart) &&
+                                getYear(newStartTime) ==
+                                    getYear(meetingStart) &&
+                                getMonth(newStartTime) ==
+                                    getMonth(meetingStart)) ||
+                                (getDate(newEndTime) == getDate(meetingEnd) &&
+                                    getYear(newEndTime) ==
+                                        getYear(meetingEnd) &&
+                                    getMonth(newEndTime) ==
+                                        getMonth(meetingEnd))));
                 }
                 // Check if the new meeting overlaps with an existing meeting
                 return overlaping;

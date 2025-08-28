@@ -29,6 +29,7 @@ const ShortSelectRoom = ({
     info,
     roomResources,
     resources,
+    disabled,
 }) => {
     const [open, setOpen] = useState(false);
     const [roomImages, setRoomImages] = useState({});
@@ -119,6 +120,7 @@ const ShortSelectRoom = ({
         >
             <InputLabel id={`short-select-label-${label}`}>{label}</InputLabel>
             <Select
+                disabled={disabled}
                 size="small"
                 labelId={`short-select-label-${label}`}
                 id={`short-select-${label}`}

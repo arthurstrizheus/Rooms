@@ -18,6 +18,7 @@ const ShortSelect = ({
     secondary,
     showInfo,
     info,
+    disabled,
 }) => {
     const [open, setOpen] = useState(false);
 
@@ -53,6 +54,7 @@ const ShortSelect = ({
                     );
                     onChange(selectedItem); // Return the entire object
                 }}
+                disabled={disabled}
                 onOpen={handleOpen}
                 onClose={handleClose}
                 label={label}
