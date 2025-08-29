@@ -1,5 +1,5 @@
 import { useTheme } from "@mui/material/styles";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
     Grid,
@@ -28,6 +28,13 @@ import DeveloperModeIcon from "@mui/icons-material/DeveloperMode";
 import { isMobile } from "react-device-detect";
 import "./SideBar.css";
 import { useAuth } from "../../../Utilites/AuthContext";
+import {
+    GetMeetingApprovals,
+    showSuccess,
+    showWarning,
+} from "../../../Utilites/Functions/ApiFunctions";
+import { useSessionStorage } from "../../../hooks/useSessionStorage";
+import { useSocket } from "../../../Contexts/SocketContext";
 
 const SideBar = ({ setBannerText, setContent, bannderText }) => {
     const location = useLocation();
@@ -36,81 +43,120 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
         page: location.pathname.split("/").splice(-1),
     });
     const { user, setUser, logout } = useAuth();
+    const { socket } = useSocket();
+    const [approvalCount, setApprovalCount] = useSessionStorage(
+        "approvalCount",
+        0
+    );
     const navigate = useNavigate();
+    const prevApprovalRef = useRef(null);
+    const approvalIdsRef = useRef(new Set());
+    const refreshApprovalCount = useCallback(
+        async (source = "manual") => {
+            try {
+                if (!user?.id) return;
+                const data = await GetMeetingApprovals(user.id);
+                if (Array.isArray(data)) {
+                    const newCount = data.length;
+                    const prev = prevApprovalRef.current;
+                    const currentIds = new Set(
+                        data.map((m) => m.id).filter((id) => id != null)
+                    );
+                    // Determine how many truly new IDs appeared
+                    let newIdsCount = 0;
+                    currentIds.forEach((id) => {
+                        if (!approvalIdsRef.current.has(id)) newIdsCount++;
+                    });
+
+                    if (source === "socket" && newIdsCount > 0) {
+                        showWarning(
+                            `${newIdsCount} new meeting approval${
+                                newIdsCount === 1 ? "" : "s"
+                            } pending (total ${newCount})`
+                        );
+                    }
+                    approvalIdsRef.current = currentIds; // update known IDs
+                    setApprovalCount(newCount);
+                    prevApprovalRef.current = newCount;
+                }
+            } catch {
+                /* silent */
+            }
+        },
+        [user?.id, setApprovalCount]
+    );
+
     const handleMenuClick = (menu) => {
-        setBannerText(menu);
-        switch (menu.toLowerCase()) {
+        const lower = menu.toLowerCase();
+        switch (lower) {
             case "day":
-                nav.page = "day";
+                setNav({ page: "day" });
                 navigate("/schedule/type/day");
                 break;
             case "week":
-                nav.page = "week";
+                setNav({ page: "week" });
                 navigate("/schedule/type/week");
                 break;
             case "month":
-                nav.page = "month";
+                setNav({ page: "month" });
                 navigate("/schedule/type/month");
                 break;
             case "book":
-                nav.page = "book";
+                setNav({ page: "book" });
                 navigate("/book");
                 break;
             case "search":
-                nav.page = "search";
+                setNav({ page: "search" });
                 navigate("/search");
                 break;
             case "approve":
-                nav.page = "approve";
+                setNav({ page: "approve" });
                 navigate("/approve");
+                refreshApprovalCount(); // manual fetch when opening page
                 break;
             case "report":
-                nav.page = "report";
+                setNav({ page: "report" });
                 navigate("/report");
                 break;
             case "account":
-                nav.page = "account";
+                setNav({ page: "account" });
                 navigate("/account");
                 break;
             case "settings":
-                nav.page = "settings";
+                setNav({ page: "settings" });
                 navigate("/settings");
                 break;
             case "branding":
-                nav.page = "brand";
+                setNav({ page: "brand" });
                 navigate("/branding");
                 break;
-            case "report":
-                nav.page = "report";
-                navigate("/reports");
-                break;
-            case "locations":
-                nav.page = "locations";
-                navigate("/manage/locations");
-                break;
             case "rooms":
-                nav.page = "rooms";
+                setNav({ page: "rooms" });
                 navigate("/manage/rooms");
                 break;
             case "types":
-                nav.page = "types";
+                setNav({ page: "types" });
                 navigate("/manage/types");
                 break;
             case "users":
-                nav.page = "users";
+                setNav({ page: "users" });
                 navigate("/manage/users");
                 break;
             case "resources":
-                nav.page = "resources";
+                setNav({ page: "resources" });
                 navigate("/manage/rooms/resources");
                 break;
             case "blocked dates":
-                nav.page = "blocked";
+                setNav({ page: "blocked" });
                 navigate("/manage/blockeddates");
                 break;
             case "admin-dashboard":
-                nav.page = "admin-dashboard";
+                setNav({ page: "admin-dashboard" });
                 navigate("/admin-dashboard");
+                break;
+            case "locations": // added for Manage -> Locations menu
+                setNav({ page: "locations" });
+                navigate("/manage/locations");
                 break;
             default:
                 setContent(<></>);
@@ -120,7 +166,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
 
     useEffect(
         () => setNav({ page: location.pathname.split("/").splice(-1) }),
-        [bannderText]
+        [bannderText, location.pathname]
     );
 
     const handleLogout = () => {
@@ -131,7 +177,50 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
         }
         logout();
         setUser({});
+        setApprovalCount(0);
     };
+
+    // (moved refreshApprovalCount above for availability in handleMenuClick)
+
+    useEffect(() => {
+        refreshApprovalCount();
+    }, [refreshApprovalCount]);
+
+    // Listen for socket messages indicating new approvals
+    useEffect(() => {
+        if (!socket || !user?.id) return;
+        const handler = (payload) => {
+            try {
+                if (!payload) return;
+                const { message } = payload;
+                if (
+                    message === "meeting_approval_requested" ||
+                    message === "meeting_reapproval_requested" ||
+                    message === "meeting_approved" ||
+                    message === "meeting_declined"
+                ) {
+                    // Re-fetch to ensure accuracy (handles duplicates, etc.)
+                    refreshApprovalCount("socket");
+                    if (
+                        message === "meeting_declined" &&
+                        payload?.data?.created_user_id === user?.id
+                    ) {
+                        showWarning("One of your meetings was declined");
+                    } else if (
+                        message === "meeting_approved" &&
+                        payload?.data?.created_user_id === user?.id
+                    ) {
+                        const title =
+                            payload?.data?.name ||
+                            `Meeting #${payload?.data?.meetingId || ""}`;
+                        showSuccess(`${title} was approved`);
+                    }
+                }
+            } catch {}
+        };
+        socket.on("message", handler);
+        return () => socket.off("message", handler);
+    }, [socket, user?.id, refreshApprovalCount]);
 
     return (
         <Grid
@@ -193,8 +282,9 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                 icon: <PlaylistAddCheckIcon />,
                                 onClick: () => handleMenuClick("approve"),
                                 selected: nav.page == "approve",
+                                _rawName: "Approval Queue",
                             },
-                        ]?.filter((itm) => {
+                        ].filter((itm) => {
                             if (isMobile) {
                                 return (
                                     itm.name !== "Daily View" &&
@@ -203,6 +293,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                             }
                             return true;
                         })}
+                        approvalCount={approvalCount}
                     />
                     <Divider />
                     <MenuItem
@@ -344,7 +435,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
     );
 };
 
-const MenuItem = ({ title, icon, onToggle, items }) => {
+const MenuItem = ({ title, icon, onToggle, items, approvalCount }) => {
     const theme = useTheme();
     return (
         <>
@@ -399,9 +490,37 @@ const MenuItem = ({ title, icon, onToggle, items }) => {
                     >
                         <Typography
                             variant="subtitle1"
-                            sx={{ width: "100%", textAlign: "left" }}
+                            sx={{
+                                width: "100%",
+                                textAlign: "left",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                            }}
                         >
-                            {item.name}
+                            <span>{item._rawName || item.name}</span>
+                            {item._rawName === "Approval Queue" &&
+                                approvalCount > 0 && (
+                                    <span
+                                        style={{
+                                            backgroundColor: item.selected
+                                                ? "white"
+                                                : "#d32f2f",
+                                            color: item.selected
+                                                ? "black"
+                                                : "white",
+                                            borderRadius: "12px",
+                                            padding: "0 8px",
+                                            fontSize: "0.75rem",
+                                            fontWeight: 600,
+                                            lineHeight: 1.6,
+                                            minWidth: "24px",
+                                            textAlign: "center",
+                                        }}
+                                    >
+                                        {approvalCount}
+                                    </span>
+                                )}
                         </Typography>
                     </Button>
                 ))}

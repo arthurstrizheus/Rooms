@@ -84,7 +84,13 @@ export default function Login({ setLoading, setDrawerOpen }) {
 
         if (storedUser && storedToken) {
             setUser(JSON.parse(storedUser));
-            navigate(localStorage.getItem("lastlocation"));
+            // Navigate to last stored location (case-insensitive fallback)
+            const lastLoc =
+                localStorage.getItem("lastLocation") ||
+                localStorage.getItem("lastlocation");
+            if (lastLoc) {
+                navigate(lastLoc);
+            }
             login(JSON.parse(storedUser), storedToken);
         }
         if (storedRememberMe) {

@@ -25,6 +25,64 @@ const {
     getTime,
 } = require("date-fns");
 const { isUserDev } = require("../functions/utilities");
+// Email notifications
+const {
+    sendMeetingApprovalRequestEmail,
+    sendMeetingReapprovalRequestEmail,
+} = require("./mailController");
+
+// Helper: determine approver users (id + email) for a meeting awaiting approval
+async function getApprovers(meeting) {
+    try {
+        // Toggle (default false): set SEND_APPROVAL_TO_ADMINS=true to include global admins
+        const includeAdmins = process.env.SEND_APPROVAL_TO_ADMINS;
+
+        const approverMap = new Map();
+        const addUser = (u) => {
+            // Respect toggle: if SEND_APPROVAL_TO_ADMINS is not true, skip admin users
+            if (u && u.admin && !includeAdmins) return;
+            if (u && u.id && u.email && !approverMap.has(u.id)) {
+                approverMap.set(u.id, { id: u.id, email: u.email });
+            }
+        };
+        if (includeAdmins) {
+            const adminUsers = await User.findAll({ where: { admin: true } });
+            adminUsers.forEach(addUser);
+        }
+        const officeAdmins = await User.findAll({
+            where: { office_admin: meeting.location },
+        });
+        officeAdmins.forEach(addUser);
+
+        // Groups with Full access linked to this room
+        const roomGroups = await RoomGroup.findAll({
+            where: { room_id: meeting.room },
+        });
+        const groupIds = roomGroups.map((rg) => rg.group_id);
+        if (groupIds.length) {
+            const fullGroups = await Group.findAll({
+                where: { id: groupIds, access: "Full" },
+            });
+            const fullGroupIds = fullGroups.map((g) => g.id);
+            if (fullGroupIds.length) {
+                const groupUsers = await GroupUser.findAll({
+                    where: { group_id: fullGroupIds },
+                });
+                const userIds = groupUsers.map((gu) => gu.user_id);
+                if (userIds.length) {
+                    const users = await User.findAll({
+                        where: { id: userIds },
+                    });
+                    users.forEach(addUser);
+                }
+            }
+        }
+        return Array.from(approverMap.values());
+    } catch (e) {
+        console.error("Failed to gather approvers", e);
+        return [];
+    }
+}
 
 async function GetNextParentMeeting(userId, meeting) {
     const meetings = await Meeting.findAll({
@@ -626,6 +684,119 @@ async function GetMeetingStatus(roomId, userId) {
     return roomIds.includes(roomId) ? "Approved" : "Waiting on Approval";
 }
 
+// Determine final status and dispatch approval / re-approval emails.
+// Params:
+// - operation: 'create' | 'update'
+// - context: { user, meetingData, existingMeeting? }
+// Returns: resolved status string
+async function evaluateStatusAndNotify({
+    operation,
+    user,
+    meetingData,
+    existingMeeting,
+    created_user_id,
+}) {
+    const meetingStatus = await GetMeetingStatus(
+        meetingData.room,
+        created_user_id || user?.id
+    );
+    // Determine resulting status respecting admin/office_admin shortcuts
+    const desiredStatus = meetingData.status;
+    let finalStatus =
+        desiredStatus !== "Approved"
+            ? !user?.admin
+                ? user?.office_admin != meetingData.location
+                    ? meetingStatus
+                    : "Approved"
+                : "Approved"
+            : "Approved";
+
+    // If final status requires approval, send appropriate notifications
+    // Defer notification for creations until after the meeting record (with id) is persisted.
+    if (finalStatus === "Waiting on Approval" && meetingData.id) {
+        await sendApprovalNotifications(meetingData, {
+            operation,
+            existingMeeting,
+        });
+    }
+    return finalStatus;
+}
+
+// Helper to send approval / re-approval notifications once a meeting has a persisted id
+async function sendApprovalNotifications(
+    meetingRecord,
+    { operation, existingMeeting }
+) {
+    try {
+        if (
+            !meetingRecord?.id ||
+            meetingRecord.status !== "Waiting on Approval"
+        )
+            return;
+        const approvers = await getApprovers(meetingRecord); // [{id,email}]
+        const emails = approvers.map((a) => a.email).filter(Boolean);
+        const wasApproved = existingMeeting?.status === "Approved";
+        const isUpdateReapproval = wasApproved && operation === "update";
+        // If email override active, send only ONE email (first) to reduce noise
+        const emailOverrideActive = ["1", "true", "yes", "on"].includes(
+            (process.env.EMAIL_OVERRIDE || "0").toString().trim().toLowerCase()
+        );
+        if (emailOverrideActive && emails.length) {
+            const first = emails[0];
+            if (isUpdateReapproval) {
+                sendMeetingReapprovalRequestEmail(
+                    existingMeeting,
+                    meetingRecord,
+                    first
+                ).catch((e) =>
+                    console.error("Failed re-approval email", first, e)
+                );
+            } else {
+                sendMeetingApprovalRequestEmail(meetingRecord, first).catch(
+                    (e) => console.error("Failed approval email", first, e)
+                );
+            }
+        } else {
+            for (const email of emails) {
+                if (isUpdateReapproval) {
+                    sendMeetingReapprovalRequestEmail(
+                        existingMeeting,
+                        meetingRecord,
+                        email
+                    ).catch((e) =>
+                        console.error("Failed re-approval email", email, e)
+                    );
+                } else {
+                    sendMeetingApprovalRequestEmail(meetingRecord, email).catch(
+                        (e) => console.error("Failed approval email", email, e)
+                    );
+                }
+            }
+        }
+        try {
+            const { SendMessage } = require("../utils/socketUtils");
+            SendMessage(
+                {
+                    message: isUpdateReapproval
+                        ? "meeting_reapproval_requested"
+                        : "meeting_approval_requested",
+                    data: {
+                        meetingId: meetingRecord.id,
+                        recipients: emails,
+                        wasApproved,
+                        operation,
+                    },
+                },
+                { userIds: approvers.map((a) => a.id) }
+            );
+        } catch (sockErr) {
+            console.warn("Socket notify failed (approvers)", sockErr);
+        }
+    } catch (e) {
+        console.error("Failed sending approval notifications", e);
+    }
+}
+
 const SetStatus = async (req, res) => {
     try {
         const { id } = req.params; // Extract ID from URL parameters
@@ -712,6 +883,90 @@ const SetStatus = async (req, res) => {
                 status,
                 updated_user_id: userId,
             });
+            // Emit socket event when a meeting is approved so clients can refresh approval counts
+            try {
+                if (status === "Approved") {
+                    const { SendMessage } = require("../utils/socketUtils");
+                    SendMessage(
+                        {
+                            message: "meeting_approved",
+                            data: {
+                                meetingId: resource.id,
+                                name: resource.name,
+                                created_user_id: resource.created_user_id,
+                            },
+                        },
+                        { userId: resource.created_user_id }
+                    );
+                    // Send approval confirmation email to creator
+                    try {
+                        const creator = await User.findByPk(
+                            resource.created_user_id
+                        );
+                        if (creator?.email) {
+                            const {
+                                sendMeetingApprovedEmail,
+                            } = require("./mailController");
+                            if (
+                                typeof sendMeetingApprovedEmail === "function"
+                            ) {
+                                sendMeetingApprovedEmail(
+                                    resource,
+                                    creator.email
+                                ).catch((e) =>
+                                    console.error(
+                                        "Failed to send meeting approved email",
+                                        e
+                                    )
+                                );
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(
+                            "Could not send meeting approved email",
+                            e
+                        );
+                    }
+                } else if (status === "Declined") {
+                    const { SendMessage } = require("../utils/socketUtils");
+                    SendMessage(
+                        {
+                            message: "meeting_declined",
+                            data: {
+                                meetingId: resource.id,
+                                created_user_id: resource.created_user_id,
+                            },
+                        },
+                        { userId: resource.created_user_id }
+                    );
+                    try {
+                        const creator = await User.findByPk(
+                            resource.created_user_id
+                        );
+                        if (creator?.email) {
+                            const {
+                                sendMeetingDeclinedEmail,
+                            } = require("./mailController");
+                            sendMeetingDeclinedEmail(
+                                resource,
+                                creator.email
+                            ).catch((e) =>
+                                console.error(
+                                    "Failed to send declined email",
+                                    e
+                                )
+                            );
+                        }
+                    } catch (e) {
+                        console.warn(
+                            "Could not send meeting declined email",
+                            e
+                        );
+                    }
+                }
+            } catch (e) {
+                console.warn("Socket notify failed (meeting approved)", e);
+            }
             // Return the updated record as a JSON response
             res.status(200).json(resource);
         }
@@ -1413,9 +1668,8 @@ const Post = async (req, res) => {
         }
         const user = await User.findByPk(created_user_id);
 
-        const meetingStatus = await GetMeetingStatus(room, created_user_id);
-        // Create a new resource record in the database
-        const newResource = await Meeting.create({
+        // Compute final status & notify
+        const tempMeeting = {
             start_time,
             end_time,
             room,
@@ -1426,14 +1680,23 @@ const Post = async (req, res) => {
             repeats,
             name,
             retired,
-            status: !user?.admin
-                ? user?.office_admin != location
-                    ? meetingStatus
-                    : "Approved"
-                : "Approved",
+            status: "Waiting on Approval",
             created_user_id,
             all_day: allDay,
+        };
+        const finalStatus = await evaluateStatusAndNotify({
+            operation: "create",
+            user,
+            meetingData: tempMeeting,
+            created_user_id,
         });
+        // Create a new resource record in the database (now we have an id)
+        const newResource = await Meeting.create({
+            ...tempMeeting,
+            status: finalStatus,
+        });
+        // Now that meeting has an id, send notifications if needed
+        await sendApprovalNotifications(newResource, { operation: "create" });
 
         if (repeats != "") {
             const recurrence = await MeetingRecurrence.create({
@@ -1507,7 +1770,7 @@ const Update = async (req, res) => {
 
         // Create meeting if this is a recurrence meeting
         if (Number(id) === -1) {
-            const newResource = await Meeting.create({
+            const tempNew = {
                 id: null,
                 start_time,
                 end_time,
@@ -1520,60 +1783,67 @@ const Update = async (req, res) => {
                 repeats,
                 name,
                 retired,
-                status:
-                    status !== "Approved"
-                        ? !user?.admin
-                            ? user?.office_admin != location
-                                ? meetingStatus
-                                : "Approved"
-                            : "Approved"
-                        : "Approved",
+                status,
+                created_user_id,
+            };
+            const finalStatus = await evaluateStatusAndNotify({
+                operation: "create",
+                user,
+                meetingData: tempNew,
                 created_user_id,
             });
-            res.status(200).json(newResource);
-        } else {
-            // Find the existing resource by ID
-            const resource = await Meeting.findByPk(id);
-            if (!resource) {
-                return res.status(404).json({ message: "Resource not found" });
-            }
-
-            // Update the resource record in the database
-            await resource.update({
-                start_time,
-                end_time,
-                room,
-                location,
-                type,
-                organizer,
-                description,
-                repeats,
-                name,
-                retired,
-                all_day: allDay,
-                status:
-                    status !== "Approved"
-                        ? !user?.admin
-                            ? user?.office_admin != location
-                                ? meetingStatus
-                                : "Approved"
-                            : "Approved"
-                        : "Approved",
-                created_user_id,
-                updated_user_id: userId,
+            const newResource = await Meeting.create({
+                ...tempNew,
+                status: finalStatus,
             });
-            if (repeats != null && repeats != "" && !recurrence_id) {
-                const recurrence = await MeetingRecurrence.create({
-                    meeting_id: resource.id,
-                    frequency: resource.repeats,
-                    active: true,
-                });
-                await resource.update({ recurrence_id: recurrence.id });
-            }
-
-            // Return the updated record as a JSON response
-            res.status(200).json(resource);
+            await sendApprovalNotifications(newResource, {
+                operation: "create",
+            });
+            return res.status(200).json(newResource);
         }
+        // Standard update path
+        const resource = await Meeting.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        const oldResource = resource.toJSON();
+        const tempUpdated = {
+            id,
+            start_time,
+            end_time,
+            room,
+            location,
+            type,
+            organizer,
+            description,
+            repeats,
+            name,
+            retired,
+            status,
+            created_user_id,
+            all_day: allDay,
+        };
+        const finalStatus = await evaluateStatusAndNotify({
+            operation: "update",
+            user,
+            meetingData: { ...oldResource, ...tempUpdated },
+            existingMeeting: oldResource,
+            created_user_id,
+        });
+        await resource.update({
+            ...tempUpdated,
+            status: finalStatus,
+            updated_user_id: userId,
+        });
+        if (repeats != null && repeats != "" && !recurrence_id) {
+            const recurrence = await MeetingRecurrence.create({
+                meeting_id: resource.id,
+                frequency: resource.repeats,
+                active: true,
+            });
+            await resource.update({ recurrence_id: recurrence.id });
+        }
+        return res.status(200).json(resource);
     } catch (err) {
         console.error("Error updating resource:", err);
         res.status(500).json({ message: "Server error" });
@@ -1623,7 +1893,29 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
                 .status(403)
                 .json({ message: "Access Denied", update: false });
         }
-        const meetingStatus = await GetMeetingStatus(room, userId);
+        // Determine final status & send notifications
+        const tempResource = {
+            ...resource.toJSON(),
+            start_time,
+            end_time,
+            room,
+            location,
+            type,
+            organizer,
+            description,
+            repeats: null,
+            name,
+            retired,
+            all_day: allDay,
+            status,
+        };
+        const finalStatus = await evaluateStatusAndNotify({
+            operation: "update",
+            user,
+            meetingData: tempResource,
+            existingMeeting: resource.toJSON(),
+            created_user_id: resource.created_user_id,
+        });
 
         // Find the existing resource by ID
         console.log("Updating Parent MeetingId", id);
@@ -1699,14 +1991,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             name,
             retired,
             all_day: allDay,
-            status:
-                status !== "Approved"
-                    ? !user?.admin
-                        ? user?.office_admin != location
-                            ? meetingStatus
-                            : "Approved"
-                        : "Approved"
-                    : "Approved",
+            status: finalStatus,
             created_user_id,
             updated_user_id: userId,
         });
@@ -1767,7 +2052,27 @@ const UpdateAllRecurrence = async (req, res) => {
                 .status(403)
                 .json({ message: "Access Denied", update: false });
         }
-        const meetingStatus = await GetMeetingStatus(room, userId);
+        // Determine status & notify for full recurrence update
+        const tempFull = {
+            ...resource.toJSON(),
+            start_time: newStart,
+            end_time: newEnd,
+            room,
+            location,
+            type,
+            organizer,
+            description,
+            repeats,
+            name,
+            status,
+        };
+        const finalStatusFull = await evaluateStatusAndNotify({
+            operation: "update",
+            user,
+            meetingData: tempFull,
+            existingMeeting: resource.toJSON(),
+            created_user_id: resource.created_user_id,
+        });
 
         // Dont allow to book meet if it overlaps with other meetings
         let fakeMeets = await CreateRepeatingMeetingsOfThisMeeting(resource);
@@ -1818,14 +2123,7 @@ const UpdateAllRecurrence = async (req, res) => {
             description,
             name,
             updated_user_id: userId,
-            status:
-                status !== "Approved"
-                    ? !user?.admin
-                        ? user?.office_admin != location
-                            ? meetingStatus
-                            : "Approved"
-                        : "Approved"
-                    : "Approved",
+            status: finalStatusFull,
         });
         // Return the updated record as a JSON response
         res.status(200).json(resource);
@@ -1882,7 +2180,29 @@ const UpdateAllNextInRecurrence = async (req, res) => {
                 .status(403)
                 .json({ message: "Access Denied", update: false });
         }
-        const meetingStatus = await GetMeetingStatus(room, userId);
+        // Determine status & notify for next-in-recurrence branch
+        const tempNext = {
+            ...(oldMeeting.toJSON?.() ? oldMeeting.toJSON() : oldMeeting),
+            start_time: new_start_time,
+            end_time: new_end_time,
+            room,
+            location,
+            type,
+            organizer,
+            description,
+            repeats,
+            name,
+            status,
+        };
+        const finalStatusNext = await evaluateStatusAndNotify({
+            operation: "create",
+            user: await User.findByPk(userId),
+            meetingData: tempNext,
+            existingMeeting: oldMeeting.toJSON
+                ? oldMeeting.toJSON()
+                : oldMeeting,
+            created_user_id: created_user_id,
+        });
         let meeting = {
             id,
             start_time: new_start_time,
@@ -1918,9 +2238,13 @@ const UpdateAllNextInRecurrence = async (req, res) => {
         meeting = await Meeting.create({
             ...meeting,
             created_user_id: userId,
-            status: meetingStatus,
+            status: finalStatusNext,
             updated_user_id: userId,
             id: null,
+        });
+        await sendApprovalNotifications(meeting, {
+            operation: "create",
+            existingMeeting: oldMeeting,
         });
 
         // Stop the old recurring meetings at the updated one
@@ -1998,7 +2322,29 @@ const UpdateCurrentInRecurrence = async (req, res) => {
                 .json({ message: "Access Denied", update: false });
         }
 
-        const meetingStatus = await GetMeetingStatus(room, userId);
+        // Determine status & notify for current-in-recurrence branch
+        const tempCurrent = {
+            ...(oldMeeting.toJSON?.() ? oldMeeting.toJSON() : oldMeeting),
+            start_time: new_start_time,
+            end_time: new_end_time,
+            room,
+            location,
+            type,
+            organizer,
+            description,
+            repeats,
+            name,
+            status,
+        };
+        const finalStatusCurrent = await evaluateStatusAndNotify({
+            operation: "create",
+            user: await User.findByPk(userId),
+            meetingData: tempCurrent,
+            existingMeeting: oldMeeting.toJSON
+                ? oldMeeting.toJSON()
+                : oldMeeting,
+            created_user_id: created_user_id,
+        });
         let meeting = {
             id,
             start_time: new_start_time,
@@ -2037,9 +2383,13 @@ const UpdateCurrentInRecurrence = async (req, res) => {
         meeting = await Meeting.create({
             ...meeting,
             created_user_id: userId,
-            status: meetingStatus,
+            status: finalStatusCurrent,
             updated_user_id: userId,
             id: null,
+        });
+        await sendApprovalNotifications(meeting, {
+            operation: "create",
+            existingMeeting: oldMeeting,
         });
 
         // Return the updated record as a JSON response

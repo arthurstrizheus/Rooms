@@ -55,6 +55,8 @@ import {
 
 import { IsMeetingParentRecurrence } from "../../../Utilites/Functions/ApiFunctions/MeetingRecurrencesFunctions";
 import { Button, Typography } from "@mui/material";
+import { useSocket } from "../../../Contexts/SocketContext";
+import { showWarning } from "../../../Utilites/Functions/ApiFunctions";
 
 const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
     return (meetings || []).map((meeting, idx) => {
@@ -195,6 +197,7 @@ const Calendar = ({
     const [view, setView] = useState(matchMD ? "listWeek" : defaultView);
     const [showParentWarning, setShowParentWarning] = useState(false);
     const [updateEvent, setUpdateEvent] = useState(null);
+    const { socket } = useSocket();
     // dayGridMonth, timeGridWeek, timeGridDay
 
     useEffect(() => {
@@ -275,6 +278,24 @@ const Calendar = ({
             setLoading(false);
         }
     }, [meetings, meetingTypes]);
+
+    // Real-time meeting status changes (approved/declined) – refresh dataset minimally
+    useEffect(() => {
+        if (!socket || !user?.id) return;
+        const handler = (payload) => {
+            const { message, data } = payload || {};
+            if (
+                message === "meeting_approved" ||
+                message === "meeting_declined"
+            ) {
+                // If the current user created it, refresh meetings list
+                // Simpler approach: trigger full refetch via updateTrigger
+                setUpdateTrigger((prev) => prev + 1);
+            }
+        };
+        socket.on("message", handler);
+        return () => socket.off("message", handler);
+    }, [socket, user?.id]);
 
     // calendar event select/add/edit/delete
     const handleRangeSelect = (arg) => {

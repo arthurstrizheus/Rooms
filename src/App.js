@@ -58,7 +58,18 @@ function App() {
             location.pathname !== "/login" &&
             location.pathname !== "/signup"
         ) {
-            localStorage.setItem("lastLocation", location.pathname);
+            const fullPath = location.pathname + location.search;
+            localStorage.setItem("lastLocation", fullPath);
+            // If approval link with meetingId, persist it early before redirect
+            if (location.pathname.startsWith("/approve") && location.search) {
+                try {
+                    const params = new URLSearchParams(location.search);
+                    const mid = params.get("meetingId");
+                    if (mid) {
+                        localStorage.setItem("approvalMeetingId", mid);
+                    }
+                } catch {}
+            }
             setOpen(false);
             navigate("/login");
         } else if (location.pathname === "") {
