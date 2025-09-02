@@ -36,11 +36,13 @@ async function getApprovers(meeting) {
     try {
         // Toggle (default false): set SEND_APPROVAL_TO_ADMINS=true to include global admins
         const includeAdmins = process.env.SEND_APPROVAL_TO_ADMINS;
+        const includeOfficeAdmins = process.env.SEND_APPROVAL_TO_OFFICE_ADMINS;
 
         const approverMap = new Map();
         const addUser = (u) => {
             // Respect toggle: if SEND_APPROVAL_TO_ADMINS is not true, skip admin users
-            if (u && u.admin && !includeAdmins) return;
+            if (u && u.admin && includeAdmins) return;
+            if (u && u.office_admin && includeOfficeAdmins) return;
             if (u && u.id && u.email && !approverMap.has(u.id)) {
                 approverMap.set(u.id, { id: u.id, email: u.email });
             }
