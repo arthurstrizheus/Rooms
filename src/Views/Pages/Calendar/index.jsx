@@ -324,6 +324,7 @@ const Calendar = ({
             setSelectedEvent(null);
         }
         setIsModalOpen(true);
+        setOpenMeetingDialog(false);
     };
 
     const handleEventUpdate = async ({ event }) => {
@@ -524,39 +525,42 @@ const Calendar = ({
                 overflow: "hidden",
             }}
         >
-            <Dialog
-                open={openMeetingDialog}
-                onClose={handleCloseForm}
-                PaperProps={{
-                    style: {
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                    },
-                }}
-            >
-                <MeetingFourm
-                    date={selectedDate}
-                    meeting={
-                        selectedRange
-                            ? selectedRange
-                            : selectedEvent?.id
-                            ? selectedEvent?.extendedProps
-                            : selectedEvent
-                    }
-                    rooms={rooms}
-                    roomResources={roomResources}
-                    resources={resources}
-                    meetingTypes={meetingTypes}
-                    update={update}
-                    setUpdate={setUpdate}
-                    handleCloseForm={handleCloseForm}
-                    setUpdateTrigger={setUpdateTrigger}
-                    updateMode={updateMode}
+            {!isModalOpen && (
+                <Dialog
+                    open={openMeetingDialog}
                     onClose={handleCloseForm}
-                    locations={locations}
-                />
-            </Dialog>
+                    PaperProps={{
+                        style: {
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                        },
+                    }}
+                >
+                    <MeetingFourm
+                        date={selectedDate}
+                        meeting={
+                            selectedRange
+                                ? selectedRange
+                                : selectedEvent?.id
+                                ? selectedEvent?.extendedProps
+                                : selectedEvent
+                        }
+                        rooms={rooms}
+                        roomResources={roomResources}
+                        resources={resources}
+                        meetingTypes={meetingTypes}
+                        update={update}
+                        setUpdate={setUpdate}
+                        handleCloseForm={handleCloseForm}
+                        setUpdateTrigger={setUpdateTrigger}
+                        updateMode={updateMode}
+                        onClose={handleCloseForm}
+                        locations={locations}
+                    />
+                </Dialog>
+            )}
+
             <Dialog
                 open={showParentWarning}
                 onClose={() => setShowParentWarning(false)}
