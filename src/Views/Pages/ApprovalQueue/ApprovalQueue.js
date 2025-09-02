@@ -294,7 +294,7 @@ export default function ApprovalQueue({ setLoading }) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = meetings?.map((n, index) => index);
+            const newSelecteds = meetings?.map((m) => m.id);
             setSelected(newSelecteds);
             return;
         }

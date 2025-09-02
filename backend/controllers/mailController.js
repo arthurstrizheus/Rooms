@@ -279,6 +279,9 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
                 officeRec.City ||
                 officeRec.officeid ||
                 locationName;
+            roomName =
+                roomRec.value +
+                (roomRec.location ? ` (Loc ${locationName})` : "");
         }
         if (typeRec?.value) typeName = typeRec.value;
     } catch (e) {
