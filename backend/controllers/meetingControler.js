@@ -992,6 +992,10 @@ async function CanDelete(meetingId, userId) {
     if (meeting.created_user_id == userId) {
         return true;
     }
+    const approvers = await getApprovers(meeting);
+    if (approvers?.some((a) => a.id === userId)) {
+        return true;
+    }
     return false;
 }
 

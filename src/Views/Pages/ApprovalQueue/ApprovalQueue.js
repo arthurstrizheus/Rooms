@@ -37,6 +37,7 @@ import {
     GetTypes,
     showError,
     showSuccess,
+    showWarning,
 } from "../../../Utilites/Functions/ApiFunctions";
 import { UpdateMeetingStatus } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
 import ShortSelect from "../../../Components/ShortSelect";
@@ -250,29 +251,15 @@ export default function ApprovalQueue({ setLoading }) {
                       })
                     : null
             );
-            await Promise.all(promises)
-                .then((resp) =>
-                    resp
-                        ? showSuccess(
-                              `Meeting${
-                                  meetings?.length > 1 ? "s" : ""
-                              } ${action}d`
-                          )
-                        : showError(
-                              `Failed to ${action} meeting${
-                                  meetings?.length > 1 ? "s" : ""
-                              }`
-                          )
-                )
-                .then(() => {
-                    // If focused meeting processed, clear stored id
-                    if (meetingId && selected.includes(Number(meetingId))) {
-                        clearStoredMeetingId();
-                    } else {
-                        setSelected([]);
-                    }
-                    setUpdate((prev) => prev + 1);
-                });
+            await Promise.all(promises).then(() => {
+                // If focused meeting processed, clear stored id
+                if (meetingId && selected.includes(Number(meetingId))) {
+                    clearStoredMeetingId();
+                } else {
+                    setSelected([]);
+                }
+                setUpdate((prev) => prev + 1);
+            });
         };
         statusChange();
     };
