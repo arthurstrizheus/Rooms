@@ -2,6 +2,7 @@ import { Box, Tab, Tabs } from "@mui/material";
 import { useEffect, useState } from "react";
 import RoomResources from "./Components/RoomResources";
 import Resources from "./Components/Resources";
+import Equipment from "./Components/Equipment";
 
 function CustomTabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -13,9 +14,20 @@ function CustomTabPanel(props) {
             id={`simple-tabpanel-${index}`}
             aria-labelledby={`simple-tab-${index}`}
             {...other}
-            sx={{  width:'100%', height:'100%'}}
+            sx={{ width: "100%", height: "100%" }}
         >
-            {value === index && <Box sx={{height:'100%', overflow:'hidden', display:'flex', flexGrow:1}}>{children}</Box>}
+            {value === index && (
+                <Box
+                    sx={{
+                        height: "100%",
+                        overflow: "hidden",
+                        display: "flex",
+                        flexGrow: 1,
+                    }}
+                >
+                    {children}
+                </Box>
+            )}
         </Box>
     );
 }
@@ -23,37 +35,48 @@ function CustomTabPanel(props) {
 function a11yProps(index) {
     return {
         id: `simple-tab-${index}`,
-        'aria-controls': `simple-tabpanel-${index}`,
+        "aria-controls": `simple-tabpanel-${index}`,
     };
 }
 
-
-const Resournces  = ({setLoading}) => {
+const ResourcesMain = ({ setLoading }) => {
     const [value, setValue] = useState(0);
-    const headers = ['Room Resources', 'Resources'];
     const handleChange = (event, newValue) => {
         setValue(newValue);
     };
-    useEffect(() => {
+    useEffect(() => {});
 
-    });
-
-    return(
-        <Box sx={{ display:'flex', flexGrow:1, flexDirection:'column', overflow:'hidden'}}>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
-                <Tab label='Room Resources' {...a11yProps(0)} />
-                <Tab label='Resources' {...a11yProps(1)} />
+    return (
+        <Box
+            sx={{
+                display: "flex",
+                flexGrow: 1,
+                flexDirection: "column",
+                overflow: "hidden",
+            }}
+        >
+            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                <Tabs
+                    value={value}
+                    onChange={handleChange}
+                    aria-label="basic tabs example"
+                >
+                    <Tab label="Room Resources" {...a11yProps(0)} />
+                    <Tab label="Resources" {...a11yProps(1)} />
+                    <Tab label="Equipment" {...a11yProps(2)} />
                 </Tabs>
             </Box>
             <CustomTabPanel value={value} index={0}>
-                <RoomResources setLoading={setLoading}/>
+                <RoomResources setLoading={setLoading} />
             </CustomTabPanel>
             <CustomTabPanel value={value} index={1}>
-                <Resources setLoading={setLoading}/>
+                <Resources setLoading={setLoading} />
+            </CustomTabPanel>
+            <CustomTabPanel value={value} index={2}>
+                <Equipment setLoading={setLoading} />
             </CustomTabPanel>
         </Box>
-    )
-}
+    );
+};
 
-export default Resournces;
+export default ResourcesMain;

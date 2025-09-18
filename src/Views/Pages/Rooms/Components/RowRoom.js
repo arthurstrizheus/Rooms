@@ -53,6 +53,7 @@ const rowItem = (name, value, color) => {
 const RowRoom = ({ location, row, rowRoom, groups, roomgroups, setOpen }) => {
     const [roomGroups, setRoomGroups] = useState([]);
     const [roomResources, setRoomResources] = useState([]);
+    const [roomEquipment, setRoomEquipment] = useState([]);
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
 
     useEffect(() => {
@@ -85,7 +86,10 @@ const RowRoom = ({ location, row, rowRoom, groups, roomgroups, setOpen }) => {
     useEffect(() => {
         const data = async () => {
             const rmrs = await GetRoomResources(rowRoom.id);
-            setRoomResources(rmrs);
+            setRoomResources(
+                rmrs?.filter((rr) => rr.equipment === false) || []
+            );
+            setRoomEquipment(rmrs?.filter((rr) => rr.equipment === true) || []);
         };
         if (rowRoom?.id) {
             data();
@@ -210,6 +214,14 @@ const RowRoom = ({ location, row, rowRoom, groups, roomgroups, setOpen }) => {
                                 .join(", "),
                             theme.palette.primary.text.dark
                         )}
+                        {roomEquipment.length > 0 &&
+                            rowItem(
+                                "Room Equipment",
+                                roomEquipment
+                                    ?.map((equipment) => equipment.name)
+                                    .join(", "),
+                                theme.palette.primary.text.dark
+                            )}
                         {row?.image_url &&
                             rowItem(
                                 "Image",

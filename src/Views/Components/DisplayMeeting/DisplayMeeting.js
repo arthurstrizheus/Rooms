@@ -53,6 +53,8 @@ const DisplayMeeting = ({
     const [showWarning, setShowWarning] = useState(false);
     const [showParentWarning, setShowParentWarning] = useState(false);
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
+    const isEquipment =
+        localStorage.getItem("calendar-equipmentView") === "true";
 
     useEffect(() => {
         async function fetchRoomImage() {
@@ -78,10 +80,20 @@ const DisplayMeeting = ({
     const end = new Date(meeting?.end_time);
     const color = types?.find((tp) => tp?.id == meeting?.type)?.color;
     const type = types?.find((tp) => tp?.id == meeting?.type)?.value;
-    const room = rooms?.find((rm) => rm?.id == meeting?.room);
+    let room = rooms?.find((rm) => rm?.id == meeting?.room);
     const location = locations?.find(
         (lc) => lc?.officeid == meeting?.location
     )?.Alias;
+    const getEquiptmentRoom = (equipmentId) => {
+        if (!equipmentId) return null;
+        const equipmentRoomLinks =
+            roomResources?.find((rr) => rr.resource_id === equipmentId) || [];
+        room = rooms?.find((rm) => rm?.id == equipmentRoomLinks?.room_id);
+        return rooms?.find((rm) => rm?.id == equipmentRoomLinks?.room_id);
+    };
+
+    const equipment = resources?.find((r) => r?.id == meeting?.equipment);
+    const equipmentRoom = getEquiptmentRoom(meeting?.equipment);
 
     const formatCapacity = (capacity) => {
         if (capacity === 0) return "Capacity: No limit";
@@ -95,7 +107,7 @@ const DisplayMeeting = ({
         return roomResourceLinks
             .map((link) => {
                 const resource = resources?.find(
-                    (r) => r.id === link.resource_id
+                    (r) => r.id === link.resource_id && r.equipment === false
                 );
                 return resource;
             })
@@ -286,7 +298,10 @@ const DisplayMeeting = ({
                                 fontSize={14}
                                 paddingLeft={"3px"}
                             >
-                                SEA {location} / {room?.value}
+                                SEA {location} /{" "}
+                                {isEquipment
+                                    ? equipmentRoom?.value
+                                    : room?.value}
                             </Typography>
                         </Stack>
                     </Grid>
@@ -764,7 +779,10 @@ const DisplayMeeting = ({
                                 color={theme.palette.primary.text.dark}
                                 fontSize={14}
                             >
-                                SEA {location} / {room?.value}
+                                SEA {location} /{" "}
+                                {isEquipment
+                                    ? equipmentRoom?.value
+                                    : room?.value}
                             </Typography>
                             {/* Room Color Indicator next to room name */}
                             {room?.color && (
@@ -903,6 +921,14 @@ const DisplayMeeting = ({
                             >
                                 Type:
                             </Typography>
+                            {equipment?.id && (
+                                <Typography
+                                    variant="body1"
+                                    color={theme.palette.primary.text.dark}
+                                >
+                                    Equipment:
+                                </Typography>
+                            )}
                             {meeting.repeats && (
                                 <Typography
                                     variant="body1"
@@ -925,6 +951,11 @@ const DisplayMeeting = ({
                                 {meeting.organizer}
                             </Typography>
                             <Typography variant="body1">{type}</Typography>
+                            {equipment?.id && (
+                                <Typography variant="body1">
+                                    {equipment?.name}
+                                </Typography>
+                            )}
                             {meeting.repeats && (
                                 <Typography variant="body1">
                                     {meeting.repeats}

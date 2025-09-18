@@ -9,6 +9,7 @@ import {
     Select,
     Divider,
     MenuItem,
+    Tooltip,
 } from "@mui/material";
 import { PostRoomResource } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
 import {
@@ -23,36 +24,40 @@ const AddNewRoomResource = ({
     rooms,
     roomResources,
     resources,
+    equipments,
     setUpdate,
 }) => {
     const { user } = useAuth();
     const [room, setRoom] = useState("");
     const [resource, setResource] = useState("");
+    const [equipment, setEquipment] = useState("");
     const [filteredResources, setFilteredResources] = useState(resources);
+    const [filteredEquipment, setFilteredEquipment] = useState(equipments);
 
     const onClose = () => {
         setRoom("");
         setResource("");
+        setEquipment("");
         setOpen(false);
     };
 
     const onSubmit = () => {
-        if (room?.id && resource?.id) {
+        if (room?.id && (resource?.id || equipment?.id)) {
             PostRoomResource({
                 room_id: room.id,
-                resource_id: resource.id,
+                resource_id: resource.id || equipment.id,
                 created_user_id: user?.id,
+                equipment: equipment?.id ? true : false,
             })
                 .then((resp) => (resp ? showSuccess("Saved") : ""))
                 .then(() => setUpdate((prev) => prev + 1));
+            onClose();
         } else {
             showError("Fields cannot be empty");
         }
-        onClose();
     };
     useEffect(() => {
         if (room?.id) {
-            console.log("here");
             setFilteredResources(
                 resources.filter(
                     (r) =>
@@ -61,8 +66,17 @@ const AddNewRoomResource = ({
                             ?.resources_id
                 )
             );
+            setFilteredEquipment(
+                equipments.filter(
+                    (r) =>
+                        r.id !=
+                        roomResources?.find((rr) => rr.room_id == room.id)
+                            ?.equipment_id
+                )
+            );
         } else {
             setFilteredResources(resources);
+            setFilteredEquipment(equipments);
         }
     }, [room]);
 
@@ -87,7 +101,7 @@ const AddNewRoomResource = ({
                     sx={{ minWidth: 160, width: "100%" }}
                 >
                     <InputLabel id="demo-simple-select-standard-label">
-                        Select Room
+                        {room?.id ? "Selected Room" : "Select Room"}
                     </InputLabel>
                     <Select
                         sx={{ width: "100%" }}
@@ -108,32 +122,102 @@ const AddNewRoomResource = ({
                         ))}
                     </Select>
                 </FormControl>
-                <FormControl
-                    variant="standard"
-                    sx={{ minWidth: 160, width: "100%" }}
+                <Tooltip
+                    title={
+                        equipment?.id
+                            ? "Can only select equipment or resource"
+                            : ""
+                    }
                 >
-                    <InputLabel id="demo-simple-select-standard-label">
-                        Select Resource
-                    </InputLabel>
-                    <Select
-                        sx={{ width: "100%" }}
-                        labelId="demo-simple-select-standard-label"
-                        id="demo-simple-select-standard"
-                        value={resource?.id || ""}
-                        onChange={(e) => {
-                            const selectedItem = filteredResources?.find(
-                                (itm) => itm.id === e.target.value
-                            );
-                            setResource(selectedItem); // Return the entire object
-                        }}
+                    <FormControl
+                        variant="standard"
+                        sx={{ minWidth: 160, width: "100%" }}
                     >
-                        {filteredResources?.map((itm, index) => (
-                            <MenuItem key={index} value={itm.id}>
-                                {itm.name}
+                        <InputLabel id="demo-simple-select-standard-label">
+                            {!equipment?.id
+                                ? resource?.id
+                                    ? "Selected Resource"
+                                    : "Select Resource"
+                                : ""}
+                        </InputLabel>
+                        <Select
+                            sx={{ width: "100%" }}
+                            labelId="demo-simple-select-standard-label"
+                            id="demo-simple-select-standard"
+                            value={resource?.id || ""}
+                            disabled={equipment?.id ? true : false}
+                            onChange={(e) => {
+                                if (e.target.value !== "") {
+                                    const selectedItem =
+                                        filteredResources?.find(
+                                            (itm) => itm.id === e.target.value
+                                        );
+                                    setResource(selectedItem); // Return the entire object
+                                } else {
+                                    setResource("");
+                                }
+                                setEquipment("");
+                            }}
+                        >
+                            {filteredResources?.map((itm, index) => (
+                                <MenuItem key={index} value={itm.id}>
+                                    {itm.name}
+                                </MenuItem>
+                            ))}
+                            <MenuItem key={"none"} value={""}>
+                                None
                             </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+                        </Select>
+                    </FormControl>
+                </Tooltip>
+                <Tooltip
+                    title={
+                        resource?.id
+                            ? "Can only select equipment or resource"
+                            : ""
+                    }
+                >
+                    <FormControl
+                        variant="standard"
+                        sx={{ minWidth: 160, width: "100%" }}
+                    >
+                        <InputLabel id="demo-simple-select-standard-label">
+                            {!resource?.id
+                                ? equipment?.id
+                                    ? "Selected Equipment"
+                                    : "Select Equipment"
+                                : ""}
+                        </InputLabel>
+                        <Select
+                            sx={{ width: "100%" }}
+                            labelId="demo-simple-select-standard-label"
+                            id="demo-simple-select-standard"
+                            value={equipment?.id || ""}
+                            disabled={resource?.id ? true : false}
+                            onChange={(e) => {
+                                if (e.target.value !== "") {
+                                    const selectedItem =
+                                        filteredEquipment?.find(
+                                            (itm) => itm.id === e.target.value
+                                        );
+                                    setEquipment(selectedItem); // Return the entire object
+                                } else {
+                                    setEquipment("");
+                                }
+                                setResource("");
+                            }}
+                        >
+                            {filteredEquipment?.map((itm, index) => (
+                                <MenuItem key={index} value={itm.id}>
+                                    {itm.name}
+                                </MenuItem>
+                            ))}
+                            <MenuItem key={"none"} value={""}>
+                                None
+                            </MenuItem>
+                        </Select>
+                    </FormControl>
+                </Tooltip>
                 <Button
                     variant="outlined"
                     sx={{

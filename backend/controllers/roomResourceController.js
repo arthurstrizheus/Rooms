@@ -50,7 +50,7 @@ const Post = async (req, res) => {
         if (!room_id || !resource_id || !created_user_id) {
             return res.status(400).json({
                 message:
-                    "room_id, resource_id, and created_user_id are required",
+                    "room, (resource or equipment), and created user are required",
             });
         }
         const room = await Room.findByPk(room_id);

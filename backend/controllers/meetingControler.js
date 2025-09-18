@@ -8,6 +8,7 @@ const {
     SpecialPermission,
     BlockedDate,
     Room,
+    RoomResource,
 } = require("../models");
 const { Sequelize } = require("sequelize");
 const {
@@ -56,9 +57,17 @@ async function getApprovers(meeting) {
         });
         officeAdmins.forEach(addUser);
 
+        let room = null;
+        // if equiptment booking get equiptment room
+        if (meeting.equipment) {
+            room = await getEquipmentRoom(meeting);
+        } else {
+            room = meeting.room;
+        }
+
         // Groups with Full access linked to this room
         const roomGroups = await RoomGroup.findAll({
-            where: { room_id: meeting.room },
+            where: { room_id: room },
         });
         const groupIds = roomGroups.map((rg) => rg.group_id);
         if (groupIds.length) {
@@ -86,19 +95,30 @@ async function getApprovers(meeting) {
     }
 }
 
+async function getEquipmentRoom(meeting) {
+    let roomId = null;
+    if (meeting?.equipment) {
+        const roomResource = await RoomResource.findOne({
+            where: { resource_id: meeting.equipment },
+        });
+        if (roomResource) {
+            roomId = roomResource.room_id;
+        }
+    }
+    return roomId;
+}
+
 async function GetNextParentMeeting(userId, meeting) {
     const meetings = await Meeting.findAll({
         where: { recurrence_id: meeting.recurrence_id },
     });
 
-    // Find the next parent meeting
     const fakeMeets = await CreateRepeatingMeetings(
         meeting.start_time,
         "Month",
         userId
     );
     let nextDate = new Date(meeting.start_time);
-
     switch (meeting.repeats) {
         case "Daily":
             nextDate.setDate(nextDate.getDate() + 1);
@@ -115,11 +135,9 @@ async function GetNextParentMeeting(userId, meeting) {
         default:
             throw new Error("Invalid range");
     }
-
     let nextParentMeet = fakeMeets?.find(
         (fm) => fm.start_time === nextDate.toISOString()
     );
-
     if (meetings?.length) {
         const MeetingExists = meetings?.find(
             (mt) =>
@@ -131,7 +149,6 @@ async function GetNextParentMeeting(userId, meeting) {
             return MeetingExists;
         }
     }
-
     if (!nextParentMeet) {
         return null;
     }
@@ -168,13 +185,16 @@ async function CanSeeMeet(meeting, user) {
     // Extract room IDs from the RoomGroup associations
     let roomIds = roomGroups?.map((rg) => rg.room_id);
 
+    // Check if this is an equipment booking
+    let resourceRoomId = await getEquipmentRoom(meeting);
+
     // Find all meetings where the room is part of the rooms the user can access
-    return roomIds.includes(meeting.room);
+    return roomIds.includes(meeting.room) || roomIds.includes(resourceRoomId);
 }
 
 async function isOverlapping(meet) {
     // Fetch meetings in the same room
-    const meetings = await Meeting.findAll({
+    let meetings = await Meeting.findAll({
         where: {
             room: meet.room,
             status: {
@@ -187,24 +207,53 @@ async function isOverlapping(meet) {
     const newEndTime = new Date(meet.end_time);
 
     // Check for overlapping meetings
-    const isOverlapping = meetings.some((meeting) => {
-        const meetingStart = new Date(meeting.start_time);
-        const meetingEnd = new Date(meeting.end_time);
+    let isOverlapping = meetings.some((meeting) => {
+        let meetingStart = new Date(meeting.start_time);
+        let meetingEnd = new Date(meeting.end_time);
 
         // Return true if there is an overlap
         return newStartTime < meetingEnd && newEndTime > meetingStart;
     });
+
+    // Check if equipment is booked
+    if (meet.equipment) {
+        meetings = await Meeting.findAll({
+            where: {
+                equipment: meet.equipment,
+                status: {
+                    [Sequelize.Op.in]: ["Approved", "Waiting on Approval"], // Filter by status
+                },
+            },
+        });
+        // Check for overlapping meetings
+        isOverlapping = meetings.some((meeting) => {
+            const meetingStart = new Date(meeting.start_time);
+            const meetingEnd = new Date(meeting.end_time);
+
+            // Return true if there is an overlap
+            return newStartTime < meetingEnd && newEndTime > meetingStart;
+        });
+    }
 
     return isOverlapping; // Return true if overlap is found, false otherwise
 }
 
 async function isOverlappingFakeMeet(meet) {
     // Fetch meetings in the same room
-    const meetings = await Meeting.findAll({
-        where: {
-            room: meet.room,
-        },
-    });
+    let meetings = [];
+    if (meet.equipment) {
+        meetings = await Meeting.findAll({
+            where: {
+                equipment: meet.equipment,
+            },
+        });
+    } else {
+        meetings = await Meeting.findAll({
+            where: {
+                room: meet.room,
+            },
+        });
+    }
 
     const newStartTime = new Date(meet.start_time);
     const newEndTime = new Date(meet.end_time);
@@ -227,11 +276,20 @@ async function isOverlappingFakeMeet(meet) {
 
 async function isOverlappingFakeMeetUpdate(meet) {
     // Fetch meetings in the same room
-    const meetings = await Meeting.findAll({
-        where: {
-            room: meet.room,
-        },
-    });
+    let meetings = [];
+    if (meet.equipment) {
+        meetings = await Meeting.findAll({
+            where: {
+                equipment: meet.equipment,
+            },
+        });
+    } else {
+        meetings = await Meeting.findAll({
+            where: {
+                room: meet.room,
+            },
+        });
+    }
 
     const newStartTime = new Date(meet.start_time);
     const newEndTime = new Date(meet.end_time);
@@ -649,7 +707,8 @@ async function CreateRepeatingMeetings(
     return meetings;
 }
 
-async function GetMeetingStatus(roomId, userId) {
+// Backwards compatibility: original function kept (name changed below) but now we'll expose GetMeetingStatus
+async function meetingStatus(roomId, userId) {
     // Fetch all groups the user belongs to
     const groupUsers = await GroupUser.findAll({ where: { user_id: userId } });
     // If the user is not part of any group, return an empty array
@@ -686,6 +745,28 @@ async function GetMeetingStatus(roomId, userId) {
     return roomIds.includes(roomId) ? "Approved" : "Waiting on Approval";
 }
 
+// New wrapper allowing an equipment id to stand in for a room id.
+// If equipmentId provided (type 2 RoomResource), resolve its room_id for permission/status checks.
+async function GetMeetingStatus(roomOrEquipmentId, userId, options = {}) {
+    if (!roomOrEquipmentId) return "Waiting on Approval"; // cannot auto approve without a target
+    let effectiveRoomId = roomOrEquipmentId;
+    try {
+        if (options.isEquipment) {
+            const rr = await RoomResource.findByPk(roomOrEquipmentId);
+            if (rr && rr.type === 2) {
+                effectiveRoomId = rr.room_id;
+            }
+        } else {
+            // If caller didn't specify, we still check if it's an equipment id (type 2)
+            const rr = await RoomResource.findByPk(roomOrEquipmentId);
+            if (rr && rr.type === 2) effectiveRoomId = rr.room_id;
+        }
+    } catch (e) {
+        console.warn("GetMeetingStatus equipment lookup failed", e);
+    }
+    return meetingStatus(effectiveRoomId, userId);
+}
+
 // Determine final status and dispatch approval / re-approval emails.
 // Params:
 // - operation: 'create' | 'update'
@@ -698,8 +779,21 @@ async function evaluateStatusAndNotify({
     existingMeeting,
     created_user_id,
 }) {
+    // Determine effective room for status when only equipment supplied.
+    let statusRoomId = meetingData.room;
+    if (!statusRoomId && meetingData.equipment) {
+        try {
+            const rr = await RoomResource.findByPk(meetingData.equipment);
+            if (rr) statusRoomId = rr.room_id;
+        } catch (e) {
+            console.warn(
+                "evaluateStatusAndNotify room from equipment failed",
+                e
+            );
+        }
+    }
     const meetingStatus = await GetMeetingStatus(
-        meetingData.room,
+        statusRoomId,
         created_user_id || user?.id
     );
     // Determine resulting status respecting admin/office_admin shortcuts
@@ -981,7 +1075,7 @@ const SetStatus = async (req, res) => {
 async function CanDelete(meetingId, userId) {
     const meeting = await Meeting.findByPk(Number(meetingId));
     const user = await User.findByPk(userId);
-    console.log(userId, meetingId);
+
     if (user?.admin) {
         return true;
     }
@@ -1089,13 +1183,15 @@ const GetAllUserCreated = async (req, res) => {
 const GetAllUserCanSee = async (req, res) => {
     try {
         const { id } = req.params; // User ID
-        const { date, range } = req.query; // Range: Day, Week, Month, Year, date: current day, start of week, or start of month
+        const { date, range, type } = req.query; // Range: Day, Week, Month, Year, date: current day, start of week, or start of month, type: Equipment (2) or Meeting (1)
+        console.log("GetAllUserCanSee", id, date, range, type);
         if (!date || !range) {
             return res.status(400).json({
                 message:
                     "Required fields missing, date and range ('Day', 'Week'. 'Month')",
             });
         }
+        const meetingType = Number(type) || 1; // default to meeting (1) if not supplied
         const baseDate = new Date(date);
         let dateStart, dateEnd;
 
@@ -1133,14 +1229,21 @@ const GetAllUserCanSee = async (req, res) => {
 
         // If user is admin return all meetings
         if (user?.admin) {
-            let meets = await Meeting.findAll({
-                where: {
-                    status: "Approved",
-                    start_time: {
-                        [Sequelize.Op.between]: [dateStart, dateEnd],
-                    },
-                    location: user?.location,
+            const whereBase = {
+                status: "Approved",
+                start_time: {
+                    [Sequelize.Op.between]: [dateStart, dateEnd],
                 },
+                location: user?.location,
+            };
+            if (meetingType === 2) {
+                whereBase.equipment = { [Sequelize.Op.ne]: null };
+            } else if (meetingType === 1) {
+                whereBase.room = { [Sequelize.Op.ne]: null };
+            }
+
+            let meets = await Meeting.findAll({
+                where: whereBase,
                 include: [
                     {
                         model: User,
@@ -1149,20 +1252,35 @@ const GetAllUserCanSee = async (req, res) => {
                     },
                 ],
             });
-            // console.log('fake meets',fakeMeets.length);
+
             if (fakeMeets?.length > 0) {
-                fakeMeets?.map((fm) => meets.push(fm));
+                const filteredFakes = fakeMeets.filter((fm) =>
+                    meetingType === 2
+                        ? fm.equipment != null
+                        : meetingType === 1
+                        ? fm.room != null
+                        : true
+                );
+                filteredFakes.forEach((fm) => meets.push(fm));
             }
+
             return res.status(200).json(meets);
         } else if (user?.office_admin) {
-            let meets = await Meeting.findAll({
-                where: {
-                    location: user?.office_admin,
-                    status: "Approved",
-                    start_time: {
-                        [Sequelize.Op.between]: [dateStart, dateEnd],
-                    },
+            const whereBase = {
+                location: user?.office_admin,
+                status: "Approved",
+                start_time: {
+                    [Sequelize.Op.between]: [dateStart, dateEnd],
                 },
+            };
+            if (meetingType === 2) {
+                whereBase.equipment = { [Sequelize.Op.ne]: null };
+            } else if (meetingType === 1) {
+                whereBase.room = { [Sequelize.Op.ne]: null };
+            }
+
+            let meets = await Meeting.findAll({
+                where: whereBase,
                 include: [
                     {
                         model: User,
@@ -1171,10 +1289,18 @@ const GetAllUserCanSee = async (req, res) => {
                     },
                 ],
             });
-            // console.log('fake meets',fakeMeets.length);
+
             if (fakeMeets?.length > 0) {
-                fakeMeets?.map((fm) => meets.push(fm));
+                const filteredFakes = fakeMeets.filter((fm) =>
+                    meetingType === 2
+                        ? fm.equipment != null
+                        : meetingType === 1
+                        ? fm.room != null
+                        : true
+                );
+                filteredFakes.forEach((fm) => meets.push(fm));
             }
+
             // Also grab all meetings that have the group of all
             const allGroups = await Group.findAll({
                 where: { group_name: "All SEA Staff" },
@@ -1184,15 +1310,13 @@ const GetAllUserCanSee = async (req, res) => {
                 where: { group_id: { [Sequelize.Op.in]: allIds } },
             });
             const roomsWithAll = allRoomGroups.map((rg) => rg.room_id);
-            return res
-                .status(200)
-                .json(
-                    meets?.filter(
-                        (mt) =>
-                            mt.location == user?.office_admin ||
-                            roomsWithAll.includes(mt.room)
-                    )
-                );
+            meets = meets.filter(
+                (mt) =>
+                    mt.location == user?.office_admin ||
+                    roomsWithAll.includes(mt.room)
+            );
+
+            return res.status(200).json(meets);
         }
 
         // Fetch all groups the user belongs to
@@ -1241,15 +1365,22 @@ const GetAllUserCanSee = async (req, res) => {
         // Extract room IDs from the RoomGroup associations
         let roomIds = roomGroups?.map((rg) => rg.room_id);
 
+        const whereBase = {
+            status: "Approved",
+            start_time: {
+                [Sequelize.Op.between]: [dateStart, dateEnd],
+            },
+            location: user?.location,
+        };
+        if (meetingType === 2) {
+            whereBase.equipment = { [Sequelize.Op.ne]: null };
+        } else if (meetingType === 1) {
+            whereBase.room = { [Sequelize.Op.in]: roomIds };
+        }
+
         // Find all meetings where the room is part of the rooms the user can access
         let meetings = await Meeting.findAll({
-            where: {
-                room: roomIds,
-                status: "Approved",
-                start_time: {
-                    [Sequelize.Op.between]: [dateStart, dateEnd],
-                },
-            },
+            where: whereBase,
             include: [
                 {
                     model: User,
@@ -1278,6 +1409,22 @@ const GetAllUserCanSee = async (req, res) => {
         // console.log('fake meets',fakeMeets.length)
 
         // Return the filtered meetings the user can see
+        // Final type filter for standard users
+        if (meetingType === 2) {
+            // Check if user has access to see that equiptment
+            const roomResources = await RoomResource.findAll({
+                where: {
+                    room_id: { [Sequelize.Op.in]: roomIds },
+                },
+                raw: true,
+            });
+
+            meetings = meetings.filter(
+                (m) =>
+                    m.equipment != null &&
+                    roomResources?.some((rr) => rr.resource_id === m.equipment)
+            );
+        }
         return res.status(200).json(meetings);
     } catch (err) {
         console.error(
@@ -1401,6 +1548,7 @@ const CanBook = async (req, res) => {
             start_time,
             end_time,
             room,
+            equipment,
             type,
             organizer,
             description,
@@ -1411,13 +1559,29 @@ const CanBook = async (req, res) => {
             created_user_id,
             repeats,
             allDay,
+            dev,
         } = req.body;
+        const meeting = {
+            start_time,
+            end_time,
+            room: room || null,
+            equipment: equipment || null,
+            location,
+            type,
+            organizer,
+            description,
+            repeats,
+            name,
+            retired,
+            status,
+            created_user_id,
+        };
 
         // Validate the incoming data (optional but recommended)
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) ||
             !type ||
             !organizer ||
             !name ||
@@ -1453,12 +1617,23 @@ const CanBook = async (req, res) => {
         //     return res.status(409).json({ message: 'Access denied', book:true });
         // }
 
-        // Find all meetings in the same room
-        let meetings = await Meeting.findAll({
-            where: {
-                room: room, // Only check meetings in the same room
-            },
-        });
+        const bookedRoom = await Room.findByPk(room);
+        if (!bookedRoom?.can_book && room) {
+            return res
+                .status(409)
+                .json({ message: "This room cannot be booked", book: false });
+        }
+
+        // Gather meetings matching same room or same equipment (if provided)
+        let meetings = [];
+        if (room) {
+            const roomMeets = await Meeting.findAll({ where: { room } });
+            meetings.push(...roomMeets);
+        }
+        if (equipment) {
+            const equipMeets = await Meeting.findAll({ where: { equipment } });
+            meetings.push(...equipMeets);
+        }
 
         // Convert start_time and end_time to Date objects for comparison
         const newStartTime = new Date(start_time);
@@ -1479,7 +1654,7 @@ const CanBook = async (req, res) => {
             let overlaping = false;
             if (meeting.id != id) {
                 overlaping =
-                    (newStartTime < meetingEnd &&
+                    ((newStartTime < meetingEnd &&
                         getDate(newStartTime) == getDate(meetingStart) &&
                         getYear(newStartTime) == getYear(meetingStart) &&
                         getMonth(newStartTime) == getMonth(meetingStart) &&
@@ -1487,36 +1662,49 @@ const CanBook = async (req, res) => {
                         getDate(newEndTime) == getDate(meetingEnd) &&
                         getYear(newEndTime) == getYear(meetingEnd) &&
                         getMonth(newEndTime) == getMonth(meetingEnd) &&
-                        meeting.room == room &&
+                        ((room && meeting.room == room) ||
+                            (equipment && meeting.equipment == equipment)) &&
                         (meeting.status === "Approved" ||
                             meeting.status === "Waiting on Approval")) ||
-                    ((meeting.all_day || allDay) &&
-                        meeting.room == room &&
-                        ((getDate(newStartTime) == getDate(meetingStart) &&
-                            getYear(newStartTime) == getYear(meetingStart) &&
-                            getMonth(newStartTime) == getMonth(meetingStart)) ||
-                            (getDate(newEndTime) == getDate(meetingEnd) &&
-                                getYear(newEndTime) == getYear(meetingEnd) &&
-                                getMonth(newEndTime) == getMonth(meetingEnd))));
+                        ((meeting.all_day || allDay) &&
+                            ((room && meeting.room == room) ||
+                                (equipment &&
+                                    meeting.equipment == equipment)) &&
+                            ((getDate(newStartTime) == getDate(meetingStart) &&
+                                getYear(newStartTime) ==
+                                    getYear(meetingStart) &&
+                                getMonth(newStartTime) ==
+                                    getMonth(meetingStart)) ||
+                                (getDate(newEndTime) == getDate(meetingEnd) &&
+                                    getYear(newEndTime) ==
+                                        getYear(meetingEnd) &&
+                                    getMonth(newEndTime) ==
+                                        getMonth(meetingEnd))) &&
+                            (meeting.status === "Approved" ||
+                                meeting.status === "Waiting on Approval"))) &&
+                    !dev;
+                if (overlaping) {
+                    console.log("Meeting", {
+                        meetingStart,
+                        meetingEnd,
+                        meetingId: meeting.id,
+                        room: meeting.room,
+                        equipment: meeting.equipment,
+                        allDay: meeting.all_day,
+                    });
+                    console.log("New", {
+                        newStartTime,
+                        newEndTime,
+                        room,
+                        equipment,
+                        allDay,
+                    });
+                }
             }
             // Check if the new meeting overlaps with an existing meeting
             return overlaping;
         });
         if (!isOverlapping && repeats != "") {
-            const meeting = {
-                start_time,
-                end_time,
-                room,
-                location,
-                type,
-                organizer,
-                description,
-                repeats,
-                name,
-                retired,
-                status,
-                created_user_id,
-            };
             // Since this meeting is being updated with repeats and it was not before there is no
             // recurrence in the recurrence table and we need a separate funtion to determain if it will overlap anything
             const fakeMeets2 = await CreateRepeatingMeetingsOfThisMeeting(
@@ -1536,11 +1724,13 @@ const CanBook = async (req, res) => {
                         getDate(newEndTime) == getDate(meetingStart) &&
                         getYear(newEndTime) == getYear(meetingStart) &&
                         getMonth(newEndTime) == getMonth(meetingStart) &&
-                        meeting.room == room &&
+                        ((room && meeting.room == room) ||
+                            (equipment && meeting.equipment == equipment)) &&
                         (meeting.status === "Approved" ||
                             meeting.status === "Waiting on Approval")) ||
                     ((meeting.all_day || allDay) &&
-                        meeting.room == room &&
+                        ((room && meeting.room == room) ||
+                            (equipment && meeting.equipment == equipment)) &&
                         getTime(newStartTime) == getTime(meetingStart) &&
                         getTime(meetingEnd) == getTime(newEndTime) &&
                         getDate(newStartTime) == getDate(meetingStart) &&
@@ -1562,7 +1752,8 @@ const CanBook = async (req, res) => {
                 return (
                     (newStartTime < meetingEnd && newEndTime > meetingStart) ||
                     ((meeting.all_day || allDay) &&
-                        meeting.room == room &&
+                        ((room && meeting.room == room) ||
+                            (equipment && meeting.equipment == equipment)) &&
                         ((getDate(newStartTime) == getDate(meetingStart) &&
                             getYear(newStartTime) == getYear(meetingStart) &&
                             getMonth(newStartTime) == getMonth(meetingStart)) ||
@@ -1596,7 +1787,9 @@ const CanBook = async (req, res) => {
                             getDate(newEndTime) == getDate(meetingStart) &&
                             getYear(newEndTime) == getYear(meetingStart) &&
                             getMonth(newEndTime) == getMonth(meetingStart) &&
-                            meeting.room == room &&
+                            ((room && meeting.room == room) ||
+                                (equipment &&
+                                    meeting.equipment == equipment)) &&
                             (meeting.status === "Approved" ||
                                 meeting.status === "Waiting on Approval")) ||
                         ((meeting.all_day || allDay) &&
@@ -1625,7 +1818,19 @@ const CanBook = async (req, res) => {
             });
         }
         // If does not have access to book in that room, return a conflict message
-        const canUserBook = await CanUserBook(room, userId);
+        // For equipment-only, derive underlying room for permission if needed
+        let bookingRoom = room;
+        if (!bookingRoom && equipment) {
+            try {
+                bookingRoom = await getEquipmentRoom(meeting);
+            } catch (e) {
+                console.warn(
+                    "Could not resolve equipment room for permission",
+                    e
+                );
+            }
+        }
+        const canUserBook = await CanUserBook(bookingRoom, userId);
         if (!canUserBook) {
             return res
                 .status(409)
@@ -1649,6 +1854,7 @@ const Post = async (req, res) => {
             start_time,
             end_time,
             room,
+            equipment, // optional equipment id (RoomResource.id where type=2)
             location,
             type,
             organizer,
@@ -1664,7 +1870,7 @@ const Post = async (req, res) => {
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) || // allow either room or equipment
             !type ||
             !organizer ||
             !name ||
@@ -1678,7 +1884,8 @@ const Post = async (req, res) => {
         const tempMeeting = {
             start_time,
             end_time,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,
@@ -1730,6 +1937,7 @@ const Update = async (req, res) => {
             start_time,
             end_time,
             room,
+            equipment,
             location,
             type,
             organizer,
@@ -1746,7 +1954,7 @@ const Update = async (req, res) => {
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) ||
             !type ||
             !organizer ||
             !name ||
@@ -1772,7 +1980,11 @@ const Update = async (req, res) => {
                 .json({ message: "Access Denied", update: false });
         }
 
-        const meetingStatus = await GetMeetingStatus(room, created_user_id);
+        const meetingStatus = await GetMeetingStatus(
+            room || equipment,
+            created_user_id,
+            { isEquipment: !room && !!equipment }
+        );
 
         // Create meeting if this is a recurrence meeting
         if (Number(id) === -1) {
@@ -1864,6 +2076,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             start_time,
             end_time,
             room,
+            equipment,
             location,
             type,
             organizer,
@@ -1880,7 +2093,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) ||
             !type ||
             !organizer ||
             !name ||
@@ -1904,7 +2117,8 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             ...resource.toJSON(),
             start_time,
             end_time,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,
@@ -1915,20 +2129,6 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             all_day: allDay,
             status,
         };
-        const finalStatus = await evaluateStatusAndNotify({
-            operation: "update",
-            user,
-            meetingData: tempResource,
-            existingMeeting: resource.toJSON(),
-            created_user_id: resource.created_user_id,
-        });
-
-        // Find the existing resource by ID
-        console.log("Updating Parent MeetingId", id);
-        const resource = await Meeting.findByPk(id);
-        const recurance = await MeetingRecurrence.findByPk(
-            resource.recurrence_id
-        );
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         } else if (
@@ -2038,7 +2238,7 @@ const UpdateAllRecurrence = async (req, res) => {
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) ||
             !type ||
             !organizer ||
             !name ||
@@ -2063,7 +2263,8 @@ const UpdateAllRecurrence = async (req, res) => {
             ...resource.toJSON(),
             start_time: newStart,
             end_time: newEnd,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,
@@ -2149,6 +2350,7 @@ const UpdateAllNextInRecurrence = async (req, res) => {
             new_start_time,
             new_end_time,
             room,
+            equipment,
             location,
             type,
             organizer,
@@ -2165,7 +2367,7 @@ const UpdateAllNextInRecurrence = async (req, res) => {
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) ||
             !type ||
             !organizer ||
             !name ||
@@ -2191,7 +2393,8 @@ const UpdateAllNextInRecurrence = async (req, res) => {
             ...(oldMeeting.toJSON?.() ? oldMeeting.toJSON() : oldMeeting),
             start_time: new_start_time,
             end_time: new_end_time,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,
@@ -2213,7 +2416,8 @@ const UpdateAllNextInRecurrence = async (req, res) => {
             id,
             start_time: new_start_time,
             end_time: new_end_time,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,
@@ -2290,6 +2494,7 @@ const UpdateCurrentInRecurrence = async (req, res) => {
             new_start_time,
             new_end_time,
             room,
+            equipment,
             location,
             type,
             organizer,
@@ -2306,7 +2511,7 @@ const UpdateCurrentInRecurrence = async (req, res) => {
         if (
             !start_time ||
             !end_time ||
-            !room ||
+            (!room && !equipment) ||
             !type ||
             !organizer ||
             !name ||
@@ -2333,7 +2538,8 @@ const UpdateCurrentInRecurrence = async (req, res) => {
             ...(oldMeeting.toJSON?.() ? oldMeeting.toJSON() : oldMeeting),
             start_time: new_start_time,
             end_time: new_end_time,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,
@@ -2355,7 +2561,8 @@ const UpdateCurrentInRecurrence = async (req, res) => {
             id,
             start_time: new_start_time,
             end_time: new_end_time,
-            room,
+            room: room || null,
+            equipment: equipment || null,
             location,
             type,
             organizer,

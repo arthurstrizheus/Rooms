@@ -26,6 +26,7 @@ import {
     Checkbox,
     useMediaQuery,
     CircularProgress,
+    Tooltip,
 } from "@mui/material";
 import {
     CheckPostMeeting,
@@ -47,9 +48,10 @@ import {
     GetSpecialPermissionsForMeeting,
     PostSpecialPermission,
 } from "../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
-import { getDate, getMonth, getSeconds, getTime, getYear } from "date-fns";
+import { getDate, getMonth, getSeconds, getTime, getYear, set } from "date-fns";
 import { GetRoomImage } from "../../../Utilites/Functions/ApiFunctions/RoomFunctions";
 import ShortSelectRoom from "../../../Components/ShortSelectObjectRoom";
+import { id } from "date-fns/locale";
 
 // Welcome to Date Sanity™! All passengers please keep your arms inside the function at all times.
 function isMultipleDayMeeting(meeting) {
@@ -135,7 +137,7 @@ const MeetingFourm = ({
     rooms,
     roomResources,
     resources,
-    equipment,
+    equipmentView,
     locations,
     update,
     meetingTypes,
@@ -159,7 +161,7 @@ const MeetingFourm = ({
     const [meetingName, setMeetingName] = useState("");
     const [showDesc, setShowDesc] = useState(false);
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
-    const [showEquipment, setShowEquipment] = useState(false);
+    const [equipment, setEquipment] = useState("");
     const [loading, setLoading] = useState(false);
     const [allDay, setAllDay] = useState(
         meeting?.all_day || meeting?.allDay
@@ -168,6 +170,7 @@ const MeetingFourm = ({
                 : true
             : false
     );
+    const [isDev, setIsDev] = useState(false);
     const times = [];
     const multiDayMeet = isMultipleDayMeeting(meeting);
 
@@ -217,7 +220,7 @@ const MeetingFourm = ({
             } else {
                 // Finally, a meeting that dares to have an actual start and end time.
                 setStartTime(
-                    `${String(getHours(meeting.start)).padStart(
+                    `${String(getHours(meeting.start) || 12).padStart(
                         2,
                         "0"
                     )}:${String(getMinutes(meeting.start)).padStart(
@@ -227,17 +230,20 @@ const MeetingFourm = ({
                 );
                 if (isLateMeeting(meeting)) {
                     // For those meetings that creep past your bedtime.
-                    setEndTime("12:00 AM"); // The official time for "why am I still here?"
+                    setEndTime("12:15 AM"); // The official time for "why am I still here?"
                 } else {
                     // The fabled normal meeting, as rare as a polite reply-all.
                     setEndTime(
                         `${String(getHours(meeting.end) ?? 12).padStart(
                             2,
                             "0"
-                        )}:${String(getMinutes(meeting.end)).padStart(
-                            2,
-                            "0"
-                        )} ${getAmPm(meeting.end).toUpperCase()}`
+                        )}:${String(
+                            getHours(meeting.start) === 0
+                                ? 15
+                                : getMinutes(meeting.end)
+                        ).padStart(2, "0")} ${getAmPm(
+                            meeting.end
+                        ).toUpperCase()}`
                     );
                 }
             }
@@ -251,12 +257,27 @@ const MeetingFourm = ({
             const meetingType = meetingTypes?.find(
                 (tp) => tp.id == meeting.type
             ); // Finding the meeting type, like looking for a sensible comment on the Internet.
+            const resource = resources?.find(
+                (res) => res.id == meeting.equipment
+            ); // Because sometimes, meetings need a little extra something... like a projector or a prayer.
             const meetingRoom = rooms?.find((rm) => rm.id == meeting.room); // Ah, the room. Because meetings without rooms are just sad group hallucinations.
             setMeetingName(meeting.name); // Set the name, because "Untitled Meeting #47" doesn't inspire confidence.
             setType(meetingType); // Let the meeting have an identity crisis.
             setColor(meetingType?.color); // For when you want your meetings as colorful as your calendar-induced anxiety.
             setRepeats(meeting.repeats); // Because the only thing better than one meeting is infinite meetings.
             setSelectedRoom(meetingRoom); // May the odds of getting a room with working A/C be ever in your favor.
+            if (equipmentView) {
+                setEquipment(
+                    resource
+                        ? {
+                              id: resource.id,
+                              value: resource.name,
+                              equipment: true,
+                              location: resource.location,
+                          }
+                        : ""
+                ); // Because sometimes, you just need a projector more than a room.
+            }
             if (getTime(meeting.start_time) && getTime(meeting.end_time)) {
                 setStartTime(
                     `${String(getHours(meeting.start_time)).padStart(
@@ -311,11 +332,6 @@ const MeetingFourm = ({
     const onChangeMeetingType = (e) => {
         setColor((meetingTypes?.find((m) => m.value == e.value)).color);
         setType(e);
-        if (e.value.toLowerCase() === "equipment") {
-            setShowEquipment(true);
-        } else {
-            setShowEquipment(false);
-        }
     };
 
     const onChangeStartTime = (e) => {
@@ -340,9 +356,9 @@ const MeetingFourm = ({
         setType("");
         setColor("");
         setSelectedRoom("");
+        setEquipment("");
         setRepeats("");
         setDescription("");
-        setShowEquipment(false);
         setUpdate(!update);
         console.log("update");
         setUpdateTrigger((prevValue) => prevValue + 1);
@@ -367,7 +383,7 @@ const MeetingFourm = ({
                         transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                     }
                 );
-            } else if (!selectedRoom?.id) {
+            } else if (!equipmentView && !selectedRoom?.id) {
                 openSnackbar("No selected room", {
                     severity: "error",
                     autoHideDuration: 4000,
@@ -376,7 +392,20 @@ const MeetingFourm = ({
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
             } else if (meetingName == "") {
-                openSnackbar("No meeting name", {
+                openSnackbar(
+                    equipmentView
+                        ? "Booking name required"
+                        : "Meeting name required",
+                    {
+                        severity: "error",
+                        autoHideDuration: 4000,
+                        anchorOrigin: { vertical: "top", horizontal: "center" },
+                        alertProps: { variant: "filled" },
+                        transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
+                    }
+                );
+            } else if (equipmentView && !equipment?.id) {
+                openSnackbar("No equipment selected", {
                     severity: "error",
                     autoHideDuration: 4000,
                     anchorOrigin: { vertical: "top", horizontal: "center" },
@@ -398,12 +427,20 @@ const MeetingFourm = ({
                 meeting.end_time = updatedEndTime.toISOString();
 
                 // Update all other values
-                meeting.room = selectedRoom.id;
+                if (!equipmentView) {
+                    meeting.room = selectedRoom.id;
+                    meeting.location = selectedRoom.location;
+                }
                 meeting.type = type.id;
                 meeting.name = meetingName;
                 meeting.description = description ? description : "";
                 meeting.repeats = repeats ? repeats : "";
                 meeting.allDay = allDay;
+                meeting.dev = isDev;
+                if (equipmentView) {
+                    meeting.equipment = equipment.id;
+                    meeting.location = equipment.location;
+                }
 
                 switch (updateMode) {
                     case "next":
@@ -566,7 +603,7 @@ const MeetingFourm = ({
                     }
                 );
                 setLoading(false);
-            } else if (!selectedRoom?.id) {
+            } else if (!equipmentView && !selectedRoom?.id) {
                 openSnackbar("No selected room", {
                     severity: "error",
                     autoHideDuration: 4000,
@@ -576,7 +613,7 @@ const MeetingFourm = ({
                 });
                 setLoading(false);
             } else if (meetingName == "") {
-                openSnackbar("No meeting name", {
+                openSnackbar("Meeting name required", {
                     severity: "error",
                     autoHideDuration: 4000,
                     anchorOrigin: { vertical: "top", horizontal: "center" },
@@ -584,6 +621,14 @@ const MeetingFourm = ({
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
                 setLoading(false);
+            } else if (equipmentView && !equipment?.id) {
+                openSnackbar("No equipment selected", {
+                    severity: "error",
+                    autoHideDuration: 4000,
+                    anchorOrigin: { vertical: "top", horizontal: "center" },
+                    alertProps: { variant: "filled" },
+                    transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
+                });
             } else {
                 const newMeeting = {
                     name: meetingName,
@@ -592,15 +637,22 @@ const MeetingFourm = ({
                     start_time: start.toISOString(),
                     end_time: end.toISOString(),
                     description: description,
-                    room: selectedRoom.id,
-                    location: selectedRoom.location,
                     type: type.id,
                     status: "Approved",
                     retired: false,
                     created_user_id: user?.id,
                     repeats: repeats,
                     allDay,
+                    dev: isDev,
                 };
+                if (equipmentView) {
+                    newMeeting.equipment = equipment.id;
+                    newMeeting.location = equipment.location;
+                }
+                if (!equipmentView) {
+                    newMeeting.room = selectedRoom.id;
+                    newMeeting.location = selectedRoom.location;
+                }
                 CheckPostMeeting(user?.id, newMeeting).then((resp) => {
                     if (resp?.book) {
                         PostMeeting(newMeeting).then((resp) => {
@@ -694,7 +746,9 @@ const MeetingFourm = ({
                             paddingRight: 2,
                         }}
                     >
-                        <Typography fontSize={28}>Book Room</Typography>
+                        <Typography fontSize={28}>
+                            {equipmentView ? "Book Equipment" : "Book Room"}
+                        </Typography>
                         {selectedRoom?.image_url && (
                             <ImageViewer
                                 src={roomImage}
@@ -773,6 +827,9 @@ const MeetingFourm = ({
                         alignItems: "center",
                         paddingLeft: downMD ? 1 : "10px",
                         paddingRight: downMD ? 1 : "10px",
+                        justifyContent: "space-between",
+                        width: "auto",
+                        height: "100%",
                     }}
                 >
                     <Stack
@@ -793,11 +850,16 @@ const MeetingFourm = ({
                                 maxWidth:
                                     !showDesc && !downMD ? "350px" : "600px",
                                 flexGrow: 1,
+                                width: "100%",
                             }}
                         >
                             <ShortTextField
                                 value={meetingName}
-                                label={"Meeting name"}
+                                label={
+                                    equipmentView
+                                        ? "Booking Name"
+                                        : "Meeting Name"
+                                }
                                 variant={"outlined"}
                                 disabled={
                                     type?.value?.toLowerCase() ===
@@ -808,23 +870,49 @@ const MeetingFourm = ({
                             />
                             <ShortSelectObject
                                 items={meetingTypes}
-                                label={"Meeting Type"}
+                                label={
+                                    equipmentView
+                                        ? "Booking Type"
+                                        : "Meeting Type"
+                                }
                                 value={type}
                                 onChange={onChangeMeetingType}
                                 disabled={loading}
                             />
-                            <ShortSelectRoom
-                                items={rooms}
-                                label={"Room"}
-                                secondary={"capacity"}
-                                value={selectedRoom}
-                                onChange={setSelectedRoom}
-                                info={locations}
-                                showInfo={true}
-                                roomResources={roomResources}
-                                resources={resources}
-                                disabled={loading}
-                            />
+                            {!equipmentView && (
+                                <ShortSelectRoom
+                                    items={rooms}
+                                    label={"Room"}
+                                    secondary={"capacity"}
+                                    value={selectedRoom}
+                                    onChange={setSelectedRoom}
+                                    info={locations}
+                                    showInfo={true}
+                                    roomResources={roomResources}
+                                    resources={resources}
+                                    disabled={loading}
+                                />
+                            )}
+                            {equipmentView && (
+                                <ShortSelectObject
+                                    items={
+                                        resources
+                                            ?.filter(
+                                                (res) => res.equipment == true
+                                            )
+                                            ?.map((i) => ({
+                                                id: i.id,
+                                                value: i.name,
+                                                equipment: i.equipment,
+                                                location: i.location,
+                                            })) || []
+                                    }
+                                    label={"Equipment"}
+                                    value={equipment}
+                                    onChange={(e) => setEquipment(e)}
+                                    disabled={loading}
+                                />
+                            )}
                             {!allDay && (
                                 <Stack
                                     direction={"row"}
@@ -880,6 +968,43 @@ const MeetingFourm = ({
                                     >
                                         All Day
                                     </Typography>
+                                    {user.admin && (
+                                        <Tooltip title="For testing purposes only. Does not affect actual booking.">
+                                            <Box
+                                                sx={{
+                                                    nowrap: true,
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    marginLeft: 2,
+                                                }}
+                                            >
+                                                <Checkbox
+                                                    checked={isDev}
+                                                    value={isDev}
+                                                    onChange={(e) =>
+                                                        setIsDev(
+                                                            e.target.checked
+                                                        )
+                                                    }
+                                                    size="small"
+                                                    sx={{
+                                                        padding: 0,
+                                                        "&:hover": {
+                                                            backgroundColor:
+                                                                "transparent",
+                                                        },
+                                                    }}
+                                                    disabled={loading}
+                                                />
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{ ml: 0.5 }}
+                                                >
+                                                    Test meeting
+                                                </Typography>
+                                            </Box>
+                                        </Tooltip>
+                                    )}
                                 </Box>
                             )}
                         </Box>
@@ -891,6 +1016,7 @@ const MeetingFourm = ({
                                     flexGrow: 1,
                                     flexDirection: "column",
                                     gap: 1,
+                                    width: "100%",
                                 }}
                             >
                                 <TextField

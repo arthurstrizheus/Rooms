@@ -10,6 +10,7 @@ const {
     Group,
     GroupUser,
     RoomGroup,
+    Resource,
 } = require("../models");
 const { Op } = require("sequelize");
 // Socket messaging
@@ -255,6 +256,7 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
         location,
         type, // added to display human readable meeting type
         organizer,
+        equipment,
         description,
     } = m;
 
@@ -262,16 +264,18 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
     let roomName = room ?? "N/A";
     let locationName = location ?? "N/A";
     let typeName = type ?? "N/A";
+    let equipmentName = equipment ?? "N/A"; // Default to N/A if no equipment
     try {
-        const [roomRec, officeRec, typeRec] = await Promise.all([
+        const [roomRec, officeRec, typeRec, equipmentRec] = await Promise.all([
             room ? Room.findByPk(room) : null,
             location ? Office.findByPk(location) : null,
             type ? Type.findByPk(type) : null,
+            equipment ? Resource.findByPk(equipment) : null,
         ]);
         if (roomRec?.value)
             roomName =
-                roomRec.value +
-                (roomRec.location ? ` (Loc ${roomRec.location})` : "");
+                roomRec?.value +
+                (roomRec?.location ? ` (Loc ${roomRec?.location})` : "");
         if (officeRec) {
             // Prefer Alias then City then officeid
             locationName =
@@ -280,10 +284,11 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
                 officeRec.officeid ||
                 locationName;
             roomName =
-                roomRec.value +
-                (roomRec.location ? ` (Loc ${locationName})` : "");
+                roomRec?.value +
+                (roomRec?.location ? ` (Loc ${locationName})` : "");
         }
         if (typeRec?.value) typeName = typeRec.value;
+        if (equipmentRec?.name) equipmentName = equipmentRec.name;
     } catch (e) {
         logErrorToFile(e);
         console.warn("Lookup enrichment failed, falling back to raw IDs.");
@@ -298,7 +303,15 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
         }
     };
 
-    const emailSubject = `Action Required: Approve Meeting ${
+    const hasRoom = !!room;
+    const hasEquipment = !!equipment;
+    const bookingLabel =
+        hasRoom && hasEquipment
+            ? "Meeting & Equipment Use"
+            : hasEquipment
+            ? "Equipment Use"
+            : "Meeting";
+    const emailSubject = `Action Required: Approve ${bookingLabel} ${
         name ? '"' + name + '"' : "#" + id
     }`;
     const approvalBaseUrl = "https://rooms.sealimited.com/approve"; // static per request
@@ -320,7 +333,13 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
     const greetingName = approverName || "Approver";
     const emailBody = `
     <p>Dear ${greetingName},</p>
-    <p>A meeting requires your approval.</p>
+    <p>A ${
+        hasRoom && hasEquipment
+            ? "meeting & equipment use"
+            : hasEquipment
+            ? "equipment use"
+            : "meeting"
+    } requires your approval.</p>
     <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Title</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
             name || "N/A"
@@ -334,6 +353,7 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Room</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${roomName}</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${locationName}</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Type</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${typeName}</td></tr>
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${equipmentName}</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Organizer</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
             organizer || "N/A"
         }</td></tr>
@@ -343,7 +363,7 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
     </table>
     <p style="margin-top:16px;">Please review and take the appropriate action.</p>
     <p style="margin:24px 0;">
-        <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve Meeting</a>
+    <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve ${bookingLabel}</a>
     </p>
     <p style="font-size:12px;">If the button doesn't work, copy and paste this link into your browser:<br/><span style="word-break:break-all;">${approvalLink}</span></p>
     <p>Thank you.<br/>This is an automated message; please do not reply.</p>
@@ -373,8 +393,14 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
             console.warn("Socket notify failed (approval request)", e);
         }
         const actualTo = info?.envelope?.to || info?.accepted || [];
+        const logLabel =
+            hasRoom && hasEquipment
+                ? "Meeting+Equipment"
+                : hasEquipment
+                ? "Equipment"
+                : "Meeting";
         console.log(
-            `Meeting approval request email sent (override=${
+            `${logLabel} approval request email sent (override=${
                 EMAIL_OVERRIDE_ACTIVE ? "ON" : "OFF"
             }) original=${recipientEmail} actual=${
                 Array.isArray(actualTo) ? actualTo.join(",") : actualTo
@@ -458,34 +484,47 @@ const sendMeetingReapprovalRequestEmail = async (
         rooms: [prev.room, curr.room].filter((v) => v != null),
         locations: [prev.location, curr.location].filter((v) => v != null),
         types: [prev.type, curr.type].filter((v) => v != null),
+        equipments: [prev.equipment, curr.equipment].filter((v) => v != null),
     };
-    let lookupCache = { room: {}, location: {}, type: {} };
+    let lookupCache = { room: {}, location: {}, type: {}, equipment: {} };
     try {
-        const [roomRecords, officeRecords, typeRecords] = await Promise.all([
-            lookupIds.rooms.length
-                ? Room.findAll({ where: { id: { [Op.in]: lookupIds.rooms } } })
-                : [],
-            lookupIds.locations.length
-                ? Office.findAll({
-                      where: { officeid: { [Op.in]: lookupIds.locations } },
-                  })
-                : [],
-            lookupIds.types.length
-                ? Type.findAll({ where: { id: { [Op.in]: lookupIds.types } } })
-                : [],
-        ]);
-        roomRecords.forEach((r) => (lookupCache.room[r.id] = r.value));
+        const [roomRecords, officeRecords, typeRecords, equipmentRecords] =
+            await Promise.all([
+                lookupIds.rooms.length
+                    ? Room.findAll({
+                          where: { id: { [Op.in]: lookupIds.rooms } },
+                      })
+                    : [],
+                lookupIds.locations.length
+                    ? Office.findAll({
+                          where: { officeid: { [Op.in]: lookupIds.locations } },
+                      })
+                    : [],
+                lookupIds.types.length
+                    ? Type.findAll({
+                          where: { id: { [Op.in]: lookupIds.types } },
+                      })
+                    : [],
+                lookupIds.equipments.length
+                    ? Resource.findAll({
+                          where: { id: { [Op.in]: lookupIds.equipments } },
+                      })
+                    : [],
+            ]);
+        roomRecords.forEach((r) => (lookupCache.room[r.id] = r?.value));
         officeRecords.forEach(
             (o) =>
                 (lookupCache.location[o.officeid] =
                     o.Alias || o.City || `${o.officeid}`)
         );
         typeRecords.forEach((t) => (lookupCache.type[t.id] = t.value));
+        equipmentRecords.forEach((e) => (lookupCache.equipment[e.id] = e.name));
     } catch (e) {
         logErrorToFile(e);
         console.warn("Re-approval lookup enrichment failed");
     }
 
+    const includeEquipment = prev.equipment != null || curr.equipment != null;
     const FIELDS = [
         { key: "name", label: "Title" },
         { key: "start_time", label: "Start" },
@@ -505,9 +544,17 @@ const sendMeetingReapprovalRequestEmail = async (
             label: "Type",
             transform: (v) => (v == null ? v : lookupCache.type[v] || v),
         },
+        // equipment inserted conditionally
         { key: "organizer", label: "Organizer" },
         { key: "description", label: "Description" },
     ];
+    if (includeEquipment) {
+        FIELDS.splice(6, 0, {
+            key: "equipment",
+            label: "Equipment",
+            transform: (v) => (v == null ? v : lookupCache.equipment[v] || v),
+        });
+    }
 
     const formatValue = (key, val) => {
         if (val == null || val === "") return "<em>N/A</em>";
@@ -545,7 +592,15 @@ const sendMeetingReapprovalRequestEmail = async (
         ? `${approvalBaseUrl}?meetingId=${encodeURIComponent(id)}`
         : approvalBaseUrl;
 
-    const subject = `Re-Approval Required: Updated Meeting ${
+    const hasRoomCurr = !!curr.room;
+    const hasEquipmentCurr = !!curr.equipment;
+    const bookingLabel =
+        hasRoomCurr && hasEquipmentCurr
+            ? "Meeting & Equipment Use"
+            : hasEquipmentCurr
+            ? "Equipment Use"
+            : "Meeting";
+    const subject = `Re-Approval Required: Updated ${bookingLabel} ${
         curr.name ? '"' + curr.name + '"' : id ? "#" + id : ""
     }`;
     // Personalize greeting for re-approval
@@ -563,7 +618,7 @@ const sendMeetingReapprovalRequestEmail = async (
     const greetingName = approverName || "Approver";
     const emailBody = `
     <p>Dear ${greetingName},</p>
-    <p>A previously approved meeting has been updated and requires your review.</p>
+    <p>A previously approved ${bookingLabel.toLowerCase()} has been updated and requires your review.</p>
     <p><strong>Changed Fields:</strong> ${
         changed.length ? changed.join(", ") : "(No detected field changes)"
     }</p>
@@ -578,7 +633,7 @@ const sendMeetingReapprovalRequestEmail = async (
         <tbody>${rowsHtml}</tbody>
     </table>
     <p style="margin:24px 0 8px;">
-        <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review Updated Meeting</a>
+    <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review Updated ${bookingLabel}</a>
     </p>
     <p style="font-size:12px;">If the button does not work, paste this URL into your browser:<br/>${approvalLink}</p>
     <p>Thank you.<br/>This is an automated message; please do not reply.</p>
@@ -643,17 +698,20 @@ const sendMeetingDeclinedEmail = async (meeting, recipientEmail, reason) => {
         type,
         organizer,
         description,
+        equipment,
     } = m;
     let roomName = room ?? "N/A";
     let locationName = location ?? "N/A";
     let typeName = type ?? "N/A";
+    let equipmentName = equipment ?? "N/A";
     try {
-        const [roomRec, officeRec, typeRec] = await Promise.all([
+        const [roomRec, officeRec, typeRec, equipmentRec] = await Promise.all([
             room ? Room.findByPk(room) : null,
             location ? Office.findByPk(location) : null,
             type ? Type.findByPk(type) : null,
+            equipment ? Resource.findByPk(equipment) : null,
         ]);
-        if (roomRec?.value) roomName = roomRec.value;
+        if (roomRec?.value) roomName = roomRec?.value;
         if (officeRec)
             locationName =
                 officeRec.Alias ||
@@ -661,6 +719,7 @@ const sendMeetingDeclinedEmail = async (meeting, recipientEmail, reason) => {
                 officeRec.officeid ||
                 locationName;
         if (typeRec?.value) typeName = typeRec.value;
+        if (equipmentRec?.name) equipmentName = equipmentRec.name;
     } catch (e) {
         logErrorToFile(e);
     }
@@ -748,10 +807,20 @@ const sendMeetingDeclinedEmail = async (meeting, recipientEmail, reason) => {
     const approverLine = approverLinks.length
         ? ` or contact: ${approverLinks.join(", ")}`
         : "";
-    const subject = `Meeting Declined: ${name ? '"' + name + '"' : "#" + id}`;
+    const hasRoomDecl = !!room;
+    const hasEquipmentDecl = !!equipment;
+    const bookingLabel =
+        hasRoomDecl && hasEquipmentDecl
+            ? "Meeting & Equipment Use"
+            : hasEquipmentDecl
+            ? "Equipment Use"
+            : "Meeting";
+    const subject = `${bookingLabel} Declined: ${
+        name ? '"' + name + '"' : "#" + id
+    }`;
     const body = `
         <p>Dear ${creatorName},</p>
-        <p>Your meeting has been <strong style="color:#d32f2f;">declined</strong>.</p>
+        <p>Your ${bookingLabel.toLowerCase()} has been <strong style=\"color:#d32f2f;\">declined</strong>.</p>
         <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Title</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
                 name || "N/A"
@@ -765,6 +834,7 @@ const sendMeetingDeclinedEmail = async (meeting, recipientEmail, reason) => {
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Room</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${roomName}</td></tr>
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${locationName}</td></tr>
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Type</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${typeName}</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${equipmentName}</td></tr>
         </table>
         ${
             description
@@ -821,18 +891,29 @@ const sendMeetingDeclinedEmail = async (meeting, recipientEmail, reason) => {
 const sendMeetingApprovedEmail = async (meeting, recipientEmail) => {
     if (!meeting || !recipientEmail) return;
     const m = typeof meeting.get === "function" ? meeting.get() : meeting;
-    const { id, name, start_time, end_time, room, location, type, organizer } =
-        m;
+    const {
+        id,
+        name,
+        start_time,
+        end_time,
+        room,
+        location,
+        type,
+        organizer,
+        equipment,
+    } = m;
     let roomName = room ?? "N/A";
     let locationName = location ?? "N/A";
     let typeName = type ?? "N/A";
+    let equipmentName = equipment ?? "N/A";
     try {
-        const [roomRec, officeRec, typeRec] = await Promise.all([
+        const [roomRec, officeRec, typeRec, equipmentRec] = await Promise.all([
             room ? Room.findByPk(room) : null,
             location ? Office.findByPk(location) : null,
             type ? Type.findByPk(type) : null,
+            equipment ? Resource.findByPk(equipment) : null,
         ]);
-        if (roomRec?.value) roomName = roomRec.value;
+        if (roomRec?.value) roomName = roomRec?.value;
         if (officeRec)
             locationName =
                 officeRec.Alias ||
@@ -840,6 +921,7 @@ const sendMeetingApprovedEmail = async (meeting, recipientEmail) => {
                 officeRec.officeid ||
                 locationName;
         if (typeRec?.value) typeName = typeRec.value;
+        if (equipmentRec?.name) equipmentName = equipmentRec.name;
     } catch (e) {
         logErrorToFile(e);
     }
@@ -862,10 +944,20 @@ const sendMeetingApprovedEmail = async (meeting, recipientEmail) => {
             }
         }
     } catch {}
-    const subject = `Meeting Approved: ${name ? '"' + name + '"' : "#" + id}`;
+    const hasRoomApproved = !!room;
+    const hasEquipmentApproved = !!equipment;
+    const bookingLabel =
+        hasRoomApproved && hasEquipmentApproved
+            ? "Meeting & Equipment Use"
+            : hasEquipmentApproved
+            ? "Equipment Use"
+            : "Meeting";
+    const subject = `${bookingLabel} Approved: ${
+        name ? '"' + name + '"' : "#" + id
+    }`;
     const body = `
         <p>Dear ${creatorName},</p>
-        <p>Your meeting has been <strong style="color:#2e7d32;">approved</strong>.</p>
+        <p>Your ${bookingLabel.toLowerCase()} has been <strong style=\"color:#2e7d32;\">approved</strong>.</p>
         <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Title</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
                 name || "N/A"
@@ -879,6 +971,7 @@ const sendMeetingApprovedEmail = async (meeting, recipientEmail) => {
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Room</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${roomName}</td></tr>
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${locationName}</td></tr>
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Type</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${typeName}</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${equipmentName}</td></tr>
         </table>
         <p style="margin-top:16px;">You can view or modify this meeting in the Rooms application.</p>
         <p>Thank you.<br/>This is an automated message; please do not reply.</p>

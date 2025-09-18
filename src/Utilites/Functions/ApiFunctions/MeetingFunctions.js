@@ -19,7 +19,7 @@ export async function PostMeeting(data) {
         if (resp?.data?.status === "Waiting on Approval") {
             showWarning("Waiting on Approval");
         } else {
-            showSuccess("Meeting created");
+            showSuccess("Booking created");
         }
 
         return resp.data;
@@ -54,7 +54,7 @@ export async function DeleteMeeting(data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meeting deleted");
+            showSuccess("Booking deleted");
             return true; // Indicate success
         }
 
@@ -63,7 +63,7 @@ export async function DeleteMeeting(data) {
             showError(errorCheck.message);
             return false;
         }
-        showSuccess("Meeting deleted");
+        showSuccess("Booking deleted");
         return true;
     } catch (err) {
         return false;
@@ -80,7 +80,7 @@ export async function DeleteOnlyParentMeeting(data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meeting deleted");
+            showSuccess("Booking deleted");
             return true; // Indicate success
         }
 
@@ -89,7 +89,7 @@ export async function DeleteOnlyParentMeeting(data) {
             showError(errorCheck.message);
             return false;
         }
-        showSuccess("Meeting deleted");
+        showSuccess("Booking deleted");
         return true;
     } catch (err) {
         return false;
@@ -107,10 +107,10 @@ export async function UpdateMeeting(id, data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meeting updated");
+            showSuccess("Booking updated");
             return resp.data; // Indicate success
         }
-        showSuccess("Meeting updated");
+        showSuccess("Booking updated");
         return true;
     } catch (err) {
         return false;
@@ -128,7 +128,7 @@ export async function UpdateAllNextMeetingsInRecurrence(id, data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meetings updated");
+            showSuccess("Bookings updated");
             return resp.data; // Indicate success
         }
 
@@ -137,7 +137,7 @@ export async function UpdateAllNextMeetingsInRecurrence(id, data) {
             showError(errorCheck.message);
             return resp.data;
         }
-        showSuccess("Meetings updated");
+        showSuccess("Bookings updated");
         return true;
     } catch (err) {
         return false;
@@ -155,7 +155,7 @@ export async function UpdateAllMeetingsInRecurrence(id, data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meetings updated");
+            showSuccess("Bookings pdated");
             return resp.data; // Indicate success
         }
 
@@ -164,7 +164,7 @@ export async function UpdateAllMeetingsInRecurrence(id, data) {
             showError(errorCheck.message);
             return false;
         }
-        showSuccess("Meetings updated");
+        showSuccess("Bookings updated");
         return resp.data;
     } catch (err) {
         return false;
@@ -228,7 +228,7 @@ export async function UpdateMeetingStatus(id, data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meeting Updated");
+            showSuccess("Updated Successfully");
             return true; // Indicate success
         }
 

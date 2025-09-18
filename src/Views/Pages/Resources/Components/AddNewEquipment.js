@@ -14,7 +14,7 @@ import {
 import { useAuth } from "../../../../Utilites/AuthContext";
 import { PostResource } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
 
-const AddNewResource = ({ open, setOpen, location, setUpdate, view }) => {
+const AddNewEquipment = ({ open, setOpen, location, setUpdate, view }) => {
     const ariaLabel = { "aria-label": "description" };
     const [name, setName] = useState("");
     const { user } = useAuth();
@@ -30,6 +30,7 @@ const AddNewResource = ({ open, setOpen, location, setUpdate, view }) => {
                 name: name,
                 location: location.officeid,
                 created_user_id: user?.id,
+                equipment: true,
             })
                 .then((resp) => (resp ? showSuccess("Saved") : ""))
                 .then(() => setUpdate((prev) => prev + 1));
@@ -53,14 +54,14 @@ const AddNewResource = ({ open, setOpen, location, setUpdate, view }) => {
                     fontFamily={"Courier New, sans-serif"}
                     marginBottom={2}
                 >
-                    Create Resource
+                    Create Equipment
                 </Typography>
                 <Divider width={"100%"} />
                 <Input
                     sx={{ marginTop: "30px" }}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Resource Name"
+                    placeholder="Equipment Name"
                     inputProps={ariaLabel}
                 />
                 <Button
@@ -79,4 +80,4 @@ const AddNewResource = ({ open, setOpen, location, setUpdate, view }) => {
     );
 };
 
-export default AddNewResource;
+export default AddNewEquipment;

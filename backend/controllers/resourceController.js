@@ -2,7 +2,15 @@ const { Resource } = require("../models");
 
 const GetAll = async (req, res) => {
     try {
-        const data = await Resource.findAll();
+        const { equipment } = req.query;
+        let data = [];
+        if (equipment === "true") {
+            data = await Resource.findAll({ where: { equipment: true } });
+        } else if (equipment === "false") {
+            data = await Resource.findAll({ where: { equipment: false } });
+        } else {
+            data = await Resource.findAll();
+        }
         res.json(data);
     } catch (err) {
         console.error("Error fetching room groups:", err);
@@ -13,7 +21,7 @@ const GetAll = async (req, res) => {
 const Post = async (req, res) => {
     try {
         // Extract data from the request body
-        const { name, location, created_user_id } = req.body;
+        const { name, location, created_user_id, equipment } = req.body;
 
         // Validate the incoming data (optional but recommended)
         if (!name || !location || !created_user_id) {
@@ -33,6 +41,7 @@ const Post = async (req, res) => {
             name,
             location,
             created_user_id,
+            equipment: equipment || false, // Default to false if not provided
         });
 
         // Return the created record as a JSON response
@@ -46,7 +55,7 @@ const Post = async (req, res) => {
 const Update = async (req, res) => {
     try {
         const { id } = req.params; // Extract ID from URL parameters
-        const { name, location, created_user_id } = req.body; // Extract data from the request body
+        const { name, location, created_user_id, equipment } = req.body; // Extract data from the request body
 
         // Validate the incoming data (optional but recommended)
         if (!name || !location || !created_user_id) {
@@ -71,6 +80,7 @@ const Update = async (req, res) => {
             name,
             location,
             created_user_id,
+            equipment: equipment || false, // Default to false if not provided
         });
 
         // Return the updated record as a JSON response

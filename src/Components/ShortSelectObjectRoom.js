@@ -85,7 +85,7 @@ const ShortSelectRoom = ({
         return roomResourceLinks
             .map((link) => {
                 const resource = resources?.find(
-                    (r) => r.id === link.resource_id
+                    (r) => r.id === link.resource_id && r.equipment === false
                 );
                 return resource;
             })
@@ -216,260 +216,271 @@ const ShortSelectRoom = ({
                     },
                 }}
             >
-                {items?.map((room, index) => {
-                    const locationInfo = getLocationInfo(room.location);
+                {items
+                    ?.filter((room) => room?.can_book == true)
+                    ?.map((room, index) => {
+                        const locationInfo = getLocationInfo(room.location);
 
-                    return (
-                        <MenuItem
-                            key={index}
-                            value={room.id}
-                            sx={{
-                                width: "100%",
-                                py: 1.5,
-                                px: 2,
-                                "&:hover": {
-                                    backgroundColor: theme.palette.action.hover,
-                                },
-                            }}
-                        >
-                            <Box
+                        return (
+                            <MenuItem
+                                key={index}
+                                value={room.id}
                                 sx={{
-                                    display: "flex",
                                     width: "100%",
-                                    gap: 1.5,
+                                    py: 1.5,
+                                    px: 2,
+                                    "&:hover": {
+                                        backgroundColor:
+                                            theme.palette.action.hover,
+                                    },
                                 }}
                             >
-                                {/* Room Image */}
-                                {roomImages[room.id] ? (
-                                    <ImageViewer
-                                        src={roomImages[room.id]}
-                                        alt={room.value}
-                                        clickable={false}
-                                        style={{
-                                            width: 48,
-                                            height: 48,
-                                            objectFit: "cover",
-                                            borderRadius: "8px",
-                                            border: `2px solid ${formatColor(
-                                                room.color
-                                            )}`,
-                                            flexShrink: 0,
-                                        }}
-                                    />
-                                ) : (
-                                    <Box
-                                        sx={{
-                                            width: 48,
-                                            height: 48,
-                                            backgroundColor: "transparent",
-                                            border: `2px solid ${formatColor(
-                                                room.color
-                                            )}`,
-                                            borderRadius: "8px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            flexShrink: 0,
-                                        }}
-                                    >
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                color: theme.palette.text
-                                                    .primary,
-                                                fontWeight: "bold",
-                                                fontSize: "16px",
-                                                lineHeight: 1,
-                                                textAlign: "center",
-                                            }}
-                                        >
-                                            {room.value
-                                                .substring(0, 2)
-                                                .toUpperCase()}
-                                        </Typography>
-                                    </Box>
-                                )}
-
-                                {/* Room Details */}
                                 <Box
                                     sx={{
                                         display: "flex",
-                                        flexDirection: "column",
-                                        flex: 1,
-                                        minWidth: 0,
+                                        width: "100%",
+                                        gap: 1.5,
                                     }}
                                 >
-                                    <Typography
-                                        variant="subtitle2"
-                                        sx={{
-                                            fontWeight: 600,
-                                            color: theme.palette.text.primary,
-                                            mb: 0.5,
-                                        }}
-                                    >
-                                        {room.value}
-                                    </Typography>
-
-                                    <Stack
-                                        direction="row"
-                                        spacing={1}
-                                        sx={{ mb: 1 }}
-                                    >
-                                        {/* Capacity Chip */}
-                                        <Chip
-                                            icon={<PeopleIcon />}
-                                            label={formatCapacity(
-                                                room.capacity
-                                            )}
-                                            size="small"
-                                            variant="outlined"
-                                            sx={{
-                                                height: 20,
-                                                "& .MuiChip-label": {
-                                                    fontSize: "0.7rem",
-                                                },
-                                                "& .MuiChip-icon": {
-                                                    fontSize: "0.8rem",
-                                                },
+                                    {/* Room Image */}
+                                    {roomImages[room.id] ? (
+                                        <ImageViewer
+                                            src={roomImages[room.id]}
+                                            alt={room.value}
+                                            clickable={false}
+                                            style={{
+                                                width: 48,
+                                                height: 48,
+                                                objectFit: "cover",
+                                                borderRadius: "8px",
+                                                border: `2px solid ${formatColor(
+                                                    room.color
+                                                )}`,
+                                                flexShrink: 0,
                                             }}
                                         />
-
-                                        {/* Color indicator */}
-                                        {room.color && (
-                                            <Box
-                                                sx={{
-                                                    width: 16,
-                                                    height: 16,
-                                                    backgroundColor:
-                                                        formatColor(room.color),
-                                                    borderRadius: "50%",
-                                                    border: `1px solid ${theme.palette.divider}`,
-                                                    alignSelf: "center",
-                                                }}
-                                            />
-                                        )}
-                                    </Stack>
-
-                                    {/* Location Information */}
-                                    {locationInfo && (
+                                    ) : (
                                         <Box
                                             sx={{
+                                                width: 48,
+                                                height: 48,
+                                                backgroundColor: "transparent",
+                                                border: `2px solid ${formatColor(
+                                                    room.color
+                                                )}`,
+                                                borderRadius: "8px",
                                                 display: "flex",
                                                 alignItems: "center",
-                                                gap: 0.5,
-                                                mb: 0.5,
+                                                justifyContent: "center",
+                                                flexShrink: 0,
                                             }}
                                         >
-                                            <LocationOnIcon
-                                                sx={{
-                                                    fontSize: 14,
-                                                    color: theme.palette.text
-                                                        .secondary,
-                                                }}
-                                            />
                                             <Typography
                                                 variant="caption"
-                                                color="text.secondary"
                                                 sx={{
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                    whiteSpace: "nowrap",
+                                                    color: theme.palette.text
+                                                        .primary,
+                                                    fontWeight: "bold",
+                                                    fontSize: "16px",
+                                                    lineHeight: 1,
+                                                    textAlign: "center",
                                                 }}
                                             >
-                                                {locationInfo.Alias ||
-                                                    locationInfo.City}
-                                                {locationInfo.state &&
-                                                    `, ${locationInfo.state}`}
+                                                {room.value
+                                                    .substring(0, 2)
+                                                    .toUpperCase()}
                                             </Typography>
                                         </Box>
                                     )}
 
-                                    {/* Resources Information */}
-                                    {(() => {
-                                        const roomResourceList =
-                                            getRoomResources(room.id);
-                                        return (
-                                            roomResourceList.length > 0 && (
+                                    {/* Room Details */}
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            flex: 1,
+                                            minWidth: 0,
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="subtitle2"
+                                            sx={{
+                                                fontWeight: 600,
+                                                color: theme.palette.text
+                                                    .primary,
+                                                mb: 0.5,
+                                            }}
+                                        >
+                                            {room.value}
+                                        </Typography>
+
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{ mb: 1 }}
+                                        >
+                                            {/* Capacity Chip */}
+                                            <Chip
+                                                icon={<PeopleIcon />}
+                                                label={formatCapacity(
+                                                    room.capacity
+                                                )}
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{
+                                                    height: 20,
+                                                    "& .MuiChip-label": {
+                                                        fontSize: "0.7rem",
+                                                    },
+                                                    "& .MuiChip-icon": {
+                                                        fontSize: "0.8rem",
+                                                    },
+                                                }}
+                                            />
+
+                                            {/* Color indicator */}
+                                            {room.color && (
                                                 <Box
                                                     sx={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        gap: 0.5,
-                                                        flexWrap: "wrap",
+                                                        width: 16,
+                                                        height: 16,
+                                                        backgroundColor:
+                                                            formatColor(
+                                                                room.color
+                                                            ),
+                                                        borderRadius: "50%",
+                                                        border: `1px solid ${theme.palette.divider}`,
+                                                        alignSelf: "center",
+                                                    }}
+                                                />
+                                            )}
+                                        </Stack>
+
+                                        {/* Location Information */}
+                                        {locationInfo && (
+                                            <Box
+                                                sx={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 0.5,
+                                                    mb: 0.5,
+                                                }}
+                                            >
+                                                <LocationOnIcon
+                                                    sx={{
+                                                        fontSize: 14,
+                                                        color: theme.palette
+                                                            .text.secondary,
+                                                    }}
+                                                />
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                    sx={{
+                                                        overflow: "hidden",
+                                                        textOverflow:
+                                                            "ellipsis",
+                                                        whiteSpace: "nowrap",
                                                     }}
                                                 >
-                                                    <DevicesIcon
-                                                        sx={{
-                                                            fontSize: 14,
-                                                            color: theme.palette
-                                                                .text.secondary,
-                                                        }}
-                                                    />
+                                                    {locationInfo.Alias ||
+                                                        locationInfo.City}
+                                                    {locationInfo.state &&
+                                                        `, ${locationInfo.state}`}
+                                                </Typography>
+                                            </Box>
+                                        )}
+
+                                        {/* Resources Information */}
+                                        {(() => {
+                                            const roomResourceList =
+                                                getRoomResources(room.id);
+                                            return (
+                                                roomResourceList.length > 0 && (
                                                     <Box
                                                         sx={{
                                                             display: "flex",
+                                                            alignItems:
+                                                                "center",
                                                             gap: 0.5,
                                                             flexWrap: "wrap",
                                                         }}
                                                     >
-                                                        {roomResourceList
-                                                            .slice(0, 3)
-                                                            .map(
-                                                                (
-                                                                    resource,
-                                                                    idx
-                                                                ) => (
-                                                                    <Chip
-                                                                        key={
-                                                                            resource.id
-                                                                        }
-                                                                        label={
-                                                                            resource.name
-                                                                        }
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                        sx={{
-                                                                            height: 16,
-                                                                            fontSize:
-                                                                                "0.6rem",
-                                                                            "& .MuiChip-label":
-                                                                                {
-                                                                                    px: 0.5,
-                                                                                    fontSize:
-                                                                                        "0.6rem",
-                                                                                },
-                                                                        }}
-                                                                    />
-                                                                )
+                                                        <DevicesIcon
+                                                            sx={{
+                                                                fontSize: 14,
+                                                                color: theme
+                                                                    .palette
+                                                                    .text
+                                                                    .secondary,
+                                                            }}
+                                                        />
+                                                        <Box
+                                                            sx={{
+                                                                display: "flex",
+                                                                gap: 0.5,
+                                                                flexWrap:
+                                                                    "wrap",
+                                                            }}
+                                                        >
+                                                            {roomResourceList
+                                                                .slice(0, 3)
+                                                                .map(
+                                                                    (
+                                                                        resource,
+                                                                        idx
+                                                                    ) => (
+                                                                        <Chip
+                                                                            key={
+                                                                                resource.id
+                                                                            }
+                                                                            label={
+                                                                                resource.name
+                                                                            }
+                                                                            size="small"
+                                                                            variant="outlined"
+                                                                            sx={{
+                                                                                height: 16,
+                                                                                fontSize:
+                                                                                    "0.6rem",
+                                                                                "& .MuiChip-label":
+                                                                                    {
+                                                                                        px: 0.5,
+                                                                                        fontSize:
+                                                                                            "0.6rem",
+                                                                                    },
+                                                                            }}
+                                                                        />
+                                                                    )
+                                                                )}
+                                                            {roomResourceList.length >
+                                                                3 && (
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        fontSize:
+                                                                            "0.6rem",
+                                                                        alignSelf:
+                                                                            "center",
+                                                                    }}
+                                                                >
+                                                                    +
+                                                                    {roomResourceList.length -
+                                                                        3}{" "}
+                                                                    more
+                                                                </Typography>
                                                             )}
-                                                        {roomResourceList.length >
-                                                            3 && (
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="text.secondary"
-                                                                sx={{
-                                                                    fontSize:
-                                                                        "0.6rem",
-                                                                    alignSelf:
-                                                                        "center",
-                                                                }}
-                                                            >
-                                                                +
-                                                                {roomResourceList.length -
-                                                                    3}{" "}
-                                                                more
-                                                            </Typography>
-                                                        )}
+                                                        </Box>
                                                     </Box>
-                                                </Box>
-                                            )
-                                        );
-                                    })()}
+                                                )
+                                            );
+                                        })()}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        </MenuItem>
-                    );
-                })}
+                            </MenuItem>
+                        );
+                    })}
             </Select>
         </FormControl>
     );

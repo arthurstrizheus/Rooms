@@ -406,7 +406,7 @@ export default function ApprovalQueue({ setLoading }) {
                     itm.id,
                     itm.name,
                     itm.organizer,
-                    rooms?.find((rm) => rm.id == itm.room).value,
+                    rooms?.find((rm) => rm.id == itm.room)?.value,
                     start.toLocaleDateString("en-US", {
                         weekday: "long",
                         month: "short",

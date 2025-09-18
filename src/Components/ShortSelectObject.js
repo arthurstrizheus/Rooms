@@ -97,7 +97,7 @@ const ShortSelect = ({
                                 width: "100%",
                             }}
                         >
-                            {itm.value}
+                            {itm.value ? itm.value : itm.name}
                         </Typography>
                         <Typography variant="caption">
                             {secondary

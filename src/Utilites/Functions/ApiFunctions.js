@@ -297,10 +297,10 @@ export async function GetMeetingsUserCreated(id, data) {
         return [];
     }
 }
-export async function GetResources() {
+export async function GetResources(EquipmentOnly = null) {
     try {
         const resp = await axios.get(
-            `/api/resources?_=${new Date().getTime()}`,
+            `/api/resources?equipment=${EquipmentOnly}&_=${new Date().getTime()}`,
             {
                 headers: {
                     "Cache-Control": "no-cache", // Prevent caching

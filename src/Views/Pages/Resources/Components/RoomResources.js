@@ -19,6 +19,7 @@ import {
     Paper,
     Checkbox,
     MenuItem,
+    TableSortLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/AddOutlined";
 import AddNewRoomResource from "./AddNewRoomResource";
@@ -36,6 +37,7 @@ import {
 } from "../../../../Utilites/Functions/ApiFunctions";
 import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { DeleteRoomResource } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
+import { useLocalStorage } from "../../../../hooks/useLocalStorage";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -64,7 +66,6 @@ function createData(id, resources_id, room_id) {
 export default function RoomResources({ setLoading }) {
     const theme = useTheme();
     const { user } = useAuth();
-    const navigate = useNavigate();
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const [selected, setSelected] = useState([]);
@@ -72,12 +73,22 @@ export default function RoomResources({ setLoading }) {
     const [filterLocation, setFilterLocation] = useState();
     const [paginatedRows, setPaginatedRows] = useState([]);
     const [filteredResources, setFilteredResources] = useState([]);
+    const [filteredEquipments, setFilteredEquipments] = useState([]);
     const [locations, setLocations] = useState([]);
     const [rooms, setRooms] = useState([]);
     const [filteredRooms, setFilteredRooms] = useState([]);
     const [roomResources, setRoomResources] = useState([]);
     const [resources, setResources] = useState([]);
+    const [equipment, setEquipment] = useState([]);
     const [update, setUpdate] = useState(0);
+    const [sortBy, setSortBy] = useLocalStorage(
+        "roomResources.sortBy",
+        "resource"
+    ); // resource | room | location
+    const [sortOrder, setSortOrder] = useLocalStorage(
+        "roomResources.sortOrder",
+        "asc"
+    ); // asc | desc
 
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
@@ -135,6 +146,16 @@ export default function RoomResources({ setLoading }) {
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
 
+    const handleRequestSort = (property) => {
+        if (sortBy === property) {
+            setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+        } else {
+            setSortBy(property);
+            setSortOrder("asc");
+        }
+        setPage(0);
+    };
+
     useEffect(() => {
         const getData = async () => {
             setLoading(true);
@@ -148,6 +169,7 @@ export default function RoomResources({ setLoading }) {
             setResources(rss);
             setRooms(rms);
             setLocations(lcs);
+            setEquipment(rss.filter((eq) => eq.equipment == true));
             setFilterLocation(lcs?.find((lc) => lc.officeid == user?.location));
             setLoading(false);
         };
@@ -166,21 +188,75 @@ export default function RoomResources({ setLoading }) {
                     rr.room_id ==
                     roomsFiltered?.find((fr) => fr.id == rr.room_id)?.id
             );
+            const filteredEquipments = equipment.filter(
+                (rs) =>
+                    rs.location == filterLocation.officeid &&
+                    rs.equipment == true
+            );
 
             setFilteredRooms(roomsFiltered);
             setFilteredResources(filteredResources);
+            setFilteredEquipments(filteredEquipments);
+
             const data = filteredResources?.map((itm) => {
                 return createData(itm.id, itm.resource_id, itm.room_id);
             });
 
+            // Sort before pagination
+            const getSortKey = (row) => {
+                const room = roomsFiltered?.find((rm) => rm.id == row.room_id);
+                const location = locations?.find(
+                    (lc) => lc.officeid == room?.location
+                );
+                const rowResource = resources?.find(
+                    (rc) => rc.id == row.resources_id
+                );
+                switch (sortBy) {
+                    case "room":
+                        return room?.value ?? "";
+                    case "location":
+                        return location?.Alias ?? "";
+                    case "equipment":
+                        return rowResource?.equipment ? 1 : 0;
+                    case "resource":
+                    default:
+                        return rowResource?.name ?? "";
+                }
+            };
+
+            const sorted = [...data].sort((a, b) => {
+                const aKey = getSortKey(a);
+                const bKey = getSortKey(b);
+                if (typeof aKey === "number" && typeof bKey === "number") {
+                    return sortOrder === "asc" ? aKey - bKey : bKey - aKey;
+                }
+                const aStr = aKey?.toString().toLowerCase();
+                const bStr = bKey?.toString().toLowerCase();
+                if (aStr < bStr) return sortOrder === "asc" ? -1 : 1;
+                if (aStr > bStr) return sortOrder === "asc" ? 1 : -1;
+                return 0;
+            });
+
             setPaginatedRows(
-                data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                sorted.slice(
+                    page * rowsPerPage,
+                    page * rowsPerPage + rowsPerPage
+                )
             );
         }
-    }, [filterLocation, roomResources, page, rowsPerPage, update, rooms]);
-    console.log(
-        resources.filter((rr) => rr.location == filterLocation?.officeid)
-    );
+    }, [
+        filterLocation,
+        roomResources,
+        page,
+        rowsPerPage,
+        update,
+        rooms,
+        resources,
+        locations,
+        sortBy,
+        sortOrder,
+    ]);
+
     return (
         <Box
             sx={{ height: "100%", width: "100%", display: "flex", flexGrow: 1 }}
@@ -193,6 +269,7 @@ export default function RoomResources({ setLoading }) {
                 resources={resources.filter(
                     (rr) => rr.location == filterLocation?.officeid
                 )}
+                equipments={filteredEquipments}
                 setUpdate={setUpdate}
             />
             <Paper
@@ -246,38 +323,41 @@ export default function RoomResources({ setLoading }) {
                         top: 60,
                     }}
                 >
-                    <FormControl
-                        variant="standard"
-                        sx={{ minWidth: 160, width: "100%" }}
-                    >
-                        <InputLabel id="demo-simple-select-standard-label">
-                            Filter By Location
-                        </InputLabel>
-                        <Select
-                            sx={{ width: "100%" }}
-                            labelId="demo-simple-select-standard-label"
-                            id="demo-simple-select-standard"
-                            value={
-                                filterLocation?.officeid === 0
-                                    ? 0
-                                    : filterLocation?.officeid
-                                    ? filterLocation.officeid
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                const selectedItem = locations?.find(
-                                    (itm) => itm.officeid === e.target.value
-                                );
-                                setFilterLocation(selectedItem); // Return the entire object
-                            }}
+                    <Box sx={{ display: "flex", gap: 2 }}>
+                        <FormControl
+                            variant="standard"
+                            sx={{ minWidth: 160, width: "100%" }}
                         >
-                            {locations?.map((itm, index) => (
-                                <MenuItem key={index} value={itm.officeid}>
-                                    {itm.Alias}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
+                            <InputLabel id="filter-location-label">
+                                Filter By Location
+                            </InputLabel>
+                            <Select
+                                sx={{ width: "100%" }}
+                                labelId="filter-location-label"
+                                id="filter-location"
+                                value={
+                                    filterLocation?.officeid === 0
+                                        ? 0
+                                        : filterLocation?.officeid
+                                        ? filterLocation.officeid
+                                        : ""
+                                }
+                                onChange={(e) => {
+                                    const selectedItem = locations?.find(
+                                        (itm) => itm.officeid === e.target.value
+                                    );
+                                    setFilterLocation(selectedItem);
+                                    setPage(0);
+                                }}
+                            >
+                                {locations?.map((itm, index) => (
+                                    <MenuItem key={index} value={itm.officeid}>
+                                        {itm.Alias}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Box>
                 </Box>
                 <TableContainer
                     sx={{ flexGrow: 1, height: "100%", overflowY: "hidden" }}
@@ -306,13 +386,64 @@ export default function RoomResources({ setLoading }) {
                                     />
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
-                                    Resource
+                                    <TableSortLabel
+                                        active={sortBy === "resource"}
+                                        direction={
+                                            sortBy === "resource"
+                                                ? sortOrder
+                                                : "asc"
+                                        }
+                                        onClick={() =>
+                                            handleRequestSort("resource")
+                                        }
+                                    >
+                                        Resource
+                                    </TableSortLabel>
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
-                                    Room Name
+                                    <TableSortLabel
+                                        active={sortBy === "equipment"}
+                                        direction={
+                                            sortBy === "equipment"
+                                                ? sortOrder
+                                                : "asc"
+                                        }
+                                        onClick={() =>
+                                            handleRequestSort("equipment")
+                                        }
+                                    >
+                                        Equipment
+                                    </TableSortLabel>
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
-                                    Location
+                                    <TableSortLabel
+                                        active={sortBy === "room"}
+                                        direction={
+                                            sortBy === "room"
+                                                ? sortOrder
+                                                : "asc"
+                                        }
+                                        onClick={() =>
+                                            handleRequestSort("room")
+                                        }
+                                    >
+                                        Room Name
+                                    </TableSortLabel>
+                                </StyledTableCell>
+                                <StyledTableCell align="left">
+                                    <TableSortLabel
+                                        active={sortBy === "location"}
+                                        direction={
+                                            sortBy === "location"
+                                                ? sortOrder
+                                                : "asc"
+                                        }
+                                        onClick={() =>
+                                            handleRequestSort("location")
+                                        }
+                                    >
+                                        Location
+                                    </TableSortLabel>
                                 </StyledTableCell>
                             </TableRow>
                         </TableHead>
@@ -328,7 +459,6 @@ export default function RoomResources({ setLoading }) {
                                 const rowResource = resources?.find(
                                     (rc) => rc.id == row.resources_id
                                 );
-
                                 return (
                                     <React.Fragment key={row.id}>
                                         <StyledTableRow
@@ -357,10 +487,15 @@ export default function RoomResources({ setLoading }) {
                                                 component="th"
                                                 scope="row"
                                             >
-                                                {rowResource.name}
+                                                {rowResource?.name}
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
-                                                {room.value}
+                                                {rowResource?.equipment
+                                                    ? "Yes"
+                                                    : "No"}
+                                            </StyledTableCell>
+                                            <StyledTableCell align="left">
+                                                {room?.value}
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
                                                 {location?.Alias}

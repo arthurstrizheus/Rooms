@@ -54,19 +54,30 @@ import {
 } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
 
 import { IsMeetingParentRecurrence } from "../../../Utilites/Functions/ApiFunctions/MeetingRecurrencesFunctions";
-import { Button, Typography } from "@mui/material";
+import {
+    Button,
+    FormControl,
+    FormControlLabel,
+    Switch,
+    Typography,
+} from "@mui/material";
 import { useSocket } from "../../../Contexts/SocketContext";
 import { showWarning } from "../../../Utilites/Functions/ApiFunctions";
+import useLocalStorage from "../../../hooks/useLocalStorage";
 
-const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
+const transposeMeetingToEvent = (meetings, meetingTypes, rooms, resources) => {
     return (meetings || []).map((meeting, idx) => {
         const type = meetingTypes.find((tp) => tp.id === meeting.type);
         const room = rooms.find((rm) => rm.id === meeting.room);
+        const resource = resources.find((rs) => rs.id === meeting?.equipment);
         const roomName = room
             ? room.value
                   ?.replace("Conference", "CR")
                   ?.replace("Training Room", "TR")
             : "Unknown room";
+        const equipmentName = resource
+            ? `${resource.name}`
+            : "Unknown Equipment";
 
         return {
             id: meeting.id === -1 ? `meeting-${idx}` : meeting.id,
@@ -79,6 +90,7 @@ const transposeMeetingToEvent = (meetings, meetingTypes, rooms) => {
             extendedProps: {
                 ...meeting,
                 roomName: roomName,
+                equipmentName: equipmentName,
             },
         };
     });
@@ -178,7 +190,10 @@ const Calendar = ({
     const containerRef = useRef();
     const { user } = useAuth();
     const matchMD = useMediaQuery((theme) => theme.breakpoints.down("md"));
-
+    const [equipmentView, setEquipmentView] = useLocalStorage(
+        "calendar-equipmentView",
+        false
+    ); // The set function is used in the banner not set here.
     // fetch data
     const [meetings, setMeetings] = useState([]);
     const [meetingTypes, setMeetingTypes] = useState([]);
@@ -215,6 +230,7 @@ const Calendar = ({
                         ? startOfWeek(selectedDate)
                         : selectedDate,
                 range: range,
+                type: equipmentView ? 2 : 1,
             });
             const tps = await GetTypes();
 
@@ -230,7 +246,7 @@ const Calendar = ({
             setLoading(true);
             data();
         }
-    }, [user, selectedDate, updateTrigger, defaultView]);
+    }, [user, selectedDate, updateTrigger, defaultView, equipmentView]);
 
     const handleViewChange = (newView) => {
         const calendarEl = calendarRef.current;
@@ -274,7 +290,14 @@ const Calendar = ({
     useEffect(() => {
         if (meetingTypes?.length) {
             setLoading(true);
-            setEvents(transposeMeetingToEvent(meetings, meetingTypes, rooms));
+            setEvents(
+                transposeMeetingToEvent(
+                    meetings,
+                    meetingTypes,
+                    rooms,
+                    resources
+                )
+            );
             setLoading(false);
         }
     }, [meetings, meetingTypes]);
@@ -492,7 +515,14 @@ const Calendar = ({
             }
         } else {
             setLoading(true);
-            setEvents(transposeMeetingToEvent(meetings));
+            setEvents(
+                transposeMeetingToEvent(
+                    meetings,
+                    meetingTypes,
+                    rooms,
+                    resources
+                )
+            );
             setLoading(false);
         }
         setUpdateEvent(null);
@@ -539,6 +569,7 @@ const Calendar = ({
                 >
                     <MeetingFourm
                         date={selectedDate}
+                        equipmentView={equipmentView}
                         meeting={
                             selectedRange
                                 ? selectedRange
@@ -569,6 +600,7 @@ const Calendar = ({
                     selectedEvent={selectedEvent}
                     setShowParentWarning={setShowParentWarning}
                     handleExit={handleExitWarning}
+                    equipmentView={equipmentView}
                     room={
                         rooms?.find(
                             (tp) => tp?.id == selectedEvent?.extendedProps?.room
@@ -758,6 +790,7 @@ const Calendar = ({
             >
                 {isModalOpen && (
                     <DisplayMeeting
+                        equipmentView={equipmentView}
                         handleUpdateEvent={handleUpdateEvent}
                         handleExit={handleModalClose}
                         meeting={{
