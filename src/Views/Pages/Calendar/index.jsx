@@ -35,6 +35,7 @@ import {
     GetLocations,
     GetMeetingsByUserId,
     GetResources,
+    GetResourcesUserCanSee,
     GetRoomResources,
     GetRooms,
     GetTypes,
@@ -208,6 +209,7 @@ const Calendar = ({
     const [openMeetingDialog, setOpenMeetingDialog] = useState(false);
     const [selectedRange, setSelectedRange] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
+    const [userResources, setUserResources] = useState([]);
     const [events, setEvents] = useState([]);
     const [view, setView] = useState(matchMD ? "listWeek" : defaultView);
     const [showParentWarning, setShowParentWarning] = useState(false);
@@ -222,6 +224,7 @@ const Calendar = ({
             const rms = await GetRooms(user?.id);
             const rrs = await GetRoomResources();
             const rec = await GetResources();
+            const urcs = await GetResourcesUserCanSee();
             const mts = await GetMeetingsByUserId(user?.id, {
                 date:
                     range == "Month"
@@ -240,7 +243,9 @@ const Calendar = ({
             setMeetings(mts);
             setMeetingTypes(tps);
             setLocations(lcs);
+            setUserResources(urcs);
             setLoading(false);
+            console.log(urcs);
         };
         if (user?.id) {
             setLoading(true);
@@ -579,7 +584,7 @@ const Calendar = ({
                         }
                         rooms={rooms}
                         roomResources={roomResources}
-                        resources={resources}
+                        resources={equipmentView ? userResources : resources}
                         meetingTypes={meetingTypes}
                         update={update}
                         setUpdate={setUpdate}

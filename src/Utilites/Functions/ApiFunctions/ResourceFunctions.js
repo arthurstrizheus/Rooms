@@ -27,7 +27,6 @@ export async function DeleteResource(resource_id) {
         if (resp.status === 204 || resp.status === 200) {
             return true; // Indicate success
         }
-
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
             showError(errorCheck.message);

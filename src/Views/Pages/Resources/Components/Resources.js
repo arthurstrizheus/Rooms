@@ -75,11 +75,10 @@ export default function Resources({ setLoading }) {
             const promises = filteredResources?.map(async (itm) =>
                 isSelected(itm.id) ? await DeleteResource(itm.id) : null
             );
-            await Promise.all(promises).then((resp) =>
-                resp
-                    ? showSuccess("Items Deleted")
-                    : showError("Failed to delete")
-            );
+            const responses = await Promise.all(promises);
+            if (!responses.includes(false)) {
+                showSuccess("Selected resources deleted successfully");
+            }
             setSelected([]);
             setUpdate((prev) => prev + 1);
         };

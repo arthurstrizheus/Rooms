@@ -63,6 +63,15 @@ const Post = async (req, res) => {
                 message: "Cannot create room resources for another office.",
             });
         }
+        const RoomResources = await RoomResource.findOne({
+            where: { resource_id: resource_id, room_id: room_id },
+        });
+        if (RoomResources) {
+            return res.status(403).json({
+                message: "Cannot add the same resource to a room twice.",
+            });
+        }
+
         // Create a new resource record in the database
         const newResource = await RoomResource.create({
             room_id,

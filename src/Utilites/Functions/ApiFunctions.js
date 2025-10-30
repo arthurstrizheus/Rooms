@@ -320,6 +320,29 @@ export async function GetResources(EquipmentOnly = null) {
         return [];
     }
 }
+export async function GetResourcesUserCanSee(EquipmentOnly = null) {
+    try {
+        const resp = await axios.get(
+            `/api/resources/user?equipment=${EquipmentOnly}&_=${new Date().getTime()}`,
+            {
+                headers: {
+                    "Cache-Control": "no-cache", // Prevent caching
+                    Pragma: "no-cache",
+                    Expires: "0",
+                },
+            }
+        );
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return [];
+        }
+        return resp.data;
+    } catch (err) {
+        // Handle errors such as network issues
+        return [];
+    }
+}
 export async function GetRoomGroups() {
     try {
         const resp = await axios.get(

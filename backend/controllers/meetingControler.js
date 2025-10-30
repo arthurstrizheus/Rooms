@@ -1738,7 +1738,9 @@ const CanBook = async (req, res) => {
                         getMonth(newStartTime) == getMonth(meetingStart) &&
                         getDate(newEndTime) == getDate(meetingEnd) &&
                         getYear(newEndTime) == getYear(meetingEnd) &&
-                        getMonth(newEndTime) == getMonth(meetingEnd))
+                        getMonth(newEndTime) == getMonth(meetingEnd) &&
+                        (meeting.status === "Approved" ||
+                            meeting.status === "Waiting on Approval"))
                 );
             });
         }
@@ -1803,7 +1805,9 @@ const CanBook = async (req, res) => {
                                     getYear(newEndTime) ==
                                         getYear(meetingEnd) &&
                                     getMonth(newEndTime) ==
-                                        getMonth(meetingEnd))));
+                                        getMonth(meetingEnd))) &&
+                            (meeting.status === "Approved" ||
+                                meeting.status === "Waiting on Approval"));
                 }
                 // Check if the new meeting overlaps with an existing meeting
                 return overlaping;

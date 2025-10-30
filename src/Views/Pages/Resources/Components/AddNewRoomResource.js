@@ -62,8 +62,8 @@ const AddNewRoomResource = ({
                 resources.filter(
                     (r) =>
                         r.id !=
-                        roomResources?.find((rr) => rr.room_id == room.id)
-                            ?.resources_id
+                            roomResources?.find((rr) => rr.room_id == room.id)
+                                ?.resources_id && !r.equipment
                 )
             );
             setFilteredEquipment(
@@ -126,6 +126,8 @@ const AddNewRoomResource = ({
                     title={
                         equipment?.id
                             ? "Can only select equipment or resource"
+                            : !room?.id
+                            ? "Please Select Room First"
                             : ""
                     }
                 >
@@ -145,7 +147,7 @@ const AddNewRoomResource = ({
                             labelId="demo-simple-select-standard-label"
                             id="demo-simple-select-standard"
                             value={resource?.id || ""}
-                            disabled={equipment?.id ? true : false}
+                            disabled={equipment?.id || !room?.id ? true : false}
                             onChange={(e) => {
                                 if (e.target.value !== "") {
                                     const selectedItem =
@@ -174,6 +176,8 @@ const AddNewRoomResource = ({
                     title={
                         resource?.id
                             ? "Can only select equipment or resource"
+                            : !room?.id
+                            ? "Please Select Room First"
                             : ""
                     }
                 >
@@ -193,7 +197,7 @@ const AddNewRoomResource = ({
                             labelId="demo-simple-select-standard-label"
                             id="demo-simple-select-standard"
                             value={equipment?.id || ""}
-                            disabled={resource?.id ? true : false}
+                            disabled={resource?.id || !room?.id ? true : false}
                             onChange={(e) => {
                                 if (e.target.value !== "") {
                                     const selectedItem =

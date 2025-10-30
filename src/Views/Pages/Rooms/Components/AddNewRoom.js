@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useTheme, useMediaQuery } from "@mui/material";
+import { useTheme, useMediaQuery, Tooltip, Checkbox } from "@mui/material";
 import {
     Grid,
     Stack,
@@ -33,6 +33,7 @@ import {
     PostRoomGroup,
 } from "../../../../Utilites/Functions/ApiFunctions/RoomGroupFunctions";
 import { useAuth } from "../../../../Utilites/AuthContext";
+import { set } from "date-fns";
 
 const AddNewRoom = ({
     open,
@@ -58,6 +59,7 @@ const AddNewRoom = ({
     const [oldReadAccess, setOldReadAccess] = useState([]);
     const [roomImage, setRoomImage] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
+    const [canBook, setCanBook] = useState(true);
 
     const onClose = () => {
         setOpen(false);
@@ -65,6 +67,7 @@ const AddNewRoom = ({
         setCapacity("");
         setRoomName("");
         setColor("");
+        setCanBook(true);
         setFullControl([]);
         setReadAccess([]);
         setOldFullControl([]);
@@ -118,6 +121,7 @@ const AddNewRoom = ({
                 location: location.officeid,
                 capacity: capacity,
                 created_user_id: user?.id,
+                can_book: canBook,
             };
 
             // Create FormData for file upload
@@ -231,6 +235,7 @@ const AddNewRoom = ({
             setRoomName(selectedRoom.value);
             setColor(selectedRoom.color);
             setCapacity(selectedRoom.capacity);
+            setCanBook(selectedRoom.can_book);
 
             async function fetchRoomImage() {
                 const image = await GetRoomImage(selectedRoom.image_url);
@@ -265,6 +270,7 @@ const AddNewRoom = ({
             open={!!open}
             onClose={onClose}
             maxWidth={"lg"}
+            height={"fit-content"}
             fullScreen={isMobile} // Make dialog fullscreen on mobile
         >
             <Grid
@@ -272,8 +278,9 @@ const AddNewRoom = ({
                     width: "100%",
                     textAlign: "center",
                     padding: isMobile ? "10px" : "20px",
-                    minHeight: "65vh",
                     height: "fit-content",
+                    //No scroll bar
+                    overflow: "hidden",
                 }}
             >
                 <IconButton
@@ -644,6 +651,35 @@ const AddNewRoom = ({
                                 />
                             </Box>
                         </Grid>
+                        <Tooltip title="Can this room be booked? For rooms strictly for equipment management uncheck this">
+                            <Box
+                                sx={{
+                                    nowrap: true,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    alignSelf: "center",
+                                    marginTop: 1,
+                                }}
+                            >
+                                <Checkbox
+                                    checked={canBook}
+                                    value={canBook}
+                                    onChange={(e) =>
+                                        setCanBook(e.target.checked)
+                                    }
+                                    size="small"
+                                    sx={{
+                                        padding: 0,
+                                        "&:hover": {
+                                            backgroundColor: "transparent",
+                                        },
+                                    }}
+                                />
+                                <Typography variant="body2" sx={{ ml: 0.5 }}>
+                                    Can Be Booked
+                                </Typography>
+                            </Box>
+                        </Tooltip>
                         <Button
                             variant="outlined"
                             sx={{

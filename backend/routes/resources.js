@@ -1,11 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const resourceController = require('../controllers/resourceController');
+const resourceController = require("../controllers/resourceController");
 
 // GET all resources
-router.get('/', resourceController.GetAll);
-router.post('/', resourceController.Post);
-router.put('/:id', resourceController.Update);
-router.delete('/:id', resourceController.Delete);
+router.get("/", resourceController.GetAll);
+router.get("/user", resourceController.GetAllUserCanSee);
+router.post("/", resourceController.Post);
+router.put("/:id", resourceController.Update);
+router.delete("/:id", resourceController.Delete);
 
 module.exports = router;

@@ -1,4 +1,13 @@
-const { Resource } = require("../models");
+const {
+    Resource,
+    RoomResource,
+    User,
+    Room,
+    Group,
+    RoomGroup,
+    GroupUser,
+} = require("../models");
+const { Sequelize } = require("sequelize");
 
 const GetAll = async (req, res) => {
     try {
@@ -11,9 +20,79 @@ const GetAll = async (req, res) => {
         } else {
             data = await Resource.findAll();
         }
-        res.json(data);
+
+        return res.status(200).json(data);
     } catch (err) {
         console.error("Error fetching room groups:", err);
+        res.status(500).send("Server error");
+    }
+};
+
+const GetAllUserCanSee = async (req, res) => {
+    try {
+        const { equipment } = req.query;
+        let data = [];
+        if (equipment === "true") {
+            data = await Resource.findAll({ where: { equipment: true } });
+        } else if (equipment === "false") {
+            data = await Resource.findAll({ where: { equipment: false } });
+        } else {
+            data = await Resource.findAll();
+        }
+        const user = await User.findByPk(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        const allGroups = await Group.findAll({
+            where: { group_name: "All SEA Staff" },
+        });
+        const allIds = allGroups.map((gp) => gp.id);
+        const allRoomGroups = await RoomGroup.findAll({
+            where: { group_id: { [Sequelize.Op.in]: allIds } },
+        });
+        const roomsWithAll = allRoomGroups.map((rg) => rg.room_id);
+
+        if (user?.admin) {
+            const rooms = await Room.findAll();
+            return res.status(200).json(rooms);
+        }
+        if (user?.office_admin) {
+            const rooms = await Room.findAll({
+                where: {
+                    [Sequelize.Op.or]: [
+                        { location: user.office_admin },
+                        { id: { [Sequelize.Op.in]: roomsWithAll } },
+                    ],
+                },
+            });
+            return res.status(200).json(rooms);
+        }
+
+        const groupUsers = await GroupUser.findAll({
+            where: { user_id: req.user.id },
+        });
+        if (!groupUsers.length) {
+            return res.status(200).json([]);
+        }
+
+        const groupIds = groupUsers.map((gu) => gu.group_id);
+
+        const roomGroups = await RoomGroup.findAll({
+            where: { group_id: groupIds },
+        });
+        const roomIds = roomGroups.map((rg) => rg.room_id);
+
+        // Now get all resources that are assigned to rooms.
+        const roomResources = await RoomResource.findAll({
+            where: { room_id: { [Sequelize.Op.in]: roomIds } },
+            attributes: ["resource_id"],
+            raw: true,
+        });
+        const resourceIds = roomResources.map((rr) => rr.resource_id);
+
+        return res.json(data?.filter((res) => resourceIds.includes(res.id)));
+    } catch (err) {
+        console.error("Error fetching resources:", err);
         res.status(500).send("Server error");
     }
 };
@@ -100,9 +179,17 @@ const Delete = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user?.office_admin != location && !req.user?.admin) {
+        if (req.user?.office_admin != resource.location && !req.user?.admin) {
             return res.status(403).json({
                 message: "Cannot delete resources from another office.",
+            });
+        }
+        const RoomResources = await RoomResource.findOne({
+            where: { resource_id: id },
+        });
+        if (RoomResources) {
+            return res.status(400).json({
+                message: "Cannot delete resource assigned to a room.",
             });
         }
 
@@ -122,4 +209,5 @@ module.exports = {
     Post,
     Update,
     Delete,
+    GetAllUserCanSee,
 };

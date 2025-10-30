@@ -69,6 +69,7 @@ export default function Equipment({ setLoading }) {
     const [selected, setSelected] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
     const [update, setUpdate] = useState(0);
+    console.log(resources);
 
     const handleDeleteSelected = () => {
         const remove = async () => {

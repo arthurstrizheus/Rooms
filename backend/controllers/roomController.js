@@ -80,7 +80,8 @@ const GetRoomsUserCanSee = async (req, res, next) => {
 
 const Post = async (req, res, next) => {
     try {
-        const { value, location, capacity, color, created_user_id } = req.body;
+        const { value, location, capacity, color, created_user_id, can_book } =
+            req.body;
 
         if (!value || !color || !created_user_id) {
             return res.status(400).json({
@@ -110,6 +111,7 @@ const Post = async (req, res, next) => {
             color,
             created_user_id,
             image_url: imageUrl,
+            can_book: can_book || true,
         });
 
         res.status(201).json(newRoom);
@@ -122,7 +124,8 @@ const Post = async (req, res, next) => {
 const Update = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { value, location, capacity, color, created_user_id } = req.body;
+        const { value, location, capacity, color, created_user_id, can_book } =
+            req.body;
 
         if (!value || !color || !created_user_id) {
             return res.status(400).json({
@@ -182,6 +185,7 @@ const Update = async (req, res, next) => {
             color,
             created_user_id,
             image_url: updatedImageUrl,
+            can_book: can_book || true,
         });
 
         res.status(200).json(room);
