@@ -1260,12 +1260,9 @@ const GetAllUserCanSee = async (req, res) => {
         });
 
         if (fakeMeets?.length > 0) {
+            // Add repeating meetings to the list of returned meetings.
             fakeMeets?.map((fm) => {
-                if (
-                    meetings?.find((mt) => mt.recurrence_id == fm.recurrence_id)
-                ) {
-                    meetings.push(fm);
-                }
+                meetings.push(fm);
             });
         }
         if (meetingsUserHasSpecialAccess?.length > 0) {
