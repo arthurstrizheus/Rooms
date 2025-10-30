@@ -8,6 +8,7 @@ const publicRoutes = [
     "/api/users/adhasuser",
     "/api/locations",
     "/api/mattermanager/full",
+    "/api/zscaler",
     // Add more public routes as needed
 ];
 
