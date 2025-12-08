@@ -29,6 +29,12 @@ const EMAIL_OVERRIDE_ADDRESS = (
     process.env.EMAIL_OVERRIDE_ADDRESS || "astrizheus@sealimited.com"
 ).replace(/['"]/g, "");
 
+// Global send-enable flag: default off. Set SEND_EMAILS=1 to allow sending.
+const SEND_EMAILS_ACTIVE = (() => {
+    const v = (process.env.SEND_EMAILS || "0").toString().trim().toLowerCase();
+    return ["1", "true", "yes", "on"].includes(v);
+})();
+
 function applyEmailOverride(mailOpts) {
     if (!EMAIL_OVERRIDE_ACTIVE) return mailOpts;
     const original = { to: mailOpts.to, cc: mailOpts.cc, bcc: mailOpts.bcc };
@@ -145,15 +151,24 @@ const sendGroupNotificationEmail = async (
   `;
 
     try {
+        // Safety gate: only actually send when SEND_EMAILS_ACTIVE is true
+        const mailOpts = applyEmailOverride({
+            from: "ithelp@sealimited.com", // From address using COLWEB
+            to: parentEmail, //parentEmail,
+            subject: emailSubject,
+            html: emailBody,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            // Log what would have been sent (no sensitive data)
+            console.log(
+                `SEND_EMAILS disabled - skipping sendGroupNotificationEmail to ${mailOpts.to}. Subject: ${mailOpts.subject}`
+            );
+            return;
+        }
+
         // Send the email
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: "ithelp@sealimited.com", // From address using COLWEB
-                to: parentEmail, //parentEmail,
-                subject: emailSubject,
-                html: emailBody,
-            })
-        );
+        const info = await transporter.sendMail(mailOpts);
 
         console.log(`Email sent to ${parentEmail}: ${info.messageId}`);
     } catch (error) {
@@ -176,15 +191,22 @@ const sendProcessCompleteEmail = async (status) => {
   `;
 
     try {
+        const mailOpts = applyEmailOverride({
+            from: "ithelp@sealimited.com", // From address using COLWEB
+            to: "astrizheus@sealimited.com", //parentEmail,
+            subject: emailSubject,
+            html: emailBody,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            console.log(
+                `SEND_EMAILS disabled - skipping sendProcessCompleteEmail. Subject: ${mailOpts.subject}`
+            );
+            return;
+        }
+
         // Send the email
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: "ithelp@sealimited.com", // From address using COLWEB
-                to: "astrizheus@sealimited.com", //parentEmail,
-                subject: emailSubject,
-                html: emailBody,
-            })
-        );
+        const info = await transporter.sendMail(mailOpts);
 
         console.log(
             `Email sent to astrizheus@sealimited.com: ${info.messageId}`
