@@ -2,7 +2,13 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
 
+// Async handler wrapper
+const asyncHandler = (fn) => (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+};
+
 router.get("/", userController.GetAll);
+router.get("/:id", asyncHandler(userController.GetById));
 router.post("/", userController.Post);
 router.put("/:id", userController.Update);
 router.put("/details/:id", userController.UpdateDetails);

@@ -60,7 +60,7 @@ export const SocketProvider = ({ children }) => {
         const fullHost = window.location.host;
 
         // Check if we're in production
-        const isProduction = hostname === "rooms.sealimited.com";
+        const isProduction = hostname === "equiptment.sealimited.com";
 
         console.log("Is Production:", isProduction);
 
@@ -76,8 +76,6 @@ export const SocketProvider = ({ children }) => {
             console.log("🏠 Using development server URL");
         }
 
-        console.log("Final server URL:", serverUrl);
-
         const newSocket = io(serverUrl, {
             auth: {
                 token: token,
@@ -89,7 +87,6 @@ export const SocketProvider = ({ children }) => {
         });
 
         newSocket.on("connect", () => {
-            console.log("✅ Socket connected successfully:", newSocket.id);
             setConnected(true);
         });
 
@@ -117,15 +114,6 @@ export const SocketProvider = ({ children }) => {
                 return;
             }
 
-            console.log("Full location details:");
-            console.log("- hostname:", hostname);
-            console.log("- host:", fullHost);
-            console.log("- origin:", window.location.origin);
-            console.log();
-            console.log("Final server URL:", serverUrl);
-            console.log("Environment variables:");
-            console.log("- NODE_ENV:", process.env.NODE_ENV);
-
             // If websocket fails, try polling
             if (error.message?.includes("websocket")) {
                 console.log("🔄 Retrying with polling transport only...");
@@ -135,7 +123,6 @@ export const SocketProvider = ({ children }) => {
 
         // Listen for forced logout messages
         newSocket.on("force_logout", (data) => {
-            console.warn("🚪 Received force logout from server:", data);
             console.warn("🚪 Reason:", data?.reason || "Admin action");
 
             // Show notification to user (optional)
@@ -183,17 +170,6 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         const token = localStorage.getItem("authToken");
 
-        console.log(
-            "Socket effect - Auth status:",
-            isAuthenticated,
-            "User:",
-            user?.username,
-            "Token:",
-            token ? "Present" : "Missing",
-            "Socket:",
-            socket ? "Connected" : "Disconnected"
-        );
-
         if (isAuthenticated && user && token && !socket) {
             // Check token expiration before connecting
             if (isTokenExpired(token)) {
@@ -202,8 +178,6 @@ export const SocketProvider = ({ children }) => {
                 logout();
                 return;
             }
-
-            console.log("🔌 Auto-connecting socket for user:", user.username);
             connectSocket(token);
         } else if (!isAuthenticated && socket) {
             console.log("🔌 Disconnecting socket - user not authenticated");

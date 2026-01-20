@@ -24,7 +24,7 @@ const getAllConnectedUsers = async (req, res) => {
                             "email",
                             "location",
                             "admin",
-                            "office_admin",
+                            "equipment_office_admin",
                             "last_login",
                         ],
                     });
@@ -34,12 +34,13 @@ const getAllConnectedUsers = async (req, res) => {
                         // Override with fresh DB data if available
                         ...(dbUser
                             ? {
-                                  firstName: dbUser.first_name,
-                                  lastName: dbUser.last_name,
+                                  first_name: dbUser.first_name,
+                                  last_name: dbUser.last_name,
                                   email: dbUser.email,
                                   location: dbUser.location,
                                   admin: dbUser.admin,
-                                  office_admin: dbUser.office_admin,
+                                  equipment_office_admin:
+                                      dbUser.equipment_office_admin,
                                   last_login: dbUser.last_login,
                               }
                             : {}),
@@ -119,7 +120,7 @@ const getConnectionStats = async (req, res) => {
         // Count different user types
         const adminCount = connectedUsers.filter((user) => user.admin).length;
         const officeAdminCount = connectedUsers.filter(
-            (user) => user.office_admin
+            (user) => user.equipment_office_admin
         ).length;
         const regularCount =
             connectedUsers.length - adminCount - officeAdminCount;

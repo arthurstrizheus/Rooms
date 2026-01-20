@@ -1,0 +1,253 @@
+const EquipmentAlert = require("../models/equipmentAlert");
+const Equipment = require("../models/equipment");
+const User = require("../models/user");
+const { logErrorToFile } = require("../functions/logErrorToFile");
+
+/**
+ * Get all alerts for a specific equipment
+ */
+const GetAlertsByEquipment = async (req, res, next) => {
+    try {
+        const { equipmentId } = req.params;
+
+        const alerts = await EquipmentAlert.findAll({
+            where: { equipment_id: equipmentId },
+            include: [
+                {
+                    model: User,
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+            ],
+            order: [["created_at", "DESC"]],
+        });
+
+        res.status(200).json(alerts);
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Get all alerts for a specific user
+ */
+const GetAlertsByUser = async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+
+        const alerts = await EquipmentAlert.findAll({
+            where: { user_id: userId },
+            include: [
+                {
+                    model: Equipment,
+                    attributes: ["id", "name", "serial_number", "location"],
+                },
+            ],
+            order: [["created_at", "DESC"]],
+        });
+
+        res.status(200).json(alerts);
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Get current user's alerts
+ */
+const GetMyAlerts = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        const alerts = await EquipmentAlert.findAll({
+            where: { user_id: userId, enabled: true },
+            include: [
+                {
+                    model: Equipment,
+                    attributes: [
+                        "id",
+                        "name",
+                        "serial_number",
+                        "location",
+                        "status",
+                    ],
+                },
+            ],
+            order: [["created_at", "DESC"]],
+        });
+
+        res.status(200).json(alerts);
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Subscribe to alerts for an equipment
+ */
+const Subscribe = async (req, res, next) => {
+    try {
+        const { equipment_id, alert_type, notification_days_before } = req.body;
+        const user_id = req.user.id;
+
+        // Validate equipment exists
+        const equipment = await Equipment.findByPk(equipment_id);
+        if (!equipment) {
+            return res.status(404).json({ message: "Equipment not found" });
+        }
+
+        // Check if alert already exists
+        const existingAlert = await EquipmentAlert.findOne({
+            where: { equipment_id, user_id, alert_type },
+        });
+
+        if (existingAlert) {
+            // Update existing alert
+            existingAlert.enabled = true;
+            if (notification_days_before !== undefined) {
+                existingAlert.notification_days_before =
+                    notification_days_before;
+            }
+            await existingAlert.save();
+            return res.status(200).json(existingAlert);
+        }
+
+        // Create new alert
+        const alert = await EquipmentAlert.create({
+            equipment_id,
+            user_id,
+            alert_type,
+            enabled: true,
+            notification_days_before: notification_days_before || 7,
+        });
+
+        res.status(201).json(alert);
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Unsubscribe from alerts
+ */
+const Unsubscribe = async (req, res, next) => {
+    try {
+        const { alertId } = req.params;
+        const user_id = req.user.id;
+
+        const alert = await EquipmentAlert.findOne({
+            where: { id: alertId, user_id },
+        });
+
+        if (!alert) {
+            return res.status(404).json({ message: "Alert not found" });
+        }
+
+        // Soft delete by disabling
+        alert.enabled = false;
+        await alert.save();
+
+        res.status(200).json({ message: "Alert disabled successfully" });
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Delete alert subscription
+ */
+const DeleteAlert = async (req, res, next) => {
+    try {
+        const { alertId } = req.params;
+        const user_id = req.user.id;
+
+        const alert = await EquipmentAlert.findOne({
+            where: { id: alertId, user_id },
+        });
+
+        if (!alert) {
+            return res.status(404).json({ message: "Alert not found" });
+        }
+
+        await alert.destroy();
+        res.status(200).json({ message: "Alert deleted successfully" });
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Update alert settings
+ */
+const UpdateAlert = async (req, res, next) => {
+    try {
+        const { alertId } = req.params;
+        const { enabled, notification_days_before } = req.body;
+        const user_id = req.user.id;
+
+        const alert = await EquipmentAlert.findOne({
+            where: { id: alertId, user_id },
+        });
+
+        if (!alert) {
+            return res.status(404).json({ message: "Alert not found" });
+        }
+
+        if (enabled !== undefined) {
+            alert.enabled = enabled;
+        }
+        if (notification_days_before !== undefined) {
+            alert.notification_days_before = notification_days_before;
+        }
+
+        await alert.save();
+        res.status(200).json(alert);
+    } catch (error) {
+        logErrorToFile(error);
+        next(error);
+    }
+};
+
+/**
+ * Get subscribers for a specific equipment and alert type (internal use)
+ */
+const GetSubscribers = async (equipmentId, alertType) => {
+    try {
+        const alerts = await EquipmentAlert.findAll({
+            where: {
+                equipment_id: equipmentId,
+                alert_type: alertType,
+                enabled: true,
+            },
+            include: [
+                {
+                    model: User,
+                    attributes: ["id", "email", "first_name", "last_name"],
+                },
+            ],
+        });
+
+        return alerts
+            .filter((alert) => alert.User && alert.User.email)
+            .map((alert) => alert.User.email);
+    } catch (error) {
+        logErrorToFile(error);
+        return [];
+    }
+};
+
+module.exports = {
+    GetAlertsByEquipment,
+    GetAlertsByUser,
+    GetMyAlerts,
+    Subscribe,
+    Unsubscribe,
+    DeleteAlert,
+    UpdateAlert,
+    GetSubscribers,
+};

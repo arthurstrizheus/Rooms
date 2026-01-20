@@ -78,9 +78,7 @@ function App() {
             if (user && token) {
                 setUser(user);
                 login(user, token);
-                navigate(
-                    isMobile ? "/schedule/type/week" : "/schedule/type/month"
-                );
+                navigate("/equipment");
                 setOpen(isMobile ? false : true);
             }
         }
@@ -100,9 +98,7 @@ function App() {
             login(userData, storedToken);
             setOpen(isMobile ? false : true);
             if (localStorage.getItem("lastLocation") === "/") {
-                navigate(
-                    isMobile ? "/schedule/type/week" : "/schedule/type/month"
-                );
+                navigate("/equipment");
             } else {
                 navigate(localStorage.getItem("lastLocation"));
             }
@@ -111,7 +107,7 @@ function App() {
 
     return (
         <div
-            className="Rooms"
+            className="Equiptment"
             style={{
                 height: "100vh",
                 display: "flex",

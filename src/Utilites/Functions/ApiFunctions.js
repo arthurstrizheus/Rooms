@@ -93,308 +93,14 @@ export async function GetLocations() {
         return [];
     }
 }
-export async function GetRooms(userId) {
-    try {
-        const resp = await axios.get(
-            `/api/rooms/${userId}?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetBlockedDatess() {
-    try {
-        const resp = await axios.get(
-            `/api/blockeddates?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetGroups() {
-    try {
-        const resp = await axios.get(`/api/groups?_=${new Date().getTime()}`, {
-            headers: {
-                "Cache-Control": "no-cache", // Prevent caching
-                Pragma: "no-cache",
-                Expires: "0",
-            },
-        });
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetGroupUsers(location) {
-    try {
-        const resp = await axios.get(
-            `/api/groupusers?location=${location}&_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetUserGroups(id) {
-    try {
-        const resp = await axios.get(
-            `/api/groups/user/${id}?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            return [];
-        }
-        return resp.data;
-    } catch {
-        return [];
-    }
-}
-export async function GetMeetings() {
-    try {
-        const resp = await axios.get(
-            `/api/meetings?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetMeetingApprovals(id) {
-    try {
-        const resp = await axios.get(
-            `/api/meetings/needsapproved/${id}?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetMeetingsByUserId(id, data) {
-    try {
-        const resp = await axios.get(
-            `/api/meetings/user/${id}?_=${new Date().getTime()}`,
-            { params: { ...data } },
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetMeetingsUserCreated(id, data) {
-    try {
-        const resp = await axios.get(
-            `/api/meetings/created/${id}?_=${new Date().getTime()}`,
-            { params: { ...data } },
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        showError(err.message);
-        return [];
-    }
-}
-export async function GetResources(EquipmentOnly = null) {
-    try {
-        const resp = await axios.get(
-            `/api/resources?equipment=${EquipmentOnly}&_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetResourcesUserCanSee(EquipmentOnly = null) {
-    try {
-        const resp = await axios.get(
-            `/api/resources/user?equipment=${EquipmentOnly}&_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetRoomGroups() {
-    try {
-        const resp = await axios.get(
-            `/api/roomgroups?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetRoomResources() {
-    try {
-        const resp = await axios.get(
-            `/api/roomresources?_=${new Date().getTime()}`,
-            {
-                headers: {
-                    "Cache-Control": "no-cache", // Prevent caching
-                    Pragma: "no-cache",
-                    Expires: "0",
-                },
-            }
-        );
 
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return [];
-        }
-        return resp.data;
-    } catch (err) {
-        // Handle errors such as network issues
-        return [];
-    }
-}
-export async function GetTypes() {
+export async function GetCheckoutApprovals() {
     try {
-        const resp = await axios.get(`/api/types?_=${new Date().getTime()}`, {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.get(`/api/checkouts/pending-approvals`, {
             headers: {
-                "Cache-Control": "no-cache", // Prevent caching
+                Authorization: `Bearer ${token}`,
+                "Cache-Control": "no-cache",
                 Pragma: "no-cache",
                 Expires: "0",
             },
@@ -406,10 +112,11 @@ export async function GetTypes() {
         }
         return resp.data;
     } catch (err) {
-        // Handle errors such as network issues
+        console.log(err);
         return [];
     }
 }
+
 export async function GetUsers() {
     try {
         const resp = await axios.get(`/api/users?_=${new Date().getTime()}`, {
@@ -452,78 +159,166 @@ export async function RunMatterManagerMonthlyGroupReport() {
     }
 }
 
-// ------------------ FILTERING DATA --------------------
-export function UserAnyAccessRooms(
-    GroupUsers,
-    Groups,
-    RoomGroups,
-    Rooms,
-    user
+// ------------------ EQUIPMENT ALERTS --------------------
+
+/**
+ * Get current user's alert subscriptions
+ */
+export async function GetMyAlerts() {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.get(`/api/equipment-alerts/my-alerts`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return [];
+        }
+        return resp.data;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to fetch alerts");
+        return [];
+    }
+}
+
+/**
+ * Get alerts for a specific equipment
+ */
+export async function GetAlertsByEquipment(equipmentId) {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.get(
+            `/api/equipment-alerts/equipment/${equipmentId}`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return [];
+        }
+        return resp.data;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to fetch equipment alerts");
+        return [];
+    }
+}
+
+/**
+ * Subscribe to equipment alert
+ */
+export async function SubscribeToAlert(
+    equipmentId,
+    alertType,
+    notificationDaysBefore = 7
 ) {
-    const usersGroups = UsersGroups(GroupUsers, Groups, user); // Only the user groups the user is in
-    const roomGroups = RoomGroups.filter(
-        (rg) =>
-            rg.group_id === usersGroups?.find((ug) => ug.id == rg.group_id)?.id
-    ); // only the room groups the users is in
-    const rooms = Rooms.filter(
-        (rm) => rm.id === roomGroups?.find((rg) => rg.room_id == rm.id)?.room_id
-    );
-    return rooms;
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.post(
+            `/api/equipment-alerts/subscribe`,
+            {
+                equipment_id: equipmentId,
+                alert_type: alertType,
+                notification_days_before: notificationDaysBefore,
+            },
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return null;
+        }
+        showSuccess(`Subscribed to ${alertType.replace(/_/g, " ")} alerts`);
+        return resp.data;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to subscribe to alert");
+        return null;
+    }
 }
-export function UserFullAccessRooms(
-    GroupUsers,
-    Groups,
-    RoomGroups,
-    Rooms,
-    user
-) {
-    const usersGroups = UsersFullAccessGroups(GroupUsers, Groups, user); // Only the user groups the user is in3
-    const roomGroups = RoomGroups.filter(
-        (rg) =>
-            rg.group_id === usersGroups?.find((ug) => ug.id == rg.group_id)?.id
-    ); // only the room groups the users is in
-    const rooms = Rooms.filter(
-        (rm) => rm.id === roomGroups?.find((rg) => rg.room_id == rm.id)?.room_id
-    );
-    return rooms;
+
+/**
+ * Unsubscribe from alert
+ */
+export async function UnsubscribeFromAlert(alertId) {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.patch(
+            `/api/equipment-alerts/unsubscribe/${alertId}`,
+            {},
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return false;
+        }
+        showSuccess("Unsubscribed from alert");
+        return true;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to unsubscribe from alert");
+        return false;
+    }
 }
-export function UserReadAccessRooms(
-    GroupUsers,
-    Groups,
-    RoomGroups,
-    Rooms,
-    user
-) {
-    const usersGroups = UsersReadAccessGroups(GroupUsers, Groups, user); // Only the user groups the user is in
-    const roomGroups = RoomGroups.filter(
-        (rg) =>
-            rg.group_id === usersGroups?.find((ug) => ug.id == rg.group_id)?.id
-    ); // only the room groups the users is in
-    const rooms = Rooms.filter(
-        (rm) => rm.id === roomGroups?.find((rg) => rg.room_id == rm.id)?.room_id
-    );
+
+/**
+ * Delete alert subscription
+ */
+export async function DeleteAlert(alertId) {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.delete(`/api/equipment-alerts/${alertId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return false;
+        }
+        showSuccess("Alert deleted");
+        return true;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to delete alert");
+        return false;
+    }
 }
-export function UsersGroups(GroupUsers, Groups, user) {
-    const usersGroups = GroupUsers.filter((gp) => gp.user_id === user?.id); // Only the user groups the user is in
-    const groups = Groups.filter(
-        (gp) =>
-            gp.id === usersGroups?.find((ug) => ug.group_id === gp.id)?.group_id
-    ); // Only the groups the user is in
-    return groups;
-}
-export function UsersFullAccessGroups(GroupUsers, Groups, user) {
-    const usersGroups = GroupUsers.filter((gp) => gp.user_id === user?.id); // Only the user groups the user is in
-    const groups = Groups.filter(
-        (gp) =>
-            gp.id === usersGroups?.find((ug) => ug.group_id === gp.id)?.group_id
-    ).filter((gp) => gp.access === "Full"); // Only the groups the user is in
-    return groups;
-}
-export function UsersReadAccessGroups(GroupUsers, Groups, user) {
-    const usersGroups = GroupUsers.filter((gp) => gp.user_id === user?.id); // Only the user groups the user is in
-    const groups = Groups.filter(
-        (gp) =>
-            gp.id === usersGroups?.find((ug) => ug.group_id === gp.id)?.group_id
-    ).filter((gp) => gp.access === "Read"); // Only the groups the user is in
-    return groups;
+
+/**
+ * Update alert settings
+ */
+export async function UpdateAlert(alertId, enabled, notificationDaysBefore) {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.patch(
+            `/api/equipment-alerts/${alertId}`,
+            {
+                enabled,
+                notification_days_before: notificationDaysBefore,
+            },
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError && errorCheck?.message) {
+            showError(errorCheck.message);
+            return null;
+        }
+        showSuccess("Alert settings updated");
+        return resp.data;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to update alert");
+        return null;
+    }
 }

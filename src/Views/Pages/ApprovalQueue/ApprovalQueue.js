@@ -2,10 +2,6 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { styled } from "@mui/material/styles";
 import TableCell, { tableCellClasses } from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
-import {
-    getDateAmPm,
-    getDuration,
-} from "../../../Utilites/Functions/CommonFunctions";
 import { useTheme } from "@emotion/react";
 import { useAuth } from "../../../Utilites/AuthContext";
 import {
@@ -21,32 +17,15 @@ import {
     TableBody,
     Button,
     TablePagination,
-    Collapse,
-    Select,
-    FormControl,
-    InputLabel,
-    MenuItem,
-    Tabs,
-    Tab,
+    Chip,
+    useMediaQuery,
 } from "@mui/material";
-import RowMeeting from "./Components/RowMeeting";
 import {
-    GetLocations,
-    GetMeetingApprovals,
-    GetRooms,
-    GetTypes,
+    GetCheckoutApprovals,
     showError,
     showSuccess,
-    showWarning,
 } from "../../../Utilites/Functions/ApiFunctions";
-import { UpdateMeetingStatus } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
-import ShortSelect from "../../../Components/ShortSelect";
-import {
-    useSearchParams,
-    useParams,
-    useNavigate,
-    useLocation,
-} from "react-router-dom";
+import axios from "axios";
 import { useSocket } from "../../../Contexts/SocketContext";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -68,37 +47,6 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
         border: 0,
     },
 }));
-
-function a11yProps(index) {
-    return {
-        id: `simple-tab-${index}`,
-        "aria-controls": `simple-tabpanel-${index}`,
-    };
-}
-
-function createData(
-    id,
-    name,
-    organizer,
-    room,
-    date,
-    start_time,
-    duration,
-    requested,
-    status
-) {
-    return {
-        id,
-        name,
-        organizer,
-        room,
-        date,
-        start_time,
-        duration,
-        requested,
-        status,
-    };
-}
 
 function descendingComparator(a, b, orderBy) {
     if (typeof a[orderBy] === "string") {
@@ -131,137 +79,81 @@ export default function ApprovalQueue({ setLoading }) {
     const { user } = useAuth();
     const { socket } = useSocket();
     const theme = useTheme();
-    // Support both query string (?meetingId=123) and optional path param (:meetingId)
-    const [searchParams] = useSearchParams();
-    const { meetingId: meetingIdParam } = useParams();
-    const navigate = useNavigate();
-    const location = useLocation();
-    const MEETING_ID_STORAGE_KEY = "approvalMeetingId";
-    const storedFromStorage = () => {
-        try {
-            return (
-                localStorage.getItem(MEETING_ID_STORAGE_KEY) ||
-                sessionStorage.getItem(MEETING_ID_STORAGE_KEY)
-            );
-        } catch {
-            return null;
-        }
-    };
-    const initialMeetingId =
-        searchParams.get("meetingId") || meetingIdParam || storedFromStorage();
-    const [meetingId, setMeetingId] = useState(initialMeetingId);
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const [order, setOrder] = useState("asc");
-    const [orderBy, setOrderBy] = useState("name");
+    const [orderBy, setOrderBy] = useState("start_time");
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const [selected, setSelected] = useState([]);
-    const [rowsOpen, setRowsOpen] = useState([]);
-    const [paginatedRows, setPaginatedRows] = useState([]);
-    const [action, setAction] = useState("Approve");
-    const [meetings, setMeetings] = useState([]);
-    const [filterLocation, setFilterLocation] = useState();
-    const [locations, setLocations] = useState([]);
-    const [rooms, setRooms] = useState([]);
+    const [checkouts, setCheckouts] = useState([]);
+    const [equipment, setEquipment] = useState([]);
+    const [users, setUsers] = useState([]);
     const [update, setUpdate] = useState(0);
-    const [meetingTypes, setMeetingTypes] = useState([]);
     const fetchingRef = useRef(false);
 
     const refreshApprovals = useCallback(async () => {
         if (!user?.id || fetchingRef.current) return;
         fetchingRef.current = true;
         try {
-            const mtgs = await GetMeetingApprovals(user.id);
-            setMeetings(mtgs);
+            const checkoutsData = await GetCheckoutApprovals();
+            setCheckouts(checkoutsData || []);
         } catch (e) {
-            // silent
+            console.error("Error fetching approvals:", e);
         } finally {
             fetchingRef.current = false;
         }
     }, [user?.id]);
 
-    // Remove meetingId from the URL query string (leave other params intact)
-    const removeMeetingIdFromUrl = () => {
-        const params = new URLSearchParams(location.search);
-        if (params.has("meetingId")) {
-            params.delete("meetingId");
-            const newSearch = params.toString();
-            navigate(
-                {
-                    pathname: location.pathname,
-                    search: newSearch ? `?${newSearch}` : "",
-                },
-                { replace: true }
-            );
+    const handleApprove = async () => {
+        if (selected.length === 0) {
+            showError("Please select at least one checkout to approve");
+            return;
         }
-    };
 
-    // Clear focused meeting completely (used after approve/decline)
-    const clearStoredMeetingId = () => {
         try {
-            localStorage.removeItem(MEETING_ID_STORAGE_KEY);
-            sessionStorage.removeItem(MEETING_ID_STORAGE_KEY);
-        } catch {}
-        removeMeetingIdFromUrl();
-        setMeetingId(null);
-        setRowsOpen([]);
-        setSelected([]);
-    };
-
-    // Clear focus only (when user manually unselects) without wiping other selections
-    const clearFocusedMeetingId = () => {
-        try {
-            localStorage.removeItem(MEETING_ID_STORAGE_KEY);
-            sessionStorage.removeItem(MEETING_ID_STORAGE_KEY);
-        } catch {}
-        removeMeetingIdFromUrl();
-        const idNum = Number(meetingId);
-        setMeetingId(null);
-        setRowsOpen((prev) => prev.filter((id) => id !== idNum));
-        setSelected((prev) => prev.filter((id) => id !== idNum));
-    };
-
-    // Capture meetingId from query/path once and persist so it survives navigation / param stripping
-    useEffect(() => {
-        const fromUrl = searchParams.get("meetingId") || meetingIdParam;
-        if (fromUrl && fromUrl !== meetingId) {
-            setMeetingId(fromUrl);
-            try {
-                localStorage.setItem(MEETING_ID_STORAGE_KEY, fromUrl);
-                sessionStorage.setItem(MEETING_ID_STORAGE_KEY, fromUrl);
-            } catch {}
-        }
-    }, [searchParams, meetingIdParam]);
-
-    // Restore if lost after auth re-init
-    useEffect(() => {
-        if (!meetingId) {
-            const s = storedFromStorage();
-            if (s) setMeetingId(s);
-        }
-    }, [meetingId]);
-
-    const handleSubmit = () => {
-        const statusChange = async () => {
-            const promises = meetings?.map(async (itm) =>
-                isSelected(itm.id)
-                    ? await UpdateMeetingStatus(itm.id, {
-                          status: `${action}d`,
-                          userId: user?.id,
-                          meeting: itm.id === -1 ? itm : null,
-                      })
-                    : null
+            setLoading(true);
+            const promises = selected.map((checkoutId) =>
+                axios.put(`/api/checkouts/${checkoutId}`, {
+                    status: "approved",
+                    approved_by_user_id: user.id,
+                })
             );
-            await Promise.all(promises).then(() => {
-                // If focused meeting processed, clear stored id
-                if (meetingId && selected.includes(Number(meetingId))) {
-                    clearStoredMeetingId();
-                } else {
-                    setSelected([]);
-                }
-                setUpdate((prev) => prev + 1);
-            });
-        };
-        statusChange();
+            await Promise.all(promises);
+            showSuccess(`${selected.length} checkout(s) approved successfully`);
+            setSelected([]);
+            setUpdate((prev) => prev + 1);
+        } catch (error) {
+            showError("Failed to approve checkout(s)");
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDecline = async () => {
+        if (selected.length === 0) {
+            showError("Please select at least one checkout to decline");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const promises = selected.map((checkoutId) =>
+                axios.put(`/api/checkouts/${checkoutId}`, {
+                    status: "cancelled",
+                    approved_by_user_id: user.id,
+                })
+            );
+            await Promise.all(promises);
+            showSuccess(`${selected.length} checkout(s) declined`);
+            setSelected([]);
+            setUpdate((prev) => prev + 1);
+        } catch (error) {
+            showError("Failed to decline checkout(s)");
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleRequestSort = (event, property) => {
@@ -281,14 +173,11 @@ export default function ApprovalQueue({ setLoading }) {
 
     const handleSelectAllClick = (event) => {
         if (event.target.checked) {
-            const newSelecteds = meetings?.map((m) => m.id);
+            const newSelecteds = checkouts?.map((c) => c.id);
             setSelected(newSelecteds);
             return;
         }
         setSelected([]);
-        clearFocusedMeetingId();
-        clearStoredMeetingId();
-        removeMeetingIdFromUrl();
     };
 
     const handleClick = (event, id) => {
@@ -309,75 +198,43 @@ export default function ApprovalQueue({ setLoading }) {
         }
 
         setSelected(newSelected);
-        // If user just unselected the focused meeting, clear stored meetingId & URL
-        if (
-            meetingId &&
-            id === Number(meetingId) &&
-            newSelected.indexOf(id) === -1
-        ) {
-            clearFocusedMeetingId();
-        }
-    };
-
-    const handleOpenClick = (event, id) => {
-        const openIndex = rowsOpen.indexOf(id);
-        let neOpen = [];
-
-        if (openIndex === -1) {
-            neOpen = neOpen.concat(selected, id);
-        } else if (openIndex === 0) {
-            neOpen = neOpen.concat(selected.slice(1));
-        } else if (openIndex === selected.length - 1) {
-            neOpen = neOpen.concat(selected.slice(0, -1));
-        } else if (openIndex > 0) {
-            neOpen = neOpen.concat(
-                selected.slice(0, openIndex),
-                selected.slice(openIndex + 1)
-            );
-        }
-
-        setRowsOpen(neOpen);
     };
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
-    const isOpen = (id) => rowsOpen.indexOf(id) !== -1;
 
     useEffect(() => {
         const getData = async () => {
             setLoading(true);
             try {
-                const [rms, lcs, mtgs, typs] = await Promise.all([
-                    GetRooms(user.id),
-                    GetLocations(),
-                    GetMeetingApprovals(user?.id),
-                    GetTypes(),
-                ]);
-                setMeetingTypes(typs);
-                setLocations(lcs);
-                setRooms(rms);
-                setMeetings(mtgs);
-                setFilterLocation(
-                    lcs?.find((lc) => lc.officeid == user?.location)
-                );
+                const [checkoutsData, equipmentData, usersData] =
+                    await Promise.all([
+                        GetCheckoutApprovals(user?.id),
+                        axios.get("/api/equipment"),
+                        axios.get("/api/users"),
+                    ]);
+                setCheckouts(checkoutsData || []);
+                setEquipment(equipmentData.data || []);
+                setUsers(usersData.data || []);
+            } catch (error) {
+                console.error("Error loading data:", error);
             } finally {
                 setLoading(false);
             }
         };
         if (user?.id) getData();
-    }, [user, update]);
+    }, [user, update, setLoading]);
 
-    // Real-time: listen for new approval-related socket events and refresh list
+    // Real-time: listen for checkout approval events
     useEffect(() => {
         if (!socket || !user?.id) return;
         const handler = (payload) => {
             const msg = payload?.message;
             if (
-                msg === "meeting_approval_requested" ||
-                msg === "meeting_reapproval_requested" ||
-                msg === "meeting_approved" ||
-                msg === "meeting_declined"
+                msg === "checkout_approval_requested" ||
+                msg === "checkout_reapproval_requested" ||
+                msg === "checkout_approved" ||
+                msg === "checkout_declined"
             ) {
-                // Only refresh if we remain on approval route
                 refreshApprovals();
             }
         };
@@ -385,232 +242,126 @@ export default function ApprovalQueue({ setLoading }) {
         return () => socket.off("message", handler);
     }, [socket, user?.id, refreshApprovals]);
 
-    useEffect(() => {
-        if (meetings?.length) {
-            const itms = meetings?.filter(
-                (mt) =>
-                    mt?.group === user?.status_group &&
-                    (mt?.location === filterLocation.officeid ||
-                        filterLocation.officeid === 0)
-            );
-            const data = itms?.map((itm) => {
-                const start = new Date(itm?.start_time);
-                const duration = getDuration(start, new Date(itm?.end_time));
-                let durationString = duration.hours
-                    ? `${duration.hours}h ${String(duration.minutes).padStart(
-                          2,
-                          "0"
-                      )}m`
-                    : `${String(duration.minutes).padStart(2, "0")}m`;
-                return createData(
-                    itm.id,
-                    itm.name,
-                    itm.organizer,
-                    rooms?.find((rm) => rm.id == itm.room)?.value,
-                    start.toLocaleDateString("en-US", {
-                        weekday: "long",
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                    }),
-                    `${
-                        start.getHours() % 12 ? start.getHours() % 12 : 12
-                    }:${String(start.getMinutes()).padStart(
-                        2,
-                        "0"
-                    )}${getDateAmPm(start)}m`,
-                    durationString,
-                    new Date(itm.createdAt).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                    }),
-                    itm.status
-                );
-            });
+    const sortedCheckouts = stableSort(
+        checkouts,
+        getComparator(order, orderBy)
+    );
+    const paginatedCheckouts = sortedCheckouts.slice(
+        page * rowsPerPage,
+        page * rowsPerPage + rowsPerPage
+    );
 
-            const sortedRows = stableSort(data, getComparator(order, orderBy));
-            setPaginatedRows(
-                sortedRows.slice(
-                    page * rowsPerPage,
-                    page * rowsPerPage + rowsPerPage
-                )
-            );
-        } else {
-            setPaginatedRows([]);
-        }
-    }, [meetings, filterLocation, update, page, rowsPerPage, orderBy, order]);
+    const getEquipmentName = (equipmentId) => {
+        const eq = equipment.find((e) => e.id === equipmentId);
+        return eq?.name || "Unknown Equipment";
+    };
 
-    // Auto-expand / focus meeting from meetingId if provided
-    useEffect(() => {
-        if (!meetingId || !meetings?.length) {
-            return;
-        } else if (!meetings.find((mt) => mt.id === meetingId)) {
-            removeMeetingIdFromUrl();
-        }
+    const getUserName = (userId) => {
+        const u = users.find((usr) => usr.id === userId);
+        return u ? `${u.first_name} ${u.last_name}` : "Unknown User";
+    };
 
-        const idNum = Number(meetingId);
-        if (Number.isNaN(idNum)) return;
-        // Open the row
-        setRowsOpen((prev) => (prev.includes(idNum) ? prev : [...prev, idNum]));
-        // Optionally select it for quick action
-        setSelected((prev) => (prev.includes(idNum) ? prev : [...prev, idNum]));
-        // If it's on a different page, navigate to the page containing it
-        const index = meetings.findIndex((m) => m.id === idNum);
-        if (index !== -1) {
-            const targetPage = Math.floor(index / rowsPerPage);
-            if (targetPage !== page) setPage(targetPage);
-        }
-    }, [meetingId, meetings, rowsPerPage, page]);
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+        });
+    };
 
     return (
         <Box
             sx={{
-                height: "100%", // take up full height
+                height: "100%",
+                width: "100%",
                 display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
                 flexGrow: 1,
             }}
         >
-            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                <Tabs value={0} aria-label="basic tabs example">
-                    <Tab label="Need Approved" {...a11yProps(0)} />
-                </Tabs>
-            </Box>
-            <Box
-                sx={{
-                    width: "200px",
-                    position: "absolute",
-                    right: 5,
-                    top: 60,
-                    zIndex: 999,
-                }}
-            >
-                <FormControl
-                    variant="standard"
-                    sx={{ minWidth: 160, width: "100%" }}
-                >
-                    <InputLabel id="demo-simple-select-standard-label">
-                        Filter By Location
-                    </InputLabel>
-                    <Select
-                        sx={{ width: "100%" }}
-                        labelId="demo-simple-select-standard-label"
-                        id="demo-simple-select-standard"
-                        value={filterLocation?.officeid || ""}
-                        onChange={(e) => {
-                            const selectedItem = locations?.find(
-                                (itm) => itm.officeid === e.target.value
-                            );
-                            setFilterLocation(selectedItem); // Return the entire object
-                        }}
-                    >
-                        {locations?.map((itm, index) => (
-                            <MenuItem key={index} value={itm.officeid}>
-                                {itm.Alias}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-            </Box>
-
-            <Box
+            <Paper
                 sx={{
                     flex: 1,
-                    minHeight: 0, // CRUCIAL to allow scrollable child
-                    overflow: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
                 }}
             >
-                <TableContainer sx={{ flexGrow: 1 }}>
-                    <Table sx={{ minWidth: 700 }} aria-label="customized table">
-                        <TableHead
-                            sx={{ position: "sticky", top: 0, zIndex: 1 }}
-                        >
+                <TableContainer sx={{ flex: 1, overflow: "auto" }}>
+                    <Table
+                        sx={{ minWidth: isMobile ? 300 : 700 }}
+                        stickyHeader
+                        aria-label="checkout approvals table"
+                    >
+                        <TableHead>
                             <TableRow>
                                 <StyledTableCell padding="checkbox">
                                     <Checkbox
                                         indeterminate={
                                             selected?.length > 0 &&
-                                            selected?.length < meetings?.length
+                                            selected?.length < checkouts?.length
                                         }
                                         checked={
-                                            meetings?.length > 0 &&
+                                            checkouts?.length > 0 &&
                                             selected?.length ===
-                                                meetings?.length
+                                                checkouts?.length
                                         }
                                         onChange={handleSelectAllClick}
                                         inputProps={{
-                                            "aria-label": "select all meetings",
+                                            "aria-label":
+                                                "select all checkouts",
                                         }}
                                     />
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
                                     <TableSortLabel
-                                        active={orderBy === "name"}
+                                        active={orderBy === "equipment_id"}
                                         direction={
-                                            orderBy === "name" ? order : "asc"
-                                        }
-                                        onClick={(event) =>
-                                            handleRequestSort(event, "name")
-                                        }
-                                    >
-                                        Title
-                                    </TableSortLabel>
-                                </StyledTableCell>
-                                <StyledTableCell align="left">
-                                    <TableSortLabel
-                                        active={orderBy === "organizer"}
-                                        direction={
-                                            orderBy === "organizer"
+                                            orderBy === "equipment_id"
                                                 ? order
                                                 : "asc"
                                         }
                                         onClick={(event) =>
                                             handleRequestSort(
                                                 event,
-                                                "organizer"
+                                                "equipment_id"
                                             )
                                         }
                                     >
-                                        Organizer
+                                        Equipment
                                     </TableSortLabel>
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
                                     <TableSortLabel
-                                        active={orderBy === "room"}
+                                        active={orderBy === "user_id"}
                                         direction={
-                                            orderBy === "room" ? order : "asc"
+                                            orderBy === "user_id"
+                                                ? order
+                                                : "asc"
                                         }
                                         onClick={(event) =>
-                                            handleRequestSort(event, "room")
+                                            handleRequestSort(event, "user_id")
                                         }
                                     >
-                                        Room
+                                        Requested By
                                     </TableSortLabel>
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
                                     <TableSortLabel
-                                        active={orderBy === "date"}
+                                        active={orderBy === "start_time"}
                                         direction={
-                                            orderBy === "date" ? order : "asc"
+                                            orderBy === "start_time"
+                                                ? order
+                                                : "asc"
                                         }
                                         onClick={(event) =>
-                                            handleRequestSort(event, "date")
-                                        }
-                                    >
-                                        Date
-                                    </TableSortLabel>
-                                </StyledTableCell>
-                                <StyledTableCell align="left">
-                                    <TableSortLabel
-                                        active={orderBy === "start"}
-                                        direction={
-                                            orderBy === "start" ? order : "asc"
-                                        }
-                                        onClick={(event) =>
-                                            handleRequestSort(event, "start")
+                                            handleRequestSort(
+                                                event,
+                                                "start_time"
+                                            )
                                         }
                                     >
                                         Start Time
@@ -618,320 +369,163 @@ export default function ApprovalQueue({ setLoading }) {
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
                                     <TableSortLabel
-                                        active={orderBy === "duration"}
+                                        active={orderBy === "end_time"}
                                         direction={
-                                            orderBy === "duration"
+                                            orderBy === "end_time"
                                                 ? order
                                                 : "asc"
                                         }
                                         onClick={(event) =>
-                                            handleRequestSort(event, "duration")
+                                            handleRequestSort(event, "end_time")
                                         }
                                     >
-                                        Duration
+                                        End Time
                                     </TableSortLabel>
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
-                                    <TableSortLabel
-                                        active={orderBy === "requested"}
-                                        direction={
-                                            orderBy === "requested"
-                                                ? order
-                                                : "asc"
-                                        }
-                                        onClick={(event) =>
-                                            handleRequestSort(
-                                                event,
-                                                "requested"
-                                            )
-                                        }
-                                    >
-                                        Requested Date
-                                    </TableSortLabel>
+                                    Status
                                 </StyledTableCell>
                                 <StyledTableCell align="left">
-                                    <TableSortLabel
-                                        active={orderBy === "status"}
-                                        direction={
-                                            orderBy === "status" ? order : "asc"
-                                        }
-                                        onClick={(event) =>
-                                            handleRequestSort(event, "status")
-                                        }
-                                    >
-                                        Status
-                                    </TableSortLabel>
+                                    Purpose
                                 </StyledTableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody sx={{ backgroundColor: "white" }}>
-                            {paginatedRows?.length > 0 &&
-                                paginatedRows?.map((row, index) => {
+                            {paginatedCheckouts?.length > 0 ? (
+                                paginatedCheckouts?.map((checkout, index) => {
+                                    const isItemSelected = isSelected(
+                                        checkout.id
+                                    );
                                     const backgroundColor =
-                                        index % 2 === 0 ? "#f0f0f0" : "#ffffff"; // Alternate background color
-                                    const isItemSelected = isSelected(row.id);
-                                    const isItemOpen = isOpen(row.id);
-                                    const meeting = meetings?.find(
-                                        (mt) => mt.id === row?.id
-                                    );
+                                        index % 2 === 0 ? "#f0f0f0" : "#ffffff";
                                     return (
-                                        <React.Fragment key={index}>
-                                            <StyledTableRow
-                                                hover
-                                                role="checkbox"
-                                                aria-checked={isItemSelected}
-                                                tabIndex={-1}
-                                                selected={isItemSelected}
-                                                onClick={(e) =>
-                                                    handleOpenClick(e, row?.id)
-                                                }
-                                                sx={{
-                                                    cursor: "pointer",
-                                                    backgroundColor: `${backgroundColor} !important`,
-                                                }}
-                                            >
-                                                <StyledTableCell padding="checkbox">
-                                                    <Checkbox
-                                                        onClick={(event) => {
-                                                            event.stopPropagation(); // Prevent the event from bubbling up
-                                                            handleClick(
-                                                                event,
-                                                                row?.id
-                                                            );
-                                                        }}
-                                                        checked={isItemSelected}
-                                                        inputProps={{
-                                                            "aria-labelledby": `enhanced-table-checkbox-${row?.id}`,
-                                                        }}
-                                                    />
-                                                </StyledTableCell>
-                                                <StyledTableCell
-                                                    component="th"
-                                                    scope="row"
-                                                >
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ==
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.name}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ===
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.organizer}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ===
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.room}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ===
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.date}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ===
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.start_time}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ===
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.duration}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {
-                                                        <Typography
-                                                            sx={{
-                                                                textDecoration:
-                                                                    row?.status ===
-                                                                    "Canceled"
-                                                                        ? "line-through"
-                                                                        : "none",
-                                                            }}
-                                                        >
-                                                            {row?.requested}
-                                                        </Typography>
-                                                    }
-                                                </StyledTableCell>
-                                                <StyledTableCell align="left">
-                                                    {row.status}
-                                                </StyledTableCell>
-                                            </StyledTableRow>
-                                            <StyledTableRow>
-                                                <StyledTableCell
-                                                    style={{
-                                                        padding: 0,
-                                                        boxSizing: "border-box",
+                                        <StyledTableRow
+                                            hover
+                                            role="checkbox"
+                                            aria-checked={isItemSelected}
+                                            tabIndex={-1}
+                                            key={checkout.id}
+                                            selected={isItemSelected}
+                                            onClick={(event) =>
+                                                handleClick(event, checkout.id)
+                                            }
+                                            sx={{
+                                                cursor: "pointer",
+                                                backgroundColor: `${backgroundColor} !important`,
+                                            }}
+                                        >
+                                            <StyledTableCell padding="checkbox">
+                                                <Checkbox
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        handleClick(
+                                                            event,
+                                                            checkout.id
+                                                        );
                                                     }}
-                                                    colSpan={9}
-                                                >
-                                                    <Collapse
-                                                        in={isItemOpen}
-                                                        timeout="auto"
-                                                        unmountOnExit
-                                                    >
-                                                        <Box>
-                                                            <RowMeeting
-                                                                meeting={
-                                                                    meeting
-                                                                }
-                                                                location={locations?.find(
-                                                                    (lc) =>
-                                                                        lc?.officeid ===
-                                                                        meeting?.location
-                                                                )}
-                                                                room={rooms?.find(
-                                                                    (rm) =>
-                                                                        rm?.id ===
-                                                                        meeting?.room
-                                                                )}
-                                                                type={meetingTypes?.find(
-                                                                    (tp) =>
-                                                                        tp?.id ===
-                                                                        meeting?.type
-                                                                )}
-                                                                row={row}
-                                                            />
-                                                        </Box>
-                                                    </Collapse>
-                                                </StyledTableCell>
-                                            </StyledTableRow>
-                                        </React.Fragment>
+                                                    checked={isItemSelected}
+                                                    inputProps={{
+                                                        "aria-labelledby": `checkout-${checkout.id}`,
+                                                    }}
+                                                />
+                                            </StyledTableCell>
+                                            <StyledTableCell
+                                                component="th"
+                                                scope="row"
+                                            >
+                                                {getEquipmentName(
+                                                    checkout.equipment_id
+                                                )}
+                                            </StyledTableCell>
+                                            <StyledTableCell align="left">
+                                                {getUserName(checkout.user_id)}
+                                            </StyledTableCell>
+                                            <StyledTableCell align="left">
+                                                {formatDate(
+                                                    checkout.start_time
+                                                )}
+                                            </StyledTableCell>
+                                            <StyledTableCell align="left">
+                                                {formatDate(checkout.end_time)}
+                                            </StyledTableCell>
+                                            <StyledTableCell align="left">
+                                                <Chip
+                                                    label={checkout.status}
+                                                    color={
+                                                        checkout.status ===
+                                                        "pending"
+                                                            ? "warning"
+                                                            : "default"
+                                                    }
+                                                    size="small"
+                                                />
+                                            </StyledTableCell>
+                                            <StyledTableCell align="left">
+                                                {checkout.purpose || "N/A"}
+                                            </StyledTableCell>
+                                        </StyledTableRow>
                                     );
-                                })}
+                                })
+                            ) : (
+                                <TableRow>
+                                    <StyledTableCell colSpan={7} align="center">
+                                        <Typography
+                                            variant="body1"
+                                            sx={{ py: 4 }}
+                                        >
+                                            No pending approvals
+                                        </Typography>
+                                    </StyledTableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </TableContainer>
-            </Box>
 
-            {/* Footer: actions + pagination */}
-            <Box
-                sx={{
-                    borderTop: "1px solid #ccc",
-                    padding: 2,
-                    backgroundColor: "white",
-                }}
-            >
-                <Stack
-                    direction="row"
-                    alignItems="center"
-                    spacing={2}
+                {/* Footer: actions + pagination */}
+                <Box
                     sx={{
-                        flexWrap: "wrap",
-                        justifyContent: "space-between",
-                        marginBottom: 2,
+                        display: "flex",
+                        flexDirection: "row",
+                        borderTop: "1px solid #e0e0e0",
                     }}
                 >
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                        <Typography sx={{ whiteSpace: "nowrap" }}>
-                            I Want To
-                        </Typography>
-                        <ShortSelect
-                            value={action}
-                            items={["Decline", "Approve"]}
-                            label="Action"
-                            variant="outlined"
-                            onChange={(e) => setAction(e)}
-                            width="120px"
-                            disabled={selected?.length === 0}
-                        />
-                        <Typography sx={{ whiteSpace: "nowrap" }}>
-                            Selected
-                        </Typography>
+                    <Stack
+                        direction={"row"}
+                        sx={{
+                            alignItems: "center",
+                            padding: "10px 20px",
+                        }}
+                        spacing={2}
+                    >
                         <Button
-                            onClick={handleSubmit}
-                            variant="outlined"
-                            sx={{
-                                background:
-                                    selected?.length === 0
-                                        ? ""
-                                        : "rgba(0,200,0,.3)",
-                                ":hover": { background: "rgba(0,200,0,.5)" },
-                            }}
+                            onClick={handleApprove}
+                            variant="contained"
+                            color="success"
+                            disabled={selected?.length === 0}
                         >
-                            Submit
+                            Approve Selected ({selected?.length})
                         </Button>
-                        {meetingId && (
-                            <Button
-                                onClick={clearFocusedMeetingId}
-                                variant="text"
-                                sx={{ textTransform: "none" }}
-                            >
-                                Clear Focus
-                            </Button>
-                        )}
+                        <Button
+                            onClick={handleDecline}
+                            variant="outlined"
+                            color="error"
+                            disabled={selected?.length === 0}
+                        >
+                            Decline Selected ({selected?.length})
+                        </Button>
                     </Stack>
 
                     <TablePagination
                         component="div"
-                        count={meetings?.length || 0}
+                        count={checkouts?.length || 0}
                         rowsPerPage={rowsPerPage}
                         page={page}
                         onPageChange={handleChangePage}
                         onRowsPerPageChange={handleChangeRowsPerPage}
                     />
-                </Stack>
-            </Box>
+                </Box>
+            </Paper>
         </Box>
     );
 }

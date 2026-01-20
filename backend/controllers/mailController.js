@@ -2,16 +2,7 @@ const nodemailer = require("nodemailer");
 require("dotenv").config(); // Must be at the top of the file
 const { logErrorToFile } = require("../functions/logErrorToFile.js");
 // Lookup models for enriching email content
-const {
-    Room,
-    Type,
-    Office,
-    User,
-    Group,
-    GroupUser,
-    RoomGroup,
-    Resource,
-} = require("../models");
+const { User } = require("../models");
 const { Op } = require("sequelize");
 // Socket messaging
 const { SendMessage } = require("../utils/socketUtils");
@@ -28,12 +19,6 @@ const EMAIL_OVERRIDE_ACTIVE = (() => {
 const EMAIL_OVERRIDE_ADDRESS = (
     process.env.EMAIL_OVERRIDE_ADDRESS || "astrizheus@sealimited.com"
 ).replace(/['"]/g, "");
-
-// Global send-enable flag: default off. Set SEND_EMAILS=1 to allow sending.
-const SEND_EMAILS_ACTIVE = (() => {
-    const v = (process.env.SEND_EMAILS || "0").toString().trim().toLowerCase();
-    return ["1", "true", "yes", "on"].includes(v);
-})();
 
 function applyEmailOverride(mailOpts) {
     if (!EMAIL_OVERRIDE_ACTIVE) return mailOpts;
@@ -90,231 +75,33 @@ const SMTP_Server = {
     },
 };
 
-/**
- * Sends an email to the parent notifying them of their group ownership and members with full access.
- * @param {string} parentEmail - The email of the group parent.
- * @param {string} parentName - The display name of the group parent.
- * @param {string} groupName - The name of the group.
- * @param {string[]} members - An array of member CNs.
- */
-const sendGroupNotificationEmail = async (
-    parentEmail,
-    parentName,
-    groupName,
-    members
-) => {
-    if (!parentEmail) {
-        console.error("Parent email is required.");
-        return;
-    }
-
-    // Create the email transporter
-    const transporter = nodemailer.createTransport(SMTP_Server);
-
-    const generateMemberList = (members) => {
-        return members
-            .map((member) => {
-                if (typeof member === "string") {
-                    // Regular member
-                    return `<li>${member}</li>`;
-                } else if (
-                    typeof member === "object" &&
-                    member.groupName &&
-                    member.nestedMembers
-                ) {
-                    // Group with nested members
-                    const nestedList = member.nestedMembers
-                        .map(
-                            (nestedMember) =>
-                                `<li style="margin-left: 20px;">${nestedMember}</li>`
-                        )
-                        .join("");
-                    return `<li>${member.groupName}<ul>${nestedList}</ul></li>`;
-                }
-                return null;
-            })
-            .filter(Boolean)
-            .join("");
-    };
-
-    // Create the email content
-    const emailSubject = `Group Ownership Notification: ${groupName}`;
-    const emailBody = `
-  <p>Dear ${parentName},</p>
-  <p>You are listed as the parent (owner) for the group <strong>${groupName}</strong>.</p>
-  <p>The following associates have full access to your matters:</p>
-  <ul>${generateMemberList(members)}</ul>
-  <p>Please ensure that this access is appropriate and up-to-date.</p>
-  <p>If there is an issue with access, please reply to this email with any concerns.</p>
-  <p></p>
-  <p>Thank you.</p>
-  `;
-
-    try {
-        // Safety gate: only actually send when SEND_EMAILS_ACTIVE is true
-        const mailOpts = applyEmailOverride({
-            from: "ithelp@sealimited.com", // From address using COLWEB
-            to: parentEmail, //parentEmail,
-            subject: emailSubject,
-            html: emailBody,
-        });
-
-        if (!SEND_EMAILS_ACTIVE) {
-            // Log what would have been sent (no sensitive data)
-            console.log(
-                `SEND_EMAILS disabled - skipping sendGroupNotificationEmail to ${mailOpts.to}. Subject: ${mailOpts.subject}`
-            );
-            return;
-        }
-
-        // Send the email
-        const info = await transporter.sendMail(mailOpts);
-
-        console.log(`Email sent to ${parentEmail}: ${info.messageId}`);
-    } catch (error) {
-        logErrorToFile(error);
-        console.error(`Error sending email to ${parentEmail}:`, error);
-    }
-};
-
-const sendProcessCompleteEmail = async (status) => {
-    // Create the email transporter
-    const transporter = nodemailer.createTransport(SMTP_Server);
-
-    // Create the email content
-    const emailSubject = `Group Ownership Notification Email ${status}`;
-    const emailBody = `
-  <p>Dear Developer,</p>
-  <p>The Matter Manager email notification has completed with status <strong>${status}</strong>.</p>
-  <p></p>
-  <p>Thank you.</p>
-  `;
-
-    try {
-        const mailOpts = applyEmailOverride({
-            from: "ithelp@sealimited.com", // From address using COLWEB
-            to: "astrizheus@sealimited.com", //parentEmail,
-            subject: emailSubject,
-            html: emailBody,
-        });
-
-        if (!SEND_EMAILS_ACTIVE) {
-            console.log(
-                `SEND_EMAILS disabled - skipping sendProcessCompleteEmail. Subject: ${mailOpts.subject}`
-            );
-            return;
-        }
-
-        // Send the email
-        const info = await transporter.sendMail(mailOpts);
-
-        console.log(
-            `Email sent to astrizheus@sealimited.com: ${info.messageId}`
-        );
-    } catch (error) {
-        logErrorToFile(error);
-        console.error(
-            `Error sending email to astrizheus@sealimited.com:`,
-            error
-        );
-    }
-};
-
-const sendEmail = async (status) => {
-    // Create the email transporter
-    const transporter = nodemailer.createTransport(SMTP_Server);
-
-    // Create the email content
-    const emailSubject = `Group Ownership Notification Email ${status}`;
-    const emailBody = `
-  <p>Dear Developer,</p>
-  <p>The Matter Manager email notification has completed with status <strong>${status}</strong>.</p>
-  <p></p>
-  <p>Thank you.</p>
-  `;
-
-    try {
-        // Send the email
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: "ithelp@sealimited.com", // From address using COLWEB
-                to: "astrizheus@sealimited.com", //parentEmail,
-                subject: emailSubject,
-                html: emailBody,
-            })
-        );
-
-        console.log(
-            `Email sent to astrizheus@sealimited.com: ${info.messageId}`
-        );
-    } catch (error) {
-        logErrorToFile(error);
-        console.error(
-            `Error sending email to astrizheus@sealimited.com:`,
-            error
-        );
-    }
-};
+// Global send-enable flag: default off. Set SEND_EMAILS=1 to allow sending.
+const SEND_EMAILS_ACTIVE = (() => {
+    const v = (process.env.SEND_EMAILS || "0").toString().trim().toLowerCase();
+    return ["1", "true", "yes", "on"].includes(v);
+})();
 
 /**
- * Sends an approval request email for a meeting to a specified recipient.
- * @param {object} meeting - Meeting object (can be a Sequelize instance or plain object).
+ * Sends an approval request email for equipment checkout to a specified recipient.
+ * @param {object} checkout - Checkout object (can be a Sequelize instance or plain object).
+ * @param {object} equipment - Equipment object.
  * @param {string} recipientEmail - Email address of the approver / recipient.
  */
-const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
-    if (!meeting || !recipientEmail) {
-        console.error("Meeting object and recipientEmail are required.");
+const sendCheckoutApprovalRequestEmail = async (
+    checkout,
+    equipment,
+    recipientEmail
+) => {
+    if (!checkout || !equipment || !recipientEmail) {
+        console.error("Checkout, equipment, and recipientEmail are required.");
         return;
     }
 
-    // Normalize meeting data (support Sequelize instance .get())
-    const m = typeof meeting.get === "function" ? meeting.get() : meeting;
-    const {
-        id,
-        name,
-        start_time,
-        end_time,
-        room,
-        location,
-        type, // added to display human readable meeting type
-        organizer,
-        equipment,
-        description,
-    } = m;
+    // Normalize checkout data (support Sequelize instance .get())
+    const c = typeof checkout.get === "function" ? checkout.get() : checkout;
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
-    // Enrich lookup values (room/location/type) – graceful fallback if records missing
-    let roomName = room ?? "N/A";
-    let locationName = location ?? "N/A";
-    let typeName = type ?? "N/A";
-    let equipmentName = equipment ?? "N/A"; // Default to N/A if no equipment
-    try {
-        const [roomRec, officeRec, typeRec, equipmentRec] = await Promise.all([
-            room ? Room.findByPk(room) : null,
-            location ? Office.findByPk(location) : null,
-            type ? Type.findByPk(type) : null,
-            equipment ? Resource.findByPk(equipment) : null,
-        ]);
-        if (roomRec?.value)
-            roomName =
-                roomRec?.value +
-                (roomRec?.location ? ` (Loc ${roomRec?.location})` : "");
-        if (officeRec) {
-            // Prefer Alias then City then officeid
-            locationName =
-                officeRec.Alias ||
-                officeRec.City ||
-                officeRec.officeid ||
-                locationName;
-            roomName =
-                roomRec?.value +
-                (roomRec?.location ? ` (Loc ${locationName})` : "");
-        }
-        if (typeRec?.value) typeName = typeRec.value;
-        if (equipmentRec?.name) equipmentName = equipmentRec.name;
-    } catch (e) {
-        logErrorToFile(e);
-        console.warn("Lookup enrichment failed, falling back to raw IDs.");
-    }
+    const { id, start_time, end_time, purpose, user_id } = c;
 
     const formatDate = (d) => {
         if (!d) return "N/A";
@@ -325,21 +112,26 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
         }
     };
 
-    const hasRoom = !!room;
-    const hasEquipment = !!equipment;
-    const bookingLabel =
-        hasRoom && hasEquipment
-            ? "Meeting & Equipment Use"
-            : hasEquipment
-            ? "Equipment Use"
-            : "Meeting";
-    const emailSubject = `Action Required: Approve ${bookingLabel} ${
-        name ? '"' + name + '"' : "#" + id
-    }`;
-    const approvalBaseUrl = "https://rooms.sealimited.com/approve"; // static per request
+    const approvalBaseUrl =
+        process.env.REACT_APP_URL || "https://equipment.sealimited.com";
     const approvalLink = id
-        ? `${approvalBaseUrl}?meetingId=${encodeURIComponent(id)}`
+        ? `${approvalBaseUrl}/checkout-approval?checkoutId=${encodeURIComponent(
+              id
+          )}`
         : approvalBaseUrl;
+
+    // Get requester name
+    let requesterName = "User";
+    try {
+        const userRec = await User.findByPk(user_id);
+        if (userRec) {
+            requesterName =
+                `${userRec.first_name || ""} ${
+                    userRec.last_name || ""
+                }`.trim() || userRec.email;
+        }
+    } catch {}
+
     // Personalize greeting
     let approverName = null;
     try {
@@ -353,39 +145,35 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
         }
     } catch {}
     const greetingName = approverName || "Approver";
+
+    const emailSubject = `Action Required: Approve Equipment Checkout for ${e.name}`;
     const emailBody = `
     <p>Dear ${greetingName},</p>
-    <p>A ${
-        hasRoom && hasEquipment
-            ? "meeting & equipment use"
-            : hasEquipment
-            ? "equipment use"
-            : "meeting"
-    } requires your approval.</p>
+    <p>An equipment checkout request requires your approval.</p>
     <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Title</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-            name || "N/A"
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+            e.name
         }</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+            e.serial_number || "N/A"
+        }</td></tr>
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+            e.location || "N/A"
+        }</td></tr>
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Requester</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${requesterName}</td></tr>
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
             start_time
         )}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
             end_time
         )}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Room</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${roomName}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${locationName}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Type</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${typeName}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${equipmentName}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Organizer</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-            organizer || "N/A"
-        }</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Description</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-            description || "N/A"
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+            purpose || "N/A"
         }</td></tr>
     </table>
     <p style="margin-top:16px;">Please review and take the appropriate action.</p>
     <p style="margin:24px 0;">
-    <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve ${bookingLabel}</a>
+    <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve Checkout</a>
     </p>
     <p style="font-size:12px;">If the button doesn't work, copy and paste this link into your browser:<br/><span style="word-break:break-all;">${approvalLink}</span></p>
     <p>Thank you.<br/>This is an automated message; please do not reply.</p>
@@ -393,47 +181,529 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
 
     try {
         const transporter = nodemailer.createTransport(SMTP_Server);
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: "noreply@sealimited.com",
-                to: recipientEmail,
-                subject: emailSubject,
-                html: emailBody,
-            })
-        );
+        const mailOpts = applyEmailOverride({
+            from: "noreply@sealimited.com",
+            to: recipientEmail,
+            subject: emailSubject,
+            html: emailBody,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            console.log(
+                `SEND_EMAILS disabled - skipping checkout approval request to ${mailOpts.to}. Subject: ${mailOpts.subject}`
+            );
+            return;
+        }
+
+        const info = await transporter.sendMail(mailOpts);
+
         // Fire socket notification (non-blocking)
         try {
-            // Direct to recipient (if connected) by email; meeting controller handles broader approver list
             SendMessage(
                 {
-                    message: "meeting_approval_requested",
-                    data: { meetingId: id, recipient: recipientEmail },
+                    message: "checkout_approval_requested",
+                    data: { checkoutId: id, recipient: recipientEmail },
                 },
                 { emails: [recipientEmail] }
             );
         } catch (e) {
-            console.warn("Socket notify failed (approval request)", e);
+            console.warn("Socket notify failed (checkout approval request)", e);
         }
-        const actualTo = info?.envelope?.to || info?.accepted || [];
-        const logLabel =
-            hasRoom && hasEquipment
-                ? "Meeting+Equipment"
-                : hasEquipment
-                ? "Equipment"
-                : "Meeting";
+
         console.log(
-            `${logLabel} approval request email sent (override=${
-                EMAIL_OVERRIDE_ACTIVE ? "ON" : "OFF"
-            }) original=${recipientEmail} actual=${
-                Array.isArray(actualTo) ? actualTo.join(",") : actualTo
-            } id=${info.messageId}`
+            `Checkout approval request email sent to ${recipientEmail}: ${info.messageId}`
         );
     } catch (error) {
         logErrorToFile(error);
         console.error(
-            `Error sending meeting approval request email to ${recipientEmail}:`,
+            `Error sending checkout approval request email to ${recipientEmail}:`,
             error
         );
+    }
+};
+
+/**
+ * Sends an email to the checkout requester informing them it was approved.
+ * @param {object} checkout - Checkout object
+ * @param {object} equipment - Equipment object
+ * @param {string} recipientEmail - Requester's email address
+ */
+const sendCheckoutApprovedEmail = async (
+    checkout,
+    equipment,
+    recipientEmail
+) => {
+    if (!checkout || !equipment || !recipientEmail) return;
+
+    const c = typeof checkout.get === "function" ? checkout.get() : checkout;
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const { id, start_time, end_time, purpose } = c;
+
+    const fmt = (d) => {
+        try {
+            return new Date(d).toLocaleString();
+        } catch {
+            return d || "N/A";
+        }
+    };
+
+    let requesterName = "User";
+    try {
+        if (c.user_id) {
+            const requester = await User.findByPk(c.user_id);
+            if (requester) {
+                requesterName =
+                    `${requester.first_name || ""} ${
+                        requester.last_name || ""
+                    }`.trim() || requesterName;
+            }
+        }
+    } catch {}
+
+    const subject = `Equipment Checkout Approved: ${e.name}`;
+    const body = `
+        <p>Dear ${requesterName},</p>
+        <p>Your equipment checkout request has been <strong style="color:#2e7d32;">approved</strong>.</p>
+        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.name
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.serial_number || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.location || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
+                start_time
+            )}</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
+                end_time
+            )}</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                purpose || "N/A"
+            }</td></tr>
+        </table>
+        <p style="margin-top:16px;">You can view or manage your checkout in the Equipment Scheduler application.</p>
+        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+        const mailOpts = applyEmailOverride({
+            from: "noreply@sealimited.com",
+            to: recipientEmail,
+            subject,
+            html: body,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            console.log(
+                `SEND_EMAILS disabled - skipping checkout approved email to ${mailOpts.to}`
+            );
+            return;
+        }
+
+        await transporter.sendMail(mailOpts);
+
+        try {
+            SendMessage(
+                {
+                    message: "checkout_approved",
+                    data: { checkoutId: id, user_id: c.user_id },
+                },
+                { emails: [recipientEmail] }
+            );
+        } catch (e) {
+            console.warn("Socket notify failed (checkout approved)", e);
+        }
+    } catch (e) {
+        logErrorToFile(e);
+        console.error("Error sending checkout approved email", e);
+    }
+};
+
+/**
+ * Sends an email to the checkout requester informing them it was declined.
+ * @param {object} checkout - Checkout object
+ * @param {object} equipment - Equipment object
+ * @param {string} recipientEmail - Requester's email address
+ * @param {string} [reason] - Optional reason for decline
+ */
+const sendCheckoutDeclinedEmail = async (
+    checkout,
+    equipment,
+    recipientEmail,
+    reason
+) => {
+    if (!checkout || !equipment || !recipientEmail) {
+        console.error(
+            "checkout, equipment, and recipientEmail required for declined email"
+        );
+        return;
+    }
+
+    const c = typeof checkout.get === "function" ? checkout.get() : checkout;
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const { id, start_time, end_time, purpose } = c;
+
+    const fmt = (d) => {
+        try {
+            return new Date(d).toLocaleString();
+        } catch {
+            return d || "N/A";
+        }
+    };
+
+    let requesterName = "User";
+    try {
+        if (c.user_id) {
+            const requester = await User.findByPk(c.user_id);
+            if (requester) {
+                requesterName =
+                    `${requester.first_name || ""} ${
+                        requester.last_name || ""
+                    }`.trim() || requesterName;
+            }
+        }
+    } catch {}
+
+    // Build approver list
+    let approverLinks = [];
+    try {
+        const approverMap = new Map();
+        const addUser = (u, isOfficeAdmin = false) => {
+            if (!u || !u.id) return;
+            if (u.admin) return; // exclude admins
+            if (!u.email) return;
+            if (approverMap.has(u.id)) return;
+            const fullName =
+                `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email;
+            approverMap.set(u.id, {
+                name: fullName,
+                email: u.email,
+                isOfficeAdmin,
+            });
+        };
+
+        // Office admins for this location
+        if (e.location) {
+            const officeAdmins = await User.findAll({
+                where: { equipment_office_admin: e.location },
+            });
+            officeAdmins.forEach((u) => addUser(u, true));
+        }
+
+        const prioritized = Array.from(approverMap.values()).sort((a, b) => {
+            if (a.isOfficeAdmin && !b.isOfficeAdmin) return -1;
+            if (!a.isOfficeAdmin && b.isOfficeAdmin) return 1;
+            return a.name.localeCompare(b.name);
+        });
+
+        approverLinks = prioritized
+            .slice(0, 5)
+            .map(
+                (p) =>
+                    `<a href="mailto:${p.email}" style="text-decoration:none;color:#005ea5;">${p.name}</a>`
+            );
+    } catch {}
+
+    const approverLine = approverLinks.length
+        ? ` or contact: ${approverLinks.join(", ")}`
+        : "";
+
+    const subject = `Equipment Checkout Declined: ${e.name}`;
+    const body = `
+        <p>Dear ${requesterName},</p>
+        <p>Your equipment checkout request has been <strong style="color:#d32f2f;">declined</strong>.</p>
+        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.name
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.serial_number || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.location || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
+                start_time
+            )}</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
+                end_time
+            )}</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                purpose || "N/A"
+            }</td></tr>
+        </table>
+        ${
+            reason
+                ? `<p style="margin-top:12px;"><strong>Reason:</strong> ${reason}</p>`
+                : ""
+        }
+        <p style="margin-top:16px;">If you believe this was in error you may create a new checkout request${approverLine}.</p>
+        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+        const mailOpts = applyEmailOverride({
+            from: "noreply@sealimited.com",
+            to: recipientEmail,
+            subject,
+            html: body,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            console.log(
+                `SEND_EMAILS disabled - skipping checkout declined email to ${mailOpts.to}`
+            );
+            return;
+        }
+
+        const info = await transporter.sendMail(mailOpts);
+
+        try {
+            SendMessage(
+                {
+                    message: "checkout_declined",
+                    data: { checkoutId: id, user_id: c.user_id },
+                },
+                { emails: [recipientEmail] }
+            );
+        } catch (e) {
+            console.warn("Socket notify failed (checkout declined email)", e);
+        }
+
+        console.log(
+            `Checkout declined email sent to ${recipientEmail}: ${info.messageId}`
+        );
+    } catch (error) {
+        logErrorToFile(error);
+        console.error(
+            `Error sending checkout declined email to ${recipientEmail}:`,
+            error
+        );
+    }
+};
+
+/**
+ * Sends an email when equipment is returned.
+ * @param {object} checkout - Checkout object
+ * @param {object} equipment - Equipment object
+ * @param {string[]} subscriberEmails - Array of emails who subscribed to return alerts
+ */
+const sendEquipmentReturnedEmail = async (
+    checkout,
+    equipment,
+    subscriberEmails
+) => {
+    if (
+        !checkout ||
+        !equipment ||
+        !subscriberEmails ||
+        subscriberEmails.length === 0
+    )
+        return;
+
+    const c = typeof checkout.get === "function" ? checkout.get() : checkout;
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const subject = `Equipment Returned: ${e.name}`;
+    const body = `
+        <p>Dear Equipment Scheduler User,</p>
+        <p>The following equipment has been returned and may be available for checkout:</p>
+        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.name
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.serial_number || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.location || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Status</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.status || "Available"
+            }</td></tr>
+        </table>
+        <p style="margin-top:16px;"><em>Note: This equipment may have additional bookings scheduled. Please check availability before requesting checkout.</em></p>
+        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+
+        for (const email of subscriberEmails) {
+            const mailOpts = applyEmailOverride({
+                from: "noreply@sealimited.com",
+                to: email,
+                subject,
+                html: body,
+            });
+
+            if (!SEND_EMAILS_ACTIVE) {
+                console.log(
+                    `SEND_EMAILS disabled - skipping equipment returned email to ${mailOpts.to}`
+                );
+                continue;
+            }
+
+            await transporter.sendMail(mailOpts);
+        }
+
+        console.log(
+            `Equipment returned emails sent to ${subscriberEmails.length} subscribers`
+        );
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending equipment returned emails", error);
+    }
+};
+
+/**
+ * Sends an email when equipment is available (returned AND no bookings within 2 hours).
+ * @param {object} equipment - Equipment object
+ * @param {string[]} subscriberEmails - Array of emails who subscribed to availability alerts
+ */
+const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
+    if (!equipment || !subscriberEmails || subscriberEmails.length === 0)
+        return;
+
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const subject = `Equipment Available: ${e.name}`;
+    const body = `
+        <p>Dear Equipment Scheduler User,</p>
+        <p>The following equipment is now <strong style="color:#2e7d32;">available</strong> for checkout with no upcoming bookings in the next 2 hours:</p>
+        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.name
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.serial_number || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.location || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Status</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.status || "Available"
+            }</td></tr>
+        </table>
+        <p style="margin-top:16px;">You can request a checkout for this equipment now.</p>
+        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+
+        for (const email of subscriberEmails) {
+            const mailOpts = applyEmailOverride({
+                from: "noreply@sealimited.com",
+                to: email,
+                subject,
+                html: body,
+            });
+
+            if (!SEND_EMAILS_ACTIVE) {
+                console.log(
+                    `SEND_EMAILS disabled - skipping equipment available email to ${mailOpts.to}`
+                );
+                continue;
+            }
+
+            await transporter.sendMail(mailOpts);
+        }
+
+        console.log(
+            `Equipment available emails sent to ${subscriberEmails.length} subscribers`
+        );
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending equipment available emails", error);
+    }
+};
+
+/**
+ * Sends a calibration due reminder email.
+ * @param {object} equipment - Equipment object
+ * @param {string[]} subscriberEmails - Array of emails who subscribed to calibration alerts
+ * @param {number} daysUntilDue - Number of days until calibration is due
+ */
+const sendCalibrationDueEmail = async (
+    equipment,
+    subscriberEmails,
+    daysUntilDue
+) => {
+    if (!equipment || !subscriberEmails || subscriberEmails.length === 0)
+        return;
+
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const urgencyColor = daysUntilDue <= 7 ? "#d32f2f" : "#ff9800";
+    const urgencyLabel =
+        daysUntilDue <= 0 ? "OVERDUE" : `Due in ${daysUntilDue} day(s)`;
+
+    const subject = `Calibration ${
+        daysUntilDue <= 0 ? "Overdue" : "Due Soon"
+    }: ${e.name}`;
+    const body = `
+        <p>Dear Equipment Manager,</p>
+        <p>The following equipment has a calibration <strong style="color:${urgencyColor};">${urgencyLabel}</strong>:</p>
+        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.name
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.serial_number || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.location || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Calibration Due Date</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.calibration_due_date
+                    ? new Date(e.calibration_due_date).toLocaleDateString()
+                    : "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Last Calibration</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.last_calibration_date
+                    ? new Date(e.last_calibration_date).toLocaleDateString()
+                    : "N/A"
+            }</td></tr>
+        </table>
+        <p style="margin-top:16px;">Please schedule calibration as soon as possible to maintain equipment compliance.</p>
+        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+
+        for (const email of subscriberEmails) {
+            const mailOpts = applyEmailOverride({
+                from: "noreply@sealimited.com",
+                to: email,
+                subject,
+                html: body,
+            });
+
+            if (!SEND_EMAILS_ACTIVE) {
+                console.log(
+                    `SEND_EMAILS disabled - skipping calibration due email to ${mailOpts.to}`
+                );
+                continue;
+            }
+
+            await transporter.sendMail(mailOpts);
+        }
+
+        console.log(
+            `Calibration due emails sent to ${subscriberEmails.length} subscribers`
+        );
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending calibration due emails", error);
     }
 };
 
@@ -459,18 +729,25 @@ const sendGenericEmail = async (params = {}) => {
     }
     try {
         const transporter = nodemailer.createTransport(SMTP_Server);
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: from || "noreply@sealimited.com",
-                to,
-                subject,
-                html,
-                text,
-                cc,
-                bcc,
-                attachments,
-            })
-        );
+        const mailOpts = applyEmailOverride({
+            from: from || "noreply@sealimited.com",
+            to,
+            subject,
+            html,
+            text,
+            cc,
+            bcc,
+            attachments,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            console.log(
+                `SEND_EMAILS disabled - skipping generic email to ${mailOpts.to}. Subject: ${mailOpts.subject}`
+            );
+            return;
+        }
+
+        const info = await transporter.sendMail(mailOpts);
         console.log(`Generic email sent to ${to}: ${info.messageId}`);
         return info;
     } catch (error) {
@@ -479,548 +756,12 @@ const sendGenericEmail = async (params = {}) => {
     }
 };
 
-/**
- * Sends a re-approval request when an already-approved meeting has been modified.
- * @param {object} oldMeeting - Previous persisted meeting values (Sequelize instance or plain object)
- * @param {object} newMeeting - Updated meeting values (Sequelize instance or plain object)
- * @param {string} recipientEmail - Approver's email address
- */
-const sendMeetingReapprovalRequestEmail = async (
-    oldMeeting,
-    newMeeting,
-    recipientEmail
-) => {
-    if (!oldMeeting || !newMeeting || !recipientEmail) {
-        console.error(
-            "oldMeeting, newMeeting and recipientEmail are all required for re-approval email"
-        );
-        return;
-    }
-
-    const normalize = (m) => (typeof m?.get === "function" ? m.get() : m);
-    const prev = normalize(oldMeeting) || {};
-    const curr = normalize(newMeeting) || {};
-
-    // Pre-fetch lookups for old/new values (room/location/type) to show names instead of IDs
-    const lookupIds = {
-        rooms: [prev.room, curr.room].filter((v) => v != null),
-        locations: [prev.location, curr.location].filter((v) => v != null),
-        types: [prev.type, curr.type].filter((v) => v != null),
-        equipments: [prev.equipment, curr.equipment].filter((v) => v != null),
-    };
-    let lookupCache = { room: {}, location: {}, type: {}, equipment: {} };
-    try {
-        const [roomRecords, officeRecords, typeRecords, equipmentRecords] =
-            await Promise.all([
-                lookupIds.rooms.length
-                    ? Room.findAll({
-                          where: { id: { [Op.in]: lookupIds.rooms } },
-                      })
-                    : [],
-                lookupIds.locations.length
-                    ? Office.findAll({
-                          where: { officeid: { [Op.in]: lookupIds.locations } },
-                      })
-                    : [],
-                lookupIds.types.length
-                    ? Type.findAll({
-                          where: { id: { [Op.in]: lookupIds.types } },
-                      })
-                    : [],
-                lookupIds.equipments.length
-                    ? Resource.findAll({
-                          where: { id: { [Op.in]: lookupIds.equipments } },
-                      })
-                    : [],
-            ]);
-        roomRecords.forEach((r) => (lookupCache.room[r.id] = r?.value));
-        officeRecords.forEach(
-            (o) =>
-                (lookupCache.location[o.officeid] =
-                    o.Alias || o.City || `${o.officeid}`)
-        );
-        typeRecords.forEach((t) => (lookupCache.type[t.id] = t.value));
-        equipmentRecords.forEach((e) => (lookupCache.equipment[e.id] = e.name));
-    } catch (e) {
-        logErrorToFile(e);
-        console.warn("Re-approval lookup enrichment failed");
-    }
-
-    const includeEquipment = prev.equipment != null || curr.equipment != null;
-    const FIELDS = [
-        { key: "name", label: "Title" },
-        { key: "start_time", label: "Start" },
-        { key: "end_time", label: "End" },
-        {
-            key: "room",
-            label: "Room",
-            transform: (v) => (v == null ? v : lookupCache.room[v] || v),
-        },
-        {
-            key: "location",
-            label: "Location",
-            transform: (v) => (v == null ? v : lookupCache.location[v] || v),
-        },
-        {
-            key: "type",
-            label: "Type",
-            transform: (v) => (v == null ? v : lookupCache.type[v] || v),
-        },
-        // equipment inserted conditionally
-        { key: "organizer", label: "Organizer" },
-        { key: "description", label: "Description" },
-    ];
-    if (includeEquipment) {
-        FIELDS.splice(6, 0, {
-            key: "equipment",
-            label: "Equipment",
-            transform: (v) => (v == null ? v : lookupCache.equipment[v] || v),
-        });
-    }
-
-    const formatValue = (key, val) => {
-        if (val == null || val === "") return "<em>N/A</em>";
-        if (key.endsWith("_time")) {
-            try {
-                return new Date(val).toLocaleString();
-            } catch {
-                return val;
-            }
-        }
-        return String(val);
-    };
-
-    const changed = [];
-    const rowsHtml = FIELDS.map(({ key, label, transform }) => {
-        const rawPrev = prev[key];
-        const rawCurr = curr[key];
-        const displayPrev = transform ? transform(rawPrev) : rawPrev;
-        const displayCurr = transform ? transform(rawCurr) : rawCurr;
-        const beforeVal = formatValue(key, displayPrev);
-        const afterVal = formatValue(key, displayCurr);
-        const isChanged =
-            rawPrev != null || rawCurr != null
-                ? JSON.stringify(rawPrev) !== JSON.stringify(rawCurr)
-                : false;
-        if (isChanged) changed.push(label);
-        return `<tr style="${
-            isChanged ? "background:#fff8e1;" : ""
-        }"><td style="padding:4px 8px;border:1px solid #ddd;">${label}</td><td style="padding:4px 8px;border:1px solid #ddd;">${beforeVal}</td><td style="padding:4px 8px;border:1px solid #ddd;">${afterVal}</td></tr>`;
-    }).join("");
-
-    const id = curr.id || prev.id;
-    const approvalBaseUrl = "https://rooms.sealimited.com/approve";
-    const approvalLink = id
-        ? `${approvalBaseUrl}?meetingId=${encodeURIComponent(id)}`
-        : approvalBaseUrl;
-
-    const hasRoomCurr = !!curr.room;
-    const hasEquipmentCurr = !!curr.equipment;
-    const bookingLabel =
-        hasRoomCurr && hasEquipmentCurr
-            ? "Meeting & Equipment Use"
-            : hasEquipmentCurr
-            ? "Equipment Use"
-            : "Meeting";
-    const subject = `Re-Approval Required: Updated ${bookingLabel} ${
-        curr.name ? '"' + curr.name + '"' : id ? "#" + id : ""
-    }`;
-    // Personalize greeting for re-approval
-    let approverName = null;
-    try {
-        const userRec = await User.findOne({
-            where: { email: recipientEmail },
-        });
-        if (userRec) {
-            approverName = `${userRec.first_name || ""} ${
-                userRec.last_name || ""
-            }`.trim();
-        }
-    } catch {}
-    const greetingName = approverName || "Approver";
-    const emailBody = `
-    <p>Dear ${greetingName},</p>
-    <p>A previously approved ${bookingLabel.toLowerCase()} has been updated and requires your review.</p>
-    <p><strong>Changed Fields:</strong> ${
-        changed.length ? changed.join(", ") : "(No detected field changes)"
-    }</p>
-    <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-        <thead>
-            <tr style="background:#f0f0f0;">
-                <th style="padding:6px 8px;border:1px solid #ccc;text-align:left;">Field</th>
-                <th style="padding:6px 8px;border:1px solid #ccc;text-align:left;">Previous</th>
-                <th style="padding:6px 8px;border:1px solid #ccc;text-align:left;">Updated</th>
-            </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-    </table>
-    <p style="margin:24px 0 8px;">
-    <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review Updated ${bookingLabel}</a>
-    </p>
-    <p style="font-size:12px;">If the button does not work, paste this URL into your browser:<br/>${approvalLink}</p>
-    <p>Thank you.<br/>This is an automated message; please do not reply.</p>
-    `;
-
-    try {
-        const transporter = nodemailer.createTransport(SMTP_Server);
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: "noreply@sealimited.com",
-                to: recipientEmail,
-                subject,
-                html: emailBody,
-            })
-        );
-        try {
-            SendMessage(
-                {
-                    message: "meeting_reapproval_requested",
-                    data: {
-                        meetingId: id,
-                        recipient: recipientEmail,
-                        changedFields: changed,
-                    },
-                },
-                { emails: [recipientEmail] }
-            );
-        } catch (e) {
-            console.warn("Socket notify failed (re-approval request)", e);
-        }
-        console.log(
-            `Meeting re-approval request email sent to ${recipientEmail}: ${info.messageId}`
-        );
-    } catch (error) {
-        logErrorToFile(error);
-        console.error(
-            `Error sending meeting re-approval request email to ${recipientEmail}:`,
-            error
-        );
-    }
-};
-
-/**
- * Sends an email to the meeting creator informing them it was declined.
- * @param {object} meeting - Meeting object (Sequelize instance or plain object)
- * @param {string} recipientEmail - Creator's email address
- * @param {string} [reason] - Optional reason for decline
- */
-const sendMeetingDeclinedEmail = async (meeting, recipientEmail, reason) => {
-    if (!meeting || !recipientEmail) {
-        console.error("meeting and recipientEmail required for declined email");
-        return;
-    }
-    const m = typeof meeting.get === "function" ? meeting.get() : meeting;
-    const {
-        id,
-        name,
-        start_time,
-        end_time,
-        room,
-        location,
-        type,
-        organizer,
-        description,
-        equipment,
-    } = m;
-    let roomName = room ?? "N/A";
-    let locationName = location ?? "N/A";
-    let typeName = type ?? "N/A";
-    let equipmentName = equipment ?? "N/A";
-    try {
-        const [roomRec, officeRec, typeRec, equipmentRec] = await Promise.all([
-            room ? Room.findByPk(room) : null,
-            location ? Office.findByPk(location) : null,
-            type ? Type.findByPk(type) : null,
-            equipment ? Resource.findByPk(equipment) : null,
-        ]);
-        if (roomRec?.value) roomName = roomRec?.value;
-        if (officeRec)
-            locationName =
-                officeRec.Alias ||
-                officeRec.City ||
-                officeRec.officeid ||
-                locationName;
-        if (typeRec?.value) typeName = typeRec.value;
-        if (equipmentRec?.name) equipmentName = equipmentRec.name;
-    } catch (e) {
-        logErrorToFile(e);
-    }
-    const fmt = (d) => {
-        try {
-            return new Date(d).toLocaleString();
-        } catch {
-            return d || "N/A";
-        }
-    };
-    // Personalize creator greeting and approver list
-    let creatorName = organizer || "User";
-    try {
-        if (m.created_user_id) {
-            const creator = await User.findByPk(m.created_user_id);
-            if (creator) {
-                creatorName =
-                    `${creator.first_name || ""} ${
-                        creator.last_name || ""
-                    }`.trim() || creatorName;
-            }
-        }
-    } catch {}
-    // Build approver list (subset for readability) excluding admins; hyperlink office & group approvers
-    let approverLinks = [];
-    try {
-        const approverMap = new Map();
-        const addUser = (u, isOfficeAdmin = false) => {
-            if (!u || !u.id) return;
-            if (u.admin) return; // exclude admins
-            if (!u.email) return; // need email for hyperlink
-            if (approverMap.has(u.id)) return;
-            const fullName =
-                `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.email;
-            approverMap.set(u.id, {
-                name: fullName,
-                email: u.email,
-                isOfficeAdmin,
-            });
-        };
-        // Office admins for this location
-        if (location) {
-            const officeAdmins = await User.findAll({
-                where: { office_admin: location },
-            });
-            officeAdmins.forEach((u) => addUser(u, true));
-        }
-        // Group full-access users tied to the room
-        if (room) {
-            const roomGroups = await RoomGroup.findAll({
-                where: { room_id: room },
-            });
-            const groupIds = roomGroups.map((rg) => rg.group_id);
-            if (groupIds.length) {
-                const fullGroups = await Group.findAll({
-                    where: { id: groupIds, access: "Full" },
-                });
-                const fullGroupIds = fullGroups.map((g) => g.id);
-                if (fullGroupIds.length) {
-                    const groupUsers = await GroupUser.findAll({
-                        where: { group_id: fullGroupIds },
-                    });
-                    const userIds = groupUsers.map((gu) => gu.user_id);
-                    if (userIds.length) {
-                        const users = await User.findAll({
-                            where: { id: userIds },
-                        });
-                        users.forEach((u) => addUser(u));
-                    }
-                }
-            }
-        }
-        const prioritized = Array.from(approverMap.values()).sort((a, b) => {
-            if (a.isOfficeAdmin && !b.isOfficeAdmin) return -1;
-            if (!a.isOfficeAdmin && b.isOfficeAdmin) return 1;
-            return a.name.localeCompare(b.name);
-        });
-        approverLinks = prioritized
-            .slice(0, 5)
-            .map(
-                (p) =>
-                    `<a href="mailto:${p.email}" style="text-decoration:none;color:#005ea5;">${p.name}</a>`
-            );
-    } catch {}
-    const approverLine = approverLinks.length
-        ? ` or contact: ${approverLinks.join(", ")}`
-        : "";
-    const hasRoomDecl = !!room;
-    const hasEquipmentDecl = !!equipment;
-    const bookingLabel =
-        hasRoomDecl && hasEquipmentDecl
-            ? "Meeting & Equipment Use"
-            : hasEquipmentDecl
-            ? "Equipment Use"
-            : "Meeting";
-    const subject = `${bookingLabel} Declined: ${
-        name ? '"' + name + '"' : "#" + id
-    }`;
-    const body = `
-        <p>Dear ${creatorName},</p>
-        <p>Your ${bookingLabel.toLowerCase()} has been <strong style=\"color:#d32f2f;\">declined</strong>.</p>
-        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Title</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                name || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                start_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                end_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Room</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${roomName}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${locationName}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Type</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${typeName}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${equipmentName}</td></tr>
-        </table>
-        ${
-            description
-                ? `<p style=\"margin-top:12px;\"><strong>Description:</strong> ${description}</p>`
-                : ""
-        }
-        ${
-            reason
-                ? `<p style=\"margin-top:12px;\"><strong>Reason:</strong> ${reason}</p>`
-                : ""
-        }
-        <p style="margin-top:16px;">If you believe this was in error you may create a new meeting${approverLine}.</p>
-        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
-    `;
-    try {
-        const transporter = nodemailer.createTransport(SMTP_Server);
-        const info = await transporter.sendMail(
-            applyEmailOverride({
-                from: "noreply@sealimited.com",
-                to: recipientEmail,
-                subject,
-                html: body,
-            })
-        );
-        try {
-            SendMessage(
-                {
-                    message: "meeting_declined",
-                    data: { meetingId: id, created_user_id: m.created_user_id },
-                },
-                { emails: [recipientEmail] }
-            );
-        } catch (e) {
-            console.warn("Socket notify failed (meeting declined email)", e);
-        }
-        console.log(
-            `Meeting declined email sent to ${recipientEmail}: ${info.messageId}`
-        );
-    } catch (error) {
-        logErrorToFile(error);
-        console.error(
-            `Error sending meeting declined email to ${recipientEmail}:`,
-            error
-        );
-    }
-};
-
-/**
- * Sends an email to the meeting creator informing them it was approved.
- * Re-uses same table formatting for consistency.
- * @param {object} meeting - Meeting object
- * @param {string} recipientEmail - Creator email
- */
-const sendMeetingApprovedEmail = async (meeting, recipientEmail) => {
-    if (!meeting || !recipientEmail) return;
-    const m = typeof meeting.get === "function" ? meeting.get() : meeting;
-    const {
-        id,
-        name,
-        start_time,
-        end_time,
-        room,
-        location,
-        type,
-        organizer,
-        equipment,
-    } = m;
-    let roomName = room ?? "N/A";
-    let locationName = location ?? "N/A";
-    let typeName = type ?? "N/A";
-    let equipmentName = equipment ?? "N/A";
-    try {
-        const [roomRec, officeRec, typeRec, equipmentRec] = await Promise.all([
-            room ? Room.findByPk(room) : null,
-            location ? Office.findByPk(location) : null,
-            type ? Type.findByPk(type) : null,
-            equipment ? Resource.findByPk(equipment) : null,
-        ]);
-        if (roomRec?.value) roomName = roomRec?.value;
-        if (officeRec)
-            locationName =
-                officeRec.Alias ||
-                officeRec.City ||
-                officeRec.officeid ||
-                locationName;
-        if (typeRec?.value) typeName = typeRec.value;
-        if (equipmentRec?.name) equipmentName = equipmentRec.name;
-    } catch (e) {
-        logErrorToFile(e);
-    }
-    const fmt = (d) => {
-        try {
-            return new Date(d).toLocaleString();
-        } catch {
-            return d || "N/A";
-        }
-    };
-    let creatorName = organizer || "User";
-    try {
-        if (m.created_user_id) {
-            const creator = await User.findByPk(m.created_user_id);
-            if (creator) {
-                creatorName =
-                    `${creator.first_name || ""} ${
-                        creator.last_name || ""
-                    }`.trim() || creatorName;
-            }
-        }
-    } catch {}
-    const hasRoomApproved = !!room;
-    const hasEquipmentApproved = !!equipment;
-    const bookingLabel =
-        hasRoomApproved && hasEquipmentApproved
-            ? "Meeting & Equipment Use"
-            : hasEquipmentApproved
-            ? "Equipment Use"
-            : "Meeting";
-    const subject = `${bookingLabel} Approved: ${
-        name ? '"' + name + '"' : "#" + id
-    }`;
-    const body = `
-        <p>Dear ${creatorName},</p>
-        <p>Your ${bookingLabel.toLowerCase()} has been <strong style=\"color:#2e7d32;\">approved</strong>.</p>
-        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Title</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                name || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                start_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                end_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Room</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${roomName}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${locationName}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Type</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${typeName}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${equipmentName}</td></tr>
-        </table>
-        <p style="margin-top:16px;">You can view or modify this meeting in the Rooms application.</p>
-        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
-    `;
-    try {
-        const transporter = nodemailer.createTransport(SMTP_Server);
-        await transporter.sendMail(
-            applyEmailOverride({
-                from: "noreply@sealimited.com",
-                to: recipientEmail,
-                subject,
-                html: body,
-            })
-        );
-    } catch (e) {
-        logErrorToFile(e);
-        console.error("Error sending meeting approved email", e);
-    }
-};
-
 module.exports = {
-    sendGroupNotificationEmail,
-    sendProcessCompleteEmail,
-    sendEmail,
-    sendMeetingApprovalRequestEmail,
+    sendCheckoutApprovalRequestEmail,
+    sendCheckoutApprovedEmail,
+    sendCheckoutDeclinedEmail,
+    sendEquipmentReturnedEmail,
+    sendEquipmentAvailableEmail,
+    sendCalibrationDueEmail,
     sendGenericEmail,
-    sendMeetingReapprovalRequestEmail,
-    sendMeetingDeclinedEmail,
-    sendMeetingApprovedEmail,
 };

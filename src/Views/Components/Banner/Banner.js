@@ -29,11 +29,16 @@ const Banner = ({
     );
 
     return (
-        <Stack direction="column" width="100%">
+        <Stack
+            direction="column"
+            width="100%"
+            sx={{ backgroundColor: theme.palette.background.paper }}
+        >
             <Stack
                 sx={{
-                    backgroundColor: theme.palette.background.default,
-                    padding: "20px",
+                    backgroundColor: theme.palette.background.paper,
+                    height: isMobile ? 64 : 112,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                 }}
                 direction="row"
                 alignItems="center"

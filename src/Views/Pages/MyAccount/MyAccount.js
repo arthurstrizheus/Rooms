@@ -7,23 +7,17 @@ import {
     Stack,
     Typography,
     Button,
-    Divider,
     FormControl,
     Select,
     InputLabel,
     MenuItem,
     TextField,
     Box,
-    Tooltip,
-    Chip,
     Tab,
     Tabs,
+    useMediaQuery,
 } from "@mui/material";
-import DisplayGroups from "../../Components/DisplayGroups";
-import {
-    GetLocations,
-    GetUserGroups,
-} from "../../../Utilites/Functions/ApiFunctions";
+import { GetLocations } from "../../../Utilites/Functions/ApiFunctions";
 import {
     AuthenticatePassword,
     UpdateUserDetails,
@@ -40,18 +34,18 @@ function a11yProps(index) {
 
 const MyAccount = ({ setLoading }) => {
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { user, setUser } = useAuth();
     const [email, setEmail] = useState("");
     const [password1, setPassword1] = useState("");
     const [password2, setPassword2] = useState("");
     const [location, setLocation] = useState("");
     const [locations, setLocations] = useState([]);
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
+    const [first_name, setfirst_name] = useState("");
+    const [last_name, setlast_name] = useState("");
     const [currentPassword, setCurrentPassword] = useState("");
     const [passwordBorder, setPasswordBorder] = useState(false);
     const [accountBorder, setAccountBorder] = useState(false);
-    const [userGroups, setUserGroups] = useState([]);
     const [update, setUpdate] = useState(0);
 
     const onSavePassword = () => {
@@ -113,7 +107,7 @@ const MyAccount = ({ setLoading }) => {
         }
     };
     const onSaveDetails = () => {
-        if (firstName == "" || lastName == "") {
+        if (first_name == "" || last_name == "") {
             openSnackbar("First or last name cannot be blank", {
                 severity: "error",
                 autoHideDuration: 4000,
@@ -125,15 +119,15 @@ const MyAccount = ({ setLoading }) => {
         } else {
             setLoading(true);
             UpdateUserDetails(user?.id, {
-                first_name: firstName,
-                last_name: lastName,
+                first_name: first_name,
+                last_name: last_name,
                 location: location.officeid,
             })
                 .then(() =>
                     setUser({
                         ...user,
-                        firstName: firstName,
-                        lastName: lastName,
+                        first_name: first_name,
+                        last_name: last_name,
                         location: location.officeid,
                     })
                 )
@@ -147,21 +141,16 @@ const MyAccount = ({ setLoading }) => {
     };
 
     useEffect(() => {
-        const data = async () => {
-            const ugs = await GetUserGroups(user?.id);
-            setUserGroups(ugs);
-        };
         if (user?.id) {
             setLoading(true);
             GetLocations()
                 .then((lcs) => setLocations(lcs))
                 .then(() => setLoading(false));
-            setFirstName(user?.first_name);
-            setLastName(user?.last_name);
+            setfirst_name(user?.first_name);
+            setlast_name(user?.last_name);
             setEmail(user?.email);
-            data();
         }
-    }, [update, user]);
+    }, [update, user, setLoading]);
 
     useEffect(() => {
         setLocation(locations?.find((lc) => lc.officeid === user?.location));
@@ -181,8 +170,10 @@ const MyAccount = ({ setLoading }) => {
                         width: "100%",
                         height: "100%",
                         justifyContent: "space-between",
-                        paddingTop: "50px",
-                        paddingBottom: "50px",
+                        paddingTop: isMobile ? "20px" : "50px",
+                        paddingBottom: isMobile ? "20px" : "50px",
+                        paddingLeft: isMobile ? "10px" : "0",
+                        paddingRight: isMobile ? "10px" : "0",
                         backgroundColor:
                             theme.palette.background.fill.light.lightHover,
                     }}
@@ -216,14 +207,13 @@ const MyAccount = ({ setLoading }) => {
                                 Account Details
                             </Typography>
                             <Stack
-                                direction={"row"}
+                                direction={isMobile ? "column" : "row"}
                                 spacing={2}
                                 sx={{
                                     width: "100%",
                                     height: "100%",
                                     justifyContent: "center",
                                     marginTop: "15px",
-                                    minHeight: "220px",
                                 }}
                             >
                                 <Stack spacing={2}>
@@ -263,38 +253,32 @@ const MyAccount = ({ setLoading }) => {
                                     >
                                         Location
                                     </Typography>
-                                    <Typography
-                                        sx={{
-                                            alignItems: "center",
-                                            display: "flex",
-                                            height: "38px",
-                                        }}
-                                    >
-                                        Groups
-                                    </Typography>
                                 </Stack>
-                                <Stack spacing={2}>
+                                <Stack
+                                    spacing={2}
+                                    sx={{ width: isMobile ? "100%" : "400px" }}
+                                >
                                     <TextField
                                         label={"First Name"}
-                                        value={firstName}
+                                        value={first_name}
                                         sx={{
-                                            width: "400px",
+                                            width: "100%",
                                             backgroundColor: "white",
                                         }}
                                         onChange={(e) =>
-                                            setFirstName(e.target.value)
+                                            setfirst_name(e.target.value)
                                         }
                                         size="small"
                                     />
                                     <TextField
                                         label={"Last Name"}
-                                        value={lastName}
+                                        value={last_name}
                                         sx={{
-                                            width: "400px",
+                                            width: "100%",
                                             backgroundColor: "white",
                                         }}
                                         onChange={(e) =>
-                                            setLastName(e.target.value)
+                                            setlast_name(e.target.value)
                                         }
                                         size="small"
                                     />
@@ -302,7 +286,7 @@ const MyAccount = ({ setLoading }) => {
                                         label={"Email"}
                                         value={email}
                                         sx={{
-                                            width: "400px",
+                                            width: "100%",
                                             backgroundColor: "white",
                                         }}
                                         disabled={true}
@@ -310,8 +294,8 @@ const MyAccount = ({ setLoading }) => {
                                     />
                                     <FormControl
                                         variant="outlined"
-                                        width={"400px"}
                                         size="small"
+                                        sx={{ width: "100%" }}
                                     >
                                         <InputLabel id="demo-simple-select-standard-label">
                                             Location
@@ -345,16 +329,6 @@ const MyAccount = ({ setLoading }) => {
                                             ))}
                                         </Select>
                                     </FormControl>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            flexDirection: "row",
-                                            gap: 1,
-                                            width: "400px",
-                                        }}
-                                    >
-                                        <DisplayGroups groups={userGroups} />
-                                    </Box>
                                 </Stack>
                                 <Button
                                     sx={{

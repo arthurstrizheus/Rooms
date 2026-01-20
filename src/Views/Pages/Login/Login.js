@@ -136,11 +136,7 @@ export default function Login({ setLoading, setDrawerOpen }) {
                             }
                             setLoading(false);
                             setDrawerOpen(isMobile ? false : true);
-                            navigate(
-                                isMobile
-                                    ? "/schedule/type/week"
-                                    : "/schedule/type/month"
-                            );
+                            navigate("/equipment");
                         } else if (resp?.id) {
                             // Fallback for existing response format without token
                             console.log(
@@ -160,11 +156,7 @@ export default function Login({ setLoading, setDrawerOpen }) {
                             }
                             setLoading(false);
                             setDrawerOpen(isMobile ? false : true);
-                            navigate(
-                                isMobile
-                                    ? "/schedule/type/week"
-                                    : "/schedule/type/month"
-                            );
+                            navigate("/equipment");
                         }
                     } else {
                         setLoading(false);
@@ -244,6 +236,7 @@ export default function Login({ setLoading, setDrawerOpen }) {
                                 padding: "15px",
                             }}
                         >
+                            <Typography>S-E-A | Equiptment</Typography>
                             <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
                                 <LockIcon />
                             </Avatar>

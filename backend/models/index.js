@@ -1,145 +1,130 @@
 const { sequelize } = require("../config/database");
-const BlockedDate = require("./blockedDate");
-const Group = require("./group");
-const GroupUser = require("./groupUser");
-const Meeting = require("./meeting");
-const Resource = require("./resource");
-const Room = require("./room");
-const RoomGroup = require("./roomGroup");
-const RoomResource = require("./roomResource");
-const Type = require("./type");
-const Office = require("./office");
 const User = require("./user");
-const MeetingRecurrence = require("./meetingRecurrence");
-const SpecialPermission = require("./specialPermission");
+const Equipment = require("./equipment");
+const Checkout = require("./checkout");
+const EquipmentFile = require("./equipmentFile");
+const EquipmentAlert = require("./equipmentAlert");
+const CalibrationHistory = require("./calibrationHistory");
+const CheckoutRecurrence = require("./checkoutRecurrence");
+const Office = require("./office");
 
 const initModels = () => {
-    // Define associations here if needed
-    // Example: RoomGroup.hasMany(OtherModel);
-    const Group = require("./group");
-    const GroupUser = require("./groupUser");
-    const Resource = require("./resource");
-    const Room = require("./room");
-    const RoomGroup = require("./roomGroup");
-    const RoomResource = require("./roomResource");
-    const User = require("./user");
-    const SpecialPermission = require("./specialPermission");
-
-    Meeting.belongsTo(User, {
-        foreignKey: "updated_user_id",
-        as: "UpdatedUser",
+    // Equipment associations
+    Equipment.hasMany(Checkout, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+    Checkout.belongsTo(Equipment, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
     });
 
-    User.hasMany(Meeting, {
-        foreignKey: "updated_user_id",
-        as: "UpdatedUser",
+    Equipment.hasMany(EquipmentFile, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+    EquipmentFile.belongsTo(Equipment, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
     });
 
-    User.hasMany(SpecialPermission, {
+    Equipment.hasMany(EquipmentAlert, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+    EquipmentAlert.belongsTo(Equipment, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+
+    Equipment.hasMany(CalibrationHistory, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+    CalibrationHistory.belongsTo(Equipment, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+
+    // User associations
+    User.hasMany(Checkout, {
+        foreignKey: "user_id",
+        as: "Checkouts",
+    });
+    Checkout.belongsTo(User, {
+        foreignKey: "user_id",
+        as: "User",
+    });
+
+    User.hasMany(Checkout, {
+        foreignKey: "approved_by_user_id",
+        as: "ApprovedCheckouts",
+    });
+    Checkout.belongsTo(User, {
+        foreignKey: "approved_by_user_id",
+        as: "ApprovedBy",
+    });
+
+    User.hasMany(EquipmentFile, {
+        foreignKey: "uploaded_by_user_id",
+    });
+    EquipmentFile.belongsTo(User, {
+        foreignKey: "uploaded_by_user_id",
+        as: "UploadedBy",
+    });
+
+    User.hasMany(EquipmentAlert, {
         foreignKey: "user_id",
         onDelete: "CASCADE",
     });
-    SpecialPermission.belongsTo(User, {
+    EquipmentAlert.belongsTo(User, {
         foreignKey: "user_id",
         onDelete: "CASCADE",
     });
 
-    Meeting.hasMany(SpecialPermission, {
-        foreignKey: "meeting_id",
-        onDelete: "CASCADE",
+    User.hasMany(CalibrationHistory, {
+        foreignKey: "performed_by_user_id",
     });
-    SpecialPermission.belongsTo(Meeting, {
-        foreignKey: "meeting_id",
-        onDelete: "CASCADE",
-    });
-
-    Resource.hasMany(RoomResource, {
-        foreignKey: "resource_id",
-        onDelete: "CASCADE",
-    });
-    RoomResource.belongsTo(Resource, {
-        foreignKey: "resource_id",
-        onDelete: "CASCADE",
+    CalibrationHistory.belongsTo(User, {
+        foreignKey: "performed_by_user_id",
+        as: "PerformedBy",
     });
 
-    Group.hasMany(GroupUser, {
-        foreignKey: "group_id",
-        onDelete: "CASCADE",
+    // CalibrationHistory to EquipmentFile association
+    CalibrationHistory.belongsTo(EquipmentFile, {
+        foreignKey: "certificate_file_id",
+        as: "CertificateFile",
+        onDelete: "NO ACTION",
+        onUpdate: "NO ACTION",
     });
-    Group.hasMany(RoomGroup, {
-        foreignKey: "group_id",
-        onDelete: "CASCADE",
-    });
-
-    GroupUser.belongsTo(Group, {
-        foreignKey: "group_id",
-        onDelete: "CASCADE",
-    });
-    RoomGroup.belongsTo(Group, {
-        foreignKey: "group_id",
-        onDelete: "CASCADE",
+    EquipmentFile.hasMany(CalibrationHistory, {
+        foreignKey: "certificate_file_id",
+        onDelete: "NO ACTION",
+        onUpdate: "NO ACTION",
     });
 
-    User.hasMany(GroupUser, {
-        foreignKey: "user_id",
+    // CheckoutRecurrence associations
+    CheckoutRecurrence.hasMany(Checkout, {
+        foreignKey: "recurrence_id",
+        as: "Checkouts",
         onDelete: "CASCADE",
     });
-    GroupUser.belongsTo(User, {
-        foreignKey: "user_id",
-        onDelete: "CASCADE",
-    });
-
-    Room.hasMany(RoomResource, {
-        foreignKey: "room_id",
-        onDelete: "CASCADE",
-    });
-    RoomResource.belongsTo(Room, {
-        foreignKey: "room_id",
-        onDelete: "CASCADE",
-    });
-
-    Room.hasMany(RoomGroup, {
-        foreignKey: "room_id",
-        onDelete: "CASCADE",
-    });
-    RoomGroup.belongsTo(Room, {
-        foreignKey: "room_id",
-        onDelete: "CASCADE",
-    });
-
-    Office.hasMany(Group, {
-        foreignKey: "location",
-        onDelete: "CASCADE",
-    });
-    Group.belongsTo(Office, {
-        foreignKey: "location",
-        onDelete: "CASCADE",
-    });
-
-    MeetingRecurrence.belongsTo(Meeting, {
-        foreignKey: "meeting_id",
-        onDelete: "CASCADE",
-    });
-    Meeting.hasMany(MeetingRecurrence, {
-        foreignKey: "meeting_id",
+    Checkout.belongsTo(CheckoutRecurrence, {
+        foreignKey: "recurrence_id",
+        as: "Recurrence",
         onDelete: "CASCADE",
     });
 };
 
 module.exports = {
     sequelize,
-    BlockedDate,
-    Group,
-    GroupUser,
-    Meeting,
-    Resource,
-    Room,
-    RoomGroup,
-    RoomResource,
-    Type,
-    Office,
     User,
-    MeetingRecurrence,
-    SpecialPermission,
+    Equipment,
+    Checkout,
+    EquipmentFile,
+    EquipmentAlert,
+    CalibrationHistory,
+    CheckoutRecurrence,
+    Office,
     initModels,
 };

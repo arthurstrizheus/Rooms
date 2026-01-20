@@ -2,19 +2,14 @@ import { useEffect } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../Utilites/AuthContext";
 import LogIn from "../Views/Pages/Login/Login";
-import MyBookings from "../Views/Pages/MyBookings/MyBookings";
+import MyCheckouts from "../Views/Pages/MyCheckouts/index";
 import MyAccount from "../Views/Pages/MyAccount/MyAccount";
-import Locations from "../Views/Pages/Locations/Locations";
-import Rooms from "../Views/Pages/Rooms/Rooms";
-import MeetingTypes from "../Views/Pages/MeetingTypes/MeetingTypes";
-import ApprovalQueue from "../Views/Pages/ApprovalQueue/ApprovalQueue";
+import Equipment from "../Views/Pages/Equipment/index";
+import EquipmentDetails from "../Views/Pages/EquipmentDetails/EquipmentDetails";
+import ApprovalQueue from "../Views/Pages/ApprovalQueue/index";
 import Users from "../Views/Pages/Users/index";
-import Groups from "../Views/Pages/Groups/Groups";
-import RoomResources from "../Views/Pages/Resources/index";
-import Resources from "../Views/Pages/Resources/index";
-import BlockedDates from "../Views/Pages/BlockedDates/BlockedDates";
 import NotFoundPage from "../Views/Pages/Errors/NotFoundPage";
-import Calendar from "../Views/Pages/Calendar";
+import EquipmentCalendar from "../Views/Pages/EquipmentCalendar";
 import { useMediaQuery } from "@mui/system";
 import AdminDashboard from "../Views/Pages/Admin/AdminDashboard";
 
@@ -44,59 +39,21 @@ const AppRoutes = ({
         const path = location.pathname;
         let newBannerText = "";
         if (path === "/") {
-            newBannerText = "Day Schedule";
-        } else if (path.startsWith("/schedule/type/day")) {
-            newBannerText = `Day Schedule`;
-        } else if (path.startsWith("/schedule/type/week")) {
-            newBannerText = `Week Schedule`;
-        } else if (path.startsWith("/schedule/type/month")) {
-            newBannerText = `Month Schedule`;
-        } else if (path.startsWith("/book")) {
-            newBannerText = `My Bookings`;
+            newBannerText = "Equipment";
+        } else if (path.startsWith("/equipment/calendar")) {
+            newBannerText = `Equipment Schedule`;
+        } else if (path.match(/\/equipment\/\d+$/)) {
+            newBannerText = `Equipment Details`;
+        } else if (path.startsWith("/equipment")) {
+            newBannerText = `Equipment`;
+        } else if (path.startsWith("/checkouts")) {
+            newBannerText = `My Checkouts`;
         } else if (path.startsWith("/approve")) {
             newBannerText = `Approval Queue`;
         } else if (path.startsWith("/account")) {
             newBannerText = `My Account`;
-        } else if (
-            path.startsWith("/manage/locations") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Locations`;
-        } else if (
-            path.startsWith("/manage/rooms/resources") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Resources`;
-        } else if (
-            path.startsWith("/manage/rooms") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Rooms`;
-        } else if (
-            path.startsWith("/manage/types") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Meeting Types`;
-        } else if (
-            path.startsWith("/manage/users") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
+        } else if (path.startsWith("/manage/users") && user?.admin) {
             newBannerText = `Users`;
-        } else if (
-            path.startsWith("/manage/groups") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Groups`;
-        } else if (
-            path.startsWith("/manage/resources") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Resources`;
-        } else if (
-            path.startsWith("/manage/blockeddates") &&
-            (user?.admin || user?.office_admin > 0)
-        ) {
-            newBannerText = `Blocked Dates`;
         } else if (path.startsWith("/admin-dashboard") && user?.admin) {
             newBannerText = `Admin Dashboard`;
         } else {
@@ -118,96 +75,50 @@ const AppRoutes = ({
                     />
                 }
             />
-            <Route path="/" exact element={<LogIn setLoading={setLoading} />} />
             <Route
-                path="/schedule/type/day"
+                path="/"
+                exact
                 element={
-                    <Calendar
+                    <Equipment setLoading={setLoading} loading={loading} />
+                }
+            />
+            <Route
+                path="/equipment"
+                element={
+                    <Equipment setLoading={setLoading} loading={loading} />
+                }
+            />
+            <Route
+                path="/equipment/:equipmentId"
+                element={
+                    <EquipmentDetails
+                        setLoading={setLoading}
+                        loading={loading}
+                    />
+                }
+            />
+            <Route
+                path="/equipment/calendar/:equipmentId"
+                element={
+                    <EquipmentCalendar
                         setLoading={setLoading}
                         selectedDate={selectedDate}
                         setSelectedDate={setSelectedDate}
                         loading={loading}
-                        defaultView={"timeGridDay"}
-                        range={"Day"}
                         drawerOpen={drawerOpen}
                     />
                 }
             />
             <Route
-                path="/schedule/type/week"
+                path="/checkouts"
                 element={
-                    <Calendar
-                        setLoading={setLoading}
-                        selectedDate={selectedDate}
-                        setSelectedDate={setSelectedDate}
-                        loading={loading}
-                        defaultView={matchSm ? "listWeek" : "timeGridWeek"}
-                        range={"Week"}
-                    />
-                }
-            />
-            <Route
-                path="/schedule/type/month"
-                element={
-                    <Calendar
-                        setLoading={setLoading}
-                        selectedDate={selectedDate}
-                        setSelectedDate={setSelectedDate}
-                        loading={loading}
-                        defaultView={"dayGridMonth"}
-                        range={"Month"}
-                    />
-                    // <MonthSchedulePage
-                    //   setLoading={setLoading}
-                    //   selectedDate={selectedDate}
-                    //   setSelectedDate={setSelectedDate}
-                    //   loading={loading}
-                    // />
-                }
-            />
-            <Route
-                path="/book"
-                element={
-                    <MyBookings setLoading={setLoading} loading={loading} />
+                    <MyCheckouts setLoading={setLoading} loading={loading} />
                 }
             />
             <Route
                 path="/account"
                 element={
                     <MyAccount setLoading={setLoading} loading={loading} />
-                }
-            />
-            <Route
-                path="/manage/locations"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <Locations setLoading={setLoading} loading={loading} />
-                    ) : (
-                        <NotFoundPage />
-                    )
-                }
-            />
-            <Route
-                path="/manage/rooms"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <Rooms setLoading={setLoading} loading={loading} />
-                    ) : (
-                        <NotFoundPage />
-                    )
-                }
-            />
-            <Route
-                path="/manage/types"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <MeetingTypes
-                            setLoading={setLoading}
-                            loading={loading}
-                        />
-                    ) : (
-                        <NotFoundPage />
-                    )
                 }
             />
             <Route
@@ -219,54 +130,8 @@ const AppRoutes = ({
             <Route
                 path="/manage/users"
                 element={
-                    user?.admin || user?.office_admin > 0 ? (
+                    user?.admin ? (
                         <Users setLoading={setLoading} loading={loading} />
-                    ) : (
-                        <NotFoundPage />
-                    )
-                }
-            />
-            <Route
-                path="/manage/groups"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <Groups setLoading={setLoading} loading={loading} />
-                    ) : (
-                        <NotFoundPage />
-                    )
-                }
-            />
-            <Route
-                path="/manage/rooms/resources"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <RoomResources
-                            setLoading={setLoading}
-                            loading={loading}
-                        />
-                    ) : (
-                        <NotFoundPage />
-                    )
-                }
-            />
-            <Route
-                path="/manage/resources"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <Resources setLoading={setLoading} loading={loading} />
-                    ) : (
-                        <NotFoundPage />
-                    )
-                }
-            />
-            <Route
-                path="/manage/blockeddates"
-                element={
-                    user?.admin || user?.office_admin > 0 ? (
-                        <BlockedDates
-                            setLoading={setLoading}
-                            loading={loading}
-                        />
                     ) : (
                         <NotFoundPage />
                     )

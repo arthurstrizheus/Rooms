@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "@emotion/react";
 import {
-    Grid,
     Stack,
     Typography,
     Button,
@@ -12,26 +11,17 @@ import {
     FormControl,
     InputLabel,
     Select,
-    Box,
     Divider,
-    Input,
     TextField,
     MenuItem,
-    OutlinedInput,
-    FormHelperText,
     FormControlLabel,
     Switch,
-    Chip,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import {
     PostUser,
     UpdateUser,
 } from "../../../../Utilites/Functions/ApiFunctions/UserFunctions";
-import {
-    DeleteGroupUserById,
-    PostGroupUser,
-} from "../../../../Utilites/Functions/ApiFunctions/GroupUsersFunctions";
 import { useAuth } from "../../../../Utilites/AuthContext";
 import {
     showError,
@@ -43,9 +33,7 @@ const emailPattern = /^[^\s@]+(\.[^\s@]+)?@[^\s@]+\.[^\s@]+$/;
 const AddNewUser = ({
     open,
     setOpen,
-    groups,
     userLocation,
-    userGroups,
     selectedUser,
     locations,
     setUpdate,
@@ -53,127 +41,69 @@ const AddNewUser = ({
 }) => {
     const theme = useTheme();
     const { user } = useAuth();
-    const ariaLabel = { "aria-label": "description" };
     const [admin, setAdmin] = useState(false);
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
+    const [first_name, setfirst_name] = useState("");
+    const [last_name, setlast_name] = useState("");
     const [location, setLocation] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [viewPassword, setViewPassword] = useState(false);
-    const [fullControl, setFullControl] = useState([]);
-    const [readAccess, setReadAccess] = useState([]);
-    const [oldFullControl, setOldFullControl] = useState([]);
-    const [oldReadAccess, setOldReadAccess] = useState([]);
-    const [officeAdmin, setOfficeAdmin] = useState("");
+    const [equipmentOfficeAdmin, setEquipmentOfficeAdmin] = useState("");
 
     const onClose = () => {
         setOpen(false);
         // if (!selectedUser) {
         setLocation("");
         setEmail("");
-        setFirstName("");
+        setfirst_name("");
         setPassword("");
-        setLastName("");
+        setlast_name("");
         setAdmin(false);
-        setFullControl([]);
-        setReadAccess([]);
-        setOldFullControl([]);
-        setOldReadAccess([]);
+        setEquipmentOfficeAdmin("");
         // }
     };
 
     const onSubmit = () => {
         if (
-            firstName !== "" &&
-            lastName !== "" &&
+            first_name !== "" &&
+            last_name !== "" &&
             (location?.officeid || location?.officeid === 0) &&
             email !== ""
         ) {
             if (!selectedUser?.id) {
                 PostUser({
-                    first_name: firstName,
-                    last_name: lastName,
+                    first_name: first_name,
+                    last_name: last_name,
                     location: location.officeid,
                     created_user_id: user?.id,
                     email: email,
                     password: password,
                     admin: admin,
                     active: true,
-                    office_admin: officeAdmin != "" ? officeAdmin : null,
-                })
-                    .then(async (resp) => {
-                        if (resp) {
-                            showSuccess("User Created");
-                            let promises = fullControl?.map(async (fc) =>
-                                PostGroupUser({
-                                    group_id: fc,
-                                    user_id: resp.id,
-                                    created_user_id: user?.id,
-                                })
-                            );
-                            await Promise.all(promises);
-                            promises = readAccess?.map(async (or) =>
-                                PostGroupUser({
-                                    group_id: or,
-                                    user_id: resp.id,
-                                    created_user_id: user?.id,
-                                })
-                            );
-                            await Promise.all(promises);
-                        }
-                    })
-                    .then(() => setUpdate((prev) => prev + 1));
+                    equipment_office_admin:
+                        equipmentOfficeAdmin != ""
+                            ? equipmentOfficeAdmin
+                            : null,
+                }).then((resp) => {
+                    if (resp) {
+                        showSuccess("User Created");
+                        setUpdate((prev) => prev + 1);
+                    }
+                });
             } else {
                 UpdateUser(selectedUser?.id, {
-                    first_name: firstName,
-                    last_name: lastName,
+                    first_name: first_name,
+                    last_name: last_name,
                     location: location.officeid,
                     email: email,
                     admin: admin,
-                    office_admin: officeAdmin,
-                })
-                    .then((resp) => {
-                        if (resp) {
-                            // Add new groups
-                            fullControl?.map((fc) =>
-                                oldFullControl?.find((ofc) => ofc === fc)
-                                    ? null
-                                    : PostGroupUser({
-                                          group_id: fc,
-                                          user_id: selectedUser?.id,
-                                          created_user_id: user?.id,
-                                      })
-                            );
-                            readAccess?.map((or) =>
-                                oldReadAccess?.find((ora) => ora === or)
-                                    ? null
-                                    : PostGroupUser({
-                                          group_id: or,
-                                          user_id: selectedUser?.id,
-                                          created_user_id: user?.id,
-                                      })
-                            );
-                            // Delete removed groups
-                            oldFullControl?.map((ofc) =>
-                                fullControl?.find((fc) => ofc === fc)
-                                    ? null
-                                    : DeleteGroupUserById({
-                                          group_id: ofc,
-                                          user_id: selectedUser?.id,
-                                      })
-                            );
-                            oldReadAccess?.map((ora) =>
-                                readAccess?.find((or) => ora === or)
-                                    ? null
-                                    : DeleteGroupUserById({
-                                          group_id: ora,
-                                          user_id: selectedUser?.id,
-                                      })
-                            );
-                        }
-                    })
-                    .then(() => setUpdate((prev) => prev + 1));
+                    equipment_office_admin: equipmentOfficeAdmin,
+                }).then((resp) => {
+                    if (resp) {
+                        showSuccess("User Updated");
+                        setUpdate((prev) => prev + 1);
+                    }
+                });
             }
             onClose();
         } else {
@@ -181,60 +111,23 @@ const AddNewUser = ({
         }
     };
 
-    const handleFullControlChange = (event) => {
-        const {
-            target: { value },
-        } = event;
-        setFullControl(
-            // Ensure that value is always an array of IDs.
-            typeof value === "string" ? value.split(",") : value
-        );
-    };
-    const handleReadAccessChange = (event) => {
-        const {
-            target: { value },
-        } = event;
-        setReadAccess(
-            // Ensure that value is always an array of IDs.
-            typeof value === "string" ? value.split(",") : value
-        );
-    };
     useEffect(() => {
         if (selectedUser) {
             setLocation(userLocation);
-            setFirstName(selectedUser?.first_name);
-            setLastName(selectedUser?.last_name);
+            setfirst_name(selectedUser?.first_name);
+            setlast_name(selectedUser?.last_name);
             setEmail(selectedUser?.email);
             setAdmin(selectedUser?.admin);
-            setOfficeAdmin(selectedUser?.office_admin);
-            const usersGroups = [];
-            userGroups
-                .filter((gp) => gp.user_id == selectedUser?.id)
-                ?.map((ug) =>
-                    usersGroups.push(groups?.find((gp) => gp.id == ug.group_id))
-                );
-            usersGroups?.map((ug) => {
-                if (ug.access == "Full" && !fullControl.includes(ug.id)) {
-                    fullControl.push(ug.id);
-                    oldFullControl.push(ug.id);
-                } else if (!readAccess.includes(ug.id)) {
-                    readAccess.push(ug.id);
-                    oldReadAccess.push(ug.id);
-                }
-            });
+            setEquipmentOfficeAdmin(selectedUser?.equipment_office_admin);
         }
     }, [selectedUser, userLocation]);
 
     return (
         <Dialog open={!!open} onClose={onClose} maxWidth={false}>
-            <Grid
+            <Stack
                 sx={{
-                    width: "fit-content",
-                    textAlign: "center",
-                    paddingBottom: "5px",
+                    width: "550px",
                     height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
                 }}
             >
                 <Typography
@@ -243,413 +136,242 @@ const AddNewUser = ({
                     width={"100%"}
                     fontFamily={"Courier New, sans-serif"}
                     marginBottom={1}
-                    marginTop={1}
+                    marginTop={2}
                 >
                     {selectedUser ? "Edit" : "Add"} User
                 </Typography>
                 <Divider width={"100%"} />
-                <Stack
-                    direction={"row"}
-                    sx={{ minHeight: "380px", padding: "20px", height: "100%" }}
-                    spacing={2}
-                >
-                    <Stack direction={"column"} sx={{ flexGrow: 1 }}>
-                        <Stack
-                            sx={{
-                                display: "felx",
-                                flexDirection: "row",
-                                gap: 1,
-                            }}
-                        >
-                            <Input
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                                placeholder="First Name"
-                                inputProps={ariaLabel}
-                            />
-                            <Input
-                                value={lastName}
-                                onChange={(e) => setLastName(e.target.value)}
-                                placeholder="Last Name"
-                                inputProps={ariaLabel}
-                            />
-                        </Stack>
 
-                        <Stack
-                            direction={"row"}
-                            sx={{
-                                width: "100%",
-                                maxHeight: "60px",
-                                marginTop: "10px",
-                            }}
-                            spacing={1}
-                        >
-                            <TextField
-                                value={email}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setEmail(value);
-                                }}
-                                error={
-                                    !emailPattern.test(email) && email !== ""
-                                        ? true
-                                        : false
-                                }
-                                variant={"standard"}
-                                label={"Email"}
-                                helperText={
-                                    !emailPattern.test(email) && email !== ""
-                                        ? "***.***@***.com OR ***@***.com"
-                                        : ""
-                                }
-                                sx={{
-                                    width: "100%",
-                                }}
-                            />
-                            <FormControl
-                                variant="standard"
-                                sx={{ minWidth: 120, width: "50%" }}
-                            >
-                                <InputLabel id="demo-simple-select-standard-label">
-                                    Location
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-simple-select-standard-label"
-                                    id="demo-simple-select-standard"
-                                    value={location?.officeid || ""}
-                                    onChange={(e) => {
-                                        const selectedItem = locations?.find(
-                                            (itm) =>
-                                                itm.officeid === e.target.value
-                                        );
-                                        setLocation(selectedItem); // Return the entire object
-                                    }}
-                                    label="Location"
-                                >
-                                    {locations?.map((itm, index) => (
-                                        <MenuItem
-                                            key={index}
-                                            value={itm.officeid}
-                                        >
-                                            {itm.Alias}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Stack>
-                        <Stack
-                            direction={"column"}
-                            sx={{
-                                flexGrow: 1,
-                                width: "100%",
-                                marginTop: "10px",
-                                display: "flex",
-                            }}
-                        >
-                            <FormControl
-                                sx={{ marginTop: "10px", width: "100%" }}
-                            >
-                                <InputLabel id="demo-multiple-chip-label">
-                                    Full Control
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-multiple-chip-label"
-                                    id="demo-multiple-chip"
-                                    multiple
-                                    value={fullControl}
-                                    onChange={handleFullControlChange}
-                                    input={
-                                        <OutlinedInput
-                                            id="select-multiple-chip-full"
-                                            label="Full Control"
-                                        />
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                flexWrap: "wrap",
-                                                gap: 0.5,
-                                                maxHeight: 105,
-                                                overflowY: "auto",
-                                                marginTop: "4px",
-                                            }}
-                                        >
-                                            {selected?.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={
-                                                        groups?.find(
-                                                            (gp) =>
-                                                                gp.id === value
-                                                        )?.group_name
-                                                    }
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                    sx={{
-                                        minHeight: 80, // Maximum height for the Select component
-                                        height: 110,
-                                    }}
-                                >
-                                    {groups
-                                        .filter(
-                                            (gp) =>
-                                                (gp.access != "Read" &&
-                                                    gp.location ===
-                                                        filterLocation?.officeid) ||
-                                                (gp.access != "Read" &&
-                                                    filterLocation?.officeid ==
-                                                        0)
-                                        )
-                                        ?.map((name, index) => (
-                                            <MenuItem
-                                                key={index}
-                                                value={name.id}
-                                                sx={{
-                                                    fontWeight:
-                                                        fullControl.indexOf(
-                                                            name.id
-                                                        ) === -1
-                                                            ? theme.typography
-                                                                  .fontWeightRegular
-                                                            : theme.typography
-                                                                  .fontWeightMedium,
-                                                }}
-                                            >
-                                                {name.group_name}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                                <FormHelperText>
-                                    Full access groups user is in
-                                </FormHelperText>
-                            </FormControl>
-                            <FormControl
-                                sx={{ marginTop: "10px", width: "100%" }}
-                            >
-                                <InputLabel id="demo-multiple-chip-label">
-                                    Read Access
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-multiple-chip-label"
-                                    id="demo-multiple-chip"
-                                    multiple
-                                    value={readAccess}
-                                    onChange={handleReadAccessChange}
-                                    input={
-                                        <OutlinedInput
-                                            id="select-multiple-chip-read"
-                                            label="Read Access"
-                                        />
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                flexWrap: "wrap",
-                                                gap: 0.5,
-                                                maxHeight: 105,
-                                                overflowY: "auto",
-                                                marginTop: "4px",
-                                            }}
-                                        >
-                                            {selected?.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={
-                                                        groups?.find(
-                                                            (gp) =>
-                                                                gp.id === value
-                                                        )?.group_name
-                                                    }
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                    sx={{
-                                        minHeight: 80, // Maximum height for the Select component
-                                        height: 110,
-                                    }}
-                                >
-                                    {groups
-                                        .filter(
-                                            (gp) =>
-                                                (gp.access != "Full" &&
-                                                    gp.location ===
-                                                        filterLocation?.officeid) ||
-                                                (gp.access != "Full" &&
-                                                    filterLocation?.officeid ==
-                                                        0)
-                                        )
-                                        ?.map((name, index) => (
-                                            <MenuItem
-                                                key={index}
-                                                value={name.id}
-                                                sx={{
-                                                    fontWeight:
-                                                        readAccess.indexOf(
-                                                            name.id
-                                                        ) === -1
-                                                            ? theme.typography
-                                                                  .fontWeightRegular
-                                                            : theme.typography
-                                                                  .fontWeightMedium,
-                                                }}
-                                            >
-                                                {name.group_name}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                                <FormHelperText>
-                                    Read access groups user is in
-                                </FormHelperText>
-                            </FormControl>
-                            {!selectedUser?.id && (
-                                <Input
-                                    sx={{ marginTop: 2 }}
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
-                                    placeholder="Password"
-                                    type={viewPassword ? "text" : "password"}
-                                    inputProps={ariaLabel}
-                                    endAdornment={
-                                        <InputAdornment position="end">
-                                            <Tooltip
-                                                title={
-                                                    viewPassword
-                                                        ? "Hide password"
-                                                        : "Unhide password"
-                                                }
-                                            >
-                                                <IconButton
-                                                    onClick={() =>
-                                                        setViewPassword(
-                                                            !viewPassword
-                                                        )
-                                                    }
-                                                    edge="end"
-                                                >
-                                                    {viewPassword ? (
-                                                        <VisibilityOff />
-                                                    ) : (
-                                                        <Visibility />
-                                                    )}
-                                                </IconButton>
-                                            </Tooltip>
-                                        </InputAdornment>
-                                    }
-                                />
-                            )}
-                        </Stack>
+                <Stack sx={{ padding: "20px", gap: 2.5 }}>
+                    {/* Basic Information Section */}
+                    <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        color="text.secondary"
+                    >
+                        Basic Information
+                    </Typography>
+
+                    <Stack direction={"row"} spacing={2}>
+                        <TextField
+                            fullWidth
+                            value={first_name}
+                            onChange={(e) => setfirst_name(e.target.value)}
+                            label="First Name"
+                            variant="outlined"
+                            size="small"
+                            required
+                        />
+                        <TextField
+                            fullWidth
+                            value={last_name}
+                            onChange={(e) => setlast_name(e.target.value)}
+                            label="Last Name"
+                            variant="outlined"
+                            size="small"
+                            required
+                        />
                     </Stack>
-                </Stack>
-                <Grid
-                    container
-                    direction={"row"}
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}
-                >
-                    <Grid item paddingLeft={"10px"}>
-                        {user?.admin && (
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={admin}
-                                        onChange={(e) =>
-                                            setAdmin(e.target.checked)
-                                        }
-                                        sx={{
-                                            "& .MuiSwitch-switchBase": {
-                                                "&.Mui-checked": {
-                                                    color: "#fff",
-                                                    "& + .MuiSwitch-track": {
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .mode === "dark"
-                                                                ? "#2ECA45"
-                                                                : "#65C466",
-                                                        opacity: 1,
-                                                        border: 0,
-                                                    },
-                                                    "&.Mui-disabled + .MuiSwitch-track":
-                                                        {
-                                                            opacity: 0.5,
-                                                        },
-                                                },
-                                            },
-                                        }}
-                                    />
-                                }
-                                label="Admin"
-                                sx={{
-                                    "& .MuiFormControlLabel-label": {
-                                        color: admin ? "black" : "grey",
-                                    },
-                                }}
-                            />
-                        )}
 
+                    <Stack direction={"row"} spacing={2}>
+                        <TextField
+                            fullWidth
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            error={!emailPattern.test(email) && email !== ""}
+                            variant="outlined"
+                            label="Email"
+                            size="small"
+                            required
+                            helperText={
+                                !emailPattern.test(email) && email !== ""
+                                    ? "Format: user@domain.com"
+                                    : ""
+                            }
+                        />
                         <FormControl
                             variant="outlined"
                             size="small"
-                            sx={{ minWidth: 155, width: "50%" }}
+                            fullWidth
+                            required
                         >
-                            <InputLabel id="demo-simple-select-standard-label">
-                                Admin Of Office
+                            <InputLabel id="location-label">
+                                Location
                             </InputLabel>
                             <Select
-                                labelId="demo-simple-select-standard-label"
-                                id="demo-simple-select-standard"
-                                value={officeAdmin || ""}
+                                labelId="location-label"
+                                value={location?.officeid || ""}
                                 onChange={(e) => {
                                     const selectedItem = locations?.find(
                                         (itm) => itm.officeid === e.target.value
                                     );
-                                    setOfficeAdmin(selectedItem?.officeid); // Return the entire object
+                                    setLocation(selectedItem);
                                 }}
-                                label=" Admin Of Office"
+                                label="Location"
                             >
-                                {locations
-                                    ?.filter((lc) => lc.Alias != "All")
-                                    ?.map((itm, index) => (
-                                        <MenuItem
-                                            key={index}
-                                            value={itm.officeid}
-                                        >
-                                            {itm.Alias}
-                                        </MenuItem>
-                                    ))}
-                                <MenuItem key={999} value={""}>
-                                    None
-                                </MenuItem>
+                                {locations?.map((itm, index) => (
+                                    <MenuItem key={index} value={itm.officeid}>
+                                        {itm.Alias}
+                                    </MenuItem>
+                                ))}
                             </Select>
                         </FormControl>
-                    </Grid>
-                    <Grid item paddingRight={"10px"}>
-                        <Button
+                    </Stack>
+
+                    {!selectedUser?.id && (
+                        <TextField
+                            fullWidth
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            label="Password"
+                            type={viewPassword ? "text" : "password"}
                             variant="outlined"
+                            size="small"
+                            required
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip
+                                            title={
+                                                viewPassword
+                                                    ? "Hide password"
+                                                    : "Show password"
+                                            }
+                                        >
+                                            <IconButton
+                                                onClick={() =>
+                                                    setViewPassword(
+                                                        !viewPassword
+                                                    )
+                                                }
+                                                edge="end"
+                                                size="small"
+                                            >
+                                                {viewPassword ? (
+                                                    <VisibilityOff fontSize="small" />
+                                                ) : (
+                                                    <Visibility fontSize="small" />
+                                                )}
+                                            </IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                    )}
+
+                    <Divider />
+
+                    {/* Permissions Section */}
+                    <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        color="text.secondary"
+                    >
+                        Permissions
+                    </Typography>
+
+                    {user?.admin && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={admin}
+                                    onChange={(e) => setAdmin(e.target.checked)}
+                                    sx={{
+                                        "& .MuiSwitch-switchBase": {
+                                            "&.Mui-checked": {
+                                                color: "#fff",
+                                                "& + .MuiSwitch-track": {
+                                                    backgroundColor:
+                                                        theme.palette.mode ===
+                                                        "dark"
+                                                            ? "#2ECA45"
+                                                            : "#65C466",
+                                                    opacity: 1,
+                                                    border: 0,
+                                                },
+                                            },
+                                        },
+                                    }}
+                                />
+                            }
+                            label="System Administrator"
                             sx={{
-                                backgroundColor: "rgba(0,170,0,.2)",
-                                ":hover": {
-                                    backgroundColor: "rgba(0,200,0,.4)",
+                                "& .MuiFormControlLabel-label": {
+                                    fontWeight: admin ? "600" : "400",
+                                    color: admin ? "black" : "grey",
                                 },
                             }}
-                            onClick={onSubmit}
+                        />
+                    )}
+
+                    <FormControl variant="outlined" size="small" fullWidth>
+                        <InputLabel id="equipment-admin-label">
+                            Equipment Admin
+                        </InputLabel>
+                        <Select
+                            labelId="equipment-admin-label"
+                            value={equipmentOfficeAdmin || ""}
+                            onChange={(e) => {
+                                setEquipmentOfficeAdmin(e.target.value);
+                            }}
+                            label="Equipment Admin"
                         >
-                            Submit
-                        </Button>
-                    </Grid>
-                </Grid>
-            </Grid>
+                            <MenuItem value="">
+                                <em>None</em>
+                            </MenuItem>
+                            {locations
+                                ?.filter((lc) => lc.Alias !== "All")
+                                ?.map((itm, index) => (
+                                    <MenuItem key={index} value={itm.officeid}>
+                                        {itm.Alias}
+                                    </MenuItem>
+                                ))}
+                        </Select>
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ mt: 0.5, ml: 1.5 }}
+                        >
+                            Allows user to manage equipment for the selected
+                            location
+                        </Typography>
+                    </FormControl>
+                </Stack>
+
+                <Divider />
+
+                {/* Action Buttons */}
+                <Stack
+                    direction="row"
+                    spacing={2}
+                    sx={{
+                        justifyContent: "flex-end",
+                        padding: "16px 20px",
+                    }}
+                >
+                    <Button
+                        variant="outlined"
+                        onClick={onClose}
+                        sx={{ minWidth: "100px" }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={onSubmit}
+                        sx={{
+                            minWidth: "100px",
+                            backgroundColor: "#4caf50",
+                            ":hover": {
+                                backgroundColor: "#45a049",
+                            },
+                        }}
+                    >
+                        {selectedUser ? "Update" : "Create"}
+                    </Button>
+                </Stack>
+            </Stack>
         </Dialog>
     );
 };

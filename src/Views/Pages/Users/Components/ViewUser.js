@@ -7,7 +7,6 @@ import { useAuth } from "../../../../Utilites/AuthContext";
 import { Grid, Stack, Typography, Button, Tooltip, Chip } from "@mui/material";
 import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
 import React from "react";
-import DisplayGroups from "../../../Components/DisplayGroups";
 
 const rowItem = (name, value, color) => {
     return (
@@ -41,7 +40,6 @@ const rowItem = (name, value, color) => {
 const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
     const theme = useTheme();
     const { user } = useAuth();
-    console.log(row.groups);
 
     return (
         <React.Fragment>
@@ -89,7 +87,7 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                             >
                                 User Details
                                 {(user?.admin ||
-                                    user?.office_admin ==
+                                    user?.equipment_office_admin ==
                                         location?.officeid) && (
                                     <Button
                                         variant="outlined"
@@ -142,13 +140,26 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                     theme.palette.primary.text.dark
                                 )}
                                 {rowItem(
-                                    "Office Admin",
-                                    row.office_admin
+                                    "Equipment Office Admin",
+                                    row.equipment_office_admin
                                         ? `${
                                               locations?.find(
                                                   (lc) =>
                                                       lc.officeid ==
-                                                      row?.office_admin
+                                                      row?.equipment_office_admin
+                                              )?.Alias
+                                          }`
+                                        : "None",
+                                    theme.palette.primary.text.dark
+                                )}
+                                {rowItem(
+                                    "Equipment Admin",
+                                    row.equipment_office_admin
+                                        ? `${
+                                              locations?.find(
+                                                  (lc) =>
+                                                      lc.officeid ==
+                                                      row?.equipment_office_admin
                                               )?.Alias
                                           }`
                                         : "None",
@@ -166,15 +177,6 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                         day: "numeric",
                                         year: "numeric",
                                     }),
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Groups",
-                                    row.groups.length == 0 ? (
-                                        "None"
-                                    ) : (
-                                        <DisplayGroups groups={row.groups} />
-                                    ),
                                     theme.palette.primary.text.dark
                                 )}
                             </Stack>

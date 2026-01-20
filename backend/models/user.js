@@ -29,6 +29,10 @@ const User = sequelize.define(
             type: DataTypes.INTEGER,
             allowNull: true,
         },
+        equipment_office_admin: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
         first_name: {
             type: DataTypes.STRING,
             allowNull: true,

@@ -31,8 +31,6 @@ import AddIcon from "@mui/icons-material/AddOutlined";
 import ShortSelect from "../../../../Components/ShortSelect";
 import ViewUser from "./ViewUser";
 import {
-    GetGroups,
-    GetGroupUsers,
     GetLocations,
     GetUsers,
     showError,
@@ -43,7 +41,6 @@ import {
     DeactivateUser,
     DeleteUser,
 } from "../../../../Utilites/Functions/ApiFunctions/UserFunctions";
-import DisplayGroups from "../../../Components/DisplayGroups";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
     [`&.${tableCellClasses.head}`]: {
@@ -70,22 +67,22 @@ function createData(
     name,
     email,
     location,
-    groups,
     active,
     last_login,
     admin,
-    office_admin
+    equiptment_office_admin,
+    equipment_equiptment_office_admin
 ) {
     return {
         id,
         name,
         email,
         location,
-        groups,
         active,
         last_login,
         admin,
-        office_admin,
+        equiptment_office_admin,
+        equipment_equiptment_office_admin,
     };
 }
 
@@ -139,9 +136,7 @@ export default function Users({ setLoading }) {
     const [selectedUserLocation, setSelectedUserLocation] = useState(null);
     const [update, setUpdate] = useState(0);
     const [filteredUsers, setFilteredUsers] = useState([]);
-    const [groups, setGroups] = useState([]);
     const [locations, setLocations] = useState([]);
-    const [groupUsers, setGroupUsers] = useState([]);
 
     const handleSubmit = () => {
         const remove = async () => {
@@ -302,14 +297,8 @@ export default function Users({ setLoading }) {
             setLoading(true);
 
             const lcs = await GetLocations();
-            const grps = await GetGroups();
-            const groupUsers = await GetGroupUsers(
-                filterLocation?.officeid || 0
-            );
             const users = await GetUsers();
             setUsers(users.filter((usr) => usr.id !== user?.id));
-            setGroups(grps);
-            setGroupUsers(groupUsers);
             setLocations(lcs);
             setFilterLocation(
                 filterLocation?.officeid || filterLocation?.officeid === 0
@@ -334,22 +323,11 @@ export default function Users({ setLoading }) {
         }
 
         const data = usrs?.map((itm) => {
-            const Usersgroups = groupUsers.filter((ug) => ug.user_id == itm.id);
-            if (itm.id == 100) {
-                console.log(groupUsers);
-            }
-            const usersGroupsByName = [];
-            Usersgroups?.map((gp) =>
-                usersGroupsByName.push(
-                    groups?.find((mg) => mg.id == gp.group_id)
-                )
-            );
             return createData(
                 itm.id,
                 `${itm.first_name} ${itm.last_name}`,
                 itm.email,
                 locations?.find((lc) => lc.officeid == itm.location)?.Alias,
-                usersGroupsByName,
                 itm.active ? "True" : "False",
                 itm.last_login
                     ? new Date(itm.last_login).toLocaleDateString("en-US", {
@@ -360,7 +338,8 @@ export default function Users({ setLoading }) {
                       })
                     : "Has not Logged In",
                 itm.admin,
-                itm.office_admin
+                itm.equiptment_office_admin,
+                itm.equipment_equiptment_office_admin
             );
         });
 
@@ -371,24 +350,7 @@ export default function Users({ setLoading }) {
                 page * rowsPerPage + rowsPerPage
             )
         );
-    }, [
-        filterLocation,
-        users,
-        update,
-        page,
-        rowsPerPage,
-        orderBy,
-        order,
-        groupUsers,
-    ]);
-
-    useEffect(() => {
-        const loc = async () => {
-            const usrgrps = await GetGroupUsers(filterLocation?.officeid || 0);
-            setGroupUsers(usrgrps);
-        };
-        loc();
-    }, [filterLocation]);
+    }, [filterLocation, users, update, page, rowsPerPage, orderBy, order]);
 
     return (
         <Box
@@ -404,30 +366,11 @@ export default function Users({ setLoading }) {
                 setOpen={setEditUserOpen}
                 userLocation={selectedUserLocation}
                 locations={locations}
-                groups={groups}
-                userGroups={groupUsers}
                 selectedUser={selectedUser}
                 setUpdate={setUpdate}
                 filterLocation={filterLocation}
             />
 
-            {/* Header section with controls */}
-            {/* <Tooltip title={"Add User"}>
-        <AddIcon
-          sx={{
-            position: "absolute",
-            right: 40,
-            zIndex: 999999,
-            top: 110,
-            color: "green",
-            cursor: "pointer",
-            ":hover": { color: "lightgreen" },
-            height: "30px",
-            width: "30px",
-          }}
-          onClick={handleAdduser}
-        />
-      </Tooltip> */}
             <Box
                 sx={{
                     width: "200px",
@@ -547,19 +490,7 @@ export default function Users({ setLoading }) {
                                         Location
                                     </TableSortLabel>
                                 </StyledTableCell>
-                                <StyledTableCell align="left">
-                                    <TableSortLabel
-                                        active={orderBy === "group"}
-                                        direction={
-                                            orderBy === "group" ? order : "asc"
-                                        }
-                                        onClick={(event) =>
-                                            handleRequestSort(event, "group")
-                                        }
-                                    >
-                                        Groups
-                                    </TableSortLabel>
-                                </StyledTableCell>
+
                                 <StyledTableCell align="left">
                                     <TableSortLabel
                                         active={orderBy === "active"}
@@ -647,9 +578,6 @@ export default function Users({ setLoading }) {
                                                 align="left"
                                                 display="flex"
                                             >
-                                                <DisplayGroups
-                                                    groups={row.groups}
-                                                />
                                                 {row.admin && (
                                                     <Tooltip
                                                         key={"Admin"}
@@ -675,11 +603,11 @@ export default function Users({ setLoading }) {
                                                         />
                                                     </Tooltip>
                                                 )}
-                                                {(`${row.office_admin}` ==
+                                                {(`${row.equiptment_office_admin}` ==
                                                     filterLocation?.officeid ||
                                                     (filterLocation?.officeid ==
                                                         "0" &&
-                                                        row.office_admin)) && (
+                                                        row.equiptment_office_admin)) && (
                                                     <Tooltip
                                                         key={"Office Admin"}
                                                         arrow
@@ -689,7 +617,7 @@ export default function Users({ setLoading }) {
                                                                     locations?.find(
                                                                         (lc) =>
                                                                             lc.officeid ==
-                                                                            `${row.office_admin}`
+                                                                            `${row.equiptment_office_admin}`
                                                                     )?.Alias
                                                                 }`}
                                                             </Typography>
@@ -708,6 +636,45 @@ export default function Users({ setLoading }) {
                                                             }}
                                                             label={
                                                                 "Office Admin"
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {(`${row.equipment_equiptment_office_admin}` ==
+                                                    filterLocation?.officeid ||
+                                                    (filterLocation?.officeid ==
+                                                        "0" &&
+                                                        row.equipment_equiptment_office_admin)) && (
+                                                    <Tooltip
+                                                        key={
+                                                            "Equipment Office Admin"
+                                                        }
+                                                        arrow
+                                                        title={
+                                                            <Typography variant="body2">
+                                                                {`Equipment Admin Access For ${
+                                                                    locations?.find(
+                                                                        (lc) =>
+                                                                            lc.officeid ==
+                                                                            `${row.equipment_equiptment_office_admin}`
+                                                                    )?.Alias
+                                                                }`}
+                                                            </Typography>
+                                                        }
+                                                    >
+                                                        <Chip
+                                                            sx={{
+                                                                cursor: "pointer",
+                                                                color: "white",
+                                                                backgroundColor:
+                                                                    "#007acc",
+                                                                marginLeft:
+                                                                    "2px",
+                                                                marginTop:
+                                                                    "2px",
+                                                            }}
+                                                            label={
+                                                                "Equipment Admin"
                                                             }
                                                         />
                                                     </Tooltip>
@@ -740,10 +707,6 @@ export default function Users({ setLoading }) {
                                                                 locations
                                                             }
                                                             location={location}
-                                                            groups={groups}
-                                                            userGroups={
-                                                                groupUsers
-                                                            }
                                                             rowUser={rowUser}
                                                             setOpen={
                                                                 hadleEditUser
@@ -769,7 +732,8 @@ export default function Users({ setLoading }) {
                     }}
                 >
                     {(user?.admin ||
-                        user?.office_admin == filterLocation?.officeid) && (
+                        user?.equiptment_office_admin ==
+                            filterLocation?.officeid) && (
                         <Stack
                             direction={"row"}
                             sx={{

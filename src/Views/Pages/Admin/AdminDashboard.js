@@ -28,6 +28,7 @@ import {
     CircularProgress,
     Badge,
     Paper,
+    useMediaQuery,
 } from "@mui/material";
 import {
     Refresh as RefreshIcon,
@@ -52,6 +53,7 @@ import {
 
 const AdminDashboard = ({ setLoading }) => {
     const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { user } = useAuth();
     const [tabValue, setTabValue] = useState(
         process.env.REACT_APP_DEV_IDS.split(",").includes(`${user?.id}`) ? 1 : 0
@@ -543,10 +545,10 @@ const AdminDashboard = ({ setLoading }) => {
                                                                         }}
                                                                     >
                                                                         {
-                                                                            connectedUser.firstName
+                                                                            connectedUser.first_name
                                                                         }{" "}
                                                                         {
-                                                                            connectedUser.lastName
+                                                                            connectedUser.last_name
                                                                         }
                                                                     </Typography>
                                                                     <Typography

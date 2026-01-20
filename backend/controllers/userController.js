@@ -36,7 +36,7 @@ async function verifyPassword(plainPassword, hash) {
 const GetAll = async (req, res) => {
     try {
         let data = [];
-        if (req.user?.admin || req.user?.office_admin > 0) {
+        if (req.user?.admin || req.user?.equipment_office_admin > 0) {
             data = await User.findAll();
         }
         const noPass = data?.map((usr) => {
@@ -47,6 +47,26 @@ const GetAll = async (req, res) => {
     } catch (err) {
         console.error("Error fetching users:", err);
         res.status(500).send("Server error");
+    }
+};
+
+const GetById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findByPk(id);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Remove password from response
+        const userObj = user.get({ plain: true });
+        const { password, ...userWithoutPassword } = userObj;
+
+        res.json(userWithoutPassword);
+    } catch (err) {
+        console.error("Error fetching user:", err);
+        next(err);
     }
 };
 
@@ -62,7 +82,7 @@ const Post = async (req, res) => {
             location,
             last_login,
             created_user_id,
-            office_admin,
+            equipment_office_admin,
             active,
         } = req.body;
 
@@ -102,7 +122,7 @@ const Post = async (req, res) => {
             first_name,
             last_name,
             active,
-            office_admin: office_admin || null,
+            equipment_office_admin: equipment_office_admin || null,
             location: location ? location : 0,
             last_login: created_user_id ? null : new Date().toISOString(),
             created_user_id: created_user_id ? created_user_id : null,
@@ -133,8 +153,14 @@ const Post = async (req, res) => {
 const Update = async (req, res) => {
     try {
         const { id } = req.params; // Extract ID from URL parameters
-        const { email, admin, first_name, last_name, location, office_admin } =
-            req.body; // Extract data from the request body
+        const {
+            email,
+            admin,
+            first_name,
+            last_name,
+            location,
+            equipment_office_admin,
+        } = req.body; // Extract data from the request body
 
         // Validate the incoming data (optional but recommended)
         if (!email || !first_name || !last_name) {
@@ -148,7 +174,10 @@ const Update = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+        if (
+            req.user?.equipment_office_admin != resource.location &&
+            !req.user?.admin
+        ) {
             return res
                 .status(403)
                 .json({ message: "Cannot modify users from another office." });
@@ -167,7 +196,7 @@ const Update = async (req, res) => {
             first_name,
             last_name,
             location: location ? location : 0,
-            office_admin: office_admin || null,
+            equipment_office_admin: equipment_office_admin || null,
         });
 
         // Return the updated record as a JSON response
@@ -257,7 +286,10 @@ const Delete = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+        if (
+            req.user?.equipment_office_admin != resource.location &&
+            !req.user?.admin
+        ) {
             return res
                 .status(403)
                 .json({ message: "Cannot modify users from another office." });
@@ -316,6 +348,11 @@ const Authenticate = async (req, res) => {
                 id: user.id,
                 email: user.email,
                 username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                admin: user.admin,
+                equipment_office_admin: user.equipment_office_admin,
+                location: user.location,
             },
             process.env.JWT_SECRET,
             { expiresIn: "24h" }
@@ -442,19 +479,6 @@ const AuthenticateAD = async (req, res) => {
                 ...exUser.get(),
                 password: undefined,
             };
-            const ids = await GroupUser.findAll({
-                where: { user_id: userWithoutPassword.id },
-            });
-            if (!ids?.length) {
-                await GroupUser.create({
-                    user_id: userWithoutPassword.id,
-                    group_id: 12,
-                });
-                await GroupUser.create({
-                    user_id: userWithoutPassword.id,
-                    group_id: 13,
-                });
-            }
             if (!exUser.location && location) {
                 await exUser.update({
                     location: location,
@@ -467,6 +491,12 @@ const AuthenticateAD = async (req, res) => {
                     id: userWithoutPassword.id,
                     email: userWithoutPassword.email,
                     username: userWithoutPassword.username,
+                    first_name: userWithoutPassword.first_name,
+                    last_name: userWithoutPassword.last_name,
+                    admin: userWithoutPassword.admin,
+                    equipment_office_admin:
+                        userWithoutPassword.equipment_office_admin,
+                    location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
                 { expiresIn: "24h" }
@@ -487,15 +517,6 @@ const AuthenticateAD = async (req, res) => {
                 ...created.get(),
                 password: undefined,
             };
-            // Add user to All Group
-            await GroupUser.create({
-                user_id: userWithoutPassword.id,
-                group_id: 12,
-            });
-            await GroupUser.create({
-                user_id: userWithoutPassword.id,
-                group_id: 13,
-            });
 
             // Generate JWT token
             const token = jwt.sign(
@@ -503,6 +524,14 @@ const AuthenticateAD = async (req, res) => {
                     id: userWithoutPassword.id,
                     email: userWithoutPassword.email,
                     username: userWithoutPassword.username,
+                    first_name: userWithoutPassword.first_name,
+                    last_name: userWithoutPassword.last_name,
+                    admin: userWithoutPassword.admin,
+                    equiptment_office_admin:
+                        userWithoutPassword.equiptment_office_admin,
+                    equipment_office_admin:
+                        userWithoutPassword.equipment_office_admin,
+                    location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
                 { expiresIn: "24h" }
@@ -549,7 +578,10 @@ const Deactivate = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+        if (
+            req.user?.equipment_office_admin != resource.location &&
+            !req.user?.admin
+        ) {
             return res
                 .status(403)
                 .json({ message: "Cannot modify users from another office." });
@@ -577,7 +609,10 @@ const Activate = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user?.office_admin != resource.location && !req.user?.admin) {
+        if (
+            req.user?.equipment_office_admin != resource.location &&
+            !req.user?.admin
+        ) {
             return res
                 .status(403)
                 .json({ message: "Cannot modify users from another office." });
@@ -598,6 +633,7 @@ const Activate = async (req, res) => {
 
 module.exports = {
     GetAll,
+    GetById,
     Post,
     Update,
     Delete,

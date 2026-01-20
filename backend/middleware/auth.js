@@ -63,11 +63,11 @@ const authenticateUser = async (req, res, next) => {
             location: user.location,
             active: user.active,
             last_login: user.last_login,
-            office_admin: user?.office_admin,
+            equipment_office_admin: user?.equipment_office_admin,
         };
 
         console.log(
-            `✅ User authenticated: ${req.user.username} (ID: ${req.user.id}, Admin: ${req.user?.admin}, OfficeAdmin: ${req.user?.office_admin})`
+            `✅ User authenticated: ${req.user.username} (ID: ${req.user.id}, Admin: ${req.user?.admin}, EquipmentOfficeAdmin: ${req.user?.equipment_office_admin})`
         );
         next();
     } catch (error) {

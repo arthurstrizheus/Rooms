@@ -31,15 +31,15 @@ const handleSocketConnection = (io) => {
         connectedUsers.set(socket.user.id, {
             id: socket.user.id,
             username: socket.user.username,
-            firstName: socket.user.firstName,
-            lastName: socket.user.lastName,
+            first_name: socket.user.first_name,
+            last_name: socket.user.last_name,
             email: socket.user.email,
             location: socket.user.location,
             socketId: socket.id,
             socket: socket, // Store socket reference for forced logout
             connectedAt: new Date(),
             admin: socket.user.admin,
-            office_admin: socket.user.office_admin,
+            equipment_office_admin: socket.user.equipment_office_admin,
         });
 
         // Join room based on user location
@@ -71,14 +71,14 @@ const getConnectedUsers = () => {
     return Array.from(connectedUsers.values()).map((user) => ({
         id: user.id,
         username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        first_name: user.first_name,
+        last_name: user.last_name,
         email: user.email,
         location: user.location,
         socketId: user.socketId,
         connectedAt: user.connectedAt,
         admin: user.admin,
-        office_admin: user.office_admin,
+        equipment_office_admin: user.equipment_office_admin,
     }));
 };
 
