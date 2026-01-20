@@ -18,7 +18,7 @@ const GetAlertsByEquipment = async (req, res, next) => {
                     attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
-            order: [["created_at", "DESC"]],
+            order: [["createdAt", "DESC"]],
         });
 
         res.status(200).json(alerts);
@@ -43,7 +43,7 @@ const GetAlertsByUser = async (req, res, next) => {
                     attributes: ["id", "name", "serial_number", "location"],
                 },
             ],
-            order: [["created_at", "DESC"]],
+            order: [["createdAt", "DESC"]],
         });
 
         res.status(200).json(alerts);
@@ -74,7 +74,7 @@ const GetMyAlerts = async (req, res, next) => {
                     ],
                 },
             ],
-            order: [["created_at", "DESC"]],
+            order: [["createdAt", "DESC"]],
         });
 
         res.status(200).json(alerts);
@@ -124,6 +124,15 @@ const Subscribe = async (req, res, next) => {
         });
 
         res.status(201).json(alert);
+
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("message", {
+                message: "alert_subscribed",
+                data: { alert, equipment_id, user_id },
+            });
+        }
     } catch (error) {
         logErrorToFile(error);
         next(error);
@@ -151,6 +160,15 @@ const Unsubscribe = async (req, res, next) => {
         await alert.save();
 
         res.status(200).json({ message: "Alert disabled successfully" });
+
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("message", {
+                message: "alert_updated",
+                data: { alert, equipment_id: alert.equipment_id, user_id },
+            });
+        }
     } catch (error) {
         logErrorToFile(error);
         next(error);
@@ -175,6 +193,15 @@ const DeleteAlert = async (req, res, next) => {
 
         await alert.destroy();
         res.status(200).json({ message: "Alert deleted successfully" });
+
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("message", {
+                message: "alert_deleted",
+                data: { alertId, equipment_id: alert.equipment_id, user_id },
+            });
+        }
     } catch (error) {
         logErrorToFile(error);
         next(error);
@@ -207,6 +234,15 @@ const UpdateAlert = async (req, res, next) => {
 
         await alert.save();
         res.status(200).json(alert);
+
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("message", {
+                message: "alert_updated",
+                data: { alert, equipment_id: alert.equipment_id, user_id },
+            });
+        }
     } catch (error) {
         logErrorToFile(error);
         next(error);

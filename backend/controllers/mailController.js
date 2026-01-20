@@ -20,6 +20,27 @@ const EMAIL_OVERRIDE_ADDRESS = (
     process.env.EMAIL_OVERRIDE_ADDRESS || "astrizheus@sealimited.com"
 ).replace(/['"]/g, "");
 
+/**
+ * Generates an unsubscribe footer with link to manage alert subscriptions
+ * @param {number} equipmentId - ID of the equipment
+ * @param {string} alertType - Type of alert (checkout_created, equipment_returned, etc.)
+ * @returns {string} HTML footer with unsubscribe link
+ */
+function getUnsubscribeFooter(equipmentId, alertType) {
+    const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+    const unsubscribeUrl = `${baseUrl}/equipment/${equipmentId}`;
+
+    return `
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+            <p style="margin: 5px 0;">You are receiving this email because you subscribed to <strong>${alertType.replace(
+                /_/g,
+                " "
+            )}</strong> alerts for this equipment.</p>
+            <p style="margin: 5px 0;"><a href="${unsubscribeUrl}" style="color: #1976d2;">Manage your alert subscriptions</a> or disable this alert in the equipment details page.</p>
+        </div>
+    `;
+}
+
 function applyEmailOverride(mailOpts) {
     if (!EMAIL_OVERRIDE_ACTIVE) return mailOpts;
     const original = { to: mailOpts.to, cc: mailOpts.cc, bcc: mailOpts.bcc };
@@ -531,6 +552,7 @@ const sendEquipmentReturnedEmail = async (
         </table>
         <p style="margin-top:16px;"><em>Note: This equipment may have additional bookings scheduled. Please check availability before requesting checkout.</em></p>
         <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+        ${getUnsubscribeFooter(e.id, "equipment_returned")}
     `;
 
     try {
@@ -594,6 +616,7 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
         </table>
         <p style="margin-top:16px;">You can request a checkout for this equipment now.</p>
         <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+        ${getUnsubscribeFooter(e.id, "equipment_available")}
     `;
 
     try {
@@ -675,6 +698,7 @@ const sendCalibrationDueEmail = async (
         </table>
         <p style="margin-top:16px;">Please schedule calibration as soon as possible to maintain equipment compliance.</p>
         <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+        ${getUnsubscribeFooter(e.id, "calibration_due")}
     `;
 
     try {
@@ -756,6 +780,255 @@ const sendGenericEmail = async (params = {}) => {
     }
 };
 
+/**
+ * Sends an email when a new checkout is created
+ */
+const sendCheckoutCreatedEmail = async (
+    checkout,
+    equipment,
+    subscriberEmails
+) => {
+    if (!subscriberEmails || subscriberEmails.length === 0) {
+        console.log("No subscribers for checkout created notification");
+        return;
+    }
+
+    const checkoutData = checkout.get
+        ? checkout.get({ plain: true })
+        : checkout;
+    const equipmentData = equipment.get
+        ? equipment.get({ plain: true })
+        : equipment;
+
+    const startDate = new Date(checkoutData.start_time).toLocaleString();
+    const endDate = new Date(checkoutData.end_time).toLocaleString();
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1976d2;">Equipment Checkout Created</h2>
+            <p>A new checkout has been created for equipment you're watching:</p>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Equipment Details</h3>
+                <p><strong>Name:</strong> ${equipmentData.name}</p>
+                <p><strong>Serial Number:</strong> ${
+                    equipmentData.serial_number || "N/A"
+                }</p>
+                <p><strong>Location:</strong> ${
+                    equipmentData.location || "N/A"
+                }</p>
+            </div>
+
+            <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Checkout Details</h3>
+                <p><strong>Start:</strong> ${startDate}</p>
+                <p><strong>End:</strong> ${endDate}</p>
+                <p><strong>Purpose:</strong> ${
+                    checkoutData.purpose || "N/A"
+                }</p>
+                <p><strong>Status:</strong> ${checkoutData.status}</p>
+            </div>
+            ${getUnsubscribeFooter(equipmentData.id, "checkout_created")}
+        </div>
+    `;
+
+    const mailOpts = {
+        from: `${SMTP_Server.auth.user}`,
+        to: subscriberEmails.join(", "),
+        subject: `Checkout Created: ${equipmentData.name}`,
+        html: htmlContent,
+    };
+
+    if (!SEND_EMAILS_ACTIVE) {
+        console.log("Email disabled. Would send checkout created email:", {
+            to: subscriberEmails,
+            equipment: equipmentData.name,
+        });
+        return;
+    }
+
+    try {
+        const transporter = nodemailer.createTransporter(SMTP_Server);
+        const finalOpts = applyEmailOverride(mailOpts);
+        const info = await transporter.sendMail(finalOpts);
+        console.log(`Checkout created email sent: ${info.messageId}`);
+        return info;
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending checkout created email:", error);
+    }
+};
+
+/**
+ * Sends an email when equipment is checked out
+ */
+const sendEquipmentCheckedOutEmail = async (
+    checkout,
+    equipment,
+    subscriberEmails
+) => {
+    if (!subscriberEmails || subscriberEmails.length === 0) {
+        console.log("No subscribers for equipment checked out notification");
+        return;
+    }
+
+    const checkoutData = checkout.get
+        ? checkout.get({ plain: true })
+        : checkout;
+    const equipmentData = equipment.get
+        ? equipment.get({ plain: true })
+        : equipment;
+
+    const endDate = new Date(checkoutData.end_time).toLocaleString();
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2196f3;">Equipment Checked Out</h2>
+            <p>Equipment you're watching has been checked out:</p>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Equipment Details</h3>
+                <p><strong>Name:</strong> ${equipmentData.name}</p>
+                <p><strong>Serial Number:</strong> ${
+                    equipmentData.serial_number || "N/A"
+                }</p>
+                <p><strong>Location:</strong> ${
+                    equipmentData.location || "N/A"
+                }</p>
+            </div>
+
+            <div style="background-color: #e1f5fe; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Checkout Details</h3>
+                <p><strong>Expected Return:</strong> ${endDate}</p>
+                <p><strong>Purpose:</strong> ${
+                    checkoutData.purpose || "N/A"
+                }</p>
+                <p style="color: #2196f3;"><strong>Status:</strong> Currently Checked Out</p>
+            </div>
+            ${getUnsubscribeFooter(equipmentData.id, "equipment_checked_out")}
+        </div>
+    `;
+
+    const mailOpts = {
+        from: `${SMTP_Server.auth.user}`,
+        to: subscriberEmails.join(", "),
+        subject: `Equipment Checked Out: ${equipmentData.name}`,
+        html: htmlContent,
+    };
+
+    if (!SEND_EMAILS_ACTIVE) {
+        console.log("Email disabled. Would send equipment checked out email:", {
+            to: subscriberEmails,
+            equipment: equipmentData.name,
+        });
+        return;
+    }
+
+    try {
+        const transporter = nodemailer.createTransporter(SMTP_Server);
+        const finalOpts = applyEmailOverride(mailOpts);
+        const info = await transporter.sendMail(finalOpts);
+        console.log(`Equipment checked out email sent: ${info.messageId}`);
+        return info;
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending equipment checked out email:", error);
+    }
+};
+
+/**
+ * Sends an email when equipment status changes
+ */
+const sendEquipmentStatusChangeEmail = async (
+    equipment,
+    oldStatus,
+    newStatus,
+    subscriberEmails
+) => {
+    if (!subscriberEmails || subscriberEmails.length === 0) {
+        console.log("No subscribers for equipment status change notification");
+        return;
+    }
+
+    const equipmentData = equipment.get
+        ? equipment.get({ plain: true })
+        : equipment;
+
+    const statusLabels = {
+        available: "Available",
+        checked_out: "Checked Out",
+        maintenance: "In Maintenance",
+        retired: "Retired",
+    };
+
+    const statusColors = {
+        available: "#4caf50",
+        checked_out: "#2196f3",
+        maintenance: "#ff9800",
+        retired: "#f44336",
+    };
+
+    const oldStatusLabel = statusLabels[oldStatus] || oldStatus;
+    const newStatusLabel = statusLabels[newStatus] || newStatus;
+    const statusColor = statusColors[newStatus] || "#757575";
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: ${statusColor};">Equipment Status Changed</h2>
+            <p>The status of equipment you're watching has been updated:</p>
+            
+            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Equipment Details</h3>
+                <p><strong>Name:</strong> ${equipmentData.name}</p>
+                <p><strong>Serial Number:</strong> ${
+                    equipmentData.serial_number || "N/A"
+                }</p>
+                <p><strong>Location:</strong> ${
+                    equipmentData.location || "N/A"
+                }</p>
+            </div>
+
+            <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Status Change</h3>
+                <p><strong>Previous Status:</strong> ${oldStatusLabel}</p>
+                <p><strong>New Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${newStatusLabel}</span></p>
+            </div>
+            ${getUnsubscribeFooter(equipmentData.id, "status_change")}
+        </div>
+    `;
+
+    const mailOpts = {
+        from: `${SMTP_Server.auth.user}`,
+        to: subscriberEmails.join(", "),
+        subject: `Equipment Status Changed: ${equipmentData.name} - ${newStatusLabel}`,
+        html: htmlContent,
+    };
+
+    if (!SEND_EMAILS_ACTIVE) {
+        console.log(
+            "Email disabled. Would send equipment status change email:",
+            {
+                to: subscriberEmails,
+                equipment: equipmentData.name,
+                oldStatus,
+                newStatus,
+            }
+        );
+        return;
+    }
+
+    try {
+        const transporter = nodemailer.createTransporter(SMTP_Server);
+        const finalOpts = applyEmailOverride(mailOpts);
+        const info = await transporter.sendMail(finalOpts);
+        console.log(`Equipment status change email sent: ${info.messageId}`);
+        return info;
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending equipment status change email:", error);
+    }
+};
+
 module.exports = {
     sendCheckoutApprovalRequestEmail,
     sendCheckoutApprovedEmail,
@@ -764,4 +1037,7 @@ module.exports = {
     sendEquipmentAvailableEmail,
     sendCalibrationDueEmail,
     sendGenericEmail,
+    sendCheckoutCreatedEmail,
+    sendEquipmentCheckedOutEmail,
+    sendEquipmentStatusChangeEmail,
 };

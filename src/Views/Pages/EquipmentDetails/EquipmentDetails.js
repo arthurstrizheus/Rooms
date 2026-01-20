@@ -25,21 +25,25 @@ import {
     CalendarMonth,
     UploadFile,
     Warning,
+    NotificationsActive,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
+import { useSocket } from "../../../Contexts/SocketContext";
 import axios from "axios";
 import ImageCarousel from "./Components/ImageCarousel";
 import CalibrationInfoCard from "./Components/CalibrationInfoCard";
 import FileListCard from "./Components/FileListCard";
 import CalibrationHistoryCard from "./Components/CalibrationHistoryCard";
 import CheckoutHistoryCard from "./Components/CheckoutHistoryCard";
+import AlertsCard from "./Components/AlertsCard";
 import EnlargedImageDialog from "./Components/EnlargedImageDialog";
 import FileHistoryDialog from "./Components/FileHistoryDialog";
 
 const EquipmentDetails = ({ setLoading, loading }) => {
     const { equipmentId } = useParams();
     const { user } = useAuth();
+    const { socket } = useSocket();
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -77,6 +81,8 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     });
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [enlargedImage, setEnlargedImage] = useState(null);
+    const [openSubscribeDialog, setOpenSubscribeDialog] = useState(false);
+    const [alertsRefresh, setAlertsRefresh] = useState(0);
 
     useEffect(() => {
         fetchEquipment();
@@ -86,6 +92,55 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         fetchLocations();
         fetchUsers();
     }, [equipmentId]);
+
+    // Socket listener for real-time updates
+    useEffect(() => {
+        if (!socket?.connected) return;
+
+        const handleMessage = (payload) => {
+            const { message, data } = payload;
+
+            switch (message) {
+                case "equipment_updated":
+                    // Refresh equipment details if it's this equipment
+                    if (data?.equipment?.id === parseInt(equipmentId)) {
+                        fetchEquipment();
+                    }
+                    break;
+                case "calibration_added":
+                case "calibration_updated":
+                case "calibration_deleted":
+                    // Refresh calibration history if it belongs to this equipment
+                    if (data?.equipment_id === parseInt(equipmentId)) {
+                        fetchCalibrationHistory();
+                    }
+                    break;
+                case "equipment_file_created":
+                case "file_updated":
+                case "file_deleted":
+                    // Refresh files if they belong to this equipment
+                    if (data?.equipment_id === parseInt(equipmentId)) {
+                        fetchFiles();
+                    }
+                    break;
+                case "checkout_created":
+                case "checkout_updated":
+                    // Refresh checkout history if it belongs to this equipment
+                    if (
+                        data?.equipment_id === parseInt(equipmentId) ||
+                        data?.checkout?.equipment_id === parseInt(equipmentId)
+                    ) {
+                        fetchCheckoutHistory();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        socket.on("message", handleMessage);
+        return () => socket.off("message", handleMessage);
+    }, [socket, equipmentId]);
 
     useEffect(() => {
         const imageFiles = files
@@ -471,6 +526,14 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                     <Button
                         variant="outlined"
+                        startIcon={<NotificationsActive />}
+                        onClick={() => setOpenSubscribeDialog(true)}
+                        color="primary"
+                    >
+                        Subscribe to Alerts
+                    </Button>
+                    <Button
+                        variant="outlined"
                         startIcon={<CalendarMonth />}
                         onClick={() =>
                             navigate(`/equipment/calendar/${equipmentId}`)
@@ -672,6 +735,18 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                     <CheckoutHistoryCard
                         checkoutHistory={checkoutHistory}
                         getCheckoutStatusColor={getCheckoutStatusColor}
+                    />
+                </Grid>
+
+                {/* Alert Subscriptions */}
+                <Grid item xs={12}>
+                    <AlertsCard
+                        equipmentId={equipmentId}
+                        openDialog={openSubscribeDialog}
+                        setOpenDialog={setOpenSubscribeDialog}
+                        onSubscribeSuccess={() =>
+                            setAlertsRefresh((prev) => prev + 1)
+                        }
                     />
                 </Grid>
             </Grid>

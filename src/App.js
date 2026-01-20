@@ -105,6 +105,28 @@ function App() {
         }
     }, [isAuthenticated, user]);
 
+    // Check if we're on an embed route
+    const isEmbedRoute = location.pathname.includes("/embed");
+
+    // Render embed routes without layout
+    if (isEmbedRoute) {
+        return (
+            <ThemeProvider theme={theme(mode)}>
+                <SnackbarProvider>
+                    <AppRoutes
+                        setLoading={setLoading}
+                        setBannerText={setBannerText}
+                        selectedDate={selectedDate}
+                        setSelectedDate={setSelectedDate}
+                        loading={loading}
+                        drawerOpen={false}
+                        setDrawerOpen={() => {}}
+                    />
+                </SnackbarProvider>
+            </ThemeProvider>
+        );
+    }
+
     return (
         <div
             className="Equiptment"

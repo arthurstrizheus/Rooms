@@ -19,6 +19,7 @@
         "express": "^4.19.2",
         "mssql": "^11.0.1",
         "multer": "^2.0.2",
+        "node-cron": "^3.0.3",
         "nodemailer": "^6.9.16",
         "passport": "^0.7.0",
         "passport-saml": "^3.2.4",

@@ -13,6 +13,13 @@ const {
 const {
     generateRecurringCheckouts,
 } = require("./checkoutRecurrenceController");
+const { GetSubscribers } = require("./equipmentAlertController");
+const {
+    sendCheckoutCreatedEmail,
+    sendEquipmentCheckedOutEmail,
+    sendEquipmentReturnedEmail,
+    sendEquipmentAvailableEmail,
+} = require("./mailController");
 
 // Helper function to check if two time ranges overlap
 const timeRangesOverlap = (start1, end1, start2, end2) => {
@@ -583,6 +590,28 @@ const Post = async (req, res, next) => {
 
         res.status(201).json(completeCheckout);
 
+        // Send email notifications to subscribers
+        (async () => {
+            try {
+                const subscribers = await GetSubscribers(
+                    equipment_id,
+                    "checkout_created"
+                );
+                if (subscribers && subscribers.length > 0) {
+                    await sendCheckoutCreatedEmail(
+                        completeCheckout,
+                        equipment,
+                        subscribers
+                    );
+                }
+            } catch (emailError) {
+                console.error(
+                    "Error sending checkout created emails:",
+                    emailError
+                );
+            }
+        })();
+
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
@@ -785,6 +814,15 @@ const Update = async (req, res, next) => {
                     });
                 }
 
+                // Emit socket event
+                const io = req.app.get("io");
+                if (io) {
+                    io.emit("message", {
+                        message: "checkout_updated",
+                        data: newCheckout,
+                    });
+                }
+
                 return res.json(newCheckout);
             } else if (updateMode === "following" || updateMode === "next") {
                 // Edit this and following: End current recurrence before this date,
@@ -876,6 +914,15 @@ const Update = async (req, res, next) => {
                     repeats: newRecurrence.recurrence_pattern,
                 });
 
+                // Emit socket event
+                const io = req.app.get("io");
+                if (io) {
+                    io.emit("message", {
+                        message: "checkout_updated",
+                        data: newCheckout,
+                    });
+                }
+
                 return res.json(newCheckout);
             } else if (updateMode === "all") {
                 // Edit all occurrences: Update base checkout and recurrence
@@ -926,15 +973,18 @@ const Update = async (req, res, next) => {
                         ? updates.recurrence_end_date
                         : recurrence.end_date;
 
-                await checkConflicts(
-                    checkout.equipment_id,
-                    newStartTime,
-                    newEndTime,
-                    newPattern,
-                    newSeparation,
-                    newEndDate,
-                    baseCheckoutId
-                );
+                // Skip conflict check if status is being changed to cancelled
+                if (updates.status !== "cancelled") {
+                    await checkConflicts(
+                        checkout.equipment_id,
+                        newStartTime,
+                        newEndTime,
+                        newPattern,
+                        newSeparation,
+                        newEndDate,
+                        baseCheckoutId
+                    );
+                }
 
                 await checkout.update({
                     start_time: newStartTime,
@@ -993,13 +1043,25 @@ const Update = async (req, res, next) => {
                     ],
                 });
 
+                // Emit socket event
+                const io = req.app.get("io");
+                if (io) {
+                    io.emit("message", {
+                        message: "checkout_updated",
+                        data: completeCheckout,
+                    });
+                }
+
                 return res.json(completeCheckout);
             }
         }
 
         // Non-recurring checkout or editing base recurring checkout directly
-        // If updating time, check for conflicts
-        if (updates.start_time || updates.end_time) {
+        // If updating time, check for conflicts (unless status is being set to cancelled)
+        if (
+            (updates.start_time || updates.end_time) &&
+            updates.status !== "cancelled"
+        ) {
             const start = new Date(updates.start_time || checkout.start_time);
             const end = new Date(updates.end_time || checkout.end_time);
 
@@ -1043,6 +1105,34 @@ const Update = async (req, res, next) => {
         });
 
         res.json(completeCheckout);
+
+        // Send email notifications based on status change
+        if (updates.status === "returned") {
+            (async () => {
+                try {
+                    const equipment = await Equipment.findByPk(
+                        checkout.equipment_id
+                    );
+
+                    const subscribers = await GetSubscribers(
+                        checkout.equipment_id,
+                        "equipment_returned"
+                    );
+                    if (subscribers && subscribers.length > 0) {
+                        await sendEquipmentReturnedEmail(
+                            completeCheckout,
+                            equipment,
+                            subscribers
+                        );
+                    }
+                } catch (emailError) {
+                    console.error(
+                        "Error sending equipment returned emails:",
+                        emailError
+                    );
+                }
+            })();
+        }
 
         // Emit socket event
         const io = req.app.get("io");

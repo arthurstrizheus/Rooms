@@ -1,6 +1,8 @@
 const { Equipment, EquipmentFile, Checkout } = require("../models");
 const path = require("path");
 const fs = require("fs");
+const { GetSubscribers } = require("./equipmentAlertController");
+const { sendEquipmentStatusChangeEmail } = require("./mailController");
 
 const GetAll = async (req, res, next) => {
     try {
@@ -126,9 +128,37 @@ const Update = async (req, res, next) => {
             return res.status(404).json({ message: "Equipment not found" });
         }
 
+        // Track old status for comparison
+        const oldStatus = equipment.status;
+
         await equipment.update(updates);
 
         res.json(equipment);
+
+        // Send status change notifications if status changed
+        if (updates.status && oldStatus !== updates.status) {
+            (async () => {
+                try {
+                    const subscribers = await GetSubscribers(
+                        id,
+                        "status_change"
+                    );
+                    if (subscribers && subscribers.length > 0) {
+                        await sendEquipmentStatusChangeEmail(
+                            equipment,
+                            oldStatus,
+                            updates.status,
+                            subscribers
+                        );
+                    }
+                } catch (emailError) {
+                    console.error(
+                        "Error sending status change emails:",
+                        emailError
+                    );
+                }
+            })();
+        }
 
         // Emit socket event
         const io = req.app.get("io");

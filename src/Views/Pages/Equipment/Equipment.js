@@ -36,6 +36,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
+import { useSocket } from "../../../Contexts/SocketContext";
 import axios from "axios";
 
 const Equipment = ({ setLoading, loading }) => {
@@ -59,6 +60,7 @@ const Equipment = ({ setLoading, loading }) => {
     });
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { socket } = useSocket();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -67,6 +69,29 @@ const Equipment = ({ setLoading, loading }) => {
         fetchLocations();
         fetchUsers();
     }, []);
+
+    // Socket listener for real-time equipment updates
+    useEffect(() => {
+        if (!socket?.connected) return;
+
+        const handleMessage = (payload) => {
+            const { message, data } = payload;
+
+            switch (message) {
+                case "equipment_added":
+                case "equipment_updated":
+                case "equipment_deleted":
+                    // Refresh equipment list on any equipment change
+                    fetchEquipment();
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        socket.on("message", handleMessage);
+        return () => socket.off("message", handleMessage);
+    }, [socket]);
 
     const fetchLocations = async () => {
         try {

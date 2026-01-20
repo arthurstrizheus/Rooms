@@ -27,8 +27,8 @@ const EquipmentAlert = sequelize.define(
         },
         alert_type: {
             type: DataTypes.ENUM(
+                "checkout_created",
                 "equipment_returned",
-                "equipment_available",
                 "calibration_due",
                 "status_change"
             ),
@@ -46,6 +46,7 @@ const EquipmentAlert = sequelize.define(
     {
         tableName: "Equipment-Alerts",
         timestamps: true,
+        underscored: false, // Use camelCase for createdAt/updatedAt
     }
 );
 

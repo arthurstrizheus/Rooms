@@ -15,6 +15,8 @@ import {
     InputLabel,
     Checkbox,
     FormControlLabel,
+    useMediaQuery,
+    useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -23,6 +25,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { useAuth } from "../../Utilites/AuthContext";
+import { useSocket } from "../../Contexts/SocketContext";
 import axios from "axios";
 import DisplayCheckout from "../Components/DisplayCheckout/DisplayCheckout";
 import { ArrowBack } from "@mui/icons-material";
@@ -61,11 +64,50 @@ const EquipmentCalendar = ({
         status: "",
     });
     const { user } = useAuth();
+    const { socket } = useSocket();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
     useEffect(() => {
         fetchEquipment();
         // Don't fetch checkouts here - let datesSet callback handle it when calendar initializes
     }, [equipmentId, update]);
+
+    // Socket listener for real-time updates
+    useEffect(() => {
+        if (!socket?.connected) return;
+
+        const handleMessage = (payload) => {
+            const { message, data } = payload;
+
+            switch (message) {
+                case "checkout_created":
+                case "checkout_updated":
+                case "checkout_approved":
+                    // Refetch checkouts if they belong to this equipment
+                    if (
+                        data?.equipment_id === parseInt(equipmentId) ||
+                        data?.checkout?.equipment_id === parseInt(equipmentId)
+                    ) {
+                        if (dateRange.start && dateRange.end) {
+                            fetchCheckouts(dateRange.start, dateRange.end);
+                        }
+                    }
+                    break;
+                case "equipment_updated":
+                    // Refresh equipment details if it's this equipment
+                    if (data?.equipment?.id === parseInt(equipmentId)) {
+                        fetchEquipment();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        socket.on("message", handleMessage);
+        return () => socket.off("message", handleMessage);
+    }, [socket, equipmentId, dateRange]);
 
     const fetchEquipment = async () => {
         try {
@@ -389,13 +431,13 @@ const EquipmentCalendar = ({
     };
 
     return (
-        <Box sx={{ p: 3 }}>
-            <Typography variant="h4" sx={{ mb: 3 }}>
+        <Box sx={{ p: isMobile ? 0 : 3 }}>
+            <Typography variant="h4" sx={{ mb: 3, px: isMobile ? 2 : 0 }}>
                 {equipment?.name || "Equipment"} Calendar
             </Typography>
 
             {equipment && (
-                <Box sx={{ mb: 2 }}>
+                <Box sx={{ mb: 2, px: isMobile ? 2 : 0 }}>
                     <Typography variant="body2" color="text.secondary">
                         Location: {equipment.location || "N/A"} | Serial:{" "}
                         {equipment.serial_number || "N/A"} | Contact:{" "}
@@ -409,21 +451,37 @@ const EquipmentCalendar = ({
                 sx={{
                     fontWeight: "bold",
                     ":hover": { backgroundColor: "primary.light" },
+                    mx: isMobile ? 2 : 0,
+                    mb: 2,
                 }}
                 href={`/equipment/${equipmentId}`}
             >
                 Back
             </Button>
 
-            <Box sx={{ backgroundColor: "white", p: 2, borderRadius: 1 }}>
+            <Box
+                sx={{
+                    backgroundColor: "white",
+                    p: isMobile ? 0 : 2,
+                    borderRadius: isMobile ? 0 : 1,
+                }}
+            >
                 <FullCalendar
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="timeGridWeek"
-                    headerToolbar={{
-                        left: "prev,next today",
-                        center: "title",
-                        right: "dayGridMonth,timeGridWeek,timeGridDay",
-                    }}
+                    initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+                    headerToolbar={
+                        isMobile
+                            ? {
+                                  left: "prev,next",
+                                  center: "title",
+                                  right: "today",
+                              }
+                            : {
+                                  left: "prev,next today",
+                                  center: "title",
+                                  right: "dayGridMonth,timeGridWeek,timeGridDay",
+                              }
+                    }
                     editable={false}
                     selectable={true}
                     selectMirror={true}
@@ -441,6 +499,19 @@ const EquipmentCalendar = ({
                     height="auto"
                     slotMinTime="06:00:00"
                     slotMaxTime="20:00:00"
+                    eventMinHeight={isMobile ? 40 : 20}
+                    slotEventOverlap={false}
+                    allDaySlot={false}
+                    titleFormat={
+                        isMobile
+                            ? { month: "short", day: "numeric" }
+                            : undefined
+                    }
+                    dayHeaderFormat={
+                        isMobile
+                            ? { weekday: "short", day: "numeric" }
+                            : undefined
+                    }
                 />
             </Box>
 

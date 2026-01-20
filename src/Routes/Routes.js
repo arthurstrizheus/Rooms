@@ -10,6 +10,7 @@ import ApprovalQueue from "../Views/Pages/ApprovalQueue/index";
 import Users from "../Views/Pages/Users/index";
 import NotFoundPage from "../Views/Pages/Errors/NotFoundPage";
 import EquipmentCalendar from "../Views/Pages/EquipmentCalendar";
+import EquipmentCalendarEmbed from "../Views/Pages/EquipmentCalendarEmbed";
 import { useMediaQuery } from "@mui/system";
 import AdminDashboard from "../Views/Pages/Admin/AdminDashboard";
 
@@ -29,10 +30,12 @@ const AppRoutes = ({
 
     useEffect(() => {
         // Determine the banner text based on the current path
+        // Skip auth redirect for embed routes
         if (
             !isAuthenticated &&
             location.pathname != "/login" &&
-            location.pathname != "/signup"
+            location.pathname != "/signup" &&
+            !location.pathname.includes("/embed")
         ) {
             navigate("/login");
         }
@@ -96,6 +99,14 @@ const AppRoutes = ({
                         loading={loading}
                     />
                 }
+            />
+            <Route
+                path="/equipment/:equipmentId/embed"
+                element={<EquipmentCalendarEmbed />}
+            />
+            <Route
+                path="/equipment/calendar/:equipmentId/embed"
+                element={<EquipmentCalendarEmbed />}
             />
             <Route
                 path="/equipment/calendar/:equipmentId"

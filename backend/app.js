@@ -26,9 +26,11 @@ const equipmentFilesRouter = require("./routes/equipmentFiles");
 const calibrationsRouter = require("./routes/calibrations");
 const checkoutRecurrencesRouter = require("./routes/checkoutRecurrences");
 const equipmentAlertsRouter = require("./routes/equipmentAlerts");
+const calibrationAlertsRouter = require("./routes/calibrationAlerts");
 const usersRouter = require("./routes/users");
 const officeRouter = require("./routes/offices");
 const errorHandler = require("./middleware/errorHandler");
+const { initCalibrationAlertsScheduler } = require("./jobs/calibrationAlerts");
 
 const app = express();
 const server = http.createServer(app);
@@ -72,6 +74,7 @@ app.use("/api/equipment-files", equipmentFilesRouter);
 app.use("/api/calibrations", calibrationsRouter);
 app.use("/api/checkout-recurrences", checkoutRecurrencesRouter);
 app.use("/api/equipment-alerts", equipmentAlertsRouter);
+app.use("/api/calibration-alerts", calibrationAlertsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/locations", officeRouter);
 
@@ -114,7 +117,28 @@ const startServer = async () => {
 
         try {
             console.log("Syncing Checkout");
+            // First try without alter to see if table exists
             await Checkout.sync({ alter: false });
+
+            // Then manually add the project_number column if it doesn't exist
+            const queryInterface = sequelize.getQueryInterface();
+            const tableDescription = await queryInterface.describeTable(
+                "Equipment-Checkouts"
+            );
+
+            if (!tableDescription.project_number) {
+                console.log("Adding project_number column...");
+                await queryInterface.addColumn(
+                    "Equipment-Checkouts",
+                    "project_number",
+                    {
+                        type: require("sequelize").DataTypes.STRING,
+                        allowNull: true,
+                    }
+                );
+                console.log("✓ project_number column added");
+            }
+
             console.log("✓ Checkout synced");
         } catch (err) {
             console.error("✗ Checkout sync failed:", err.message);
@@ -138,6 +162,7 @@ const startServer = async () => {
 
         try {
             console.log("Syncing EquipmentAlert");
+            // Use alter: false to avoid CHECK constraint issues
             await EquipmentAlert.sync({ alter: false });
             console.log("✓ EquipmentAlert synced");
         } catch (err) {
@@ -146,6 +171,9 @@ const startServer = async () => {
 
         console.log("\n✅ Database migration complete!");
         console.log("All critical tables created successfully\n");
+
+        // Initialize calibration alerts scheduler
+        initCalibrationAlertsScheduler();
 
         const port = process.env.PORT || 5000;
         server.listen(port, () => {
