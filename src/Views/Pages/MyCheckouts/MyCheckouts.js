@@ -244,11 +244,13 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
     const filteredCheckouts = sortedCheckouts.filter((checkout) => {
         const search = searchTerm.toLowerCase();
-        
+
         // Format dates in multiple ways for searching
-        const startDate = checkout.start_time ? new Date(checkout.start_time) : null;
+        const startDate = checkout.start_time
+            ? new Date(checkout.start_time)
+            : null;
         const endDate = checkout.end_time ? new Date(checkout.end_time) : null;
-        
+
         const dateStrings = [];
         if (startDate) {
             dateStrings.push(
@@ -278,7 +280,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 format(endDate, "PPpp").toLowerCase()
             );
         }
-        
+
         const matchesSearch =
             checkout.Equipment?.name?.toLowerCase().includes(search) ||
             checkout.Equipment?.serial_number?.toLowerCase().includes(search) ||
@@ -290,8 +292,8 @@ const MyCheckouts = ({ setLoading, loading }) => {
             checkout.approval_notes?.toLowerCase().includes(search) ||
             checkout.ApprovedBy?.first_name?.toLowerCase().includes(search) ||
             checkout.ApprovedBy?.last_name?.toLowerCase().includes(search) ||
-            dateStrings.some(dateStr => dateStr.includes(search));
-            
+            dateStrings.some((dateStr) => dateStr.includes(search));
+
         const matchesStatus =
             statusFilter === "all" || checkout.status === statusFilter;
         return matchesSearch && matchesStatus;
@@ -403,16 +405,22 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     No checkouts found
                 </Typography>
             ) : filteredCheckouts.length === 0 ? (
-                <Typography align="center" color="text.secondary" sx={{ py: 3 }}>
+                <Typography
+                    align="center"
+                    color="text.secondary"
+                    sx={{ py: 3 }}
+                >
                     No checkouts match your search criteria
                 </Typography>
             ) : (
                 <Box sx={{ pb: 4 }}>
                     {/* Recurring Checkouts Section */}
                     {recurringCheckouts.length > 0 && (
-                        <Accordion 
+                        <Accordion
                             expanded={recurringExpanded}
-                            onChange={() => setRecurringExpanded(!recurringExpanded)}
+                            onChange={() =>
+                                setRecurringExpanded(!recurringExpanded)
+                            }
                             sx={{ mb: 2 }}
                         >
                             <AccordionSummary expandIcon={<ExpandMore />}>
@@ -482,7 +490,8 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                     <Box
                                                         sx={{
                                                             display: "flex",
-                                                            alignItems: "center",
+                                                            alignItems:
+                                                                "center",
                                                             gap: 0.5,
                                                             mb: 1,
                                                         }}
@@ -571,7 +580,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             First Occurrence
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell>Pattern</TableCell>
+                                                    <TableCell>
+                                                        Pattern
+                                                    </TableCell>
                                                     <TableCell>
                                                         <TableSortLabel
                                                             active={
@@ -614,7 +625,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             Status
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell>Actions</TableCell>
+                                                    <TableCell>
+                                                        Actions
+                                                    </TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>
@@ -719,7 +732,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     {nonRecurringCheckouts.length > 0 && (
                         <Accordion
                             expanded={nonRecurringExpanded}
-                            onChange={() => setNonRecurringExpanded(!nonRecurringExpanded)}
+                            onChange={() =>
+                                setNonRecurringExpanded(!nonRecurringExpanded)
+                            }
                         >
                             <AccordionSummary expandIcon={<ExpandMore />}>
                                 <Box
@@ -934,7 +949,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             Status
                                                         </TableSortLabel>
                                                     </TableCell>
-                                                    <TableCell>Actions</TableCell>
+                                                    <TableCell>
+                                                        Actions
+                                                    </TableCell>
                                                 </TableRow>
                                             </TableHead>
                                             <TableBody>
@@ -1183,9 +1200,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <Typography variant="body2">
                                                             {format(
                                                                 new Date(
-                                                                    selectedCheckout
-                                                                        .Equipment
-                                                                        .last_calibration_date
+                                                                    selectedCheckout.Equipment.last_calibration_date
                                                                 ),
                                                                 "MMM dd, yyyy"
                                                             )}
@@ -1205,9 +1220,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             variant="body2"
                                                             color={
                                                                 new Date(
-                                                                    selectedCheckout
-                                                                        .Equipment
-                                                                        .calibration_due_date
+                                                                    selectedCheckout.Equipment.calibration_due_date
                                                                 ) < new Date()
                                                                     ? "error"
                                                                     : "inherit"
@@ -1215,16 +1228,12 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         >
                                                             {format(
                                                                 new Date(
-                                                                    selectedCheckout
-                                                                        .Equipment
-                                                                        .calibration_due_date
+                                                                    selectedCheckout.Equipment.calibration_due_date
                                                                 ),
                                                                 "MMM dd, yyyy"
                                                             )}
                                                             {new Date(
-                                                                selectedCheckout
-                                                                    .Equipment
-                                                                    .calibration_due_date
+                                                                selectedCheckout.Equipment.calibration_due_date
                                                             ) < new Date() &&
                                                                 " (Overdue)"}
                                                         </Typography>
@@ -1237,7 +1246,8 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             variant="caption"
                                                             color="text.secondary"
                                                         >
-                                                            Calibration Interval:
+                                                            Calibration
+                                                            Interval:
                                                         </Typography>
                                                         <Typography variant="body2">
                                                             Every{" "}
@@ -1418,9 +1428,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         Pattern:
                                                     </Typography>
                                                     <Typography variant="body2">
-                                                        {selectedCheckout
-                                                            .Recurrence
-                                                            .recurrence_pattern
+                                                        {selectedCheckout.Recurrence.recurrence_pattern
                                                             ?.charAt(0)
                                                             .toUpperCase() +
                                                             selectedCheckout.Recurrence.recurrence_pattern?.slice(
@@ -1445,9 +1453,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <Typography variant="body2">
                                                             {format(
                                                                 new Date(
-                                                                    selectedCheckout
-                                                                        .Recurrence
-                                                                        .end_date
+                                                                    selectedCheckout.Recurrence.end_date
                                                                 ),
                                                                 "MMM dd, yyyy"
                                                             )}
