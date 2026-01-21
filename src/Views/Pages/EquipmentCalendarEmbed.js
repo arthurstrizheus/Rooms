@@ -35,40 +35,42 @@ const EquipmentCalendarEmbed = () => {
                 }
             );
 
-            const formattedCheckouts = response.data.map((checkout) => ({
-                id: checkout.id,
-                title: checkout.User
-                    ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                    : "Unknown User",
-                start: checkout.start_time,
-                end: checkout.end_time,
-                backgroundColor:
-                    checkout.status === "approved"
-                        ? "#4caf50"
-                        : checkout.status === "pending"
-                        ? "#ff9800"
-                        : checkout.status === "checked_out"
-                        ? "#2196f3"
-                        : checkout.status === "returned"
-                        ? "#9e9e9e"
-                        : "#f44336",
-                borderColor:
-                    checkout.status === "approved"
-                        ? "#388e3c"
-                        : checkout.status === "pending"
-                        ? "#f57c00"
-                        : checkout.status === "checked_out"
-                        ? "#1976d2"
-                        : checkout.status === "returned"
-                        ? "#757575"
-                        : "#d32f2f",
-                extendedProps: {
-                    status: checkout.status,
-                    purpose: checkout.purpose,
-                    user_id: checkout.user_id,
-                    recurrence_id: checkout.recurrence_id,
-                },
-            }));
+            const formattedCheckouts = response.data
+                .filter((checkout) => checkout.status !== "cancelled")
+                .map((checkout) => ({
+                    id: checkout.id,
+                    title: checkout.User
+                        ? `${checkout.User.first_name} ${checkout.User.last_name}`
+                        : "Unknown User",
+                    start: checkout.start_time,
+                    end: checkout.end_time,
+                    backgroundColor:
+                        checkout.status === "approved"
+                            ? "#4caf50"
+                            : checkout.status === "pending"
+                            ? "#ff9800"
+                            : checkout.status === "checked_out"
+                            ? "#2196f3"
+                            : checkout.status === "returned"
+                            ? "#9e9e9e"
+                            : "#f44336",
+                    borderColor:
+                        checkout.status === "approved"
+                            ? "#388e3c"
+                            : checkout.status === "pending"
+                            ? "#f57c00"
+                            : checkout.status === "checked_out"
+                            ? "#1976d2"
+                            : checkout.status === "returned"
+                            ? "#757575"
+                            : "#d32f2f",
+                    extendedProps: {
+                        status: checkout.status,
+                        purpose: checkout.purpose,
+                        user_id: checkout.user_id,
+                        recurrence_id: checkout.recurrence_id,
+                    },
+                }));
 
             setCheckouts(formattedCheckouts);
         } catch (error) {
@@ -104,6 +106,7 @@ const EquipmentCalendarEmbed = () => {
             }}
         >
             <FullCalendar
+                key={checkouts.length}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                 initialView="timeGridWeek"
                 headerToolbar={{

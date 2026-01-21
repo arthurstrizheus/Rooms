@@ -194,7 +194,7 @@ const sendCheckoutApprovalRequestEmail = async (
     </table>
     <p style="margin-top:16px;">Please review and take the appropriate action.</p>
     <p style="margin:24px 0;">
-    <a href="${approvalLink}" style="background:#005ea5;color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve Checkout</a>
+    <a href="${approvalLink}" style="background:#005ea5;color:#000000;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve Checkout</a>
     </p>
     <p style="font-size:12px;">If the button doesn't work, copy and paste this link into your browser:<br/><span style="word-break:break-all;">${approvalLink}</span></p>
     <p>Thank you.<br/>This is an automated message; please do not reply.</p>
@@ -284,30 +284,56 @@ const sendCheckoutApprovedEmail = async (
 
     const subject = `Equipment Checkout Approved: ${e.name}`;
     const body = `
-        <p>Dear ${requesterName},</p>
-        <p>Your equipment checkout request has been <strong style="color:#2e7d32;">approved</strong>.</p>
-        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.name
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.serial_number || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.location || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                start_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                end_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                purpose || "N/A"
-            }</td></tr>
-        </table>
-        <p style="margin-top:16px;">You can view or manage your checkout in the Equipment Scheduler application.</p>
-        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Checkout Approved</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Your equipment request has been approved</p>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment checkout request has been <strong style="color:#2e7d32;">approved</strong>.</p>
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #4caf50; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.name
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.location || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                start_time
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                end_time
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                purpose || "N/A"
+                            }</td></tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        e.id
+    }" style="color: #4caf50; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                </div>
+            </div>
+        </body>
+        </html>
     `;
 
     try {
@@ -342,6 +368,145 @@ const sendCheckoutApprovedEmail = async (
     } catch (e) {
         logErrorToFile(e);
         console.error("Error sending checkout approved email", e);
+    }
+};
+
+/**
+ * Sends an email when a checkout is cancelled by the user or admin.
+ * @param {object} checkout - Checkout object
+ * @param {object} equipment - Equipment object
+ * @param {string[]} subscriberEmails - Array of emails to notify (checkout owner + subscribers)
+ * @param {string} cancelledBy - Name of the person who cancelled (user or admin)
+ */
+const sendCheckoutCancelledEmail = async (
+    checkout,
+    equipment,
+    subscriberEmails,
+    cancelledBy
+) => {
+    if (
+        !checkout ||
+        !equipment ||
+        !subscriberEmails ||
+        subscriberEmails.length === 0
+    )
+        return;
+
+    const c = typeof checkout.get === "function" ? checkout.get() : checkout;
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const { start_time, end_time, purpose } = c;
+
+    const fmt = (d) => {
+        try {
+            return new Date(d).toLocaleString();
+        } catch {
+            return d || "N/A";
+        }
+    };
+
+    let requesterName = "User";
+    try {
+        if (c.user_id) {
+            const requester = await User.findByPk(c.user_id);
+            if (requester) {
+                requesterName =
+                    `${requester.first_name || ""} ${
+                        requester.last_name || ""
+                    }`.trim() || requesterName;
+            }
+        }
+    } catch {}
+
+    const subject = `Equipment Checkout Cancelled: ${e.name}`;
+    const body = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">🚫 Checkout Cancelled</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Equipment checkout has been cancelled</p>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">An equipment checkout has been <strong style="color:#f57c00;">cancelled</strong> by ${cancelledBy}.</p>
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #ff9800; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.name
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.location || "N/A"
+                            }</td></tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        e.id
+    }" style="color: #ff9800; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+                    <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📅 Cancelled Checkout Details</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Reserved By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${requesterName}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                start_time
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                end_time
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                purpose || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Cancelled By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${cancelledBy}</td></tr>
+                        </table>
+                    </div>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">The equipment is now available for other checkouts during this time period.</p>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+
+        for (const email of subscriberEmails) {
+            const mailOpts = applyEmailOverride({
+                from: "noreply@sealimited.com",
+                to: email,
+                subject,
+                html: body,
+            });
+
+            if (!SEND_EMAILS_ACTIVE) {
+                console.log(
+                    `SEND_EMAILS disabled - skipping checkout cancelled email to ${mailOpts.to}`
+                );
+                continue;
+            }
+
+            await transporter.sendMail(mailOpts);
+        }
+
+        console.log(
+            `Checkout cancelled emails sent to ${subscriberEmails.length} recipients`
+        );
+    } catch (error) {
+        logErrorToFile(error);
+        console.error("Error sending checkout cancelled emails", error);
     }
 };
 
@@ -437,35 +602,64 @@ const sendCheckoutDeclinedEmail = async (
 
     const subject = `Equipment Checkout Declined: ${e.name}`;
     const body = `
-        <p>Dear ${requesterName},</p>
-        <p>Your equipment checkout request has been <strong style="color:#d32f2f;">declined</strong>.</p>
-        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.name
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.serial_number || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.location || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                start_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${fmt(
-                end_time
-            )}</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                purpose || "N/A"
-            }</td></tr>
-        </table>
-        ${
-            reason
-                ? `<p style="margin-top:12px;"><strong>Reason:</strong> ${reason}</p>`
-                : ""
-        }
-        <p style="margin-top:16px;">If you believe this was in error you may create a new checkout request${approverLine}.</p>
-        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">❌ Checkout Declined</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Your equipment request was not approved</p>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment checkout request has been <strong style="color:#d32f2f;">declined</strong>.</p>
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #f44336; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.name
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.location || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                start_time
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                end_time
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                purpose || "N/A"
+                            }</td></tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        e.id
+    }" style="color: #f44336; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+                    ${
+                        reason
+                            ? `<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: #856404; font-size: 14px; margin: 0;"><strong>Reason:</strong> ${reason}</p>
+                    </div>`
+                            : ""
+                    }
+                    <p style="color: #666; font-size: 14px; margin: 20px 0;">If you believe this was in error, you may create a new checkout request${approverLine}.</p>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                </div>
+            </div>
+        </body>
+        </html>
     `;
 
     try {
@@ -532,27 +726,120 @@ const sendEquipmentReturnedEmail = async (
     const c = typeof checkout.get === "function" ? checkout.get() : checkout;
     const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
+    const user = c.User || {};
+    const userName =
+        user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "Unknown User";
+    const returnDate = c.end_time
+        ? new Date(c.end_time).toLocaleString()
+        : new Date().toLocaleString();
+
     const subject = `Equipment Returned: ${e.name}`;
     const body = `
-        <p>Dear Equipment Scheduler User,</p>
-        <p>The following equipment has been returned and may be available for checkout:</p>
-        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.name
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.serial_number || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.location || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Status</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.status || "Available"
-            }</td></tr>
-        </table>
-        <p style="margin-top:16px;"><em>Note: This equipment may have additional bookings scheduled. Please check availability before requesting checkout.</em></p>
-        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
-        ${getUnsubscribeFooter(e.id, "equipment_returned")}
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Equipment Returned</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Now available for checkout</p>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">The following equipment has been returned and is now available for checkout:</p>
+                    
+                    <!-- Equipment Info Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.name
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.location || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Current Status:</strong></td>
+                                <td style="padding: 8px 0;">
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background-color: #d4edda; color: #155724;">${
+                                        e.status || "AVAILABLE"
+                                    }</span>
+                                </td>
+                            </tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        e.id
+    }" style="color: #11998e; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+
+                    <!-- Return Details Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">👤 Return Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Returned By:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${userName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Return Time:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${returnDate}</td>
+                            </tr>
+                            ${
+                                c.purpose
+                                    ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Used For:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${c.purpose}</td>
+                            </tr>`
+                                    : ""
+                            }
+                            ${
+                                c.project_number
+                                    ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Project Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${c.project_number}</td>
+                            </tr>`
+                                    : ""
+                            }
+                        </table>
+                    </div>
+
+                    <div style="background-color: #e7f3ff; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: #0d47a1; font-size: 13px; line-height: 1.6; margin: 0;">ℹ️ This equipment may have additional bookings scheduled. Please check availability before requesting checkout.</p>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                    ${getUnsubscribeFooter(e.id, "equipment_returned")}
+                </div>
+            </div>
+        </body>
+        </html>
     `;
 
     try {
@@ -665,40 +952,158 @@ const sendCalibrationDueEmail = async (
 
     const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
-    const urgencyColor = daysUntilDue <= 7 ? "#d32f2f" : "#ff9800";
+    const urgencyColor =
+        daysUntilDue <= 0
+            ? "#dc3545"
+            : daysUntilDue <= 7
+            ? "#fd7e14"
+            : "#ffc107";
+    const urgencyBgColor =
+        daysUntilDue <= 0
+            ? "#f8d7da"
+            : daysUntilDue <= 7
+            ? "#fff3cd"
+            : "#fff3cd";
     const urgencyLabel =
-        daysUntilDue <= 0 ? "OVERDUE" : `Due in ${daysUntilDue} day(s)`;
+        daysUntilDue <= 0
+            ? "⚠️ OVERDUE"
+            : daysUntilDue === 1
+            ? `⏰ Due Tomorrow`
+            : `⏰ Due in ${daysUntilDue} days`;
+    const urgencyMessage =
+        daysUntilDue <= 0
+            ? "This equipment's calibration is overdue. Immediate action required!"
+            : daysUntilDue <= 7
+            ? "This equipment's calibration is due soon. Please schedule as soon as possible."
+            : "This is an advance notice for upcoming calibration.";
 
-    const subject = `Calibration ${
+    const subject = `${daysUntilDue <= 0 ? "🚨 URGENT" : "⚠️"} Calibration ${
         daysUntilDue <= 0 ? "Overdue" : "Due Soon"
     }: ${e.name}`;
     const body = `
-        <p>Dear Equipment Manager,</p>
-        <p>The following equipment has a calibration <strong style="color:${urgencyColor};">${urgencyLabel}</strong>:</p>
-        <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.name
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.serial_number || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.location || "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Calibration Due Date</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.calibration_due_date
-                    ? new Date(e.calibration_due_date).toLocaleDateString()
-                    : "N/A"
-            }</td></tr>
-            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Last Calibration</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-                e.last_calibration_date
-                    ? new Date(e.last_calibration_date).toLocaleDateString()
-                    : "N/A"
-            }</td></tr>
-        </table>
-        <p style="margin-top:16px;">Please schedule calibration as soon as possible to maintain equipment compliance.</p>
-        <p>Thank you.<br/>This is an automated message; please do not reply.</p>
-        ${getUnsubscribeFooter(e.id, "calibration_due")}
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, ${
+                    daysUntilDue <= 0
+                        ? "#e74c3c 0%, #c0392b 100%"
+                        : "#f39c12 0%, #e67e22 100%"
+                }); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">Calibration ${
+                        daysUntilDue <= 0 ? "Overdue" : "Due Soon"
+                    }</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">${urgencyLabel}</p>
+                </div>
+                
+                <!-- Urgency Alert -->
+                <div style="background-color: ${urgencyBgColor}; border-left: 4px solid ${urgencyColor}; padding: 15px 20px; margin: 0;">
+                    <p style="color: ${urgencyColor}; font-size: 14px; font-weight: 600; margin: 0;">${urgencyMessage}</p>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">This is a ${
+                        daysUntilDue <= 0 ? "critical" : "scheduled"
+                    } notification regarding equipment calibration:</p>
+                    
+                    <!-- Equipment Info Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid ${urgencyColor}; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.name
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.location || "N/A"
+                                }</td>
+                            </tr>
+                            ${
+                                e.contact_person
+                                    ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Contact:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${e.contact_person}</td>
+                            </tr>`
+                                    : ""
+                            }
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        e.id
+    }" style="color: ${urgencyColor}; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+
+                    <!-- Calibration Details Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #007bff; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">🔧 Calibration Details</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Due Date:</strong></td>
+                                <td style="padding: 8px 0; color: ${urgencyColor}; font-size: 14px; font-weight: 600;">${
+        e.calibration_due_date
+            ? new Date(e.calibration_due_date).toLocaleDateString()
+            : "N/A"
+    }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Last Calibrated:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.last_calibration_date
+                                        ? new Date(
+                                              e.last_calibration_date
+                                          ).toLocaleDateString()
+                                        : "Never"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Interval:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.calibration_interval_days
+                                        ? `${e.calibration_interval_days} days`
+                                        : "N/A"
+                                }</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    ${
+                        daysUntilDue <= 0
+                            ? `
+                    <div style="background-color: #fff5f5; border: 2px solid ${urgencyColor}; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: ${urgencyColor}; font-size: 14px; font-weight: 600; margin: 0 0 10px 0;">⚠️ Action Required</p>
+                        <p style="color: #666; font-size: 13px; line-height: 1.6; margin: 0;">This equipment may need to be taken out of service until calibration is completed. Please coordinate with equipment users and schedule calibration immediately.</p>
+                    </div>`
+                            : ""
+                    }
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated calibration reminder from the Equipment Scheduler System.</p>
+                    ${getUnsubscribeFooter(e.id, "calibration_due")}
+                </div>
+            </div>
+        </body>
+        </html>
     `;
 
     try {
@@ -803,37 +1208,140 @@ const sendCheckoutCreatedEmail = async (
     const startDate = new Date(checkoutData.start_time).toLocaleString();
     const endDate = new Date(checkoutData.end_time).toLocaleString();
 
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #1976d2;">Equipment Checkout Created</h2>
-            <p>A new checkout has been created for equipment you're watching:</p>
-            
-            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #333;">Equipment Details</h3>
-                <p><strong>Name:</strong> ${equipmentData.name}</p>
-                <p><strong>Serial Number:</strong> ${
-                    equipmentData.serial_number || "N/A"
-                }</p>
-                <p><strong>Location:</strong> ${
-                    equipmentData.location || "N/A"
-                }</p>
-            </div>
+    const user = checkoutData.User || {};
+    const userName =
+        user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "Unknown User";
+    const userEmail = user.email || "N/A";
 
-            <div style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #333;">Checkout Details</h3>
-                <p><strong>Start:</strong> ${startDate}</p>
-                <p><strong>End:</strong> ${endDate}</p>
-                <p><strong>Purpose:</strong> ${
-                    checkoutData.purpose || "N/A"
-                }</p>
-                <p><strong>Status:</strong> ${checkoutData.status}</p>
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">Equipment Checkout Created</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">A new checkout has been scheduled</p>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">A new checkout has been created for equipment you're monitoring. Please review the details below:</p>
+                    
+                    <!-- Equipment Info Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.name
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.location || "N/A"
+                                }</td>
+                            </tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        equipmentData.id
+    }" style="color: #667eea; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+
+                    <!-- Checkout Details Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📅 Checkout Details</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Reserved By:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${userName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Email:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${userEmail}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${startDate}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${endDate}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    checkoutData.purpose || "Not specified"
+                                }</td>
+                            </tr>
+                            ${
+                                checkoutData.project_number
+                                    ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Project Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${checkoutData.project_number}</td>
+                            </tr>`
+                                    : ""
+                            }
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td>
+                                <td style="padding: 8px 0;">
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; 
+                                        ${
+                                            checkoutData.status === "approved"
+                                                ? "background-color: #d4edda; color: #155724;"
+                                                : ""
+                                        }
+                                        ${
+                                            checkoutData.status === "pending"
+                                                ? "background-color: #fff3cd; color: #856404;"
+                                                : ""
+                                        }
+                                        ${
+                                            checkoutData.status ===
+                                            "checked_out"
+                                                ? "background-color: #d1ecf1; color: #0c5460;"
+                                                : ""
+                                        }
+                                    ">${checkoutData.status.toUpperCase()}</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                    ${getUnsubscribeFooter(
+                        equipmentData.id,
+                        "checkout_created"
+                    )}
+                </div>
             </div>
-            ${getUnsubscribeFooter(equipmentData.id, "checkout_created")}
-        </div>
+        </body>
+        </html>
     `;
 
     const mailOpts = {
-        from: `${SMTP_Server.auth.user}`,
+        from: "noreply@sealimited.com",
         to: subscriberEmails.join(", "),
         subject: `Checkout Created: ${equipmentData.name}`,
         html: htmlContent,
@@ -848,7 +1356,7 @@ const sendCheckoutCreatedEmail = async (
     }
 
     try {
-        const transporter = nodemailer.createTransporter(SMTP_Server);
+        const transporter = nodemailer.createTransport(SMTP_Server);
         const finalOpts = applyEmailOverride(mailOpts);
         const info = await transporter.sendMail(finalOpts);
         console.log(`Checkout created email sent: ${info.messageId}`);
@@ -879,38 +1387,128 @@ const sendEquipmentCheckedOutEmail = async (
         ? equipment.get({ plain: true })
         : equipment;
 
+    const startDate = new Date(checkoutData.start_time).toLocaleString();
     const endDate = new Date(checkoutData.end_time).toLocaleString();
 
-    const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2196f3;">Equipment Checked Out</h2>
-            <p>Equipment you're watching has been checked out:</p>
-            
-            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #333;">Equipment Details</h3>
-                <p><strong>Name:</strong> ${equipmentData.name}</p>
-                <p><strong>Serial Number:</strong> ${
-                    equipmentData.serial_number || "N/A"
-                }</p>
-                <p><strong>Location:</strong> ${
-                    equipmentData.location || "N/A"
-                }</p>
-            </div>
+    const user = checkoutData.User || {};
+    const userName =
+        user.first_name && user.last_name
+            ? `${user.first_name} ${user.last_name}`
+            : user.username || "Unknown User";
 
-            <div style="background-color: #e1f5fe; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #333;">Checkout Details</h3>
-                <p><strong>Expected Return:</strong> ${endDate}</p>
-                <p><strong>Purpose:</strong> ${
-                    checkoutData.purpose || "N/A"
-                }</p>
-                <p style="color: #2196f3;"><strong>Status:</strong> Currently Checked Out</p>
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">📤 Equipment Checked Out</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Currently in use</p>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">Equipment you're monitoring has been checked out and is currently in use:</p>
+                    
+                    <!-- Equipment Info Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #17a2b8; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.name
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.location || "N/A"
+                                }</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Checkout Details Card -->
+                    <div style="background-color: #d1ecf1; border-left: 4px solid #0c5460; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">👤 Checkout Details</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Checked Out By:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${userName}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Checkout Time:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${startDate}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Expected Return:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${endDate}</td>
+                            </tr>
+                            ${
+                                checkoutData.purpose
+                                    ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${checkoutData.purpose}</td>
+                            </tr>`
+                                    : ""
+                            }
+                            ${
+                                checkoutData.project_number
+                                    ? `
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Project Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${checkoutData.project_number}</td>
+                            </tr>`
+                                    : ""
+                            }
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td>
+                                <td style="padding: 8px 0;">
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background-color: #0c5460; color: #000000;">📤 CHECKED OUT</span>
+                                </td>
+                            </tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        equipmentData.id
+    }" style="color: #17a2b8; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+
+                    <div style="background-color: #e7f3ff; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: #0d47a1; font-size: 13px; line-height: 1.6; margin: 0;">ℹ️ This equipment will be unavailable until returned. You'll receive a notification when it's returned.</p>
+                    </div>
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                    ${getUnsubscribeFooter(
+                        equipmentData.id,
+                        "equipment_checked_out"
+                    )}
+                </div>
             </div>
-            ${getUnsubscribeFooter(equipmentData.id, "equipment_checked_out")}
-        </div>
+        </body>
+        </html>
     `;
 
     const mailOpts = {
-        from: `${SMTP_Server.auth.user}`,
+        from: "noreply@sealimited.com",
         to: subscriberEmails.join(", "),
         subject: `Equipment Checked Out: ${equipmentData.name}`,
         html: htmlContent,
@@ -925,7 +1523,7 @@ const sendEquipmentCheckedOutEmail = async (
     }
 
     try {
-        const transporter = nodemailer.createTransporter(SMTP_Server);
+        const transporter = nodemailer.createTransport(SMTP_Server);
         const finalOpts = applyEmailOverride(mailOpts);
         const info = await transporter.sendMail(finalOpts);
         console.log(`Equipment checked out email sent: ${info.messageId}`);
@@ -954,51 +1552,142 @@ const sendEquipmentStatusChangeEmail = async (
         ? equipment.get({ plain: true })
         : equipment;
 
-    const statusLabels = {
-        available: "Available",
-        checked_out: "Checked Out",
-        maintenance: "In Maintenance",
-        retired: "Retired",
-    };
+    const subject = `Equipment Status Changed: ${equipmentData.name}`;
+    const statusColor =
+        {
+            available: "#28a745",
+            checked_out: "#17a2b8",
+            maintenance: "#fd7e14",
+            retired: "#dc3545",
+        }[newStatus] || "#6c757d";
 
-    const statusColors = {
-        available: "#4caf50",
-        checked_out: "#2196f3",
-        maintenance: "#ff9800",
-        retired: "#f44336",
-    };
+    const statusBgColor =
+        {
+            available: "#d4edda",
+            checked_out: "#d1ecf1",
+            maintenance: "#fff3cd",
+            retired: "#f8d7da",
+        }[newStatus] || "#e9ecef";
 
-    const oldStatusLabel = statusLabels[oldStatus] || oldStatus;
-    const newStatusLabel = statusLabels[newStatus] || newStatus;
-    const statusColor = statusColors[newStatus] || "#757575";
+    const statusIcon =
+        {
+            available: "✅",
+            checked_out: "📤",
+            maintenance: "🔧",
+            retired: "🚫",
+        }[newStatus] || "ℹ️";
 
     const htmlContent = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: ${statusColor};">Equipment Status Changed</h2>
-            <p>The status of equipment you're watching has been updated:</p>
-            
-            <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #333;">Equipment Details</h3>
-                <p><strong>Name:</strong> ${equipmentData.name}</p>
-                <p><strong>Serial Number:</strong> ${
-                    equipmentData.serial_number || "N/A"
-                }</p>
-                <p><strong>Location:</strong> ${
-                    equipmentData.location || "N/A"
-                }</p>
-            </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">${statusIcon} Equipment Status Changed</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Status update notification</p>
+                </div>
+                
+                <!-- Content -->
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">The status of equipment you're monitoring has been updated:</p>
+                    
+                    <!-- Equipment Info Card -->
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.name
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.location || "N/A"
+                                }</td>
+                            </tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+        equipmentData.id
+    }" style="color: ${statusColor}; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
 
-            <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #333;">Status Change</h3>
-                <p><strong>Previous Status:</strong> ${oldStatusLabel}</p>
-                <p><strong>New Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${newStatusLabel}</span></p>
+                    <!-- Status Change Card -->
+                    <div style="background-color: ${statusBgColor}; border-left: 4px solid ${statusColor}; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">🔄 Status Change</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Previous Status:</strong></td>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; text-decoration: line-through;">${
+                                    oldStatus || "Unknown"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>New Status:</strong></td>
+                                <td style="padding: 8px 0;">
+                                    <span style="display: inline-block; padding: 6px 16px; border-radius: 16px; font-size: 14px; font-weight: 600; background-color: ${statusColor}; color: #000000;">
+                                        ${statusIcon} ${newStatus.toUpperCase()}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    ${
+                        newStatus === "maintenance"
+                            ? `
+                    <div style="background-color: #fff3cd; border-left: 4px solid #fd7e14; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">⚠️ This equipment is currently under maintenance and unavailable for checkout.</p>
+                    </div>`
+                            : ""
+                    }
+                    
+                    ${
+                        newStatus === "retired"
+                            ? `
+                    <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: #721c24; font-size: 13px; line-height: 1.6; margin: 0;">🚫 This equipment has been retired and is no longer available for use.</p>
+                    </div>`
+                            : ""
+                    }
+                    
+                    ${
+                        newStatus === "available"
+                            ? `
+                    <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                        <p style="color: #155724; font-size: 13px; line-height: 1.6; margin: 0;">✅ This equipment is now available and ready for checkout.</p>
+                    </div>`
+                            : ""
+                    }
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                    ${getUnsubscribeFooter(equipmentData.id, "status_change")}
+                </div>
             </div>
-            ${getUnsubscribeFooter(equipmentData.id, "status_change")}
-        </div>
+        </body>
+        </html>
     `;
 
     const mailOpts = {
-        from: `${SMTP_Server.auth.user}`,
+        from: "noreply@sealimited.com",
         to: subscriberEmails.join(", "),
         subject: `Equipment Status Changed: ${equipmentData.name} - ${newStatusLabel}`,
         html: htmlContent,
@@ -1018,7 +1707,7 @@ const sendEquipmentStatusChangeEmail = async (
     }
 
     try {
-        const transporter = nodemailer.createTransporter(SMTP_Server);
+        const transporter = nodemailer.createTransport(SMTP_Server);
         const finalOpts = applyEmailOverride(mailOpts);
         const info = await transporter.sendMail(finalOpts);
         console.log(`Equipment status change email sent: ${info.messageId}`);
@@ -1033,6 +1722,7 @@ module.exports = {
     sendCheckoutApprovalRequestEmail,
     sendCheckoutApprovedEmail,
     sendCheckoutDeclinedEmail,
+    sendCheckoutCancelledEmail,
     sendEquipmentReturnedEmail,
     sendEquipmentAvailableEmail,
     sendCalibrationDueEmail,

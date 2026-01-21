@@ -28,6 +28,7 @@ const EquipmentAlert = sequelize.define(
         alert_type: {
             type: DataTypes.ENUM(
                 "checkout_created",
+                "checkout_cancelled",
                 "equipment_returned",
                 "calibration_due",
                 "status_change"

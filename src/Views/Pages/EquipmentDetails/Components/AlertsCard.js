@@ -47,6 +47,11 @@ const AlertsCard = ({
             description: "Notify when someone creates a checkout",
         },
         {
+            value: "checkout_cancelled",
+            label: "Checkout Cancelled",
+            description: "Notify when a checkout is cancelled",
+        },
+        {
             value: "equipment_returned",
             label: "Equipment Returned",
             description: "Notify when equipment is returned and available",

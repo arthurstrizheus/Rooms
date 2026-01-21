@@ -38,8 +38,8 @@ const io = socketIo(server, {
     cors: {
         origin: [
             "http://localhost:3000", // Development
-            "https://equiptment.sealimited.com", // Production
-            "http://equiptment.sealimited.com", // Production fallback
+            "https://equipment.sealimited.com", // Production
+            "http://equipment.sealimited.com", // Production fallback
         ],
         methods: ["GET", "POST"],
         credentials: true,
@@ -175,7 +175,7 @@ const startServer = async () => {
         // Initialize calibration alerts scheduler
         initCalibrationAlertsScheduler();
 
-        const port = process.env.PORT || 5000;
+        const port = process.env.PORT || 5001;
         server.listen(port, () => {
             console.log(`Server running on port ${port}`);
             console.log(`WebSocket server initialized`);

@@ -19,6 +19,7 @@ const {
     sendEquipmentCheckedOutEmail,
     sendEquipmentReturnedEmail,
     sendEquipmentAvailableEmail,
+    sendCheckoutCancelledEmail,
 } = require("./mailController");
 
 // Helper function to check if two time ranges overlap
@@ -402,7 +403,17 @@ const GetByUserId = async (req, res, next) => {
             include: [
                 {
                     model: Equipment,
-                    attributes: ["id", "name", "serial_number", "location"],
+                },
+                {
+                    model: User,
+                    as: "ApprovedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                    required: false,
+                },
+                {
+                    model: CheckoutRecurrence,
+                    as: "Recurrence",
+                    required: false,
                 },
             ],
             order: [["start_time", "DESC"]],
@@ -1107,7 +1118,54 @@ const Update = async (req, res, next) => {
         res.json(completeCheckout);
 
         // Send email notifications based on status change
-        if (updates.status === "returned") {
+        if (updates.status === "cancelled") {
+            (async () => {
+                try {
+                    const equipment = await Equipment.findByPk(
+                        checkout.equipment_id
+                    );
+
+                    // Get the user who cancelled (current user from auth)
+                    const cancelledByUser = await User.findByPk(userId);
+                    const cancelledByName = cancelledByUser
+                        ? `${cancelledByUser.first_name || ""} ${
+                              cancelledByUser.last_name || ""
+                          }`.trim() || cancelledByUser.username
+                        : "System";
+
+                    // Get subscribers to checkout_cancelled alerts
+                    const subscribers = await GetSubscribers(
+                        checkout.equipment_id,
+                        "checkout_cancelled"
+                    );
+
+                    // Get the checkout owner's email
+                    const checkoutOwner = await User.findByPk(checkout.user_id);
+                    const ownerEmail = checkoutOwner?.email;
+
+                    // Create recipient list: owner + subscribers (deduplicated)
+                    const recipientEmails = [
+                        ...(ownerEmail ? [ownerEmail] : []),
+                        ...(subscribers || []),
+                    ];
+                    const uniqueRecipients = [...new Set(recipientEmails)];
+
+                    if (uniqueRecipients.length > 0) {
+                        await sendCheckoutCancelledEmail(
+                            completeCheckout,
+                            equipment,
+                            uniqueRecipients,
+                            cancelledByName
+                        );
+                    }
+                } catch (emailError) {
+                    console.error(
+                        "Error sending checkout cancelled emails:",
+                        emailError
+                    );
+                }
+            })();
+        } else if (updates.status === "returned") {
             (async () => {
                 try {
                     const equipment = await Equipment.findByPk(
@@ -1222,7 +1280,27 @@ const Approve = async (req, res, next) => {
 const Delete = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const checkout = await Checkout.findByPk(id);
+        const userId = req.user?.id;
+
+        const checkout = await Checkout.findByPk(id, {
+            include: [
+                {
+                    model: Equipment,
+                    attributes: ["id", "name", "serial_number", "location"],
+                },
+                {
+                    model: User,
+                    as: "User",
+                    attributes: [
+                        "id",
+                        "username",
+                        "first_name",
+                        "last_name",
+                        "email",
+                    ],
+                },
+            ],
+        });
 
         if (!checkout) {
             return res.status(404).json({ message: "Checkout not found" });
@@ -1232,6 +1310,53 @@ const Delete = async (req, res, next) => {
         await checkout.update({ status: "cancelled" });
 
         res.json({ message: "Checkout cancelled successfully" });
+
+        // Send cancellation email notifications
+        (async () => {
+            try {
+                const equipment =
+                    checkout.Equipment ||
+                    (await Equipment.findByPk(checkout.equipment_id));
+
+                // Get the user who cancelled (current user from auth)
+                const cancelledByUser = await User.findByPk(userId);
+                const cancelledByName = cancelledByUser
+                    ? `${cancelledByUser.first_name || ""} ${
+                          cancelledByUser.last_name || ""
+                      }`.trim() || cancelledByUser.username
+                    : "System";
+
+                // Get subscribers to checkout_cancelled alerts
+                const subscribers = await GetSubscribers(
+                    checkout.equipment_id,
+                    "checkout_cancelled"
+                );
+
+                // Get the checkout owner's email
+                const ownerEmail = checkout.User?.email;
+
+                // Create recipient list: owner + subscribers (deduplicated)
+                const recipientEmails = [
+                    ...(ownerEmail ? [ownerEmail] : []),
+                    ...(subscribers || []),
+                ];
+                const uniqueRecipients = [...new Set(recipientEmails)];
+
+                if (uniqueRecipients.length > 0) {
+                    await sendCheckoutCancelledEmail(
+                        checkout,
+                        equipment,
+                        uniqueRecipients,
+                        cancelledByName
+                    );
+                }
+            } catch (emailError) {
+                console.error(
+                    "Error sending checkout cancelled emails:",
+                    emailError
+                );
+            }
+        })();
 
         // Emit socket event
         const io = req.app.get("io");

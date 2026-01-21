@@ -236,7 +236,7 @@ export default function Login({ setLoading, setDrawerOpen }) {
                                 padding: "15px",
                             }}
                         >
-                            <Typography>S-E-A | Equiptment</Typography>
+                            <Typography>S-E-A | Equipment</Typography>
                             <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
                                 <LockIcon />
                             </Avatar>

@@ -60,7 +60,7 @@ export const SocketProvider = ({ children }) => {
         const fullHost = window.location.host;
 
         // Check if we're in production
-        const isProduction = hostname === "equiptment.sealimited.com";
+        const isProduction = hostname === "equipment.sealimited.com";
 
         console.log("Is Production:", isProduction);
 

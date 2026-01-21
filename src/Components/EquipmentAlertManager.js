@@ -31,6 +31,16 @@ import {
 
 const ALERT_TYPES = [
     {
+        value: "checkout_created",
+        label: "Checkout Created",
+        description: "Get notified when someone creates a checkout",
+    },
+    {
+        value: "checkout_cancelled",
+        label: "Checkout Cancelled",
+        description: "Get notified when a checkout is cancelled",
+    },
+    {
         value: "equipment_returned",
         label: "Equipment Returned",
         description: "Get notified when this equipment is returned",

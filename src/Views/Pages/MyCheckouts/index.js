@@ -11,8 +11,7 @@ const MyCheckoutsPage = ({ setLoading, loading }) => {
                 display: "flex",
                 flexGrow: 1,
                 flexDirection: "column",
-                height: "100%",
-                overflow: "hidden",
+                overflow: "auto",
                 padding: 2,
             }}
         >

@@ -467,6 +467,7 @@ const EquipmentCalendar = ({
                 }}
             >
                 <FullCalendar
+                    key={checkouts.length} // Force re-render when checkouts change
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
                     initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
                     headerToolbar={

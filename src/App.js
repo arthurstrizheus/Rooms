@@ -129,7 +129,7 @@ function App() {
 
     return (
         <div
-            className="Equiptment"
+            className="Equipment"
             style={{
                 height: "100vh",
                 display: "flex",
