@@ -25,6 +25,7 @@ const getAllConnectedUsers = async (req, res) => {
                             "location",
                             "admin",
                             "equipment_office_admin",
+                            "equipment_admin",
                             "last_login",
                         ],
                     });
@@ -41,6 +42,7 @@ const getAllConnectedUsers = async (req, res) => {
                                   admin: dbUser.admin,
                                   equipment_office_admin:
                                       dbUser.equipment_office_admin,
+                                  equipment_admin: dbUser.equipment_admin,
                                   last_login: dbUser.last_login,
                               }
                             : {}),
@@ -119,14 +121,20 @@ const getConnectionStats = async (req, res) => {
 
         // Count different user types
         const adminCount = connectedUsers.filter((user) => user.admin).length;
-        const officeAdminCount = connectedUsers.filter(
+        const equipmentAdminCount = connectedUsers.filter(
+            (user) => user.equipment_admin
+        ).length;
+        const equipmentOfficeAdminCount = connectedUsers.filter(
             (user) => user.equipment_office_admin
         ).length;
         const regularCount =
-            connectedUsers.length - adminCount - officeAdminCount;
+            connectedUsers.length -
+            adminCount -
+            equipmentAdminCount -
+            equipmentOfficeAdminCount;
 
         console.log(
-            `📊 Connection stats: Total: ${connectedUsers.length}, Admins: ${adminCount}, Office Admins: ${officeAdminCount}, Regular: ${regularCount}`
+            `📊 Connection stats: Total: ${connectedUsers.length}, Admins: ${adminCount}, Equipment Admins: ${equipmentAdminCount}, Equipment Office Admins: ${equipmentOfficeAdminCount}, Regular: ${regularCount}`
         );
 
         res.json({
@@ -135,7 +143,8 @@ const getConnectionStats = async (req, res) => {
                 total: connectedUsers.length,
                 byLocation: locationStats,
                 admins: adminCount,
-                officeAdmins: officeAdminCount,
+                equipmentAdmins: equipmentAdminCount,
+                equipmentOfficeAdmins: equipmentOfficeAdminCount,
                 regular: regularCount,
                 lastUpdated: new Date(),
             },

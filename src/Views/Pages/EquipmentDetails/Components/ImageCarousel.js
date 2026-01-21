@@ -306,7 +306,7 @@ const ImageCarousel = ({
                                     }}
                                 >
                                     <img
-                                        src={`${process.env.REACT_APP_SERVER_URL}/uploads/${file.file_path}`}
+                                        src={`/uploads/${file.file_path}`}
                                         alt={file.file_name}
                                         style={{
                                             width: "100%",

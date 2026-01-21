@@ -29,6 +29,8 @@ const socketAuth = async (socket, next) => {
             last_name: user.last_name,
             location: user.location,
             active: user.active,
+            equipment_office_admin: user?.equipment_office_admin,
+            equipment_admin: user?.equipment_admin,
         };
         console.log(
             "✅ Socket authentication successful with user",

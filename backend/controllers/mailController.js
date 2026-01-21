@@ -574,6 +574,12 @@ const sendCheckoutDeclinedEmail = async (
             });
         };
 
+        // Equipment admins (all offices)
+        const equipmentAdmins = await User.findAll({
+            where: { equipment_admin: true },
+        });
+        equipmentAdmins.forEach((u) => addUser(u, true));
+
         // Office admins for this location
         if (e.location) {
             const officeAdmins = await User.findAll({

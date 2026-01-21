@@ -2,7 +2,7 @@
     "name": "equipment",
     "version": "1.0.0",
     "private": false,
-    "proxy": "http://localhost:5000",
+    "proxy": "http://localhost:5001",
     "dependencies": {
         "@emotion/react": "^11.13.0",
         "@emotion/styled": "^11.13.0",

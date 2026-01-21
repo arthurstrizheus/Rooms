@@ -975,7 +975,9 @@ const DisplayCheckout = ({
                     }}
                     spacing={1}
                 >
-                    {(user?.admin || user?.id === checkout.user_id) && (
+                    {(user?.admin ||
+                        user?.equipment_admin ||
+                        user?.id === checkout.user_id) && (
                         <>
                             <Button
                                 variant={"outlined"}

@@ -39,6 +39,10 @@ import CheckoutHistoryCard from "./Components/CheckoutHistoryCard";
 import AlertsCard from "./Components/AlertsCard";
 import EnlargedImageDialog from "./Components/EnlargedImageDialog";
 import FileHistoryDialog from "./Components/FileHistoryDialog";
+import AlertDialog from "../../../Components/AlertDialog";
+import useAlertDialog from "../../../hooks/useAlertDialog";
+import ConfirmDialog from "../../../Components/ConfirmDialog";
+import useConfirmDialog from "../../../hooks/useConfirmDialog";
 
 const EquipmentDetails = ({ setLoading, loading }) => {
     const { equipmentId } = useParams();
@@ -47,6 +51,8 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+    const { showAlert, alertState, hideAlert } = useAlertDialog();
+    const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
 
     const [equipment, setEquipment] = useState(null);
     const [files, setFiles] = useState([]);
@@ -297,14 +303,18 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     };
 
     const handleDelete = async () => {
-        if (
-            !window.confirm(
-                "Are you sure you want to delete this equipment? This will also delete all associated checkouts, files, and calibration records."
-            )
-        ) {
-            return;
-        }
+        showConfirm(
+            "Are you sure you want to delete this equipment? This will also delete all associated checkouts, files, and calibration records.",
+            async () => {
+                await deleteEquipment();
+            },
+            "warning",
+            "Delete Equipment",
+            "Delete"
+        );
+    };
 
+    const deleteEquipment = async () => {
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -349,7 +359,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const handleFileUpload = async () => {
         if (!uploadFormData.file) {
-            alert("Please select a file");
+            showAlert("Please select a file", "warning");
             return;
         }
 
@@ -384,17 +394,25 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             await fetchEquipment();
         } catch (error) {
             console.error("Error uploading file:", error);
-            alert("Error uploading file");
+            showAlert("Error uploading file", "error");
         } finally {
             setLoading(false);
         }
     };
 
     const handleDeleteFile = async (fileId) => {
-        if (!window.confirm("Are you sure you want to delete this file?")) {
-            return;
-        }
+        showConfirm(
+            "Are you sure you want to delete this file?",
+            async () => {
+                await deleteFile(fileId);
+            },
+            "warning",
+            "Delete File",
+            "Delete"
+        );
+    };
 
+    const deleteFile = async (fileId) => {
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -453,6 +471,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const canEditDelete = () => {
         if (!equipment) return false;
         if (user?.admin) return true;
+        if (user?.equipment_admin) return true;
         if (
             user?.equipment_office_admin &&
             equipment.location === user.location
@@ -1025,6 +1044,24 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 files={fileHistoryDialog.files}
                 canEditDelete={canEditDelete}
                 handleDeleteFile={handleDeleteFile}
+            />
+            <AlertDialog
+                open={alertState.open}
+                onClose={hideAlert}
+                message={alertState.message}
+                title={alertState.title}
+                severity={alertState.severity}
+                confirmText={alertState.confirmText}
+            />
+            <ConfirmDialog
+                open={confirmState.open}
+                onConfirm={confirmState.onConfirm}
+                onCancel={hideConfirm}
+                message={confirmState.message}
+                title={confirmState.title}
+                severity={confirmState.severity}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
             />
         </Box>
     );

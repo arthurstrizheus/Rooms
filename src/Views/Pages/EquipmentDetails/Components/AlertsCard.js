@@ -24,6 +24,8 @@ import AddAlertIcon from "@mui/icons-material/AddAlert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import axios from "axios";
 import { useSocket } from "../../../../Contexts/SocketContext";
+import ConfirmDialog from "../../../../Components/ConfirmDialog";
+import useConfirmDialog from "../../../../hooks/useConfirmDialog";
 import {
     showError,
     showSuccess,
@@ -39,6 +41,7 @@ const AlertsCard = ({
     const [loading, setLoading] = useState(true);
     const [newAlertType, setNewAlertType] = useState("checkout_created");
     const { socket } = useSocket();
+    const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
 
     const alertTypes = [
         {
@@ -180,14 +183,18 @@ const AlertsCard = ({
     };
 
     const handleDeleteAlert = async (alertId) => {
-        if (
-            !window.confirm(
-                "Are you sure you want to permanently unsubscribe from this alert?"
-            )
-        ) {
-            return;
-        }
+        showConfirm(
+            "Are you sure you want to permanently unsubscribe from this alert?",
+            async () => {
+                await deleteAlert(alertId);
+            },
+            "warning",
+            "Unsubscribe from Alert",
+            "Unsubscribe"
+        );
+    };
 
+    const deleteAlert = async (alertId) => {
         try {
             const token = localStorage.getItem("authToken");
             await axios.delete(`/api/equipment-alerts/${alertId}`, {
@@ -376,6 +383,16 @@ const AlertsCard = ({
                     </Button>
                 </DialogActions>
             </Dialog>
+            <ConfirmDialog
+                open={confirmState.open}
+                onConfirm={confirmState.onConfirm}
+                onCancel={hideConfirm}
+                message={confirmState.message}
+                title={confirmState.title}
+                severity={confirmState.severity}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+            />
         </Card>
     );
 };

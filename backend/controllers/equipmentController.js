@@ -64,7 +64,13 @@ const Post = async (req, res, next) => {
 
         // Handle image upload if provided
         if (req.file) {
+            console.log("File uploaded:", req.file);
+            console.log("File path:", req.file.path);
+            console.log("File destination:", req.file.destination);
+            console.log("File filename:", req.file.filename);
             equipmentData.image = `/uploads/${req.file.filename}`;
+        } else {
+            console.log("No file in request");
         }
 
         const equipment = await Equipment.create(equipmentData);
@@ -119,7 +125,11 @@ const Update = async (req, res, next) => {
 
         // Handle image upload if provided
         if (req.file) {
+            console.log("File uploaded for update:", req.file);
+            console.log("File path:", req.file.path);
             updates.image = `/uploads/${req.file.filename}`;
+        } else {
+            console.log("No file in update request");
         }
 
         const equipment = await Equipment.findByPk(id);

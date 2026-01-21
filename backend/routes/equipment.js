@@ -15,15 +15,52 @@ if (!fs.existsSync(uploadsDir)) {
 // Multer configuration for image uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
+        // Ensure directory exists before upload
+        if (!fs.existsSync(uploadsDir)) {
+            try {
+                fs.mkdirSync(uploadsDir, { recursive: true });
+                console.log("Created uploads directory:", uploadsDir);
+            } catch (err) {
+                console.error("Failed to create uploads directory:", err);
+                return cb(err);
+            }
+        }
+        console.log("Saving file to:", uploadsDir);
         cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, "equipment-" + uniqueSuffix + path.extname(file.originalname));
+        const filename =
+            "equipment-" + uniqueSuffix + path.extname(file.originalname);
+        console.log("Generated filename:", filename);
+        cb(null, filename);
     },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+    storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        console.log("Multer receiving file:", file.originalname);
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(
+            path.extname(file.originalname).toLowerCase()
+        );
+        const mimetype = allowedTypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(
+                new Error(
+                    "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed."
+                )
+            );
+        }
+    },
+});
 
 // Async handler wrapper
 const asyncHandler = (fn) => (req, res, next) => {
@@ -39,11 +76,31 @@ router.get(
 router.post(
     "/",
     upload.single("image"),
+    (err, req, res, next) => {
+        if (err instanceof multer.MulterError) {
+            console.error("Multer error:", err);
+            return res.status(400).json({ message: err.message });
+        } else if (err) {
+            console.error("Upload error:", err);
+            return res.status(400).json({ message: err.message });
+        }
+        next();
+    },
     asyncHandler(equipmentController.Post)
 );
 router.put(
     "/:id",
     upload.single("image"),
+    (err, req, res, next) => {
+        if (err instanceof multer.MulterError) {
+            console.error("Multer error:", err);
+            return res.status(400).json({ message: err.message });
+        } else if (err) {
+            console.error("Upload error:", err);
+            return res.status(400).json({ message: err.message });
+        }
+        next();
+    },
     asyncHandler(equipmentController.Update)
 );
 router.delete("/:id", asyncHandler(equipmentController.Delete));

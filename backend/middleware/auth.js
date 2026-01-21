@@ -8,6 +8,7 @@ const publicRoutes = [
     "/api/users/adhasuser",
     "/api/locations",
     "/api/mattermanager/full",
+    "/uploads",
     // Add more public routes as needed
 ];
 
@@ -64,10 +65,11 @@ const authenticateUser = async (req, res, next) => {
             active: user.active,
             last_login: user.last_login,
             equipment_office_admin: user?.equipment_office_admin,
+            equipment_admin: user?.equipment_admin,
         };
 
         console.log(
-            `✅ User authenticated: ${req.user.username} (ID: ${req.user.id}, Admin: ${req.user?.admin}, EquipmentOfficeAdmin: ${req.user?.equipment_office_admin})`
+            `✅ User authenticated: ${req.user.username} (ID: ${req.user.id}, Admin: ${req.user?.admin}, EquipmentAdmin: ${req.user?.equipment_admin}, EquipmentOfficeAdmin: ${req.user?.equipment_office_admin})`
         );
         next();
     } catch (error) {

@@ -40,6 +40,7 @@ const handleSocketConnection = (io) => {
             connectedAt: new Date(),
             admin: socket.user.admin,
             equipment_office_admin: socket.user.equipment_office_admin,
+            equipment_admin: socket.user.equipment_admin,
         });
 
         // Join room based on user location
@@ -79,6 +80,7 @@ const getConnectedUsers = () => {
         connectedAt: user.connectedAt,
         admin: user.admin,
         equipment_office_admin: user.equipment_office_admin,
+        equipment_admin: user.equipment_admin,
     }));
 };
 

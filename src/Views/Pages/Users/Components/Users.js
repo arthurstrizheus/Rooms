@@ -70,8 +70,9 @@ function createData(
     active,
     last_login,
     admin,
-    equiptment_office_admin,
-    equipment_equiptment_office_admin
+    office_admin,
+    equipment_office_admin,
+    equipment_admin
 ) {
     return {
         id,
@@ -81,8 +82,9 @@ function createData(
         active,
         last_login,
         admin,
-        equiptment_office_admin,
-        equipment_equiptment_office_admin,
+        office_admin,
+        equipment_office_admin,
+        equipment_admin,
     };
 }
 
@@ -338,8 +340,9 @@ export default function Users({ setLoading }) {
                       })
                     : "Has not Logged In",
                 itm.admin,
-                itm.equiptment_office_admin,
-                itm.equipment_equiptment_office_admin
+                itm.office_admin,
+                itm.equipment_office_admin,
+                itm.equipment_admin
             );
         });
 
@@ -603,11 +606,11 @@ export default function Users({ setLoading }) {
                                                         />
                                                     </Tooltip>
                                                 )}
-                                                {(`${row.equiptment_office_admin}` ==
+                                                {(`${row.office_admin}` ==
                                                     filterLocation?.officeid ||
                                                     (filterLocation?.officeid ==
                                                         "0" &&
-                                                        row.equiptment_office_admin)) && (
+                                                        row.office_admin)) && (
                                                     <Tooltip
                                                         key={"Office Admin"}
                                                         arrow
@@ -617,7 +620,7 @@ export default function Users({ setLoading }) {
                                                                     locations?.find(
                                                                         (lc) =>
                                                                             lc.officeid ==
-                                                                            `${row.equiptment_office_admin}`
+                                                                            `${row.office_admin}`
                                                                     )?.Alias
                                                                 }`}
                                                             </Typography>
@@ -640,11 +643,40 @@ export default function Users({ setLoading }) {
                                                         />
                                                     </Tooltip>
                                                 )}
-                                                {(`${row.equipment_equiptment_office_admin}` ==
+                                                {row.equipment_admin && (
+                                                    <Tooltip
+                                                        key={"Equipment Admin"}
+                                                        arrow
+                                                        title={
+                                                            <Typography variant="body2">
+                                                                Equipment Admin
+                                                                Access For All
+                                                                Offices
+                                                            </Typography>
+                                                        }
+                                                    >
+                                                        <Chip
+                                                            sx={{
+                                                                cursor: "pointer",
+                                                                color: "white",
+                                                                backgroundColor:
+                                                                    "#2196f3",
+                                                                marginLeft:
+                                                                    "2px",
+                                                                marginTop:
+                                                                    "2px",
+                                                            }}
+                                                            label={
+                                                                "Equipment Admin"
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                )}
+                                                {(`${row.equipment_office_admin}` ==
                                                     filterLocation?.officeid ||
                                                     (filterLocation?.officeid ==
                                                         "0" &&
-                                                        row.equipment_equiptment_office_admin)) && (
+                                                        row.equipment_office_admin)) && (
                                                     <Tooltip
                                                         key={
                                                             "Equipment Office Admin"
@@ -656,7 +688,7 @@ export default function Users({ setLoading }) {
                                                                     locations?.find(
                                                                         (lc) =>
                                                                             lc.officeid ==
-                                                                            `${row.equipment_equiptment_office_admin}`
+                                                                            `${row.equipment_office_admin}`
                                                                     )?.Alias
                                                                 }`}
                                                             </Typography>
@@ -732,8 +764,8 @@ export default function Users({ setLoading }) {
                     }}
                 >
                     {(user?.admin ||
-                        user?.equiptment_office_admin ==
-                            filterLocation?.officeid) && (
+                        user?.equipment_admin ||
+                        user?.office_admin == filterLocation?.officeid) && (
                         <Stack
                             direction={"row"}
                             sx={{

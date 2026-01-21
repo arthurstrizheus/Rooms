@@ -9,7 +9,7 @@ const { checkCalibrationAlerts } = require("../jobs/calibrationAlerts");
 router.post("/check-now", async (req, res, next) => {
     try {
         // Only allow admin users to manually trigger
-        if (!req.user?.admin) {
+        if (!req.user?.admin && !req.user?.equipment_admin) {
             return res.status(403).json({
                 message: "Only administrators can manually trigger alerts",
             });

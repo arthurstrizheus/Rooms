@@ -87,6 +87,7 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                             >
                                 User Details
                                 {(user?.admin ||
+                                    user?.equipment_admin ||
                                     user?.equipment_office_admin ==
                                         location?.officeid) && (
                                     <Button
@@ -154,15 +155,7 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                 )}
                                 {rowItem(
                                     "Equipment Admin",
-                                    row.equipment_office_admin
-                                        ? `${
-                                              locations?.find(
-                                                  (lc) =>
-                                                      lc.officeid ==
-                                                      row?.equipment_office_admin
-                                              )?.Alias
-                                          }`
-                                        : "None",
+                                    row.equipment_admin ? "True" : "False",
                                     theme.palette.primary.text.dark
                                 )}
                                 {rowItem(

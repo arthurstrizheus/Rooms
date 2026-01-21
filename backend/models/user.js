@@ -33,6 +33,11 @@ const User = sequelize.define(
             type: DataTypes.INTEGER,
             allowNull: true,
         },
+        equipment_admin: {
+            type: DataTypes.BOOLEAN,
+            allowNull: true,
+            defaultValue: false,
+        },
         first_name: {
             type: DataTypes.STRING,
             allowNull: true,

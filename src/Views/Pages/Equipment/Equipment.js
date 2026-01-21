@@ -37,6 +37,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useSocket } from "../../../Contexts/SocketContext";
+import ConfirmDialog from "../../../Components/ConfirmDialog";
+import useConfirmDialog from "../../../hooks/useConfirmDialog";
 import axios from "axios";
 
 const Equipment = ({ setLoading, loading }) => {
@@ -61,6 +63,7 @@ const Equipment = ({ setLoading, loading }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { socket } = useSocket();
+    const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -187,9 +190,17 @@ const Equipment = ({ setLoading, loading }) => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this equipment?"))
-            return;
+        showConfirm(
+            "Are you sure you want to delete this equipment?",
+            async () => {
+                await deleteEquipment(id);
+            },
+            "warning",
+            "Delete Equipment"
+        );
+    };
 
+    const deleteEquipment = async (id) => {
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -292,7 +303,9 @@ const Equipment = ({ setLoading, loading }) => {
                         <MenuItem value="maintenance">Maintenance</MenuItem>
                         <MenuItem value="retired">Retired</MenuItem>
                     </TextField>
-                    {(user?.admin || user?.equipment_office_admin) && (
+                    {(user?.admin ||
+                        user?.equipment_admin ||
+                        user?.equipment_office_admin) && (
                         <Button
                             variant="contained"
                             startIcon={<Add />}
@@ -744,6 +757,16 @@ const Equipment = ({ setLoading, loading }) => {
                     </Button>
                 </DialogActions>
             </Dialog>
+            <ConfirmDialog
+                open={confirmState.open}
+                onConfirm={confirmState.onConfirm}
+                onCancel={hideConfirm}
+                message={confirmState.message}
+                title={confirmState.title}
+                severity={confirmState.severity}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+            />
         </Box>
     );
 };

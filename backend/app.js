@@ -55,15 +55,66 @@ setSocketInstance(io);
 // Ensure the uploads directory exists
 const uploadsDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log("Uploads directory created.");
+    try {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+        console.log("✓ Uploads directory created:", uploadsDir);
+    } catch (err) {
+        console.error("✗ Failed to create uploads directory:", err);
+    }
+} else {
+    console.log("✓ Uploads directory exists:", uploadsDir);
+    // Verify write permissions
+    try {
+        fs.accessSync(uploadsDir, fs.constants.W_OK);
+        console.log("✓ Uploads directory is writable");
+    } catch (err) {
+        console.error("✗ Uploads directory is NOT writable:", err);
+    }
 }
 
 app.use(bodyParser.json());
 app.use(express.json());
 
 // Serve static files from the uploads directory (BEFORE auth middleware)
-app.use("/uploads", express.static(uploadsDir));
+app.use(
+    "/uploads",
+    (req, res, next) => {
+        console.log("📸 Static file request:", req.path);
+        const fullPath = path.join(uploadsDir, req.path);
+        console.log("📁 Looking for file at:", fullPath);
+        console.log("📂 File exists:", fs.existsSync(fullPath));
+        next();
+    },
+    express.static(uploadsDir, {
+        setHeaders: (res, filePath) => {
+            console.log("📤 Serving file:", filePath);
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeTypes = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+                ".pdf": "application/pdf",
+                ".doc": "application/msword",
+                ".docx":
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".xls": "application/vnd.ms-excel",
+                ".xlsx":
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            };
+
+            if (mimeTypes[ext]) {
+                res.setHeader("Content-Type", mimeTypes[ext]);
+                console.log("✓ Content-Type set to:", mimeTypes[ext]);
+            }
+
+            // Add CORS and caching headers
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.setHeader("Cache-Control", "public, max-age=31536000");
+        },
+    })
+);
 
 // Add authentication middleware globally
 app.use(authenticateUser);

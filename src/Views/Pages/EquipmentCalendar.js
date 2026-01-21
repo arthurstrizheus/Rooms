@@ -29,6 +29,8 @@ import { useSocket } from "../../Contexts/SocketContext";
 import axios from "axios";
 import DisplayCheckout from "../Components/DisplayCheckout/DisplayCheckout";
 import { ArrowBack } from "@mui/icons-material";
+import AlertDialog from "../../Components/AlertDialog";
+import useAlertDialog from "../../hooks/useAlertDialog";
 
 const EquipmentCalendar = ({
     setLoading,
@@ -55,6 +57,7 @@ const EquipmentCalendar = ({
         recurrenceInterval: 1,
         recurrenceEndDate: "",
     });
+    const { showAlert, alertState, hideAlert } = useAlertDialog();
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [editFormData, setEditFormData] = useState({
         start_time: "",
@@ -239,9 +242,10 @@ const EquipmentCalendar = ({
             fetchCheckouts(dateRange.start, dateRange.end);
         } catch (error) {
             console.error("Error canceling checkout:", error);
-            alert(
+            showAlert(
                 "Error canceling checkout: " +
-                    (error.response?.data?.message || error.message)
+                    (error.response?.data?.message || error.message),
+                "error"
             );
         } finally {
             setLoading(false);
@@ -281,9 +285,10 @@ const EquipmentCalendar = ({
             handleCloseDialog();
         } catch (error) {
             console.error("Error creating checkout:", error);
-            alert(
+            showAlert(
                 "Error creating checkout: " +
-                    (error.response?.data?.message || error.message)
+                    (error.response?.data?.message || error.message),
+                "error"
             );
         } finally {
             setLoading(false);
@@ -365,8 +370,9 @@ const EquipmentCalendar = ({
 
         // If recurring and no mode selected, prompt user
         if (isRecurring && !updateMode) {
-            alert(
-                "Please select how you want to update this recurring checkout"
+            showAlert(
+                "Please select how you want to update this recurring checkout",
+                "warning"
             );
             return;
         }
@@ -421,9 +427,10 @@ const EquipmentCalendar = ({
             setUpdateMode(null);
         } catch (error) {
             console.error("Error updating checkout:", error);
-            alert(
+            showAlert(
                 "Error updating checkout: " +
-                    (error.response?.data?.message || error.message)
+                    (error.response?.data?.message || error.message),
+                "error"
             );
         } finally {
             setLoading(false);
@@ -822,7 +829,7 @@ const EquipmentCalendar = ({
                             fullWidth
                         />
                         {/* Only show status selector to admin users */}
-                        {user?.admin && (
+                        {(user?.admin || user?.equipment_admin) && (
                             <FormControl fullWidth>
                                 <InputLabel>Status</InputLabel>
                                 <Select
@@ -884,6 +891,14 @@ const EquipmentCalendar = ({
                     </Button>
                 </DialogActions>
             </Dialog>
+            <AlertDialog
+                open={alertState.open}
+                onClose={hideAlert}
+                message={alertState.message}
+                title={alertState.title}
+                severity={alertState.severity}
+                confirmText={alertState.confirmText}
+            />
         </Box>
     );
 };

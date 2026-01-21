@@ -644,9 +644,15 @@ const Update = async (req, res, next) => {
         // Get the authenticated user from request (set by auth middleware)
         const userId = req.user?.id;
         const isAdmin = req.user?.admin;
+        const isEquipmentAdmin = req.user?.equipment_admin;
 
         // Non-admin users can only change status to "cancelled", not other statuses
-        if (!isAdmin && updates.status && updates.status !== "cancelled") {
+        if (
+            !isAdmin &&
+            !isEquipmentAdmin &&
+            updates.status &&
+            updates.status !== "cancelled"
+        ) {
             delete updates.status;
         }
 

@@ -381,7 +381,7 @@ const AdminDashboard = ({ setLoading }) => {
                     {connectionStats && (
                         <Grid item xs={12} sx={{ mt: 3 }}>
                             <Grid container spacing={3}>
-                                <Grid item xs={12} sm={6} md={2.4}>
+                                <Grid item xs={12} sm={6} md={2}>
                                     <StatCard
                                         title="Total Connected"
                                         value={connectionStats.total}
@@ -391,7 +391,7 @@ const AdminDashboard = ({ setLoading }) => {
                                         color="primary"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={2.4}>
+                                <Grid item xs={12} sm={6} md={2}>
                                     <StatCard
                                         title="Admins Online"
                                         value={connectionStats.admins}
@@ -401,11 +401,24 @@ const AdminDashboard = ({ setLoading }) => {
                                         color="secondary"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={2.4}>
+                                <Grid item xs={12} sm={6} md={2}>
                                     <StatCard
-                                        title="Office Admins"
+                                        title="Equipment Admins"
                                         value={
-                                            connectionStats.officeAdmins || 0
+                                            connectionStats.equipmentAdmins || 0
+                                        }
+                                        icon={
+                                            <AdminIcon sx={{ fontSize: 40 }} />
+                                        }
+                                        color="info"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={2}>
+                                    <StatCard
+                                        title="Equipment Office Admins"
+                                        value={
+                                            connectionStats.equipmentOfficeAdmins ||
+                                            0
                                         }
                                         icon={
                                             <AdminIcon sx={{ fontSize: 40 }} />
@@ -413,17 +426,17 @@ const AdminDashboard = ({ setLoading }) => {
                                         color="warning"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={2.4}>
+                                <Grid item xs={12} sm={6} md={2}>
                                     <StatCard
                                         title="Regular Users"
                                         value={connectionStats.regular}
                                         icon={
                                             <PersonIcon sx={{ fontSize: 40 }} />
                                         }
-                                        color="info"
+                                        color="success"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={6} md={2.4}>
+                                <Grid item xs={12} sm={6} md={2}>
                                     <StatCard
                                         title="Locations"
                                         value={

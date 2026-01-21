@@ -49,6 +49,7 @@ const AddNewUser = ({
     const [password, setPassword] = useState("");
     const [viewPassword, setViewPassword] = useState(false);
     const [equipmentOfficeAdmin, setEquipmentOfficeAdmin] = useState("");
+    const [equipmentAdmin, setEquipmentAdmin] = useState(false);
 
     const onClose = () => {
         setOpen(false);
@@ -60,6 +61,7 @@ const AddNewUser = ({
         setlast_name("");
         setAdmin(false);
         setEquipmentOfficeAdmin("");
+        setEquipmentAdmin(false);
         // }
     };
 
@@ -84,6 +86,7 @@ const AddNewUser = ({
                         equipmentOfficeAdmin != ""
                             ? equipmentOfficeAdmin
                             : null,
+                    equipment_admin: equipmentAdmin || false,
                 }).then((resp) => {
                     if (resp) {
                         showSuccess("User Created");
@@ -98,6 +101,7 @@ const AddNewUser = ({
                     email: email,
                     admin: admin,
                     equipment_office_admin: equipmentOfficeAdmin,
+                    equipment_admin: equipmentAdmin || false,
                 }).then((resp) => {
                     if (resp) {
                         showSuccess("User Updated");
@@ -119,6 +123,7 @@ const AddNewUser = ({
             setEmail(selectedUser?.email);
             setAdmin(selectedUser?.admin);
             setEquipmentOfficeAdmin(selectedUser?.equipment_office_admin);
+            setEquipmentAdmin(selectedUser?.equipment_admin || false);
         }
     }, [selectedUser, userLocation]);
 
@@ -305,9 +310,45 @@ const AddNewUser = ({
                         />
                     )}
 
+                    {(user?.admin || user?.equipment_admin) && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={equipmentAdmin}
+                                    onChange={(e) =>
+                                        setEquipmentAdmin(e.target.checked)
+                                    }
+                                    sx={{
+                                        "& .MuiSwitch-switchBase": {
+                                            "&.Mui-checked": {
+                                                color: "#fff",
+                                                "& + .MuiSwitch-track": {
+                                                    backgroundColor:
+                                                        theme.palette.mode ===
+                                                        "dark"
+                                                            ? "#2196f3"
+                                                            : "#64b5f6",
+                                                    opacity: 1,
+                                                    border: 0,
+                                                },
+                                            },
+                                        },
+                                    }}
+                                />
+                            }
+                            label="Equipment Administrator (All Offices)"
+                            sx={{
+                                "& .MuiFormControlLabel-label": {
+                                    fontWeight: equipmentAdmin ? "600" : "400",
+                                    color: equipmentAdmin ? "black" : "grey",
+                                },
+                            }}
+                        />
+                    )}
+
                     <FormControl variant="outlined" size="small" fullWidth>
                         <InputLabel id="equipment-admin-label">
-                            Equipment Admin
+                            Equipment Office Admin (Single Location)
                         </InputLabel>
                         <Select
                             labelId="equipment-admin-label"

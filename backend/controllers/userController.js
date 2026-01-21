@@ -36,7 +36,11 @@ async function verifyPassword(plainPassword, hash) {
 const GetAll = async (req, res) => {
     try {
         let data = [];
-        if (req.user?.admin || req.user?.equipment_office_admin > 0) {
+        if (
+            req.user?.admin ||
+            req.user?.equipment_office_admin > 0 ||
+            req.user?.equipment_admin
+        ) {
             data = await User.findAll();
         }
         const noPass = data?.map((usr) => {
@@ -83,6 +87,7 @@ const Post = async (req, res) => {
             last_login,
             created_user_id,
             equipment_office_admin,
+            equipment_admin,
             active,
         } = req.body;
 
@@ -123,6 +128,7 @@ const Post = async (req, res) => {
             last_name,
             active,
             equipment_office_admin: equipment_office_admin || null,
+            equipment_admin: equipment_admin || false,
             location: location ? location : 0,
             last_login: created_user_id ? null : new Date().toISOString(),
             created_user_id: created_user_id ? created_user_id : null,
@@ -160,6 +166,7 @@ const Update = async (req, res) => {
             last_name,
             location,
             equipment_office_admin,
+            equipment_admin,
         } = req.body; // Extract data from the request body
 
         // Validate the incoming data (optional but recommended)
@@ -176,7 +183,8 @@ const Update = async (req, res) => {
         }
         if (
             req.user?.equipment_office_admin != resource.location &&
-            !req.user?.admin
+            !req.user?.admin &&
+            !req.user?.equipment_admin
         ) {
             return res
                 .status(403)
@@ -197,6 +205,7 @@ const Update = async (req, res) => {
             last_name,
             location: location ? location : 0,
             equipment_office_admin: equipment_office_admin || null,
+            equipment_admin: equipment_admin || false,
         });
 
         // Return the updated record as a JSON response
@@ -288,7 +297,8 @@ const Delete = async (req, res) => {
         }
         if (
             req.user?.equipment_office_admin != resource.location &&
-            !req.user?.admin
+            !req.user?.admin &&
+            !req.user?.equipment_admin
         ) {
             return res
                 .status(403)
@@ -352,6 +362,7 @@ const Authenticate = async (req, res) => {
                 last_name: user.last_name,
                 admin: user.admin,
                 equipment_office_admin: user.equipment_office_admin,
+                equipment_admin: user.equipment_admin,
                 location: user.location,
             },
             process.env.JWT_SECRET,
@@ -496,6 +507,7 @@ const AuthenticateAD = async (req, res) => {
                     admin: userWithoutPassword.admin,
                     equipment_office_admin:
                         userWithoutPassword.equipment_office_admin,
+                    equipment_admin: userWithoutPassword.equipment_admin,
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
@@ -527,10 +539,9 @@ const AuthenticateAD = async (req, res) => {
                     first_name: userWithoutPassword.first_name,
                     last_name: userWithoutPassword.last_name,
                     admin: userWithoutPassword.admin,
-                    equiptment_office_admin:
-                        userWithoutPassword.equiptment_office_admin,
                     equipment_office_admin:
                         userWithoutPassword.equipment_office_admin,
+                    equipment_admin: userWithoutPassword.equipment_admin,
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
@@ -579,7 +590,8 @@ const Deactivate = async (req, res) => {
             return res.status(404).json({ message: "Resource not found" });
         }
         if (
-            req.user?.equipment_office_admin != resource.location &&
+            req.user?.equipm &&
+            !req.user?.equipment_adminent_office_admin != resource.location &&
             !req.user?.admin
         ) {
             return res

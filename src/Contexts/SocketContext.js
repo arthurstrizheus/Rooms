@@ -72,7 +72,7 @@ export const SocketProvider = ({ children }) => {
         } else {
             // Development: use localhost backend
             serverUrl =
-                process.env.REACT_APP_SERVER_URL || "http://localhost:5000";
+                process.env.REACT_APP_SERVER_URL || "http://localhost:5001";
             console.log("🏠 Using development server URL");
         }
 

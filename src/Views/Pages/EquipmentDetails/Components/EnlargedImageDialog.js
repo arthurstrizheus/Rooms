@@ -37,7 +37,7 @@ const EnlargedImageDialog = ({
                 {enlargedImage && (
                     <Box sx={{ position: "relative" }}>
                         <img
-                            src={`${process.env.REACT_APP_SERVER_URL}/uploads/${enlargedImage.file_path}`}
+                            src={`/uploads/${enlargedImage.file_path}`}
                             alt={enlargedImage.file_name}
                             style={{
                                 width: "100%",

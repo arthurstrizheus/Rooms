@@ -44,6 +44,10 @@ import { useAuth } from "../../../Utilites/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { format } from "date-fns";
+import AlertDialog from "../../../Components/AlertDialog";
+import useAlertDialog from "../../../hooks/useAlertDialog";
+import ConfirmDialog from "../../../Components/ConfirmDialog";
+import useConfirmDialog from "../../../hooks/useConfirmDialog";
 
 const MyCheckouts = ({ setLoading, loading }) => {
     const [checkouts, setCheckouts] = useState([]);
@@ -58,6 +62,8 @@ const MyCheckouts = ({ setLoading, loading }) => {
     const [recurringExpanded, setRecurringExpanded] = useState(true);
     const [nonRecurringExpanded, setNonRecurringExpanded] = useState(true);
     const { user } = useAuth();
+    const { showAlert, alertState, hideAlert } = useAlertDialog();
+    const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -84,9 +90,17 @@ const MyCheckouts = ({ setLoading, loading }) => {
     };
 
     const handleCancel = async (id) => {
-        if (!window.confirm("Are you sure you want to cancel this checkout?"))
-            return;
+        showConfirm(
+            "Are you sure you want to cancel this checkout?",
+            async () => {
+                await cancelCheckout(id);
+            },
+            "warning",
+            "Cancel Checkout"
+        );
+    };
 
+    const cancelCheckout = async (id) => {
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -192,7 +206,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
             handleCloseDetails();
         } catch (error) {
             console.error("Error updating checkout:", error);
-            alert("Failed to update checkout");
+            showAlert("Failed to update checkout", "error");
         } finally {
             setLoading(false);
         }
@@ -1577,6 +1591,24 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     )}
                 </DialogActions>
             </Dialog>
+            <AlertDialog
+                open={alertState.open}
+                onClose={hideAlert}
+                message={alertState.message}
+                title={alertState.title}
+                severity={alertState.severity}
+                confirmText={alertState.confirmText}
+            />
+            <ConfirmDialog
+                open={confirmState.open}
+                onConfirm={confirmState.onConfirm}
+                onCancel={hideConfirm}
+                message={confirmState.message}
+                title={confirmState.title}
+                severity={confirmState.severity}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+            />
         </Box>
     );
 };
