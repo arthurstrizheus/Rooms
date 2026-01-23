@@ -66,6 +66,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
     const [nonRecurringExpanded, setNonRecurringExpanded] = useState(true);
     const [users, setUsers] = useState([]);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
+    const [meatRain, setMeatRain] = useState(false);
     const { user } = useAuth();
     const { showAlert, alertState, hideAlert } = useAlertDialog();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
@@ -404,6 +405,55 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 My Reservations
             </Typography>
 
+            {/* Meat Rain Easter Egg */}
+            {meatRain && (
+                <Box
+                    sx={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        width: "100vw",
+                        height: "100vh",
+                        pointerEvents: "none",
+                        zIndex: 9999,
+                        overflow: "hidden",
+                    }}
+                >
+                    {[...Array(50)].map((_, i) => (
+                        <Box
+                            key={i}
+                            sx={{
+                                position: "absolute",
+                                top: -50,
+                                left: `${Math.random() * 100}%`,
+                                fontSize: `${20 + Math.random() * 30}px`,
+                                animation: `meatFall ${2 + Math.random() * 3}s linear infinite`,
+                                animationDelay: `${Math.random() * 5}s`,
+                                opacity: 0.8,
+                                "@keyframes meatFall": {
+                                    "0%": {
+                                        transform: `translateY(0) rotate(0deg)`,
+                                        opacity: 0,
+                                    },
+                                    "10%": {
+                                        opacity: 0.8,
+                                    },
+                                    "90%": {
+                                        opacity: 0.8,
+                                    },
+                                    "100%": {
+                                        transform: `translateY(100vh) rotate(${360 + Math.random() * 360}deg)`,
+                                        opacity: 0,
+                                    },
+                                },
+                            }}
+                        >
+                            {["🥩", "🍖", "🥓"][Math.floor(Math.random() * 3)]}
+                        </Box>
+                    ))}
+                </Box>
+            )}
+
             {/* Search and Filter Controls */}
             <Box
                 sx={{
@@ -416,7 +466,15 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 <TextField
                     placeholder="Search reservations..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        setSearchTerm(value);
+                        // Easter egg: trigger meat rain when "meat" is typed
+                        if (value.toLowerCase() === "meat") {
+                            setMeatRain(true);
+                            setTimeout(() => setMeatRain(false), 5000);
+                        }
+                    }}
                     size="small"
                     sx={{ flex: isMobile ? "1" : "0 0 300px" }}
                     InputProps={{
