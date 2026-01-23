@@ -401,10 +401,6 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 flexDirection: "column",
             }}
         >
-            <Typography variant={isMobile ? "h5" : "h4"} sx={{ mb: 3 }}>
-                My Reservations
-            </Typography>
-
             {/* Meat Rain Easter Egg */}
             {meatRain && (
                 <Box
