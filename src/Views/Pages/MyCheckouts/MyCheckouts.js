@@ -251,7 +251,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
     const handleViewCalendar = () => {
         if (selectedCheckout?.Equipment?.id) {
-            navigate(`/equipment/${selectedCheckout.Equipment.id}/calendar`);
+            navigate(`/equipment/calendar/${selectedCheckout.Equipment.id}`);
             handleCloseDetails();
         }
     };
