@@ -15,6 +15,36 @@ const EquipmentInfoCard = ({
     getStatusColor,
     isCalibrationDueSoon,
 }) => {
+    const calculateDueDate = () => {
+        if (
+            !equipment.last_calibration_date ||
+            !equipment.calibration_interval_value
+        ) {
+            return null;
+        }
+        const lastCal = new Date(equipment.last_calibration_date);
+        const dueDate = new Date(lastCal);
+
+        switch (equipment.calibration_interval_unit) {
+            case "days":
+                dueDate.setDate(
+                    dueDate.getDate() + equipment.calibration_interval_value,
+                );
+                break;
+            case "months":
+                dueDate.setMonth(
+                    dueDate.getMonth() + equipment.calibration_interval_value,
+                );
+                break;
+            case "years":
+                dueDate.setFullYear(
+                    dueDate.getFullYear() +
+                        equipment.calibration_interval_value,
+                );
+                break;
+        }
+        return dueDate;
+    };
     const infoItems = [
         { label: "Status", value: equipment.status, isStatus: true },
         { label: "Description", value: equipment.description || "N/A" },
@@ -56,7 +86,7 @@ const EquipmentInfoCard = ({
                                         size="small"
                                     />
                                     {isCalibrationDueSoon(
-                                        equipment.calibration_due_date
+                                        calculateDueDate(),
                                     ) && (
                                         <Chip
                                             icon={<Warning />}

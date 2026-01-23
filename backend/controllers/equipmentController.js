@@ -42,23 +42,21 @@ const Post = async (req, res, next) => {
         const equipmentData = req.body;
 
         // Clean up empty string date fields (set to null)
-        if (equipmentData.calibration_due_date === "") {
-            equipmentData.calibration_due_date = null;
-        }
         if (equipmentData.last_calibration_date === "") {
             equipmentData.last_calibration_date = null;
         }
 
-        // Convert calibration_interval_days to integer or null
+        // Convert calibration_interval_value to integer or null
         if (
-            equipmentData.calibration_interval_days === "" ||
-            equipmentData.calibration_interval_days === null
+            equipmentData.calibration_interval_value === "" ||
+            equipmentData.calibration_interval_value === null
         ) {
-            equipmentData.calibration_interval_days = null;
-        } else if (equipmentData.calibration_interval_days) {
-            equipmentData.calibration_interval_days = parseInt(
-                equipmentData.calibration_interval_days,
-                10
+            equipmentData.calibration_interval_value = null;
+            equipmentData.calibration_interval_unit = null;
+        } else if (equipmentData.calibration_interval_value) {
+            equipmentData.calibration_interval_value = parseInt(
+                equipmentData.calibration_interval_value,
+                10,
             );
         }
 
@@ -79,7 +77,7 @@ const Post = async (req, res, next) => {
         const equipmentDir = path.join(
             __dirname,
             "../../uploads",
-            `equipment_${equipment.id}`
+            `equipment_${equipment.id}`,
         );
         if (!fs.existsSync(equipmentDir)) {
             fs.mkdirSync(equipmentDir, { recursive: true });
@@ -103,23 +101,21 @@ const Update = async (req, res, next) => {
         const updates = req.body;
 
         // Clean up empty string date fields (set to null)
-        if (updates.calibration_due_date === "") {
-            updates.calibration_due_date = null;
-        }
         if (updates.last_calibration_date === "") {
             updates.last_calibration_date = null;
         }
 
-        // Convert calibration_interval_days to integer or null
+        // Convert calibration_interval_value to integer or null
         if (
-            updates.calibration_interval_days === "" ||
-            updates.calibration_interval_days === null
+            updates.calibration_interval_value === "" ||
+            updates.calibration_interval_value === null
         ) {
-            updates.calibration_interval_days = null;
-        } else if (updates.calibration_interval_days) {
-            updates.calibration_interval_days = parseInt(
-                updates.calibration_interval_days,
-                10
+            updates.calibration_interval_value = null;
+            updates.calibration_interval_unit = null;
+        } else if (updates.calibration_interval_value) {
+            updates.calibration_interval_value = parseInt(
+                updates.calibration_interval_value,
+                10,
             );
         }
 
@@ -151,20 +147,20 @@ const Update = async (req, res, next) => {
                 try {
                     const subscribers = await GetSubscribers(
                         id,
-                        "status_change"
+                        "status_change",
                     );
                     if (subscribers && subscribers.length > 0) {
                         await sendEquipmentStatusChangeEmail(
                             equipment,
                             oldStatus,
                             updates.status,
-                            subscribers
+                            subscribers,
                         );
                     }
                 } catch (emailError) {
                     console.error(
                         "Error sending status change emails:",
-                        emailError
+                        emailError,
                     );
                 }
             })();
@@ -196,7 +192,7 @@ const Delete = async (req, res, next) => {
         const equipmentDir = path.join(
             __dirname,
             "../../uploads",
-            `equipment_${id}`
+            `equipment_${id}`,
         );
         if (fs.existsSync(equipmentDir)) {
             fs.rmSync(equipmentDir, { recursive: true, force: true });

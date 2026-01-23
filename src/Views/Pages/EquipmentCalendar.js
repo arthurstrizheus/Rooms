@@ -15,6 +15,7 @@ import {
     InputLabel,
     Checkbox,
     FormControlLabel,
+    Autocomplete,
     useMediaQuery,
     useTheme,
 } from "@mui/material";
@@ -41,6 +42,7 @@ const EquipmentCalendar = ({
     const { equipmentId } = useParams();
     const [equipment, setEquipment] = useState(null);
     const [checkouts, setCheckouts] = useState([]);
+    const [users, setUsers] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
     const [openCheckoutDialog, setOpenCheckoutDialog] = useState(false);
     const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -52,6 +54,7 @@ const EquipmentCalendar = ({
     const [formData, setFormData] = useState({
         purpose: "",
         project_number: "",
+        scheduled_on_behalf_of: "",
         isRecurring: false,
         recurrencePattern: "daily",
         recurrenceInterval: 1,
@@ -73,6 +76,7 @@ const EquipmentCalendar = ({
 
     useEffect(() => {
         fetchEquipment();
+        fetchUsers();
         // Don't fetch checkouts here - let datesSet callback handle it when calendar initializes
     }, [equipmentId, update]);
 
@@ -124,6 +128,18 @@ const EquipmentCalendar = ({
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const response = await axios.get("/api/users", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setUsers(response.data);
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        }
+    };
+
     const fetchCheckouts = async (start = null, end = null) => {
         try {
             setLoading(true);
@@ -139,18 +155,20 @@ const EquipmentCalendar = ({
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     params,
-                }
+                },
             );
 
             const events = response.data
                 .filter((c) => c.status !== "cancelled")
                 .map((checkout) => ({
                     id: checkout.isRecurring ? checkout.id : checkout.id,
-                    title: checkout.User
-                        ? `${checkout.User.first_name} ${
-                              checkout.User.last_name
-                          }${checkout.isRecurring ? " ↻" : ""}`
-                        : "Checkout",
+                    title: checkout.scheduled_on_behalf_of
+                        ? `${checkout.scheduled_on_behalf_of}${checkout.isRecurring ? " ↻" : ""}`
+                        : checkout.User
+                          ? `${checkout.User.first_name} ${
+                                checkout.User.last_name
+                            }${checkout.isRecurring ? " ↻" : ""}`
+                          : "Checkout",
                     start: checkout.start_time,
                     end: checkout.end_time,
                     backgroundColor: getStatusColor(checkout.status),
@@ -158,6 +176,7 @@ const EquipmentCalendar = ({
                         status: checkout.status,
                         purpose: checkout.purpose,
                         notes: checkout.notes,
+                        scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
                         isRecurring: checkout.isRecurring || false,
                         recurrence_id: checkout.recurrence_id || null,
                         userId: checkout.user_id,
@@ -200,6 +219,7 @@ const EquipmentCalendar = ({
         });
         setFormData({
             purpose: "",
+            scheduled_on_behalf_of: "",
             isRecurring: false,
             recurrencePattern: "daily",
             recurrenceInterval: 1,
@@ -237,7 +257,7 @@ const EquipmentCalendar = ({
             await axios.put(
                 `/api/checkouts/${checkoutId}`,
                 { status: "cancelled" },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             fetchCheckouts(dateRange.start, dateRange.end);
         } catch (error) {
@@ -245,7 +265,7 @@ const EquipmentCalendar = ({
             showAlert(
                 "Error canceling checkout: " +
                     (error.response?.data?.message || error.message),
-                "error"
+                "error",
             );
         } finally {
             setLoading(false);
@@ -254,6 +274,12 @@ const EquipmentCalendar = ({
 
     const handleSaveCheckout = async () => {
         if (!selectedSlot) return;
+
+        // Validate required fields
+        if (!formData.project_number || formData.project_number.trim() === "") {
+            showAlert("Project Number is required", "error");
+            return;
+        }
 
         try {
             setLoading(true);
@@ -266,6 +292,7 @@ const EquipmentCalendar = ({
                 start_time: selectedSlot.start.toISOString(),
                 end_time: selectedSlot.end.toISOString(),
                 purpose: formData.purpose,
+                scheduled_on_behalf_of: formData.scheduled_on_behalf_of || null,
             };
 
             // Add recurrence fields if this is a recurring checkout
@@ -288,7 +315,7 @@ const EquipmentCalendar = ({
             showAlert(
                 "Error creating checkout: " +
                     (error.response?.data?.message || error.message),
-                "error"
+                "error",
             );
         } finally {
             setLoading(false);
@@ -300,6 +327,7 @@ const EquipmentCalendar = ({
         setSelectedSlot(null);
         setFormData({
             purpose: "",
+            scheduled_on_behalf_of: "",
             isRecurring: false,
             recurrencePattern: "daily",
             recurrenceInterval: 1,
@@ -372,7 +400,7 @@ const EquipmentCalendar = ({
         if (isRecurring && !updateMode) {
             showAlert(
                 "Please select how you want to update this recurring checkout",
-                "warning"
+                "warning",
             );
             return;
         }
@@ -403,13 +431,13 @@ const EquipmentCalendar = ({
                         ? selectedCheckout.start
                         : new Date(
                               selectedCheckout.start_time ||
-                                  selectedCheckout.start
+                                  selectedCheckout.start,
                           );
                 updateData.occurrence_start_time =
                     occurrenceStart.toISOString();
                 console.log(
                     "Frontend - updateData before sending:",
-                    updateData
+                    updateData,
                 );
             }
 
@@ -418,7 +446,7 @@ const EquipmentCalendar = ({
                 updateData,
                 {
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
 
             fetchCheckouts(dateRange.start, dateRange.end);
@@ -430,7 +458,7 @@ const EquipmentCalendar = ({
             showAlert(
                 "Error updating checkout: " +
                     (error.response?.data?.message || error.message),
-                "error"
+                "error",
             );
         } finally {
             setLoading(false);
@@ -476,7 +504,7 @@ const EquipmentCalendar = ({
                 <FullCalendar
                     key={checkouts.length} // Force re-render when checkouts change
                     plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+                    initialView={isMobile ? "timeGridWeek" : "dayGridMonth"}
                     headerToolbar={
                         isMobile
                             ? {
@@ -529,7 +557,7 @@ const EquipmentCalendar = ({
                 maxWidth="sm"
                 fullWidth
             >
-                <DialogTitle>Create Checkout</DialogTitle>
+                <DialogTitle>Create Reservation</DialogTitle>
                 <DialogContent>
                     <Box
                         sx={{
@@ -547,7 +575,7 @@ const EquipmentCalendar = ({
                                     ? new Date(
                                           selectedSlot.start.getTime() -
                                               selectedSlot.start.getTimezoneOffset() *
-                                                  60000
+                                                  60000,
                                       )
                                           .toISOString()
                                           .slice(0, 16)
@@ -573,7 +601,7 @@ const EquipmentCalendar = ({
                                     ? new Date(
                                           selectedSlot.end.getTime() -
                                               selectedSlot.end.getTimezoneOffset() *
-                                                  60000
+                                                  60000,
                                       )
                                           .toISOString()
                                           .slice(0, 16)
@@ -592,16 +620,15 @@ const EquipmentCalendar = ({
                             fullWidth
                         />
                         <TextField
-                            label="Purpose"
-                            value={formData.purpose}
+                            label="Project Number"
+                            value={formData.project_number}
                             onChange={(e) =>
                                 setFormData({
                                     ...formData,
-                                    purpose: e.target.value,
+                                    project_number: e.target.value,
                                 })
                             }
-                            multiline
-                            rows={3}
+                            required
                             fullWidth
                         />
 
@@ -623,17 +650,65 @@ const EquipmentCalendar = ({
                         </Button>
 
                         {showOptionalFields && (
-                            <TextField
-                                label="Project Number"
-                                value={formData.project_number}
-                                onChange={(e) =>
-                                    setFormData({
-                                        ...formData,
-                                        project_number: e.target.value,
-                                    })
-                                }
-                                fullWidth
-                            />
+                            <>
+                                <TextField
+                                    label="Notes"
+                                    value={formData.purpose}
+                                    onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            purpose: e.target.value,
+                                        })
+                                    }
+                                    multiline
+                                    rows={3}
+                                    fullWidth
+                                />
+                                <Autocomplete
+                                    options={users}
+                                    getOptionLabel={(option) =>
+                                        typeof option === "string"
+                                            ? option
+                                            : `${option.first_name} ${option.last_name}`
+                                    }
+                                    value={
+                                        users.find(
+                                            (u) =>
+                                                `${u.first_name} ${u.last_name}` ===
+                                                formData.scheduled_on_behalf_of,
+                                        ) || null
+                                    }
+                                    onChange={(event, newValue) => {
+                                        setFormData({
+                                            ...formData,
+                                            scheduled_on_behalf_of: newValue
+                                                ? `${newValue.first_name} ${newValue.last_name}`
+                                                : "",
+                                        });
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Scheduled On Behalf Of"
+                                            placeholder="Enter name if scheduling for someone else"
+                                            fullWidth
+                                        />
+                                    )}
+                                    renderOption={(props, option) => (
+                                        <li {...props} key={option.id}>
+                                            {option.first_name}{" "}
+                                            {option.last_name} ({option.email})
+                                        </li>
+                                    )}
+                                    isOptionEqualToValue={(option, value) =>
+                                        option.id === value?.id
+                                    }
+                                    ListboxProps={{
+                                        style: { maxHeight: "250px" },
+                                    }}
+                                    fullWidth
+                                />
+                            </>
                         )}
 
                         <FormControlLabel
@@ -648,7 +723,7 @@ const EquipmentCalendar = ({
                                     }
                                 />
                             }
-                            label="Repeat Checkout"
+                            label="Repeat Reservation"
                         />
                         {formData.isRecurring && (
                             <>
@@ -695,12 +770,12 @@ const EquipmentCalendar = ({
                                         formData.recurrencePattern === "daily"
                                             ? "day(s)"
                                             : formData.recurrencePattern ===
-                                              "weekly"
-                                            ? "week(s)"
-                                            : formData.recurrencePattern ===
-                                              "monthly"
-                                            ? "month(s)"
-                                            : "day(s)"
+                                                "weekly"
+                                              ? "week(s)"
+                                              : formData.recurrencePattern ===
+                                                  "monthly"
+                                                ? "month(s)"
+                                                : "day(s)"
                                     }`}
                                     fullWidth
                                 />
@@ -764,7 +839,7 @@ const EquipmentCalendar = ({
                 maxWidth="sm"
                 fullWidth
             >
-                <DialogTitle>Edit Checkout</DialogTitle>
+                <DialogTitle>Edit Reservation</DialogTitle>
                 <DialogContent>
                     <Box
                         sx={{
@@ -805,7 +880,7 @@ const EquipmentCalendar = ({
                             fullWidth
                         />
                         <TextField
-                            label="Purpose"
+                            label="Notes"
                             value={editFormData.purpose}
                             onChange={(e) =>
                                 setEditFormData({

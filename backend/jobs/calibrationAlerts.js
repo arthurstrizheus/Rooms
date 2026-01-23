@@ -10,7 +10,7 @@ const { Op } = require("sequelize");
 const checkCalibrationAlerts = async () => {
     try {
         console.log(
-            `[${new Date().toISOString()}] Running calibration alerts check...`
+            `[${new Date().toISOString()}] Running calibration alerts check...`,
         );
 
         // Get all active calibration_due alerts with their users and equipment
@@ -24,7 +24,13 @@ const checkCalibrationAlerts = async () => {
                     model: Equipment,
                     required: true,
                     where: {
-                        calibration_due_date: {
+                        last_calibration_date: {
+                            [Op.not]: null,
+                        },
+                        calibration_interval_value: {
+                            [Op.not]: null,
+                        },
+                        calibration_interval_unit: {
                             [Op.not]: null,
                         },
                     },
@@ -53,10 +59,29 @@ const checkCalibrationAlerts = async () => {
             const user = alert.User;
             const notificationDays = alert.notification_days_before || 30;
 
-            // Calculate the notification date (X days before due date)
-            const dueDate = new Date(equipment.calibration_due_date);
+            // Calculate the due date based on last_calibration_date + interval
+            const lastCalibration = new Date(equipment.last_calibration_date);
+            const dueDate = new Date(lastCalibration);
+
+            const intervalValue = equipment.calibration_interval_value;
+            const intervalUnit = equipment.calibration_interval_unit;
+
+            // Add the interval to last calibration date
+            switch (intervalUnit) {
+                case "days":
+                    dueDate.setDate(dueDate.getDate() + intervalValue);
+                    break;
+                case "months":
+                    dueDate.setMonth(dueDate.getMonth() + intervalValue);
+                    break;
+                case "years":
+                    dueDate.setFullYear(dueDate.getFullYear() + intervalValue);
+                    break;
+            }
+
             dueDate.setHours(0, 0, 0, 0);
 
+            // Calculate the notification date (X days before due date)
             const notificationDate = new Date(dueDate);
             notificationDate.setDate(dueDate.getDate() - notificationDays);
 
@@ -69,7 +94,7 @@ const checkCalibrationAlerts = async () => {
 
             if (isPastDue || isNotificationDay || isBetweenNotificationAndDue) {
                 const daysUntilDue = Math.ceil(
-                    (dueDate - today) / (1000 * 60 * 60 * 24)
+                    (dueDate - today) / (1000 * 60 * 60 * 24),
                 );
 
                 if (!equipmentAlertsMap.has(equipment.id)) {
@@ -93,22 +118,22 @@ const checkCalibrationAlerts = async () => {
                 await sendCalibrationDueEmail(
                     data.equipment,
                     data.subscribers,
-                    data.daysUntilDue
+                    data.daysUntilDue,
                 );
                 emailsSent++;
                 console.log(
-                    `Sent calibration alert for equipment ${equipmentId} to ${data.subscribers.length} subscribers (${data.daysUntilDue} days until due)`
+                    `Sent calibration alert for equipment ${equipmentId} to ${data.subscribers.length} subscribers (${data.daysUntilDue} days until due)`,
                 );
             } catch (emailError) {
                 console.error(
                     `Error sending calibration alert for equipment ${equipmentId}:`,
-                    emailError
+                    emailError,
                 );
             }
         }
 
         console.log(
-            `Calibration alerts check complete. Sent ${emailsSent} equipment alerts.`
+            `Calibration alerts check complete. Sent ${emailsSent} equipment alerts.`,
         );
     } catch (error) {
         console.error("Error in checkCalibrationAlerts:", error);
@@ -126,7 +151,7 @@ const initCalibrationAlertsScheduler = () => {
     });
 
     console.log(
-        "Calibration alerts scheduler initialized (runs daily at 8:00 AM)"
+        "Calibration alerts scheduler initialized (runs daily at 8:00 AM)",
     );
 
     // Optional: Run once on startup for testing

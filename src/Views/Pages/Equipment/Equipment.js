@@ -34,6 +34,9 @@ import {
     Search,
     Visibility,
 } from "@mui/icons-material";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useSocket } from "../../../Contexts/SocketContext";
@@ -45,20 +48,49 @@ const Equipment = ({ setLoading, loading }) => {
     const [equipment, setEquipment] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedEquipment, setSelectedEquipment] = useState(null);
+
+    const calculateDueDate = (item) => {
+        if (!item.last_calibration_date || !item.calibration_interval_value) {
+            return null;
+        }
+        const lastCal = new Date(item.last_calibration_date);
+        const dueDate = new Date(lastCal);
+
+        switch (item.calibration_interval_unit) {
+            case "days":
+                dueDate.setDate(
+                    dueDate.getDate() + item.calibration_interval_value,
+                );
+                break;
+            case "months":
+                dueDate.setMonth(
+                    dueDate.getMonth() + item.calibration_interval_value,
+                );
+                break;
+            case "years":
+                dueDate.setFullYear(
+                    dueDate.getFullYear() + item.calibration_interval_value,
+                );
+                break;
+        }
+        return dueDate;
+    };
     const [locations, setLocations] = useState([]);
     const [users, setUsers] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [filterLocation, setFilterLocation] = useState(null);
     const [formData, setFormData] = useState({
         name: "",
         description: "",
         serial_number: "",
         location: "",
         contact_person: "",
+        contact_person_id: null,
         status: "available",
         requires_approval: false,
-        calibration_due_date: "",
-        calibration_interval_days: "",
+        calibration_interval_value: "",
+        calibration_interval_unit: "days",
     });
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -147,10 +179,11 @@ const Equipment = ({ setLoading, loading }) => {
                 serial_number: "",
                 location: "",
                 contact_person: "",
+                contact_person_id: null,
                 status: "available",
                 requires_approval: false,
-                calibration_due_date: "",
-                calibration_interval_days: "",
+                calibration_interval_value: "",
+                calibration_interval_unit: "days",
             });
         }
         setOpenDialog(true);
@@ -172,7 +205,7 @@ const Equipment = ({ setLoading, loading }) => {
                     formData,
                     {
                         headers: { Authorization: `Bearer ${token}` },
-                    }
+                    },
                 );
             } else {
                 await axios.post("/api/equipment", formData, {
@@ -196,7 +229,7 @@ const Equipment = ({ setLoading, loading }) => {
                 await deleteEquipment(id);
             },
             "warning",
-            "Delete Equipment"
+            "Delete Equipment",
         );
     };
 
@@ -249,7 +282,11 @@ const Equipment = ({ setLoading, loading }) => {
             item.description?.toLowerCase().includes(search);
         const matchesStatus =
             statusFilter === "all" || item.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesLocation =
+            !filterLocation ||
+            filterLocation.officeid === 0 ||
+            item.location === filterLocation?.Alias;
+        return matchesSearch && matchesStatus && matchesLocation;
     });
 
     return (
@@ -273,8 +310,45 @@ const Equipment = ({ setLoading, loading }) => {
                         display: "flex",
                         gap: 2,
                         flexDirection: isMobile ? "column" : "row",
+                        flexWrap: "wrap",
                     }}
                 >
+                    <FormControl
+                        variant="outlined"
+                        size="small"
+                        sx={{ flex: isMobile ? "1" : "0 0 200px" }}
+                    >
+                        <InputLabel id="filter-location-label">
+                            Filter by Office
+                        </InputLabel>
+                        <Select
+                            labelId="filter-location-label"
+                            id="filter-location-select"
+                            value={
+                                filterLocation?.officeid === 0
+                                    ? 0
+                                    : filterLocation?.officeid
+                                      ? filterLocation.officeid
+                                      : ""
+                            }
+                            label="Filter by Office"
+                            onChange={(e) => {
+                                const selectedItem = locations?.find(
+                                    (itm) => itm.officeid === e.target.value,
+                                );
+                                setFilterLocation(selectedItem || null);
+                            }}
+                        >
+                            {locations?.map((itm) => (
+                                <MenuItem
+                                    key={itm.officeid}
+                                    value={itm.officeid}
+                                >
+                                    {itm.Alias}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
                     <TextField
                         placeholder="Search equipment..."
                         value={searchTerm}
@@ -373,7 +447,7 @@ const Equipment = ({ setLoading, loading }) => {
                                             }}
                                         >
                                             {isCalibrationDueSoon(
-                                                item.calibration_due_date
+                                                calculateDueDate(item),
                                             ) && (
                                                 <Warning
                                                     color="warning"
@@ -383,7 +457,7 @@ const Equipment = ({ setLoading, loading }) => {
                                             <Chip
                                                 label={item.status}
                                                 color={getStatusColor(
-                                                    item.status
+                                                    item.status,
                                                 )}
                                                 size="small"
                                             />
@@ -419,7 +493,7 @@ const Equipment = ({ setLoading, loading }) => {
                                             startIcon={<Visibility />}
                                             onClick={() =>
                                                 navigate(
-                                                    `/equipment/${item.id}`
+                                                    `/equipment/${item.id}`,
                                                 )
                                             }
                                             fullWidth
@@ -432,7 +506,7 @@ const Equipment = ({ setLoading, loading }) => {
                                             startIcon={<CalendarMonth />}
                                             onClick={() =>
                                                 navigate(
-                                                    `/equipment/calendar/${item.id}`
+                                                    `/equipment/calendar/${item.id}`,
                                                 )
                                             }
                                             fullWidth
@@ -492,7 +566,7 @@ const Equipment = ({ setLoading, loading }) => {
                                             hover
                                             onClick={() =>
                                                 navigate(
-                                                    `/equipment/${item.id}`
+                                                    `/equipment/${item.id}`,
                                                 )
                                             }
                                             sx={{ cursor: "pointer" }}
@@ -507,7 +581,7 @@ const Equipment = ({ setLoading, loading }) => {
                                                 >
                                                     {item.name}
                                                     {isCalibrationDueSoon(
-                                                        item.calibration_due_date
+                                                        calculateDueDate(item),
                                                     ) && (
                                                         <Warning
                                                             color="warning"
@@ -535,7 +609,7 @@ const Equipment = ({ setLoading, loading }) => {
                                                 <Chip
                                                     label={item.status}
                                                     color={getStatusColor(
-                                                        item.status
+                                                        item.status,
                                                     )}
                                                     size="small"
                                                 />
@@ -556,7 +630,7 @@ const Equipment = ({ setLoading, loading }) => {
                                                         size="small"
                                                         onClick={() =>
                                                             navigate(
-                                                                `/equipment/${item.id}`
+                                                                `/equipment/${item.id}`,
                                                             )
                                                         }
                                                         title="View Details"
@@ -567,7 +641,7 @@ const Equipment = ({ setLoading, loading }) => {
                                                         size="small"
                                                         onClick={() =>
                                                             navigate(
-                                                                `/equipment/calendar/${item.id}`
+                                                                `/equipment/calendar/${item.id}`,
                                                             )
                                                         }
                                                         title="Calendar"
@@ -669,9 +743,7 @@ const Equipment = ({ setLoading, loading }) => {
                             }
                             value={
                                 users.find(
-                                    (u) =>
-                                        `${u.first_name} ${u.last_name}` ===
-                                        formData.contact_person
+                                    (u) => u.id === formData.contact_person_id,
                                 ) || null
                             }
                             onChange={(event, newValue) => {
@@ -680,6 +752,9 @@ const Equipment = ({ setLoading, loading }) => {
                                     contact_person: newValue
                                         ? `${newValue.first_name} ${newValue.last_name}`
                                         : "",
+                                    contact_person_id: newValue
+                                        ? newValue.id
+                                        : null,
                                 });
                             }}
                             renderInput={(params) => (
@@ -736,18 +811,40 @@ const Equipment = ({ setLoading, loading }) => {
                             <MenuItem value={false}>No</MenuItem>
                             <MenuItem value={true}>Yes</MenuItem>
                         </TextField>
-                        <TextField
-                            label="Calibration Interval (days)"
-                            type="number"
-                            value={formData.calibration_interval_days}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    calibration_interval_days: e.target.value,
-                                })
-                            }
-                            fullWidth
-                        />
+                        <Box sx={{ display: "flex", gap: 2 }}>
+                            <TextField
+                                label="Calibration Interval"
+                                type="number"
+                                value={formData.calibration_interval_value}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        calibration_interval_value:
+                                            e.target.value,
+                                    })
+                                }
+                                fullWidth
+                                sx={{ flex: 2 }}
+                            />
+                            <TextField
+                                select
+                                label="Unit"
+                                value={formData.calibration_interval_unit}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        calibration_interval_unit:
+                                            e.target.value,
+                                    })
+                                }
+                                fullWidth
+                                sx={{ flex: 1 }}
+                            >
+                                <MenuItem value="days">Days</MenuItem>
+                                <MenuItem value="months">Months</MenuItem>
+                                <MenuItem value="years">Years</MenuItem>
+                            </TextField>
+                        </Box>
                     </Box>
                 </DialogContent>
                 <DialogActions>

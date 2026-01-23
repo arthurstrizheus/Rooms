@@ -35,7 +35,7 @@ const CalibrationInfoCard = ({
                     headers: {
                         Authorization: `Bearer ${token}`,
                     },
-                }
+                },
             );
 
             if (!response.ok) {
@@ -57,6 +57,37 @@ const CalibrationInfoCard = ({
         }
     };
 
+    const calculateDueDate = () => {
+        if (
+            !equipment.last_calibration_date ||
+            !equipment.calibration_interval_value
+        ) {
+            return "N/A";
+        }
+        const lastCal = new Date(equipment.last_calibration_date);
+        const dueDate = new Date(lastCal);
+
+        switch (equipment.calibration_interval_unit) {
+            case "days":
+                dueDate.setDate(
+                    dueDate.getDate() + equipment.calibration_interval_value,
+                );
+                break;
+            case "months":
+                dueDate.setMonth(
+                    dueDate.getMonth() + equipment.calibration_interval_value,
+                );
+                break;
+            case "years":
+                dueDate.setFullYear(
+                    dueDate.getFullYear() +
+                        equipment.calibration_interval_value,
+                );
+                break;
+        }
+        return format(dueDate, "PPP");
+    };
+
     const calibrationItems = [
         {
             label: "Last Calibration Date",
@@ -66,14 +97,12 @@ const CalibrationInfoCard = ({
         },
         {
             label: "Calibration Due Date",
-            value: equipment.calibration_due_date
-                ? format(new Date(equipment.calibration_due_date), "PPP")
-                : "N/A",
+            value: calculateDueDate(),
         },
         {
             label: "Calibration Interval",
-            value: equipment.calibration_interval_days
-                ? `${equipment.calibration_interval_days} days`
+            value: equipment.calibration_interval_value
+                ? `${equipment.calibration_interval_value} ${equipment.calibration_interval_unit}`
                 : "N/A",
         },
     ];
@@ -140,7 +169,7 @@ const CalibrationInfoCard = ({
                                                 onClick={() =>
                                                     onViewHistory(
                                                         "Manuals",
-                                                        manualFiles
+                                                        manualFiles,
                                                     )
                                                 }
                                                 variant="outlined"
@@ -179,7 +208,7 @@ const CalibrationInfoCard = ({
                                             >
                                                 Uploaded:{" "}
                                                 {new Date(
-                                                    manualFiles[0].upload_date
+                                                    manualFiles[0].upload_date,
                                                 ).toLocaleDateString()}
                                             </Typography>
                                         </Box>
@@ -197,7 +226,7 @@ const CalibrationInfoCard = ({
                                                         handleDownload(
                                                             manualFiles[0].id,
                                                             manualFiles[0]
-                                                                .file_name
+                                                                .file_name,
                                                         )
                                                     }
                                                     sx={{
@@ -220,7 +249,7 @@ const CalibrationInfoCard = ({
                                                             onClick={() =>
                                                                 handleDeleteFile(
                                                                     manualFiles[0]
-                                                                        .id
+                                                                        .id,
                                                                 )
                                                             }
                                                             sx={{
@@ -266,7 +295,7 @@ const CalibrationInfoCard = ({
                                                 onClick={() =>
                                                     onViewHistory(
                                                         "Calibration Certificates",
-                                                        certFiles
+                                                        certFiles,
                                                     )
                                                 }
                                                 variant="outlined"
@@ -306,7 +335,8 @@ const CalibrationInfoCard = ({
                                                 >
                                                     Calibration Date:{" "}
                                                     {new Date(
-                                                        certFiles[0].calibration_date
+                                                        certFiles[0]
+                                                            .calibration_date,
                                                     ).toLocaleDateString()}
                                                 </Typography>
                                             )}
@@ -325,7 +355,7 @@ const CalibrationInfoCard = ({
                                                         handleDownload(
                                                             certFiles[0].id,
                                                             certFiles[0]
-                                                                .file_name
+                                                                .file_name,
                                                         )
                                                     }
                                                     sx={{
@@ -348,7 +378,7 @@ const CalibrationInfoCard = ({
                                                             onClick={() =>
                                                                 handleDeleteFile(
                                                                     certFiles[0]
-                                                                        .id
+                                                                        .id,
                                                                 )
                                                             }
                                                             sx={{
@@ -394,7 +424,7 @@ const CalibrationInfoCard = ({
                                                 onClick={() =>
                                                     onViewHistory(
                                                         "Other Files",
-                                                        otherFiles
+                                                        otherFiles,
                                                     )
                                                 }
                                                 variant="outlined"
@@ -433,7 +463,7 @@ const CalibrationInfoCard = ({
                                             >
                                                 Uploaded:{" "}
                                                 {new Date(
-                                                    otherFiles[0].upload_date
+                                                    otherFiles[0].upload_date,
                                                 ).toLocaleDateString()}
                                             </Typography>
                                         </Box>
@@ -451,7 +481,7 @@ const CalibrationInfoCard = ({
                                                         handleDownload(
                                                             otherFiles[0].id,
                                                             otherFiles[0]
-                                                                .file_name
+                                                                .file_name,
                                                         )
                                                     }
                                                     sx={{
@@ -474,7 +504,7 @@ const CalibrationInfoCard = ({
                                                             onClick={() =>
                                                                 handleDeleteFile(
                                                                     otherFiles[0]
-                                                                        .id
+                                                                        .id,
                                                                 )
                                                             }
                                                             sx={{

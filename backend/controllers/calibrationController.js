@@ -59,10 +59,9 @@ const Post = async (req, res, next) => {
 
         const calibration = await CalibrationHistory.create(calibrationData);
 
-        // Update equipment calibration dates
+        // Update equipment last calibration date
         await equipment.update({
             last_calibration_date: calibration_date,
-            calibration_due_date: next_due_date,
         });
 
         // Fetch complete calibration data
@@ -73,7 +72,12 @@ const Post = async (req, res, next) => {
                     {
                         model: User,
                         as: "PerformedBy",
-                        attributes: ["id", "username", "first_name", "last_name"],
+                        attributes: [
+                            "id",
+                            "username",
+                            "first_name",
+                            "last_name",
+                        ],
                     },
                     {
                         model: EquipmentFile,
@@ -81,7 +85,7 @@ const Post = async (req, res, next) => {
                         attributes: ["id", "file_name", "file_path"],
                     },
                 ],
-            }
+            },
         );
 
         res.status(201).json(completeCalibration);
@@ -114,18 +118,16 @@ const Update = async (req, res, next) => {
 
         await calibration.update(updates);
 
-        // If dates changed, update equipment
-        if (updates.calibration_date || updates.next_due_date) {
+        // If calibration date changed, update equipment
+        if (updates.calibration_date) {
             const equipment = await Equipment.findByPk(
-                calibration.equipment_id
+                calibration.equipment_id,
             );
             if (equipment) {
                 await equipment.update({
                     last_calibration_date:
                         updates.calibration_date ||
                         calibration.calibration_date,
-                    calibration_due_date:
-                        updates.next_due_date || calibration.next_due_date,
                 });
             }
         }

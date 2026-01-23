@@ -33,12 +33,16 @@ const Equipment = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        contact_person_id: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
         status: {
             type: DataTypes.ENUM(
                 "available",
                 "checked_out",
                 "maintenance",
-                "retired"
+                "retired",
             ),
             defaultValue: "available",
             allowNull: false,
@@ -47,12 +51,12 @@ const Equipment = sequelize.define(
             type: DataTypes.BOOLEAN,
             defaultValue: false,
         },
-        calibration_due_date: {
-            type: DataTypes.DATE,
+        calibration_interval_value: {
+            type: DataTypes.INTEGER,
             allowNull: true,
         },
-        calibration_interval_days: {
-            type: DataTypes.INTEGER,
+        calibration_interval_unit: {
+            type: DataTypes.ENUM("days", "months", "years"),
             allowNull: true,
         },
         last_calibration_date: {
@@ -63,7 +67,7 @@ const Equipment = sequelize.define(
     {
         tableName: "Equipment-Items",
         timestamps: true,
-    }
+    },
 );
 
 module.exports = Equipment;

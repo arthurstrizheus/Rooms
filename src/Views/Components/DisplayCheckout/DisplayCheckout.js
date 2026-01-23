@@ -66,7 +66,7 @@ const DisplayCheckout = ({
                 {
                     headers: { Authorization: `Bearer ${token}` },
                     responseType: "blob",
-                }
+                },
             );
             const imageUrl = URL.createObjectURL(response.data);
             setEquipmentImage(imageUrl);
@@ -126,7 +126,7 @@ const DisplayCheckout = ({
                     },
                     {
                         headers: { Authorization: `Bearer ${token}` },
-                    }
+                    },
                 );
                 setUpdate((prev) => prev + 1);
                 handleExit();
@@ -150,7 +150,7 @@ const DisplayCheckout = ({
                 },
                 {
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
             setUpdate((prev) => prev + 1);
             handleExit();
@@ -173,7 +173,7 @@ const DisplayCheckout = ({
                 },
                 {
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
             setUpdate((prev) => prev + 1);
             handleExit();
@@ -194,7 +194,7 @@ const DisplayCheckout = ({
                 },
                 {
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
             setUpdate((prev) => prev + 1);
             handleExit();
@@ -284,7 +284,7 @@ const DisplayCheckout = ({
                                 paddingLeft={"3px"}
                             >
                                 {new Date(
-                                    checkout.start_time
+                                    checkout.start_time,
                                 ).toLocaleDateString("en-US", {
                                     weekday: "long",
                                     month: "short",
@@ -308,15 +308,15 @@ const DisplayCheckout = ({
                                 {start.getHours() > 12
                                     ? start.getHours() - 12
                                     : start.getHours() < 1
-                                    ? "12"
-                                    : start.getHours()}
+                                      ? "12"
+                                      : start.getHours()}
                                 :{String(start.getMinutes()).padStart(2, "0")}
                                 {getAmPm(start)} -{" "}
                                 {end.getHours() > 12
                                     ? end.getHours() - 12
                                     : end.getHours() < 1
-                                    ? "12"
-                                    : end.getHours()}
+                                      ? "12"
+                                      : end.getHours()}
                                 :{String(end.getMinutes()).padStart(2, "0")}
                                 {getAmPm(end)}
                             </Typography>
@@ -367,7 +367,7 @@ const DisplayCheckout = ({
                         spacing={1}
                     >
                         <Tooltip
-                            title={"Cancel all recurring checkouts"}
+                            title={"Cancel all recurring reservations"}
                             componentsProps={{
                                 tooltip: {
                                     sx: {
@@ -398,7 +398,7 @@ const DisplayCheckout = ({
                             </Button>
                         </Tooltip>
                         <Tooltip
-                            title={"Cancel all following checkouts"}
+                            title={"Cancel all following reservations"}
                             componentsProps={{
                                 tooltip: {
                                     sx: {
@@ -428,7 +428,7 @@ const DisplayCheckout = ({
                             </Button>
                         </Tooltip>
                         <Tooltip
-                            title={"Cancel this checkout"}
+                            title={"Cancel this reservation"}
                             componentsProps={{
                                 tooltip: {
                                     sx: {
@@ -521,7 +521,7 @@ const DisplayCheckout = ({
                                 paddingLeft={"3px"}
                             >
                                 {new Date(
-                                    checkout.start_time
+                                    checkout.start_time,
                                 ).toLocaleDateString("en-US", {
                                     weekday: "long",
                                     month: "short",
@@ -545,15 +545,15 @@ const DisplayCheckout = ({
                                 {start.getHours() > 12
                                     ? start.getHours() - 12
                                     : start.getHours() < 1
-                                    ? "12"
-                                    : start.getHours()}
+                                      ? "12"
+                                      : start.getHours()}
                                 :{String(start.getMinutes()).padStart(2, "0")}
                                 {getAmPm(start)} -{" "}
                                 {end.getHours() > 12
                                     ? end.getHours() - 12
                                     : end.getHours() < 1
-                                    ? "12"
-                                    : end.getHours()}
+                                      ? "12"
+                                      : end.getHours()}
                                 :{String(end.getMinutes()).padStart(2, "0")}
                                 {getAmPm(end)}
                             </Typography>
@@ -604,7 +604,7 @@ const DisplayCheckout = ({
                         spacing={1}
                     >
                         <Tooltip
-                            title={"Update all future checkouts"}
+                            title={"Update all future reservations"}
                             componentsProps={{
                                 tooltip: {
                                     sx: {
@@ -630,7 +630,7 @@ const DisplayCheckout = ({
                         </Tooltip>
                         <Tooltip
                             title={
-                                "Update all the next checkouts after this point"
+                                "Update all the next reservations after this point"
                             }
                             componentsProps={{
                                 tooltip: {
@@ -661,7 +661,7 @@ const DisplayCheckout = ({
                             </Button>
                         </Tooltip>
                         <Tooltip
-                            title={"Update this checkout"}
+                            title={"Update this reservation"}
                             componentsProps={{
                                 tooltip: {
                                     sx: {
@@ -779,7 +779,7 @@ const DisplayCheckout = ({
                                     month: "short",
                                     day: "numeric",
                                     year: "numeric",
-                                }
+                                },
                             )}
                         </Typography>
                     </Stack>
@@ -798,15 +798,15 @@ const DisplayCheckout = ({
                             {start.getHours() > 12
                                 ? start.getHours() - 12
                                 : start.getHours() < 1
-                                ? "12"
-                                : start.getHours()}
+                                  ? "12"
+                                  : start.getHours()}
                             :{String(start.getMinutes()).padStart(2, "0")}
                             {getAmPm(start)} -{" "}
                             {end.getHours() > 12
                                 ? end.getHours() - 12
                                 : end.getHours() < 1
-                                ? "12"
-                                : end.getHours()}
+                                  ? "12"
+                                  : end.getHours()}
                             :{String(end.getMinutes()).padStart(2, "0")}
                             {getAmPm(end)}
                         </Typography>

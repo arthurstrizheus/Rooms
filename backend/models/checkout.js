@@ -39,7 +39,7 @@ const Checkout = sequelize.define(
                 "approved",
                 "checked_out",
                 "returned",
-                "cancelled"
+                "cancelled",
             ),
             defaultValue: "pending",
             allowNull: false,
@@ -84,11 +84,15 @@ const Checkout = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        scheduled_on_behalf_of: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
     },
     {
         tableName: "Equipment-Checkouts",
         timestamps: true,
-    }
+    },
 );
 
 module.exports = Checkout;

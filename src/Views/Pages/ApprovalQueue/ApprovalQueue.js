@@ -106,7 +106,7 @@ export default function ApprovalQueue({ setLoading }) {
 
     const handleApprove = async () => {
         if (selected.length === 0) {
-            showError("Please select at least one checkout to approve");
+            showError("Please select at least one reservation to approve");
             return;
         }
 
@@ -116,14 +116,16 @@ export default function ApprovalQueue({ setLoading }) {
                 axios.put(`/api/checkouts/${checkoutId}`, {
                     status: "approved",
                     approved_by_user_id: user.id,
-                })
+                }),
             );
             await Promise.all(promises);
-            showSuccess(`${selected.length} checkout(s) approved successfully`);
+            showSuccess(
+                `${selected.length} reservation(s) approved successfully`,
+            );
             setSelected([]);
             setUpdate((prev) => prev + 1);
         } catch (error) {
-            showError("Failed to approve checkout(s)");
+            showError("Failed to approve reservation(s)");
             console.error(error);
         } finally {
             setLoading(false);
@@ -132,7 +134,7 @@ export default function ApprovalQueue({ setLoading }) {
 
     const handleDecline = async () => {
         if (selected.length === 0) {
-            showError("Please select at least one checkout to decline");
+            showError("Please select at least one reservation to decline");
             return;
         }
 
@@ -142,10 +144,10 @@ export default function ApprovalQueue({ setLoading }) {
                 axios.put(`/api/checkouts/${checkoutId}`, {
                     status: "cancelled",
                     approved_by_user_id: user.id,
-                })
+                }),
             );
             await Promise.all(promises);
-            showSuccess(`${selected.length} checkout(s) declined`);
+            showSuccess(`${selected.length} reservation(s) declined`);
             setSelected([]);
             setUpdate((prev) => prev + 1);
         } catch (error) {
@@ -193,7 +195,7 @@ export default function ApprovalQueue({ setLoading }) {
         } else if (selectedIndex > 0) {
             newSelected = newSelected.concat(
                 selected.slice(0, selectedIndex),
-                selected.slice(selectedIndex + 1)
+                selected.slice(selectedIndex + 1),
             );
         }
 
@@ -244,11 +246,11 @@ export default function ApprovalQueue({ setLoading }) {
 
     const sortedCheckouts = stableSort(
         checkouts,
-        getComparator(order, orderBy)
+        getComparator(order, orderBy),
     );
     const paginatedCheckouts = sortedCheckouts.slice(
         page * rowsPerPage,
-        page * rowsPerPage + rowsPerPage
+        page * rowsPerPage + rowsPerPage,
     );
 
     const getEquipmentName = (equipmentId) => {
@@ -327,7 +329,7 @@ export default function ApprovalQueue({ setLoading }) {
                                         onClick={(event) =>
                                             handleRequestSort(
                                                 event,
-                                                "equipment_id"
+                                                "equipment_id",
                                             )
                                         }
                                     >
@@ -360,7 +362,7 @@ export default function ApprovalQueue({ setLoading }) {
                                         onClick={(event) =>
                                             handleRequestSort(
                                                 event,
-                                                "start_time"
+                                                "start_time",
                                             )
                                         }
                                     >
@@ -394,7 +396,7 @@ export default function ApprovalQueue({ setLoading }) {
                             {paginatedCheckouts?.length > 0 ? (
                                 paginatedCheckouts?.map((checkout, index) => {
                                     const isItemSelected = isSelected(
-                                        checkout.id
+                                        checkout.id,
                                     );
                                     const backgroundColor =
                                         index % 2 === 0 ? "#f0f0f0" : "#ffffff";
@@ -420,7 +422,7 @@ export default function ApprovalQueue({ setLoading }) {
                                                         event.stopPropagation();
                                                         handleClick(
                                                             event,
-                                                            checkout.id
+                                                            checkout.id,
                                                         );
                                                     }}
                                                     checked={isItemSelected}
@@ -434,7 +436,7 @@ export default function ApprovalQueue({ setLoading }) {
                                                 scope="row"
                                             >
                                                 {getEquipmentName(
-                                                    checkout.equipment_id
+                                                    checkout.equipment_id,
                                                 )}
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
@@ -442,7 +444,7 @@ export default function ApprovalQueue({ setLoading }) {
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
                                                 {formatDate(
-                                                    checkout.start_time
+                                                    checkout.start_time,
                                                 )}
                                             </StyledTableCell>
                                             <StyledTableCell align="left">

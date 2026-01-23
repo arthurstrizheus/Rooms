@@ -99,12 +99,12 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
 
     const filteredRecurring = useMemo(
         () => filterCheckouts(recurringCheckouts),
-        [recurringCheckouts, searchTerm, statusFilter]
+        [recurringCheckouts, searchTerm, statusFilter],
     );
 
     const filteredNonRecurring = useMemo(
         () => filterCheckouts(nonRecurringCheckouts),
-        [nonRecurringCheckouts, searchTerm, statusFilter]
+        [nonRecurringCheckouts, searchTerm, statusFilter],
     );
 
     const getRecurrenceDescription = (checkout) => {
@@ -128,15 +128,15 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
             pattern === "daily"
                 ? "day(s)"
                 : pattern === "weekly"
-                ? "week(s)"
-                : pattern === "monthly"
-                ? "month(s)"
-                : pattern;
+                  ? "week(s)"
+                  : pattern === "monthly"
+                    ? "month(s)"
+                    : pattern;
 
         if (recurrence.end_date) {
             description += ` until ${format(
                 new Date(recurrence.end_date),
-                "PP"
+                "PP",
             )}`;
         } else {
             description += ` (indefinite)`;
@@ -281,7 +281,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                         alignItems: "center",
                     }}
                 >
-                    <Typography variant="h6">Checkout Details</Typography>
+                    <Typography variant="h6">Reservation Details</Typography>
                     <Button
                         onClick={handleCloseDialog}
                         color="inherit"
@@ -324,7 +324,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                     <Chip
                                         label={selectedCheckout.status}
                                         color={getCheckoutStatusColor(
-                                            selectedCheckout.status
+                                            selectedCheckout.status,
                                         )}
                                         size="small"
                                     />
@@ -343,9 +343,9 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                         <Typography variant="body1">
                                             {format(
                                                 new Date(
-                                                    selectedCheckout.start_time
+                                                    selectedCheckout.start_time,
                                                 ),
-                                                "PPpp"
+                                                "PPpp",
                                             )}
                                         </Typography>
                                     </Box>
@@ -370,7 +370,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                             />
                                             <Typography variant="body1">
                                                 {getRecurrenceDescription(
-                                                    selectedCheckout
+                                                    selectedCheckout,
                                                 )}
                                             </Typography>
                                         </Box>
@@ -388,9 +388,9 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                         <Typography variant="body1">
                                             {format(
                                                 new Date(
-                                                    selectedCheckout.start_time
+                                                    selectedCheckout.start_time,
                                                 ),
-                                                "PPpp"
+                                                "PPpp",
                                             )}
                                         </Typography>
                                     </Box>
@@ -404,9 +404,9 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                         <Typography variant="body1">
                                             {format(
                                                 new Date(
-                                                    selectedCheckout.end_time
+                                                    selectedCheckout.end_time,
                                                 ),
-                                                "PPpp"
+                                                "PPpp",
                                             )}
                                         </Typography>
                                     </Box>
@@ -463,7 +463,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
             <Card>
                 <CardContent>
                     <Typography variant="h6" gutterBottom>
-                        Checkout History
+                        Reservation History
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
 
@@ -503,7 +503,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                             <MenuItem value="all">All Status</MenuItem>
                             <MenuItem value="pending">Pending</MenuItem>
                             <MenuItem value="approved">Approved</MenuItem>
-                            <MenuItem value="checked_out">Checked Out</MenuItem>
+                            <MenuItem value="checked_out">In Use</MenuItem>
                             <MenuItem value="returned">Returned</MenuItem>
                             <MenuItem value="cancelled">Cancelled</MenuItem>
                         </TextField>
@@ -511,7 +511,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
 
                     {checkoutHistory.length === 0 ? (
                         <Typography align="center" color="text.secondary">
-                            No checkout history
+                            No reservation history
                         </Typography>
                     ) : filteredRecurring.length === 0 &&
                       filteredNonRecurring.length === 0 ? (
@@ -520,7 +520,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                             color="text.secondary"
                             sx={{ py: 3 }}
                         >
-                            No checkouts match your search criteria
+                            No reservations match your search criteria
                         </Typography>
                     ) : (
                         <Box>
@@ -539,7 +539,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                         >
                                             <RepeatIcon fontSize="small" />
                                             <Typography variant="subtitle1">
-                                                Recurring Checkouts (
+                                                Recurring Reservations (
                                                 {filteredRecurring.length})
                                             </Typography>
                                         </Box>
@@ -550,8 +550,8 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                 {filteredRecurring.map(
                                                     (checkout) =>
                                                         renderRecurringMobileCard(
-                                                            checkout
-                                                        )
+                                                            checkout,
+                                                        ),
                                                 )}
                                             </Box>
                                         ) : (
@@ -595,9 +595,9 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                     <TableCell>
                                                                         {format(
                                                                             new Date(
-                                                                                checkout.start_time
+                                                                                checkout.start_time,
                                                                             ),
-                                                                            "Pp"
+                                                                            "Pp",
                                                                         )}
                                                                     </TableCell>
                                                                     <TableCell>
@@ -606,7 +606,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                             color="text.secondary"
                                                                         >
                                                                             {getRecurrenceDescription(
-                                                                                checkout
+                                                                                checkout,
                                                                             )}
                                                                         </Typography>
                                                                     </TableCell>
@@ -616,7 +616,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                                 checkout.status
                                                                             }
                                                                             color={getCheckoutStatusColor(
-                                                                                checkout.status
+                                                                                checkout.status,
                                                                             )}
                                                                             size="small"
                                                                         />
@@ -630,7 +630,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                             "-"}
                                                                     </TableCell>
                                                                 </TableRow>
-                                                            )
+                                                            ),
                                                         )}
                                                     </TableBody>
                                                 </Table>
@@ -651,7 +651,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                         expandIcon={<ExpandMoreIcon />}
                                     >
                                         <Typography variant="subtitle1">
-                                            Single Checkouts (
+                                            Single Reservations (
                                             {filteredNonRecurring.length})
                                         </Typography>
                                     </AccordionSummary>
@@ -661,8 +661,8 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                 {filteredNonRecurring.map(
                                                     (checkout) =>
                                                         renderNonRecurringMobileCard(
-                                                            checkout
-                                                        )
+                                                            checkout,
+                                                        ),
                                                 )}
                                             </Box>
                                         ) : (
@@ -706,17 +706,17 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                     <TableCell>
                                                                         {format(
                                                                             new Date(
-                                                                                checkout.start_time
+                                                                                checkout.start_time,
                                                                             ),
-                                                                            "Pp"
+                                                                            "Pp",
                                                                         )}
                                                                     </TableCell>
                                                                     <TableCell>
                                                                         {format(
                                                                             new Date(
-                                                                                checkout.end_time
+                                                                                checkout.end_time,
                                                                             ),
-                                                                            "Pp"
+                                                                            "Pp",
                                                                         )}
                                                                     </TableCell>
                                                                     <TableCell>
@@ -725,7 +725,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                                 checkout.status
                                                                             }
                                                                             color={getCheckoutStatusColor(
-                                                                                checkout.status
+                                                                                checkout.status,
                                                                             )}
                                                                             size="small"
                                                                         />
@@ -739,7 +739,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                             "-"}
                                                                     </TableCell>
                                                                 </TableRow>
-                                                            )
+                                                            ),
                                                         )}
                                                     </TableBody>
                                                 </Table>

@@ -11,6 +11,8 @@ import Users from "../Views/Pages/Users/index";
 import NotFoundPage from "../Views/Pages/Errors/NotFoundPage";
 import EquipmentCalendar from "../Views/Pages/EquipmentCalendar";
 import EquipmentCalendarEmbed from "../Views/Pages/EquipmentCalendarEmbed";
+import EquipmentCompareCalendar from "../Views/Pages/EquipmentCompareCalendar";
+import EquipmentCompareCalendarEmbed from "../Views/Pages/EquipmentCompareCalendarEmbed";
 import { useMediaQuery } from "@mui/system";
 import AdminDashboard from "../Views/Pages/Admin/AdminDashboard";
 
@@ -43,14 +45,16 @@ const AppRoutes = ({
         let newBannerText = "";
         if (path === "/") {
             newBannerText = "Equipment";
+        } else if (path.match(/\/equipment\/compare\/\d+\/\d+$/)) {
+            newBannerText = `Compare Equipment Schedules`;
         } else if (path.startsWith("/equipment/calendar")) {
             newBannerText = `Equipment Schedule`;
         } else if (path.match(/\/equipment\/\d+$/)) {
             newBannerText = `Equipment Details`;
         } else if (path.startsWith("/equipment")) {
             newBannerText = `Equipment`;
-        } else if (path.startsWith("/checkouts")) {
-            newBannerText = `My Checkouts`;
+        } else if (path.startsWith("/reservations")) {
+            newBannerText = `My Reservations`;
         } else if (path.startsWith("/approve")) {
             newBannerText = `Approval Queue`;
         } else if (path.startsWith("/account")) {
@@ -92,6 +96,19 @@ const AppRoutes = ({
                 }
             />
             <Route
+                path="/equipment/compare/:equipmentId1/:equipmentId2/embed"
+                element={<EquipmentCompareCalendarEmbed />}
+            />
+            <Route
+                path="/equipment/compare/:equipmentId1/:equipmentId2"
+                element={
+                    <EquipmentCompareCalendar
+                        setLoading={setLoading}
+                        loading={loading}
+                    />
+                }
+            />
+            <Route
                 path="/equipment/:equipmentId"
                 element={
                     <EquipmentDetails
@@ -121,7 +138,7 @@ const AppRoutes = ({
                 }
             />
             <Route
-                path="/checkouts"
+                path="/reservations"
                 element={
                     <MyCheckouts setLoading={setLoading} loading={loading} />
                 }

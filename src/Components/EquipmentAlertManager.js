@@ -32,13 +32,13 @@ import {
 const ALERT_TYPES = [
     {
         value: "checkout_created",
-        label: "Checkout Created",
-        description: "Get notified when someone creates a checkout",
+        label: "Reservation Created",
+        description: "Get notified when someone creates a reservation",
     },
     {
         value: "checkout_cancelled",
-        label: "Checkout Cancelled",
-        description: "Get notified when a checkout is cancelled",
+        label: "Reservation Cancelled",
+        description: "Get notified when a reservation is cancelled",
     },
     {
         value: "equipment_returned",
@@ -91,7 +91,7 @@ const EquipmentAlertManager = ({ equipment, user, open, onClose }) => {
         const result = await SubscribeToAlert(
             equipment.id,
             selectedAlertType,
-            notificationDays
+            notificationDays,
         );
         if (result) {
             await fetchAlerts();
@@ -107,7 +107,7 @@ const EquipmentAlertManager = ({ equipment, user, open, onClose }) => {
         await UpdateAlert(
             alertId,
             !currentEnabled,
-            alert.notification_days_before
+            alert.notification_days_before,
         );
         await fetchAlerts();
         setLoading(false);
@@ -130,7 +130,7 @@ const EquipmentAlertManager = ({ equipment, user, open, onClose }) => {
         .filter((a) => a.enabled)
         .map((a) => a.alert_type);
     const availableAlertTypes = ALERT_TYPES.filter(
-        (type) => !subscribedAlertTypes.includes(type.value)
+        (type) => !subscribedAlertTypes.includes(type.value),
     );
 
     return (
@@ -171,7 +171,7 @@ const EquipmentAlertManager = ({ equipment, user, open, onClose }) => {
                         <Box display="flex" flexDirection="column" gap={2}>
                             {alerts.map((alert) => {
                                 const typeInfo = getAlertTypeInfo(
-                                    alert.alert_type
+                                    alert.alert_type,
                                 );
                                 return (
                                     <Box
@@ -245,7 +245,7 @@ const EquipmentAlertManager = ({ equipment, user, open, onClose }) => {
                                                         onChange={() =>
                                                             handleToggleAlert(
                                                                 alert.id,
-                                                                alert.enabled
+                                                                alert.enabled,
                                                             )
                                                         }
                                                         disabled={loading}
@@ -324,7 +324,7 @@ const EquipmentAlertManager = ({ equipment, user, open, onClose }) => {
                                     value={notificationDays}
                                     onChange={(e) =>
                                         setNotificationDays(
-                                            parseInt(e.target.value) || 7
+                                            parseInt(e.target.value) || 7,
                                         )
                                     }
                                     fullWidth

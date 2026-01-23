@@ -46,13 +46,13 @@ const AlertsCard = ({
     const alertTypes = [
         {
             value: "checkout_created",
-            label: "Checkout Created",
-            description: "Notify when someone creates a checkout",
+            label: "Reservation Created",
+            description: "Notify when someone creates a reservation",
         },
         {
             value: "checkout_cancelled",
-            label: "Checkout Cancelled",
-            description: "Notify when a checkout is cancelled",
+            label: "Reservation Cancelled",
+            description: "Notify when a reservation is cancelled",
         },
         {
             value: "equipment_returned",
@@ -107,12 +107,12 @@ const AlertsCard = ({
                 "/api/equipment-alerts/my-alerts",
                 {
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
 
             // Filter alerts for this equipment
             const equipmentAlerts = response.data.filter(
-                (alert) => alert.equipment_id === parseInt(equipmentId)
+                (alert) => alert.equipment_id === parseInt(equipmentId),
             );
             setMyAlerts(equipmentAlerts);
         } catch (error) {
@@ -134,7 +134,7 @@ const AlertsCard = ({
                 },
                 {
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
 
             showSuccess("Successfully subscribed to alerts");
@@ -146,7 +146,8 @@ const AlertsCard = ({
         } catch (error) {
             console.error("Error subscribing:", error);
             showError(
-                error.response?.data?.message || "Failed to subscribe to alerts"
+                error.response?.data?.message ||
+                    "Failed to subscribe to alerts",
             );
         }
     };
@@ -161,7 +162,7 @@ const AlertsCard = ({
                     {},
                     {
                         headers: { Authorization: `Bearer ${token}` },
-                    }
+                    },
                 );
                 showSuccess("Alert disabled");
             } else {
@@ -171,7 +172,7 @@ const AlertsCard = ({
                     { enabled: true },
                     {
                         headers: { Authorization: `Bearer ${token}` },
-                    }
+                    },
                 );
                 showSuccess("Alert enabled");
             }
@@ -190,7 +191,7 @@ const AlertsCard = ({
             },
             "warning",
             "Unsubscribe from Alert",
-            "Unsubscribe"
+            "Unsubscribe",
         );
     };
 
@@ -312,7 +313,7 @@ const AlertsCard = ({
                                                     onChange={() =>
                                                         handleToggleAlert(
                                                             alert.id,
-                                                            alert.enabled
+                                                            alert.enabled,
                                                         )
                                                     }
                                                     color="primary"

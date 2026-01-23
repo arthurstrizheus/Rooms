@@ -39,7 +39,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
     const { socket } = useSocket();
     const [approvalCount, setApprovalCount] = useSessionStorage(
         "approvalCount",
-        0
+        0,
     );
     const navigate = useNavigate();
     const prevApprovalRef = useRef(null);
@@ -53,7 +53,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                     const newCount = data.length;
                     const prev = prevApprovalRef.current;
                     const currentIds = new Set(
-                        data.map((c) => c.id).filter((id) => id != null)
+                        data.map((c) => c.id).filter((id) => id != null),
                     );
                     // Determine how many truly new IDs appeared
                     let newIdsCount = 0;
@@ -63,9 +63,9 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
 
                     if (source === "socket" && newIdsCount > 0) {
                         showWarning(
-                            `${newIdsCount} new checkout approval${
+                            `${newIdsCount} new reservation approval${
                                 newIdsCount === 1 ? "" : "s"
-                            } pending (total ${newCount})`
+                            } pending (total ${newCount})`,
                         );
                     }
                     approvalIdsRef.current = currentIds; // update known IDs
@@ -76,7 +76,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                 /* silent */
             }
         },
-        [user?.id, setApprovalCount]
+        [user?.id, setApprovalCount],
     );
 
     const handleMenuClick = (menu) => {
@@ -86,9 +86,9 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                 setNav({ page: "equipment" });
                 navigate("/equipment");
                 break;
-            case "checkouts":
-                setNav({ page: "checkouts" });
-                navigate("/checkouts");
+            case "reservations":
+                setNav({ page: "reservations" });
+                navigate("/reservations");
                 break;
             case "approve":
                 setNav({ page: "approve" });
@@ -115,7 +115,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
 
     useEffect(
         () => setNav({ page: location.pathname.split("/").splice(-1) }),
-        [bannderText, location.pathname]
+        [bannderText, location.pathname],
     );
 
     const handleLogout = () => {
@@ -154,14 +154,14 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                         message === "checkout_declined" &&
                         payload?.data?.user_id === user?.id
                     ) {
-                        showWarning("One of your checkouts was declined");
+                        showWarning("One of your reservations was declined");
                     } else if (
                         message === "checkout_approved" &&
                         payload?.data?.user_id === user?.id
                     ) {
                         const title =
                             payload?.data?.equipment_name ||
-                            `Checkout #${payload?.data?.checkoutId || ""}`;
+                            `Reservation #${payload?.data?.checkoutId || ""}`;
                         showSuccess(`${title} was approved`);
                     }
                 }
@@ -209,20 +209,12 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                 selected: nav.page == "equipment",
                             },
                             {
-                                name: "My Checkouts",
+                                name: "My Reservations",
                                 icon: <AssignmentIcon />,
-                                onClick: () => handleMenuClick("checkouts"),
-                                selected: nav.page == "checkouts",
-                            },
-                            {
-                                name: "Approval Queue",
-                                icon: <PlaylistAddCheckIcon />,
-                                onClick: () => handleMenuClick("approve"),
-                                selected: nav.page == "approve",
-                                _rawName: "Approval Queue",
+                                onClick: () => handleMenuClick("reservations"),
+                                selected: nav.page == "reservations",
                             },
                         ]}
-                        approvalCount={approvalCount}
                     />
                     <Divider />
                     <MenuItem
@@ -243,7 +235,7 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                           icon: <DeveloperModeIcon />,
                                           onClick: () =>
                                               handleMenuClick(
-                                                  "admin-dashboard"
+                                                  "admin-dashboard",
                                               ),
                                           selected:
                                               nav.page == "admin-dashboard",

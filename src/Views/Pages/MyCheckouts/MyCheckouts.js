@@ -91,12 +91,12 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
     const handleCancel = async (id) => {
         showConfirm(
-            "Are you sure you want to cancel this checkout?",
+            "Are you sure you want to cancel this reservation?",
             async () => {
                 await cancelCheckout(id);
             },
             "warning",
-            "Cancel Checkout"
+            "Cancel Reservation",
         );
     };
 
@@ -107,7 +107,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
             await axios.put(
                 `/api/checkouts/${id}`,
                 { status: "cancelled" },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             fetchCheckouts();
         } catch (error) {
@@ -199,7 +199,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
             await axios.put(
                 `/api/checkouts/${selectedCheckout.id}`,
                 editedCheckout,
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             await fetchCheckouts();
             setEditMode(false);
@@ -277,7 +277,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 format(startDate, "ha").toLowerCase(), // "1PM"
                 format(startDate, "hh:mm a").toLowerCase(), // "01:00 PM"
                 format(startDate, "PP").toLowerCase(), // "Jan 22, 2026"
-                format(startDate, "PPpp").toLowerCase() // "Jan 22, 2026, 1:00 PM"
+                format(startDate, "PPpp").toLowerCase(), // "Jan 22, 2026, 1:00 PM"
             );
         }
         if (endDate) {
@@ -291,7 +291,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 format(endDate, "ha").toLowerCase(),
                 format(endDate, "hh:mm a").toLowerCase(),
                 format(endDate, "PP").toLowerCase(),
-                format(endDate, "PPpp").toLowerCase()
+                format(endDate, "PPpp").toLowerCase(),
             );
         }
 
@@ -348,15 +348,15 @@ const MyCheckouts = ({ setLoading, loading }) => {
             pattern === "daily"
                 ? "day(s)"
                 : pattern === "weekly"
-                ? "week(s)"
-                : pattern === "monthly"
-                ? "month(s)"
-                : pattern;
+                  ? "week(s)"
+                  : pattern === "monthly"
+                    ? "month(s)"
+                    : pattern;
 
         if (recurrence.end_date) {
             description += ` until ${format(
                 new Date(recurrence.end_date),
-                "PP"
+                "PP",
             )}`;
         }
 
@@ -371,7 +371,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
             }}
         >
             <Typography variant={isMobile ? "h5" : "h4"} sx={{ mb: 3 }}>
-                My Checkouts
+                My Reservations
             </Typography>
 
             {/* Search and Filter Controls */}
@@ -384,7 +384,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 }}
             >
                 <TextField
-                    placeholder="Search checkouts..."
+                    placeholder="Search reservations..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     size="small"
@@ -408,7 +408,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     <MenuItem value="all">All Status</MenuItem>
                     <MenuItem value="approved">Approved</MenuItem>
                     <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="checked_out">Checked Out</MenuItem>
+                    <MenuItem value="checked_out">In Use</MenuItem>
                     <MenuItem value="returned">Returned</MenuItem>
                     <MenuItem value="cancelled">Cancelled</MenuItem>
                 </TextField>
@@ -416,7 +416,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
             {checkouts.length === 0 ? (
                 <Typography align="center" color="text.secondary">
-                    No checkouts found
+                    No reservations found
                 </Typography>
             ) : filteredCheckouts.length === 0 ? (
                 <Typography
@@ -424,7 +424,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     color="text.secondary"
                     sx={{ py: 3 }}
                 >
-                    No checkouts match your search criteria
+                    No reservations match your search criteria
                 </Typography>
             ) : (
                 <Box sx={{ pb: 4 }}>
@@ -447,7 +447,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                 >
                                     <Repeat fontSize="small" />
                                     <Typography variant="subtitle1">
-                                        Recurring Checkouts (
+                                        Recurring Reservations (
                                         {recurringCheckouts.length})
                                     </Typography>
                                 </Box>
@@ -496,7 +496,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 checkout.status
                                                             }
                                                             color={getStatusColor(
-                                                                checkout.status
+                                                                checkout.status,
                                                             )}
                                                             size="small"
                                                         />
@@ -519,7 +519,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             color="text.secondary"
                                                         >
                                                             {getRecurrenceDescription(
-                                                                checkout
+                                                                checkout,
                                                             )}
                                                         </Typography>
                                                     </Box>
@@ -529,7 +529,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 Start:
                                                             </strong>{" "}
                                                             {formatDateTime(
-                                                                checkout.start_time
+                                                                checkout.start_time,
                                                             )}
                                                         </Typography>
                                                         {checkout.purpose && (
@@ -566,7 +566,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "equipment"
+                                                                    "equipment",
                                                                 )
                                                             }
                                                         >
@@ -587,7 +587,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "start_time"
+                                                                    "start_time",
                                                                 )
                                                             }
                                                         >
@@ -611,7 +611,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "purpose"
+                                                                    "purpose",
                                                                 )
                                                             }
                                                         >
@@ -632,7 +632,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "status"
+                                                                    "status",
                                                                 )
                                                             }
                                                         >
@@ -658,7 +658,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }}
                                                             onClick={() =>
                                                                 handleOpenDetails(
-                                                                    checkout
+                                                                    checkout,
                                                                 )
                                                             }
                                                         >
@@ -682,7 +682,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             </TableCell>
                                                             <TableCell>
                                                                 {formatDateTime(
-                                                                    checkout.start_time
+                                                                    checkout.start_time,
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>
@@ -691,7 +691,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     color="text.secondary"
                                                                 >
                                                                     {getRecurrenceDescription(
-                                                                        checkout
+                                                                        checkout,
                                                                     )}
                                                                 </Typography>
                                                             </TableCell>
@@ -705,7 +705,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                         checkout.status
                                                                     }
                                                                     color={getStatusColor(
-                                                                        checkout.status
+                                                                        checkout.status,
                                                                     )}
                                                                     size="small"
                                                                 />
@@ -718,11 +718,11 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     <IconButton
                                                                         size="small"
                                                                         onClick={(
-                                                                            e
+                                                                            e,
                                                                         ) => {
                                                                             e.stopPropagation();
                                                                             handleCancel(
-                                                                                checkout.id
+                                                                                checkout.id,
                                                                             );
                                                                         }}
                                                                         color="error"
@@ -732,7 +732,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 )}
                                                             </TableCell>
                                                         </TableRow>
-                                                    )
+                                                    ),
                                                 )}
                                             </TableBody>
                                         </Table>
@@ -760,7 +760,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                 >
                                     <CalendarMonth fontSize="small" />
                                     <Typography variant="subtitle1">
-                                        Non-Recurring Checkouts (
+                                        Non-Recurring Reservations (
                                         {nonRecurringCheckouts.length})
                                     </Typography>
                                 </Box>
@@ -775,7 +775,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                     sx={{ cursor: "pointer" }}
                                                     onClick={() =>
                                                         handleOpenDetails(
-                                                            checkout
+                                                            checkout,
                                                         )
                                                     }
                                                 >
@@ -815,7 +815,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     checkout.status
                                                                 }
                                                                 color={getStatusColor(
-                                                                    checkout.status
+                                                                    checkout.status,
                                                                 )}
                                                                 size="small"
                                                             />
@@ -826,7 +826,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     Start:
                                                                 </strong>{" "}
                                                                 {formatDateTime(
-                                                                    checkout.start_time
+                                                                    checkout.start_time,
                                                                 )}
                                                             </Typography>
                                                             <Typography variant="body2">
@@ -834,7 +834,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     End:
                                                                 </strong>{" "}
                                                                 {formatDateTime(
-                                                                    checkout.end_time
+                                                                    checkout.end_time,
                                                                 )}
                                                             </Typography>
                                                             {checkout.purpose && (
@@ -850,7 +850,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         </Stack>
                                                     </CardContent>
                                                 </Card>
-                                            )
+                                            ),
                                         )}
                                     </Stack>
                                 ) : (
@@ -872,7 +872,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "equipment"
+                                                                    "equipment",
                                                                 )
                                                             }
                                                         >
@@ -893,7 +893,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "start_time"
+                                                                    "start_time",
                                                                 )
                                                             }
                                                         >
@@ -914,7 +914,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "end_time"
+                                                                    "end_time",
                                                                 )
                                                             }
                                                         >
@@ -935,7 +935,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "purpose"
+                                                                    "purpose",
                                                                 )
                                                             }
                                                         >
@@ -956,7 +956,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "status"
+                                                                    "status",
                                                                 )
                                                             }
                                                         >
@@ -982,7 +982,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             }}
                                                             onClick={() =>
                                                                 handleOpenDetails(
-                                                                    checkout
+                                                                    checkout,
                                                                 )
                                                             }
                                                         >
@@ -1006,12 +1006,12 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             </TableCell>
                                                             <TableCell>
                                                                 {formatDateTime(
-                                                                    checkout.start_time
+                                                                    checkout.start_time,
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>
                                                                 {formatDateTime(
-                                                                    checkout.end_time
+                                                                    checkout.end_time,
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>
@@ -1024,7 +1024,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                         checkout.status
                                                                     }
                                                                     color={getStatusColor(
-                                                                        checkout.status
+                                                                        checkout.status,
                                                                     )}
                                                                     size="small"
                                                                 />
@@ -1037,11 +1037,11 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     <IconButton
                                                                         size="small"
                                                                         onClick={(
-                                                                            e
+                                                                            e,
                                                                         ) => {
                                                                             e.stopPropagation();
                                                                             handleCancel(
-                                                                                checkout.id
+                                                                                checkout.id,
                                                                             );
                                                                         }}
                                                                         color="error"
@@ -1051,7 +1051,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 )}
                                                             </TableCell>
                                                         </TableRow>
-                                                    )
+                                                    ),
                                                 )}
                                             </TableBody>
                                         </Table>
@@ -1079,7 +1079,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                             alignItems: "center",
                         }}
                     >
-                        <Typography variant="h6">Checkout Details</Typography>
+                        <Typography variant="h6">
+                            Reservation Details
+                        </Typography>
                         <IconButton
                             onClick={handleCloseDetails}
                             size="small"
@@ -1159,7 +1161,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                     }
                                                     color={getEquipmentStatusColor(
                                                         selectedCheckout
-                                                            .Equipment?.status
+                                                            .Equipment?.status,
                                                     )}
                                                     size="small"
                                                 />
@@ -1185,97 +1187,134 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                         )}
 
                                         {/* Calibration Information */}
-                                        {(selectedCheckout.Equipment
-                                            ?.calibration_due_date ||
+                                        {selectedCheckout.Equipment
+                                            ?.last_calibration_date &&
                                             selectedCheckout.Equipment
-                                                ?.last_calibration_date) && (
-                                            <>
-                                                <Divider sx={{ my: 2 }} />
-                                                <Typography
-                                                    variant="subtitle2"
-                                                    sx={{
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        gap: 0.5,
-                                                    }}
-                                                >
-                                                    <Science fontSize="small" />
-                                                    Calibration Information
-                                                </Typography>
-                                                {selectedCheckout.Equipment
-                                                    ?.last_calibration_date && (
-                                                    <Box>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                        >
-                                                            Last Calibration:
-                                                        </Typography>
-                                                        <Typography variant="body2">
-                                                            {format(
-                                                                new Date(
-                                                                    selectedCheckout.Equipment.last_calibration_date
-                                                                ),
-                                                                "MMM dd, yyyy"
-                                                            )}
-                                                        </Typography>
-                                                    </Box>
-                                                )}
-                                                {selectedCheckout.Equipment
-                                                    ?.calibration_due_date && (
-                                                    <Box>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                        >
-                                                            Calibration Due:
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="body2"
-                                                            color={
-                                                                new Date(
-                                                                    selectedCheckout.Equipment.calibration_due_date
-                                                                ) < new Date()
-                                                                    ? "error"
-                                                                    : "inherit"
-                                                            }
-                                                        >
-                                                            {format(
-                                                                new Date(
-                                                                    selectedCheckout.Equipment.calibration_due_date
-                                                                ),
-                                                                "MMM dd, yyyy"
-                                                            )}
-                                                            {new Date(
-                                                                selectedCheckout.Equipment.calibration_due_date
-                                                            ) < new Date() &&
-                                                                " (Overdue)"}
-                                                        </Typography>
-                                                    </Box>
-                                                )}
-                                                {selectedCheckout.Equipment
-                                                    ?.calibration_interval_days && (
-                                                    <Box>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                        >
-                                                            Calibration
-                                                            Interval:
-                                                        </Typography>
-                                                        <Typography variant="body2">
-                                                            Every{" "}
-                                                            {
+                                                ?.calibration_interval_value && (
+                                                <>
+                                                    <Divider sx={{ my: 2 }} />
+                                                    <Typography
+                                                        variant="subtitle2"
+                                                        sx={{
+                                                            display: "flex",
+                                                            alignItems:
+                                                                "center",
+                                                            gap: 0.5,
+                                                        }}
+                                                    >
+                                                        <Science fontSize="small" />
+                                                        Calibration Information
+                                                    </Typography>
+                                                    {selectedCheckout.Equipment
+                                                        ?.last_calibration_date && (
+                                                        <Box>
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                            >
+                                                                Last
+                                                                Calibration:
+                                                            </Typography>
+                                                            <Typography variant="body2">
+                                                                {format(
+                                                                    new Date(
+                                                                        selectedCheckout
+                                                                            .Equipment
+                                                                            .last_calibration_date,
+                                                                    ),
+                                                                    "MMM dd, yyyy",
+                                                                )}
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+                                                    {(() => {
+                                                        const lastCal =
+                                                            new Date(
                                                                 selectedCheckout
                                                                     .Equipment
-                                                                    .calibration_interval_days
-                                                            }{" "}
-                                                            days
-                                                        </Typography>
-                                                    </Box>
-                                                )}
-                                            </>
-                                        )}
+                                                                    .last_calibration_date,
+                                                            );
+                                                        const dueDate =
+                                                            new Date(lastCal);
+                                                        const interval =
+                                                            selectedCheckout
+                                                                .Equipment
+                                                                .calibration_interval_value;
+                                                        const unit =
+                                                            selectedCheckout
+                                                                .Equipment
+                                                                .calibration_interval_unit;
+
+                                                        switch (unit) {
+                                                            case "days":
+                                                                dueDate.setDate(
+                                                                    dueDate.getDate() +
+                                                                        interval,
+                                                                );
+                                                                break;
+                                                            case "months":
+                                                                dueDate.setMonth(
+                                                                    dueDate.getMonth() +
+                                                                        interval,
+                                                                );
+                                                                break;
+                                                            case "years":
+                                                                dueDate.setFullYear(
+                                                                    dueDate.getFullYear() +
+                                                                        interval,
+                                                                );
+                                                                break;
+                                                        }
+
+                                                        return (
+                                                            <>
+                                                                <Box>
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        Calibration
+                                                                        Due:
+                                                                    </Typography>
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        color={
+                                                                            dueDate <
+                                                                            new Date()
+                                                                                ? "error"
+                                                                                : "inherit"
+                                                                        }
+                                                                    >
+                                                                        {format(
+                                                                            dueDate,
+                                                                            "MMM dd, yyyy",
+                                                                        )}
+                                                                        {dueDate <
+                                                                            new Date() &&
+                                                                            " (Overdue)"}
+                                                                    </Typography>
+                                                                </Box>
+                                                                <Box>
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        Calibration
+                                                                        Interval:
+                                                                    </Typography>
+                                                                    <Typography variant="body2">
+                                                                        Every{" "}
+                                                                        {
+                                                                            interval
+                                                                        }{" "}
+                                                                        {unit}
+                                                                    </Typography>
+                                                                </Box>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </>
+                                            )}
                                     </Stack>
                                 </CardContent>
                             </Card>
@@ -1292,7 +1331,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                             gap: 1,
                                         }}
                                     >
-                                        📅 Checkout Information
+                                        📅 Reservation Information
                                         {selectedCheckout.Recurrence && (
                                             <Chip
                                                 icon={<Repeat />}
@@ -1314,7 +1353,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                             </Typography>
                                             <Typography variant="body1">
                                                 {formatDateTime(
-                                                    selectedCheckout.start_time
+                                                    selectedCheckout.start_time,
                                                 )}
                                             </Typography>
                                         </Box>
@@ -1327,7 +1366,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                             </Typography>
                                             <Typography variant="body1">
                                                 {formatDateTime(
-                                                    selectedCheckout.end_time
+                                                    selectedCheckout.end_time,
                                                 )}
                                             </Typography>
                                         </Box>
@@ -1412,7 +1451,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         selectedCheckout.status
                                                     }
                                                     color={getStatusColor(
-                                                        selectedCheckout.status
+                                                        selectedCheckout.status,
                                                     )}
                                                     size="small"
                                                 />
@@ -1446,7 +1485,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                             ?.charAt(0)
                                                             .toUpperCase() +
                                                             selectedCheckout.Recurrence.recurrence_pattern?.slice(
-                                                                1
+                                                                1,
                                                             )}
                                                         {selectedCheckout
                                                             .Recurrence
@@ -1467,9 +1506,11 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <Typography variant="body2">
                                                             {format(
                                                                 new Date(
-                                                                    selectedCheckout.Recurrence.end_date
+                                                                    selectedCheckout
+                                                                        .Recurrence
+                                                                        .end_date,
                                                                 ),
-                                                                "MMM dd, yyyy"
+                                                                "MMM dd, yyyy",
                                                             )}
                                                         </Typography>
                                                     </Box>

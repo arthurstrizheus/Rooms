@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import {
+    Box,
+    CircularProgress,
+    Typography,
+    useMediaQuery,
+    useTheme,
+} from "@mui/material";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -10,6 +16,8 @@ import axios from "axios";
 const EquipmentCalendarEmbed = () => {
     const { equipmentId } = useParams();
     const navigate = useNavigate();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const [checkouts, setCheckouts] = useState([]);
     const [dateRange, setDateRange] = useState({ start: null, end: null });
     const [error, setError] = useState(null);
@@ -32,38 +40,40 @@ const EquipmentCalendarEmbed = () => {
                 {
                     params: { start, end },
                     headers: { Authorization: `Bearer ${token}` },
-                }
+                },
             );
 
             const formattedCheckouts = response.data
                 .filter((checkout) => checkout.status !== "cancelled")
                 .map((checkout) => ({
                     id: checkout.id,
-                    title: checkout.User
-                        ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                        : "Unknown User",
+                    title: checkout.scheduled_on_behalf_of
+                        ? checkout.scheduled_on_behalf_of
+                        : checkout.User
+                          ? `${checkout.User.first_name} ${checkout.User.last_name}`
+                          : "Unknown User",
                     start: checkout.start_time,
                     end: checkout.end_time,
                     backgroundColor:
                         checkout.status === "approved"
                             ? "#4caf50"
                             : checkout.status === "pending"
-                            ? "#ff9800"
-                            : checkout.status === "checked_out"
-                            ? "#2196f3"
-                            : checkout.status === "returned"
-                            ? "#9e9e9e"
-                            : "#f44336",
+                              ? "#ff9800"
+                              : checkout.status === "checked_out"
+                                ? "#2196f3"
+                                : checkout.status === "returned"
+                                  ? "#9e9e9e"
+                                  : "#f44336",
                     borderColor:
                         checkout.status === "approved"
                             ? "#388e3c"
                             : checkout.status === "pending"
-                            ? "#f57c00"
-                            : checkout.status === "checked_out"
-                            ? "#1976d2"
-                            : checkout.status === "returned"
-                            ? "#757575"
-                            : "#d32f2f",
+                              ? "#f57c00"
+                              : checkout.status === "checked_out"
+                                ? "#1976d2"
+                                : checkout.status === "returned"
+                                  ? "#757575"
+                                  : "#d32f2f",
                     extendedProps: {
                         status: checkout.status,
                         purpose: checkout.purpose,
@@ -108,7 +118,7 @@ const EquipmentCalendarEmbed = () => {
             <FullCalendar
                 key={checkouts.length}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView="timeGridWeek"
+                initialView={isMobile ? "timeGridWeek" : "dayGridMonth"}
                 headerToolbar={{
                     left: "prev,next today",
                     center: "title",

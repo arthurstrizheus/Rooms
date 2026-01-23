@@ -20,6 +20,7 @@ const {
     sendEquipmentReturnedEmail,
     sendEquipmentAvailableEmail,
     sendCheckoutCancelledEmail,
+    sendScheduledOnBehalfEmail,
 } = require("./mailController");
 
 // Helper function to check if two time ranges overlap
@@ -58,7 +59,7 @@ const recurringPatternsConflict = (
     checkout1,
     recurrence1,
     checkout2,
-    recurrence2
+    recurrence2,
 ) => {
     const start1 = new Date(checkout1.start_time);
     const end1 = new Date(checkout1.end_time);
@@ -79,11 +80,11 @@ const recurringPatternsConflict = (
     // Get recurrence intervals in days
     const interval1 = getIntervalDays(
         recurrence1.recurrence_pattern,
-        recurrence1.separation_count
+        recurrence1.separation_count,
     );
     const interval2 = getIntervalDays(
         recurrence2.recurrence_pattern,
-        recurrence2.separation_count
+        recurrence2.separation_count,
     );
 
     // Calculate day difference between start dates
@@ -118,7 +119,7 @@ const singleConflictsWithRecurring = (
     singleStart,
     singleEnd,
     recurringCheckout,
-    recurrence
+    recurrence,
 ) => {
     const recurStart = new Date(recurringCheckout.start_time);
     const recurEnd = new Date(recurringCheckout.end_time);
@@ -132,7 +133,7 @@ const singleConflictsWithRecurring = (
     const dayDiff = differenceInDays(singleStart, recurStart);
     const interval = getIntervalDays(
         recurrence.recurrence_pattern,
-        recurrence.separation_count
+        recurrence.separation_count,
     );
 
     // Check if single checkout falls on a recurring occurrence day
@@ -161,7 +162,7 @@ const checkConflicts = async (
     recurrencePattern = null,
     separationCount = null,
     recurrenceEndDate = null,
-    excludeCheckoutId = null
+    excludeCheckoutId = null,
 ) => {
     // Fetch all checkouts for this equipment (excluding the one being updated)
     const whereClause = {
@@ -204,7 +205,7 @@ const checkConflicts = async (
                     newCheckout,
                     newRecurrence,
                     existing,
-                    existing.Recurrence
+                    existing.Recurrence,
                 )
             ) {
                 conflicts.push(existing);
@@ -216,7 +217,7 @@ const checkConflicts = async (
                     newStart,
                     newEnd,
                     existing,
-                    existing.Recurrence
+                    existing.Recurrence,
                 )
             ) {
                 conflicts.push(existing);
@@ -237,7 +238,7 @@ const checkConflicts = async (
                     existingStart,
                     existingEnd,
                     { start_time: newStart, end_time: newEnd },
-                    newRecurrence
+                    newRecurrence,
                 )
             ) {
                 conflicts.push(existing);
@@ -341,7 +342,7 @@ const GetByEquipmentId = async (req, res, next) => {
                         checkout,
                         checkout.Recurrence,
                         start,
-                        end
+                        end,
                     );
                     allCheckouts = allCheckouts.concat(occurrences);
                 } else {
@@ -475,7 +476,7 @@ const Post = async (req, res, next) => {
                         newCheckout,
                         newRecurrence,
                         existing,
-                        existing.Recurrence
+                        existing.Recurrence,
                     )
                 ) {
                     conflicts.push(existing);
@@ -487,7 +488,7 @@ const Post = async (req, res, next) => {
                         newStart,
                         newEnd,
                         existing,
-                        existing.Recurrence
+                        existing.Recurrence,
                     )
                 ) {
                     conflicts.push(existing);
@@ -508,7 +509,7 @@ const Post = async (req, res, next) => {
                         existingStart,
                         existingEnd,
                         { start_time, end_time },
-                        newRecurrence
+                        newRecurrence,
                     )
                 ) {
                     conflicts.push(existing);
@@ -522,7 +523,7 @@ const Post = async (req, res, next) => {
                         newStart,
                         newEnd,
                         existingStart,
-                        existingEnd
+                        existingEnd,
                     )
                 ) {
                     conflicts.push(existing);
@@ -606,22 +607,79 @@ const Post = async (req, res, next) => {
             try {
                 const subscribers = await GetSubscribers(
                     equipment_id,
-                    "checkout_created"
+                    "checkout_created",
                 );
                 if (subscribers && subscribers.length > 0) {
                     await sendCheckoutCreatedEmail(
                         completeCheckout,
                         equipment,
-                        subscribers
+                        subscribers,
                     );
                 }
             } catch (emailError) {
                 console.error(
                     "Error sending checkout created emails:",
-                    emailError
+                    emailError,
                 );
             }
         })();
+
+        // Send email to person scheduled on behalf of (if applicable)
+        if (completeCheckout.scheduled_on_behalf_of) {
+            (async () => {
+                try {
+                    // Get the user who created the reservation
+                    const schedulingUser = await User.findByPk(user_id);
+                    const schedulingUserName = schedulingUser
+                        ? `${schedulingUser.first_name || ""} ${
+                              schedulingUser.last_name || ""
+                          }`.trim() || schedulingUser.username
+                        : "A user";
+
+                    // Try to find the user by name to get their email
+                    const nameParts =
+                        completeCheckout.scheduled_on_behalf_of.split(" ");
+                    let scheduledForEmail = null;
+
+                    if (nameParts.length >= 2) {
+                        const firstName = nameParts[0];
+                        const lastName = nameParts.slice(1).join(" ");
+
+                        const scheduledForUser = await User.findOne({
+                            where: {
+                                first_name: {
+                                    [Sequelize.Op.iLike]: firstName,
+                                },
+                                last_name: { [Sequelize.Op.iLike]: lastName },
+                            },
+                        });
+
+                        if (scheduledForUser?.email) {
+                            scheduledForEmail = scheduledForUser.email;
+                        }
+                    }
+
+                    // If we found an email, send the notification
+                    if (scheduledForEmail) {
+                        await sendScheduledOnBehalfEmail(
+                            completeCheckout,
+                            equipment,
+                            schedulingUserName,
+                            scheduledForEmail,
+                        );
+                    } else {
+                        console.log(
+                            `Could not find email for scheduled_on_behalf_of: ${completeCheckout.scheduled_on_behalf_of}`,
+                        );
+                    }
+                } catch (emailError) {
+                    console.error(
+                        "Error sending scheduled on behalf email:",
+                        emailError,
+                    );
+                }
+            })();
+        }
 
         // Emit socket event
         const io = req.app.get("io");
@@ -696,7 +754,7 @@ const Update = async (req, res, next) => {
         console.log("updateMode:", updateMode);
         console.log(
             "checkout.Recurrence:",
-            checkout.Recurrence ? "EXISTS" : "NULL"
+            checkout.Recurrence ? "EXISTS" : "NULL",
         );
         console.log("updates:", updates);
 
@@ -713,7 +771,7 @@ const Update = async (req, res, next) => {
                 console.log("Base checkout ID:", checkout.id);
                 console.log(
                     "Original checkout start_time:",
-                    checkout.start_time
+                    checkout.start_time,
                 );
                 console.log("Original checkout end_time:", checkout.end_time);
                 console.log("Occurrence date being edited:", occurrenceDate);
@@ -733,8 +791,8 @@ const Update = async (req, res, next) => {
                             occurrenceDate,
                             (new Date(checkout.end_time) -
                                 new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24)
-                        )
+                                (1000 * 60 * 60 * 24),
+                        ),
                 );
 
                 await checkConflicts(
@@ -743,7 +801,7 @@ const Update = async (req, res, next) => {
                     newEnd,
                     null,
                     null,
-                    null
+                    null,
                 );
 
                 // End the original recurrence before this occurrence
@@ -760,7 +818,7 @@ const Update = async (req, res, next) => {
                             occurrenceDate,
                             (new Date(checkout.end_time) -
                                 new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24)
+                                (1000 * 60 * 60 * 24),
                         ),
                     purpose: updates.purpose || checkout.purpose,
                     status: updates.status || checkout.status,
@@ -787,7 +845,7 @@ const Update = async (req, res, next) => {
 
                     console.log(
                         "Created new recurrence with end_date:",
-                        originalEndDate
+                        originalEndDate,
                     );
 
                     // Create new checkout starting from the day after with ORIGINAL times
@@ -804,14 +862,14 @@ const Update = async (req, res, next) => {
                     newStartTime.setHours(
                         originalStartTime.getHours(),
                         originalStartTime.getMinutes(),
-                        originalStartTime.getSeconds()
+                        originalStartTime.getSeconds(),
                     );
 
                     const newEndTime = new Date(dayAfter);
                     newEndTime.setHours(
                         originalEndTime.getHours(),
                         originalEndTime.getMinutes(),
-                        originalEndTime.getSeconds()
+                        originalEndTime.getSeconds(),
                     );
 
                     console.log("newStartTime:", newStartTime);
@@ -848,7 +906,7 @@ const Update = async (req, res, next) => {
                 console.log("Base checkout ID:", checkout.id);
                 console.log(
                     "Original checkout start_time:",
-                    checkout.start_time
+                    checkout.start_time,
                 );
                 console.log("Original checkout end_time:", checkout.end_time);
                 console.log("Occurrence date being edited:", occurrenceDate);
@@ -868,8 +926,8 @@ const Update = async (req, res, next) => {
                             occurrenceDate,
                             (new Date(checkout.end_time) -
                                 new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24)
-                        )
+                                (1000 * 60 * 60 * 24),
+                        ),
                 );
                 const newPattern =
                     updates.recurrence_pattern || recurrence.recurrence_pattern;
@@ -884,7 +942,7 @@ const Update = async (req, res, next) => {
                     newEnd,
                     newPattern,
                     newSeparation,
-                    newEndDate
+                    newEndDate,
                 );
 
                 await recurrence.update({ end_date: dayBefore });
@@ -908,7 +966,7 @@ const Update = async (req, res, next) => {
 
                 console.log(
                     "Created new recurrence with end_date:",
-                    updates.recurrence_end_date || originalEndDate
+                    updates.recurrence_end_date || originalEndDate,
                 );
 
                 const newCheckout = await Checkout.create({
@@ -921,7 +979,7 @@ const Update = async (req, res, next) => {
                             occurrenceDate,
                             (new Date(checkout.end_time) -
                                 new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24)
+                                (1000 * 60 * 60 * 24),
                         ),
                     purpose: updates.purpose || checkout.purpose,
                     status: updates.status || checkout.status,
@@ -947,7 +1005,7 @@ const Update = async (req, res, next) => {
                 console.log("Base checkout ID:", checkout.id);
                 console.log(
                     "Original checkout start_time:",
-                    checkout.start_time
+                    checkout.start_time,
                 );
                 console.log("Original checkout end_time:", checkout.end_time);
                 console.log("Updates received:", updates);
@@ -961,7 +1019,7 @@ const Update = async (req, res, next) => {
                     newStartTime.setHours(
                         updatedTime.getHours(),
                         updatedTime.getMinutes(),
-                        updatedTime.getSeconds()
+                        updatedTime.getSeconds(),
                     );
                 }
 
@@ -970,7 +1028,7 @@ const Update = async (req, res, next) => {
                     newEndTime.setHours(
                         updatedTime.getHours(),
                         updatedTime.getMinutes(),
-                        updatedTime.getSeconds()
+                        updatedTime.getSeconds(),
                     );
                 }
 
@@ -978,7 +1036,7 @@ const Update = async (req, res, next) => {
                     "New times - start:",
                     newStartTime,
                     "end:",
-                    newEndTime
+                    newEndTime,
                 );
 
                 const newPattern =
@@ -999,7 +1057,7 @@ const Update = async (req, res, next) => {
                         newPattern,
                         newSeparation,
                         newEndDate,
-                        baseCheckoutId
+                        baseCheckoutId,
                     );
                 }
 
@@ -1089,7 +1147,7 @@ const Update = async (req, res, next) => {
                 null,
                 null,
                 null,
-                baseCheckoutId
+                baseCheckoutId,
             );
         }
 
@@ -1128,7 +1186,7 @@ const Update = async (req, res, next) => {
             (async () => {
                 try {
                     const equipment = await Equipment.findByPk(
-                        checkout.equipment_id
+                        checkout.equipment_id,
                     );
 
                     // Get the user who cancelled (current user from auth)
@@ -1142,16 +1200,20 @@ const Update = async (req, res, next) => {
                     // Get subscribers to checkout_cancelled alerts
                     const subscribers = await GetSubscribers(
                         checkout.equipment_id,
-                        "checkout_cancelled"
+                        "checkout_cancelled",
                     );
 
-                    // Get the checkout owner's email
+                    // Get the checkout owner's email (only if not the one cancelling)
                     const checkoutOwner = await User.findByPk(checkout.user_id);
                     const ownerEmail = checkoutOwner?.email;
 
-                    // Create recipient list: owner + subscribers (deduplicated)
+                    // Only send to owner if they're not the one cancelling
+                    const shouldNotifyOwner =
+                        ownerEmail && checkout.user_id !== userId;
+
+                    // Create recipient list: owner (if different from canceller) + subscribers (deduplicated)
                     const recipientEmails = [
-                        ...(ownerEmail ? [ownerEmail] : []),
+                        ...(shouldNotifyOwner ? [ownerEmail] : []),
                         ...(subscribers || []),
                     ];
                     const uniqueRecipients = [...new Set(recipientEmails)];
@@ -1161,13 +1223,13 @@ const Update = async (req, res, next) => {
                             completeCheckout,
                             equipment,
                             uniqueRecipients,
-                            cancelledByName
+                            cancelledByName,
                         );
                     }
                 } catch (emailError) {
                     console.error(
                         "Error sending checkout cancelled emails:",
-                        emailError
+                        emailError,
                     );
                 }
             })();
@@ -1175,24 +1237,24 @@ const Update = async (req, res, next) => {
             (async () => {
                 try {
                     const equipment = await Equipment.findByPk(
-                        checkout.equipment_id
+                        checkout.equipment_id,
                     );
 
                     const subscribers = await GetSubscribers(
                         checkout.equipment_id,
-                        "equipment_returned"
+                        "equipment_returned",
                     );
                     if (subscribers && subscribers.length > 0) {
                         await sendEquipmentReturnedEmail(
                             completeCheckout,
                             equipment,
-                            subscribers
+                            subscribers,
                         );
                     }
                 } catch (emailError) {
                     console.error(
                         "Error sending equipment returned emails:",
-                        emailError
+                        emailError,
                     );
                 }
             })();
@@ -1335,15 +1397,19 @@ const Delete = async (req, res, next) => {
                 // Get subscribers to checkout_cancelled alerts
                 const subscribers = await GetSubscribers(
                     checkout.equipment_id,
-                    "checkout_cancelled"
+                    "checkout_cancelled",
                 );
 
                 // Get the checkout owner's email
                 const ownerEmail = checkout.User?.email;
 
-                // Create recipient list: owner + subscribers (deduplicated)
+                // Only send to owner if they're not the one cancelling
+                const shouldNotifyOwner =
+                    ownerEmail && checkout.user_id !== userId;
+
+                // Create recipient list: owner (if different from canceller) + subscribers (deduplicated)
                 const recipientEmails = [
-                    ...(ownerEmail ? [ownerEmail] : []),
+                    ...(shouldNotifyOwner ? [ownerEmail] : []),
                     ...(subscribers || []),
                 ];
                 const uniqueRecipients = [...new Set(recipientEmails)];
@@ -1353,13 +1419,13 @@ const Delete = async (req, res, next) => {
                         checkout,
                         equipment,
                         uniqueRecipients,
-                        cancelledByName
+                        cancelledByName,
                     );
                 }
             } catch (emailError) {
                 console.error(
                     "Error sending checkout cancelled emails:",
-                    emailError
+                    emailError,
                 );
             }
         })();

@@ -16,11 +16,11 @@ const authenticateUser = async (req, res, next) => {
     try {
         // Check if the current route is public
         const isPublicRoute = publicRoutes.some(
-            (route) => req.path === route || req.path.startsWith(route)
+            (route) => req.path === route || req.path.startsWith(route),
         );
 
         console.log(
-            `🔍 Auth middleware - Path: ${req.path}, Public: ${isPublicRoute}`
+            `🔍 Auth middleware - Path: ${req.path}, Public: ${isPublicRoute}`,
         );
 
         if (isPublicRoute) {
@@ -69,7 +69,7 @@ const authenticateUser = async (req, res, next) => {
         };
 
         console.log(
-            `✅ User authenticated: ${req.user.username} (ID: ${req.user.id}, Admin: ${req.user?.admin}, EquipmentAdmin: ${req.user?.equipment_admin}, EquipmentOfficeAdmin: ${req.user?.equipment_office_admin})`
+            `✅ User authenticated: ${req.user.username} (ID: ${req.user.id}, Admin: ${req.user?.admin}, EquipmentAdmin: ${req.user?.equipment_admin}, EquipmentOfficeAdmin: ${req.user?.equipment_office_admin})`,
         );
         next();
     } catch (error) {

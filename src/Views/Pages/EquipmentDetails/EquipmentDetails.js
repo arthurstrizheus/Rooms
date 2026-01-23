@@ -26,6 +26,7 @@ import {
     UploadFile,
     Warning,
     NotificationsActive,
+    CompareArrows,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
@@ -48,6 +49,37 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const { equipmentId } = useParams();
     const { user } = useAuth();
     const { socket } = useSocket();
+
+    const calculateDueDate = () => {
+        if (
+            !equipment?.last_calibration_date ||
+            !equipment?.calibration_interval_value
+        ) {
+            return null;
+        }
+        const lastCal = new Date(equipment.last_calibration_date);
+        const dueDate = new Date(lastCal);
+
+        switch (equipment.calibration_interval_unit) {
+            case "days":
+                dueDate.setDate(
+                    dueDate.getDate() + equipment.calibration_interval_value,
+                );
+                break;
+            case "months":
+                dueDate.setMonth(
+                    dueDate.getMonth() + equipment.calibration_interval_value,
+                );
+                break;
+            case "years":
+                dueDate.setFullYear(
+                    dueDate.getFullYear() +
+                        equipment.calibration_interval_value,
+                );
+                break;
+        }
+        return dueDate;
+    };
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -67,10 +99,11 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         serial_number: "",
         location: "",
         contact_person: "",
+        contact_person_id: null,
         status: "available",
         requires_approval: false,
-        calibration_due_date: "",
-        calibration_interval_days: "",
+        calibration_interval_value: "",
+        calibration_interval_unit: "days",
         last_calibration_date: "",
     });
     const [openUploadDialog, setOpenUploadDialog] = useState(false);
@@ -89,6 +122,10 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [enlargedImage, setEnlargedImage] = useState(null);
     const [openSubscribeDialog, setOpenSubscribeDialog] = useState(false);
     const [alertsRefresh, setAlertsRefresh] = useState(0);
+    const [openCompareDialog, setOpenCompareDialog] = useState(false);
+    const [allEquipment, setAllEquipment] = useState([]);
+    const [selectedCompareEquipment, setSelectedCompareEquipment] =
+        useState(null);
 
     useEffect(() => {
         fetchEquipment();
@@ -97,6 +134,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         fetchCheckoutHistory();
         fetchLocations();
         fetchUsers();
+        fetchAllEquipment();
     }, [equipmentId]);
 
     // Socket listener for real-time updates
@@ -153,7 +191,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             .filter(
                 (f) =>
                     f.file_type === "photo" ||
-                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i)
+                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i),
             )
             .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
 
@@ -163,12 +201,12 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             if (e.key === "ArrowLeft") {
                 e.preventDefault();
                 setCurrentImageIndex((prev) =>
-                    prev === 0 ? imageFiles.length - 1 : prev - 1
+                    prev === 0 ? imageFiles.length - 1 : prev - 1,
                 );
             } else if (e.key === "ArrowRight") {
                 e.preventDefault();
                 setCurrentImageIndex((prev) =>
-                    prev === imageFiles.length - 1 ? 0 : prev + 1
+                    prev === imageFiles.length - 1 ? 0 : prev + 1,
                 );
             } else if (e.key === "Escape" && enlargedImage) {
                 setEnlargedImage(null);
@@ -199,7 +237,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/equipment/${equipmentId}/files`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             setFiles(response.data);
         } catch (error) {
@@ -212,7 +250,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/calibrations/equipment/${equipmentId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             setCalibrationHistory(response.data);
         } catch (error) {
@@ -225,7 +263,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/checkouts/equipment/${equipmentId}`,
-                { headers: { Authorization: `Bearer ${token}` } }
+                { headers: { Authorization: `Bearer ${token}` } },
             );
             setCheckoutHistory(response.data);
         } catch (error) {
@@ -257,6 +295,21 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         }
     };
 
+    const fetchAllEquipment = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const response = await axios.get(`/api/equipment`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            // Filter out current equipment
+            setAllEquipment(
+                response.data.filter((eq) => eq.id !== parseInt(equipmentId)),
+            );
+        } catch (error) {
+            console.error("Error fetching all equipment:", error);
+        }
+    };
+
     const handleOpenEditDialog = () => {
         setFormData({
             name: equipment.name,
@@ -264,11 +317,13 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             serial_number: equipment.serial_number || "",
             location: equipment.location || "",
             contact_person: equipment.contact_person || "",
+            contact_person_id: equipment.contact_person_id || null,
             status: equipment.status,
             requires_approval: equipment.requires_approval,
-            calibration_due_date: equipment.calibration_due_date || "",
-            calibration_interval_days:
-                equipment.calibration_interval_days || "",
+            calibration_interval_value:
+                equipment.calibration_interval_value || "",
+            calibration_interval_unit:
+                equipment.calibration_interval_unit || "days",
             last_calibration_date: equipment.last_calibration_date || "",
         });
         setOpenEditDialog(true);
@@ -304,13 +359,13 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const handleDelete = async () => {
         showConfirm(
-            "Are you sure you want to delete this equipment? This will also delete all associated checkouts, files, and calibration records.",
+            "Are you sure you want to delete this equipment? This will also delete all associated reservations, files, and calibration records.",
             async () => {
                 await deleteEquipment();
             },
             "warning",
             "Delete Equipment",
-            "Delete"
+            "Delete",
         );
     };
 
@@ -378,7 +433,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             ) {
                 formData.append(
                     "calibration_date",
-                    uploadFormData.calibration_date
+                    uploadFormData.calibration_date,
                 );
             }
 
@@ -408,7 +463,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             },
             "warning",
             "Delete File",
-            "Delete"
+            "Delete",
         );
     };
 
@@ -487,7 +542,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 // Only include files explicitly categorized as photo, or files with no category that are images
                 (f.category === "photo" || !f.category) &&
                 (f.file_type?.includes("image/") ||
-                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i))
+                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i)),
         )
         .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
     const manualFiles = files
@@ -559,6 +614,14 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                         }
                     >
                         Calendar
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<CompareArrows />}
+                        onClick={() => setOpenCompareDialog(true)}
+                        color="secondary"
+                    >
+                        Compare
                     </Button>
                     {canEditDelete() && (
                         <Button
@@ -632,12 +695,12 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                         <Chip
                                             label={equipment.status}
                                             color={getStatusColor(
-                                                equipment.status
+                                                equipment.status,
                                             )}
                                             size="small"
                                         />
                                         {isCalibrationDueSoon(
-                                            equipment.calibration_due_date
+                                            calculateDueDate(),
                                         ) && (
                                             <Chip
                                                 icon={<Warning />}
@@ -835,10 +898,12 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                 `${option.first_name} ${option.last_name}`
                             }
                             value={
-                                users.find((u) =>
-                                    formData.contact_person.includes(
-                                        u.first_name
-                                    )
+                                users.find(
+                                    (u) =>
+                                        u.id === formData.contact_person_id ||
+                                        (formData.contact_person &&
+                                            `${u.first_name} ${u.last_name}` ===
+                                                formData.contact_person),
                                 ) || null
                             }
                             onChange={(e, newValue) => {
@@ -847,6 +912,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                     contact_person: newValue
                                         ? `${newValue.first_name} ${newValue.last_name}`
                                         : "",
+                                    contact_person_id: newValue
+                                        ? newValue.id
+                                        : null,
                                 });
                             }}
                             renderInput={(params) => (
@@ -907,23 +975,30 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             fullWidth
                             InputLabelProps={{ shrink: true }}
                         />
-                        <TextField
-                            name="calibration_due_date"
-                            label="Calibration Due Date"
-                            type="date"
-                            value={formData.calibration_due_date}
-                            onChange={handleInputChange}
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                        />
-                        <TextField
-                            name="calibration_interval_days"
-                            label="Calibration Interval (days)"
-                            type="number"
-                            value={formData.calibration_interval_days}
-                            onChange={handleInputChange}
-                            fullWidth
-                        />
+                        <Box sx={{ display: "flex", gap: 2 }}>
+                            <TextField
+                                name="calibration_interval_value"
+                                label="Calibration Interval"
+                                type="number"
+                                value={formData.calibration_interval_value}
+                                onChange={handleInputChange}
+                                fullWidth
+                                sx={{ flex: 2 }}
+                            />
+                            <TextField
+                                name="calibration_interval_unit"
+                                label="Unit"
+                                select
+                                value={formData.calibration_interval_unit}
+                                onChange={handleInputChange}
+                                fullWidth
+                                sx={{ flex: 1 }}
+                            >
+                                <MenuItem value="days">Days</MenuItem>
+                                <MenuItem value="months">Months</MenuItem>
+                                <MenuItem value="years">Years</MenuItem>
+                            </TextField>
+                        </Box>
                     </Box>
                 </DialogContent>
                 <DialogActions>
@@ -1063,6 +1138,82 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 confirmText={confirmState.confirmText}
                 cancelText={confirmState.cancelText}
             />
+
+            {/* Compare Equipment Dialog */}
+            <Dialog
+                open={openCompareDialog}
+                onClose={() => setOpenCompareDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>Compare with Another Equipment</DialogTitle>
+                <DialogContent>
+                    <Box sx={{ pt: 2 }}>
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mb: 2 }}
+                        >
+                            Select another equipment to view both schedules on
+                            one calendar
+                        </Typography>
+                        <Autocomplete
+                            options={allEquipment}
+                            getOptionLabel={(option) =>
+                                `${option.name}${option.serial_number ? ` (${option.serial_number})` : ""}`
+                            }
+                            value={selectedCompareEquipment}
+                            onChange={(event, newValue) => {
+                                setSelectedCompareEquipment(newValue);
+                            }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Select Equipment"
+                                    placeholder="Search by name or serial number"
+                                />
+                            )}
+                            renderOption={(props, option) => (
+                                <Box component="li" {...props}>
+                                    <Box>
+                                        <Typography variant="body1">
+                                            {option.name}
+                                        </Typography>
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                        >
+                                            {option.serial_number ||
+                                                "No serial number"}{" "}
+                                            • {option.location || "No location"}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            )}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenCompareDialog(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            if (selectedCompareEquipment) {
+                                navigate(
+                                    `/equipment/compare/${equipmentId}/${selectedCompareEquipment.id}`,
+                                    { state: { fromEquipmentId: equipmentId } },
+                                );
+                            }
+                        }}
+                        variant="contained"
+                        disabled={!selectedCompareEquipment}
+                        startIcon={<CompareArrows />}
+                    >
+                        Compare Schedules
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };

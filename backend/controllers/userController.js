@@ -38,7 +38,7 @@ const GetAll = async (req, res) => {
         let data = [];
         if (
             req.user?.admin ||
-            req.user?.equipment_office_admin > 0 ||
+            req.user?.equipment_office_admin ||
             req.user?.equipment_admin
         ) {
             data = await User.findAll();
@@ -366,7 +366,7 @@ const Authenticate = async (req, res) => {
                 location: user.location,
             },
             process.env.JWT_SECRET,
-            { expiresIn: "24h" }
+            { expiresIn: "24h" },
         );
 
         // Authentication successful, return the user object and token
@@ -454,7 +454,7 @@ const AuthenticateAD = async (req, res) => {
         try {
             auth = await authenticateAsync(
                 `${cleanUsername}@sealimited`,
-                password
+                password,
             );
         } catch (err) {
             console.error("Authentication error:", err);
@@ -511,7 +511,7 @@ const AuthenticateAD = async (req, res) => {
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
-                { expiresIn: "24h" }
+                { expiresIn: "24h" },
             );
 
             return res.status(200).json({
@@ -545,7 +545,7 @@ const AuthenticateAD = async (req, res) => {
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
-                { expiresIn: "24h" }
+                { expiresIn: "24h" },
             );
 
             return res.status(200).json({

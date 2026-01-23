@@ -113,7 +113,7 @@ app.use(
             res.setHeader("Access-Control-Allow-Origin", "*");
             res.setHeader("Cache-Control", "public, max-age=31536000");
         },
-    })
+    }),
 );
 
 // Add authentication middleware globally
@@ -174,7 +174,7 @@ const startServer = async () => {
             // Then manually add the project_number column if it doesn't exist
             const queryInterface = sequelize.getQueryInterface();
             const tableDescription = await queryInterface.describeTable(
-                "Equipment-Checkouts"
+                "Equipment-Checkouts",
             );
 
             if (!tableDescription.project_number) {
@@ -185,7 +185,7 @@ const startServer = async () => {
                     {
                         type: require("sequelize").DataTypes.STRING,
                         allowNull: true,
-                    }
+                    },
                 );
                 console.log("✓ project_number column added");
             }

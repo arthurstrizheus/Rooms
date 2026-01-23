@@ -1,6 +1,9 @@
 const nodemailer = require("nodemailer");
 require("dotenv").config(); // Must be at the top of the file
-const { logErrorToFile } = require("../functions/logErrorToFile.js");
+const {
+    logErrorToFile,
+    logEmailToFile,
+} = require("../functions/logErrorToFile.js");
 // Lookup models for enriching email content
 const { User } = require("../models");
 const { Op } = require("sequelize");
@@ -34,7 +37,7 @@ function getUnsubscribeFooter(equipmentId, alertType) {
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
             <p style="margin: 5px 0;">You are receiving this email because you subscribed to <strong>${alertType.replace(
                 /_/g,
-                " "
+                " ",
             )}</strong> alerts for this equipment.</p>
             <p style="margin: 5px 0;"><a href="${unsubscribeUrl}" style="color: #1976d2;">Manage your alert subscriptions</a> or disable this alert in the equipment details page.</p>
         </div>
@@ -60,7 +63,7 @@ function applyEmailOverride(mailOpts) {
             `<hr style=\"margin-top:24px;\"/><p style=\"font-size:11px;color:#666;\"><strong>Email Override Active (EMAIL_OVERRIDE=${
                 process.env.EMAIL_OVERRIDE
             }).</strong><br/>Original Recipients:<br/><pre style=\"white-space:pre-wrap;font-size:11px;\">${escapeHtml(
-                JSON.stringify(original, null, 2)
+                JSON.stringify(original, null, 2),
             )}</pre></p>`,
         _originalRecipients: original,
     };
@@ -77,7 +80,7 @@ function escapeHtml(str) {
                 ">": "&gt;",
                 '"': "&quot;",
                 "'": "&#39;",
-            }[c])
+            })[c],
     );
 }
 
@@ -111,7 +114,7 @@ const SEND_EMAILS_ACTIVE = (() => {
 const sendCheckoutApprovalRequestEmail = async (
     checkout,
     equipment,
-    recipientEmail
+    recipientEmail,
 ) => {
     if (!checkout || !equipment || !recipientEmail) {
         console.error("Checkout, equipment, and recipientEmail are required.");
@@ -137,7 +140,7 @@ const sendCheckoutApprovalRequestEmail = async (
         process.env.REACT_APP_URL || "https://equipment.sealimited.com";
     const approvalLink = id
         ? `${approvalBaseUrl}/checkout-approval?checkoutId=${encodeURIComponent(
-              id
+              id,
           )}`
         : approvalBaseUrl;
 
@@ -167,10 +170,10 @@ const sendCheckoutApprovalRequestEmail = async (
     } catch {}
     const greetingName = approverName || "Approver";
 
-    const emailSubject = `Action Required: Approve Equipment Checkout for ${e.name}`;
+    const emailSubject = `Action Required: Approve Equipment Reservation for ${e.name}`;
     const emailBody = `
     <p>Dear ${greetingName},</p>
-    <p>An equipment checkout request requires your approval.</p>
+    <p>An equipment reservation request requires your approval.</p>
     <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
             e.name
@@ -183,10 +186,10 @@ const sendCheckoutApprovalRequestEmail = async (
         }</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Requester</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${requesterName}</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Start Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
-            start_time
+            start_time,
         )}</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
-            end_time
+            end_time,
         )}</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
             purpose || "N/A"
@@ -194,7 +197,7 @@ const sendCheckoutApprovalRequestEmail = async (
     </table>
     <p style="margin-top:16px;">Please review and take the appropriate action.</p>
     <p style="margin:24px 0;">
-    <a href="${approvalLink}" style="background:#005ea5;color:#000000;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve Checkout</a>
+    <a href="${approvalLink}" style="background:#005ea5;color:#000000;padding:10px 16px;text-decoration:none;border-radius:4px;display:inline-block;font-weight:600;">Review / Approve Reservation</a>
     </p>
     <p style="font-size:12px;">If the button doesn't work, copy and paste this link into your browser:<br/><span style="word-break:break-all;">${approvalLink}</span></p>
     <p>Thank you.<br/>This is an automated message; please do not reply.</p>
@@ -211,12 +214,28 @@ const sendCheckoutApprovalRequestEmail = async (
 
         if (!SEND_EMAILS_ACTIVE) {
             console.log(
-                `SEND_EMAILS disabled - skipping checkout approval request to ${mailOpts.to}. Subject: ${mailOpts.subject}`
+                `SEND_EMAILS disabled - skipping checkout approval request to ${mailOpts.to}. Subject: ${mailOpts.subject}`,
             );
             return;
         }
 
-        const info = await transporter.sendMail(mailOpts);
+        try {
+            const info = await transporter.sendMail(mailOpts);
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "SUCCESS",
+                info,
+            });
+        } catch (error) {
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "FAILED",
+                error: error.message,
+            });
+            throw error;
+        }
 
         // Fire socket notification (non-blocking)
         try {
@@ -225,20 +244,20 @@ const sendCheckoutApprovalRequestEmail = async (
                     message: "checkout_approval_requested",
                     data: { checkoutId: id, recipient: recipientEmail },
                 },
-                { emails: [recipientEmail] }
+                { emails: [recipientEmail] },
             );
         } catch (e) {
             console.warn("Socket notify failed (checkout approval request)", e);
         }
 
         console.log(
-            `Checkout approval request email sent to ${recipientEmail}: ${info.messageId}`
+            `Checkout approval request email sent to ${recipientEmail}: ${info.messageId}`,
         );
     } catch (error) {
         logErrorToFile(error);
         console.error(
             `Error sending checkout approval request email to ${recipientEmail}:`,
-            error
+            error,
         );
     }
 };
@@ -252,7 +271,7 @@ const sendCheckoutApprovalRequestEmail = async (
 const sendCheckoutApprovedEmail = async (
     checkout,
     equipment,
-    recipientEmail
+    recipientEmail,
 ) => {
     if (!checkout || !equipment || !recipientEmail) return;
 
@@ -282,7 +301,7 @@ const sendCheckoutApprovedEmail = async (
         }
     } catch {}
 
-    const subject = `Equipment Checkout Approved: ${e.name}`;
+    const subject = `Equipment Reservation Approved: ${e.name}`;
     const body = `
         <!DOCTYPE html>
         <html>
@@ -293,12 +312,12 @@ const sendCheckoutApprovedEmail = async (
         <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                 <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); padding: 30px; text-align: center;">
-                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Checkout Approved</h1>
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Reservation Approved</h1>
                     <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Your equipment request has been approved</p>
                 </div>
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
-                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment checkout request has been <strong style="color:#2e7d32;">approved</strong>.</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment reservation request has been <strong style="color:#2e7d32;">approved</strong>.</p>
                     <div style="background-color: #f8f9fa; border-left: 4px solid #4caf50; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
                         <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
                         <table style="width: 100%; border-collapse: collapse;">
@@ -312,10 +331,10 @@ const sendCheckoutApprovedEmail = async (
                                 e.location || "N/A"
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
-                                start_time
+                                start_time,
                             )}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
-                                end_time
+                                end_time,
                             )}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 purpose || "N/A"
@@ -324,8 +343,8 @@ const sendCheckoutApprovedEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        e.id
-    }" style="color: #4caf50; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            e.id
+                        }" style="color: #4caf50; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
@@ -347,12 +366,27 @@ const sendCheckoutApprovedEmail = async (
 
         if (!SEND_EMAILS_ACTIVE) {
             console.log(
-                `SEND_EMAILS disabled - skipping checkout approved email to ${mailOpts.to}`
+                `SEND_EMAILS disabled - skipping checkout approved email to ${mailOpts.to}`,
             );
             return;
         }
 
-        await transporter.sendMail(mailOpts);
+        try {
+            await transporter.sendMail(mailOpts);
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "SUCCESS",
+            });
+        } catch (error) {
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "FAILED",
+                error: error.message,
+            });
+            throw error;
+        }
 
         try {
             SendMessage(
@@ -360,7 +394,7 @@ const sendCheckoutApprovedEmail = async (
                     message: "checkout_approved",
                     data: { checkoutId: id, user_id: c.user_id },
                 },
-                { emails: [recipientEmail] }
+                { emails: [recipientEmail] },
             );
         } catch (e) {
             console.warn("Socket notify failed (checkout approved)", e);
@@ -382,7 +416,7 @@ const sendCheckoutCancelledEmail = async (
     checkout,
     equipment,
     subscriberEmails,
-    cancelledBy
+    cancelledBy,
 ) => {
     if (
         !checkout ||
@@ -418,7 +452,7 @@ const sendCheckoutCancelledEmail = async (
         }
     } catch {}
 
-    const subject = `Equipment Checkout Cancelled: ${e.name}`;
+    const subject = `Equipment Reservation Cancelled: ${e.name}`;
     const body = `
         <!DOCTYPE html>
         <html>
@@ -429,12 +463,12 @@ const sendCheckoutCancelledEmail = async (
         <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                 <div style="background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); padding: 30px; text-align: center;">
-                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">🚫 Checkout Cancelled</h1>
-                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Equipment checkout has been cancelled</p>
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">🚫 Reservation Cancelled</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Equipment reservation has been cancelled</p>
                 </div>
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
-                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">An equipment checkout has been <strong style="color:#f57c00;">cancelled</strong> by ${cancelledBy}.</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">An equipment reservation has been <strong style="color:#f57c00;">cancelled</strong> by ${cancelledBy}.</p>
                     <div style="background-color: #f8f9fa; border-left: 4px solid #ff9800; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
                         <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
                         <table style="width: 100%; border-collapse: collapse;">
@@ -451,18 +485,18 @@ const sendCheckoutCancelledEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        e.id
-    }" style="color: #ff9800; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            e.id
+                        }" style="color: #ff9800; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
                     <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
-                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📅 Cancelled Checkout Details</h2>
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📅 Cancelled Reservation Details</h2>
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Reserved By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${requesterName}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
-                                start_time
+                                start_time,
                             )}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
-                                end_time
+                                end_time,
                             )}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 purpose || "N/A"
@@ -470,7 +504,7 @@ const sendCheckoutCancelledEmail = async (
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Cancelled By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${cancelledBy}</td></tr>
                         </table>
                     </div>
-                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">The equipment is now available for other checkouts during this time period.</p>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">The equipment is now available for other reservations during this time period.</p>
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -493,16 +527,31 @@ const sendCheckoutCancelledEmail = async (
 
             if (!SEND_EMAILS_ACTIVE) {
                 console.log(
-                    `SEND_EMAILS disabled - skipping checkout cancelled email to ${mailOpts.to}`
+                    `SEND_EMAILS disabled - skipping checkout cancelled email to ${mailOpts.to}`,
                 );
                 continue;
             }
 
-            await transporter.sendMail(mailOpts);
+            try {
+                await transporter.sendMail(mailOpts);
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "SUCCESS",
+                });
+            } catch (error) {
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "FAILED",
+                    error: error.message,
+                });
+                console.error(`Failed to send to ${email}:`, error.message);
+            }
         }
 
         console.log(
-            `Checkout cancelled emails sent to ${subscriberEmails.length} recipients`
+            `Checkout cancelled emails sent to ${subscriberEmails.length} recipients`,
         );
     } catch (error) {
         logErrorToFile(error);
@@ -521,11 +570,11 @@ const sendCheckoutDeclinedEmail = async (
     checkout,
     equipment,
     recipientEmail,
-    reason
+    reason,
 ) => {
     if (!checkout || !equipment || !recipientEmail) {
         console.error(
-            "checkout, equipment, and recipientEmail required for declined email"
+            "checkout, equipment, and recipientEmail required for declined email",
         );
         return;
     }
@@ -598,7 +647,7 @@ const sendCheckoutDeclinedEmail = async (
             .slice(0, 5)
             .map(
                 (p) =>
-                    `<a href="mailto:${p.email}" style="text-decoration:none;color:#005ea5;">${p.name}</a>`
+                    `<a href="mailto:${p.email}" style="text-decoration:none;color:#005ea5;">${p.name}</a>`,
             );
     } catch {}
 
@@ -606,7 +655,7 @@ const sendCheckoutDeclinedEmail = async (
         ? ` or contact: ${approverLinks.join(", ")}`
         : "";
 
-    const subject = `Equipment Checkout Declined: ${e.name}`;
+    const subject = `Equipment Reservation Declined: ${e.name}`;
     const body = `
         <!DOCTYPE html>
         <html>
@@ -617,12 +666,12 @@ const sendCheckoutDeclinedEmail = async (
         <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                 <div style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%); padding: 30px; text-align: center;">
-                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">❌ Checkout Declined</h1>
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">❌ Reservation Declined</h1>
                     <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Your equipment request was not approved</p>
                 </div>
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
-                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment checkout request has been <strong style="color:#d32f2f;">declined</strong>.</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment reservation request has been <strong style="color:#d32f2f;">declined</strong>.</p>
                     <div style="background-color: #f8f9fa; border-left: 4px solid #f44336; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
                         <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
                         <table style="width: 100%; border-collapse: collapse;">
@@ -636,10 +685,10 @@ const sendCheckoutDeclinedEmail = async (
                                 e.location || "N/A"
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
-                                start_time
+                                start_time,
                             )}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
-                                end_time
+                                end_time,
                             )}</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 purpose || "N/A"
@@ -648,8 +697,8 @@ const sendCheckoutDeclinedEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        e.id
-    }" style="color: #f44336; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            e.id
+                        }" style="color: #f44336; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
                     ${
                         reason
@@ -658,7 +707,7 @@ const sendCheckoutDeclinedEmail = async (
                     </div>`
                             : ""
                     }
-                    <p style="color: #666; font-size: 14px; margin: 20px 0;">If you believe this was in error, you may create a new checkout request${approverLine}.</p>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0;">If you believe this was in error, you may create a new reservation request${approverLine}.</p>
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -679,12 +728,28 @@ const sendCheckoutDeclinedEmail = async (
 
         if (!SEND_EMAILS_ACTIVE) {
             console.log(
-                `SEND_EMAILS disabled - skipping checkout declined email to ${mailOpts.to}`
+                `SEND_EMAILS disabled - skipping checkout declined email to ${mailOpts.to}`,
             );
             return;
         }
 
-        const info = await transporter.sendMail(mailOpts);
+        try {
+            const info = await transporter.sendMail(mailOpts);
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "SUCCESS",
+                info,
+            });
+        } catch (error) {
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "FAILED",
+                error: error.message,
+            });
+            throw error;
+        }
 
         try {
             SendMessage(
@@ -692,20 +757,20 @@ const sendCheckoutDeclinedEmail = async (
                     message: "checkout_declined",
                     data: { checkoutId: id, user_id: c.user_id },
                 },
-                { emails: [recipientEmail] }
+                { emails: [recipientEmail] },
             );
         } catch (e) {
             console.warn("Socket notify failed (checkout declined email)", e);
         }
 
         console.log(
-            `Checkout declined email sent to ${recipientEmail}: ${info.messageId}`
+            `Checkout declined email sent to ${recipientEmail}: ${info.messageId}`,
         );
     } catch (error) {
         logErrorToFile(error);
         console.error(
             `Error sending checkout declined email to ${recipientEmail}:`,
-            error
+            error,
         );
     }
 };
@@ -719,7 +784,7 @@ const sendCheckoutDeclinedEmail = async (
 const sendEquipmentReturnedEmail = async (
     checkout,
     equipment,
-    subscriberEmails
+    subscriberEmails,
 ) => {
     if (
         !checkout ||
@@ -796,8 +861,8 @@ const sendEquipmentReturnedEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        e.id
-    }" style="color: #11998e; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            e.id
+                        }" style="color: #11998e; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
 
                     <!-- Return Details Card -->
@@ -861,16 +926,31 @@ const sendEquipmentReturnedEmail = async (
 
             if (!SEND_EMAILS_ACTIVE) {
                 console.log(
-                    `SEND_EMAILS disabled - skipping equipment returned email to ${mailOpts.to}`
+                    `SEND_EMAILS disabled - skipping equipment returned email to ${mailOpts.to}`,
                 );
                 continue;
             }
 
-            await transporter.sendMail(mailOpts);
+            try {
+                await transporter.sendMail(mailOpts);
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "SUCCESS",
+                });
+            } catch (error) {
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "FAILED",
+                    error: error.message,
+                });
+                console.error(`Failed to send to ${email}:`, error.message);
+            }
         }
 
         console.log(
-            `Equipment returned emails sent to ${subscriberEmails.length} subscribers`
+            `Equipment returned emails sent to ${subscriberEmails.length} subscribers`,
         );
     } catch (error) {
         logErrorToFile(error);
@@ -907,7 +987,7 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
                 e.status || "Available"
             }</td></tr>
         </table>
-        <p style="margin-top:16px;">You can request a checkout for this equipment now.</p>
+        <p style="margin-top:16px;">You can request a reservation for this equipment now.</p>
         <p>Thank you.<br/>This is an automated message; please do not reply.</p>
         ${getUnsubscribeFooter(e.id, "equipment_available")}
     `;
@@ -925,16 +1005,31 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
 
             if (!SEND_EMAILS_ACTIVE) {
                 console.log(
-                    `SEND_EMAILS disabled - skipping equipment available email to ${mailOpts.to}`
+                    `SEND_EMAILS disabled - skipping equipment available email to ${mailOpts.to}`,
                 );
                 continue;
             }
 
-            await transporter.sendMail(mailOpts);
+            try {
+                await transporter.sendMail(mailOpts);
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "SUCCESS",
+                });
+            } catch (error) {
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "FAILED",
+                    error: error.message,
+                });
+                console.error(`Failed to send to ${email}:`, error.message);
+            }
         }
 
         console.log(
-            `Equipment available emails sent to ${subscriberEmails.length} subscribers`
+            `Equipment available emails sent to ${subscriberEmails.length} subscribers`,
         );
     } catch (error) {
         logErrorToFile(error);
@@ -951,7 +1046,7 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
 const sendCalibrationDueEmail = async (
     equipment,
     subscriberEmails,
-    daysUntilDue
+    daysUntilDue,
 ) => {
     if (!equipment || !subscriberEmails || subscriberEmails.length === 0)
         return;
@@ -962,26 +1057,26 @@ const sendCalibrationDueEmail = async (
         daysUntilDue <= 0
             ? "#dc3545"
             : daysUntilDue <= 7
-            ? "#fd7e14"
-            : "#ffc107";
+              ? "#fd7e14"
+              : "#ffc107";
     const urgencyBgColor =
         daysUntilDue <= 0
             ? "#f8d7da"
             : daysUntilDue <= 7
-            ? "#fff3cd"
-            : "#fff3cd";
+              ? "#fff3cd"
+              : "#fff3cd";
     const urgencyLabel =
         daysUntilDue <= 0
             ? "⚠️ OVERDUE"
             : daysUntilDue === 1
-            ? `⏰ Due Tomorrow`
-            : `⏰ Due in ${daysUntilDue} days`;
+              ? `⏰ Due Tomorrow`
+              : `⏰ Due in ${daysUntilDue} days`;
     const urgencyMessage =
         daysUntilDue <= 0
             ? "This equipment's calibration is overdue. Immediate action required!"
             : daysUntilDue <= 7
-            ? "This equipment's calibration is due soon. Please schedule as soon as possible."
-            : "This is an advance notice for upcoming calibration.";
+              ? "This equipment's calibration is due soon. Please schedule as soon as possible."
+              : "This is an advance notice for upcoming calibration.";
 
     const subject = `${daysUntilDue <= 0 ? "🚨 URGENT" : "⚠️"} Calibration ${
         daysUntilDue <= 0 ? "Overdue" : "Due Soon"
@@ -1054,8 +1149,8 @@ const sendCalibrationDueEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        e.id
-    }" style="color: ${urgencyColor}; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            e.id
+                        }" style="color: ${urgencyColor}; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
 
                     <!-- Calibration Details Card -->
@@ -1064,18 +1159,45 @@ const sendCalibrationDueEmail = async (
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Due Date:</strong></td>
-                                <td style="padding: 8px 0; color: ${urgencyColor}; font-size: 14px; font-weight: 600;">${
-        e.calibration_due_date
-            ? new Date(e.calibration_due_date).toLocaleDateString()
-            : "N/A"
-    }</td>
+                                <td style="padding: 8px 0; color: ${urgencyColor}; font-size: 14px; font-weight: 600;">${(() => {
+                                    if (
+                                        !e.last_calibration_date ||
+                                        !e.calibration_interval_value
+                                    )
+                                        return "N/A";
+                                    const lastCal = new Date(
+                                        e.last_calibration_date,
+                                    );
+                                    const dueDate = new Date(lastCal);
+                                    switch (e.calibration_interval_unit) {
+                                        case "days":
+                                            dueDate.setDate(
+                                                dueDate.getDate() +
+                                                    e.calibration_interval_value,
+                                            );
+                                            break;
+                                        case "months":
+                                            dueDate.setMonth(
+                                                dueDate.getMonth() +
+                                                    e.calibration_interval_value,
+                                            );
+                                            break;
+                                        case "years":
+                                            dueDate.setFullYear(
+                                                dueDate.getFullYear() +
+                                                    e.calibration_interval_value,
+                                            );
+                                            break;
+                                    }
+                                    return dueDate.toLocaleDateString();
+                                })()}</td>
                             </tr>
                             <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Last Calibrated:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                     e.last_calibration_date
                                         ? new Date(
-                                              e.last_calibration_date
+                                              e.last_calibration_date,
                                           ).toLocaleDateString()
                                         : "Never"
                                 }</td>
@@ -1083,8 +1205,8 @@ const sendCalibrationDueEmail = async (
                             <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Interval:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
-                                    e.calibration_interval_days
-                                        ? `${e.calibration_interval_days} days`
+                                    e.calibration_interval_value
+                                        ? `${e.calibration_interval_value} ${e.calibration_interval_unit}`
                                         : "N/A"
                                 }</td>
                             </tr>
@@ -1125,16 +1247,31 @@ const sendCalibrationDueEmail = async (
 
             if (!SEND_EMAILS_ACTIVE) {
                 console.log(
-                    `SEND_EMAILS disabled - skipping calibration due email to ${mailOpts.to}`
+                    `SEND_EMAILS disabled - skipping calibration due email to ${mailOpts.to}`,
                 );
                 continue;
             }
 
-            await transporter.sendMail(mailOpts);
+            try {
+                await transporter.sendMail(mailOpts);
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "SUCCESS",
+                });
+            } catch (error) {
+                await logEmailToFile({
+                    to: mailOpts.to,
+                    subject: mailOpts.subject,
+                    status: "FAILED",
+                    error: error.message,
+                });
+                console.error(`Failed to send to ${email}:`, error.message);
+            }
         }
 
         console.log(
-            `Calibration due emails sent to ${subscriberEmails.length} subscribers`
+            `Calibration due emails sent to ${subscriberEmails.length} subscribers`,
         );
     } catch (error) {
         logErrorToFile(error);
@@ -1158,7 +1295,7 @@ const sendGenericEmail = async (params = {}) => {
     const { to, subject, html, text, cc, bcc, attachments, from } = params;
     if (!to || !subject || (!html && !text)) {
         console.error(
-            "Missing required fields: to, subject, and one of html/text"
+            "Missing required fields: to, subject, and one of html/text",
         );
         return;
     }
@@ -1177,7 +1314,7 @@ const sendGenericEmail = async (params = {}) => {
 
         if (!SEND_EMAILS_ACTIVE) {
             console.log(
-                `SEND_EMAILS disabled - skipping generic email to ${mailOpts.to}. Subject: ${mailOpts.subject}`
+                `SEND_EMAILS disabled - skipping generic email to ${mailOpts.to}. Subject: ${mailOpts.subject}`,
             );
             return;
         }
@@ -1197,7 +1334,7 @@ const sendGenericEmail = async (params = {}) => {
 const sendCheckoutCreatedEmail = async (
     checkout,
     equipment,
-    subscriberEmails
+    subscriberEmails,
 ) => {
     if (!subscriberEmails || subscriberEmails.length === 0) {
         console.log("No subscribers for checkout created notification");
@@ -1232,14 +1369,14 @@ const sendCheckoutCreatedEmail = async (
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                 <!-- Header -->
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
-                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">Equipment Checkout Created</h1>
-                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">A new checkout has been scheduled</p>
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">Equipment Reservation Created</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">A new reservation has been scheduled</p>
                 </div>
                 
                 <!-- Content -->
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
-                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">A new checkout has been created for equipment you're monitoring. Please review the details below:</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">A new reservation has been created for equipment you're monitoring. Please review the details below:</p>
                     
                     <!-- Equipment Info Card -->
                     <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
@@ -1267,13 +1404,13 @@ const sendCheckoutCreatedEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        equipmentData.id
-    }" style="color: #667eea; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            equipmentData.id
+                        }" style="color: #667eea; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
 
-                    <!-- Checkout Details Card -->
+                    <!-- Reservation Details Card -->
                     <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
-                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📅 Checkout Details</h2>
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">📅 Reservation Details</h2>
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Reserved By:</strong></td>
@@ -1338,7 +1475,7 @@ const sendCheckoutCreatedEmail = async (
                     <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
                     ${getUnsubscribeFooter(
                         equipmentData.id,
-                        "checkout_created"
+                        "checkout_created",
                     )}
                 </div>
             </div>
@@ -1349,7 +1486,7 @@ const sendCheckoutCreatedEmail = async (
     const mailOpts = {
         from: "noreply@sealimited.com",
         to: subscriberEmails.join(", "),
-        subject: `Checkout Created: ${equipmentData.name}`,
+        subject: `Reservation Created: ${equipmentData.name}`,
         html: htmlContent,
     };
 
@@ -1365,9 +1502,21 @@ const sendCheckoutCreatedEmail = async (
         const transporter = nodemailer.createTransport(SMTP_Server);
         const finalOpts = applyEmailOverride(mailOpts);
         const info = await transporter.sendMail(finalOpts);
+        await logEmailToFile({
+            to: finalOpts.to,
+            subject: finalOpts.subject,
+            status: "SUCCESS",
+            info,
+        });
         console.log(`Checkout created email sent: ${info.messageId}`);
         return info;
     } catch (error) {
+        await logEmailToFile({
+            to: mailOpts.to,
+            subject: mailOpts.subject,
+            status: "FAILED",
+            error: error.message,
+        });
         logErrorToFile(error);
         console.error("Error sending checkout created email:", error);
     }
@@ -1379,7 +1528,7 @@ const sendCheckoutCreatedEmail = async (
 const sendEquipmentCheckedOutEmail = async (
     checkout,
     equipment,
-    subscriberEmails
+    subscriberEmails,
 ) => {
     if (!subscriberEmails || subscriberEmails.length === 0) {
         console.log("No subscribers for equipment checked out notification");
@@ -1447,16 +1596,16 @@ const sendEquipmentCheckedOutEmail = async (
                         </table>
                     </div>
 
-                    <!-- Checkout Details Card -->
+                    <!-- Reservation Details Card -->
                     <div style="background-color: #d1ecf1; border-left: 4px solid #0c5460; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
-                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">👤 Checkout Details</h2>
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">👤 Reservation Details</h2>
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Checked Out By:</strong></td>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Reserved By:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${userName}</td>
                             </tr>
                             <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Checkout Time:</strong></td>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Reservation Time:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${startDate}</td>
                             </tr>
                             <tr>
@@ -1484,15 +1633,15 @@ const sendEquipmentCheckedOutEmail = async (
                             <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td>
                                 <td style="padding: 8px 0;">
-                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background-color: #0c5460; color: #000000;">📤 CHECKED OUT</span>
+                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background-color: #0c5460; color: #000000;">📤 IN USE</span>
                                 </td>
                             </tr>
                         </table>
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        equipmentData.id
-    }" style="color: #17a2b8; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            equipmentData.id
+                        }" style="color: #17a2b8; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
 
                     <div style="background-color: #e7f3ff; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
@@ -1505,7 +1654,7 @@ const sendEquipmentCheckedOutEmail = async (
                     <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
                     ${getUnsubscribeFooter(
                         equipmentData.id,
-                        "equipment_checked_out"
+                        "equipment_checked_out",
                     )}
                 </div>
             </div>
@@ -1516,7 +1665,7 @@ const sendEquipmentCheckedOutEmail = async (
     const mailOpts = {
         from: "noreply@sealimited.com",
         to: subscriberEmails.join(", "),
-        subject: `Equipment Checked Out: ${equipmentData.name}`,
+        subject: `Equipment In Use: ${equipmentData.name}`,
         html: htmlContent,
     };
 
@@ -1532,9 +1681,21 @@ const sendEquipmentCheckedOutEmail = async (
         const transporter = nodemailer.createTransport(SMTP_Server);
         const finalOpts = applyEmailOverride(mailOpts);
         const info = await transporter.sendMail(finalOpts);
+        await logEmailToFile({
+            to: finalOpts.to,
+            subject: finalOpts.subject,
+            status: "SUCCESS",
+            info,
+        });
         console.log(`Equipment checked out email sent: ${info.messageId}`);
         return info;
     } catch (error) {
+        await logEmailToFile({
+            to: mailOpts.to,
+            subject: mailOpts.subject,
+            status: "FAILED",
+            error: error.message,
+        });
         logErrorToFile(error);
         console.error("Error sending equipment checked out email:", error);
     }
@@ -1547,7 +1708,7 @@ const sendEquipmentStatusChangeEmail = async (
     equipment,
     oldStatus,
     newStatus,
-    subscriberEmails
+    subscriberEmails,
 ) => {
     if (!subscriberEmails || subscriberEmails.length === 0) {
         console.log("No subscribers for equipment status change notification");
@@ -1629,8 +1790,8 @@ const sendEquipmentStatusChangeEmail = async (
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
                         }/equipment/${
-        equipmentData.id
-    }" style="color: ${statusColor}; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                            equipmentData.id
+                        }" style="color: ${statusColor}; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
 
                     <!-- Status Change Card -->
@@ -1707,7 +1868,7 @@ const sendEquipmentStatusChangeEmail = async (
                 equipment: equipmentData.name,
                 oldStatus,
                 newStatus,
-            }
+            },
         );
         return;
     }
@@ -1716,11 +1877,178 @@ const sendEquipmentStatusChangeEmail = async (
         const transporter = nodemailer.createTransport(SMTP_Server);
         const finalOpts = applyEmailOverride(mailOpts);
         const info = await transporter.sendMail(finalOpts);
+        await logEmailToFile({
+            to: finalOpts.to,
+            subject: finalOpts.subject,
+            status: "SUCCESS",
+            info,
+        });
         console.log(`Equipment status change email sent: ${info.messageId}`);
         return info;
     } catch (error) {
+        await logEmailToFile({
+            to: mailOpts.to,
+            subject: mailOpts.subject,
+            status: "FAILED",
+            error: error.message,
+        });
         logErrorToFile(error);
         console.error("Error sending equipment status change email:", error);
+    }
+};
+
+/**
+ * Sends an email when a reservation is scheduled on behalf of someone
+ * @param {object} checkout - Checkout object
+ * @param {object} equipment - Equipment object
+ * @param {string} scheduledByUserName - Name of the person who created the reservation
+ * @param {string} scheduledForEmail - Email address of the person it was scheduled for
+ */
+const sendScheduledOnBehalfEmail = async (
+    checkout,
+    equipment,
+    scheduledByUserName,
+    scheduledForEmail,
+) => {
+    if (!checkout || !equipment || !scheduledForEmail) {
+        console.error(
+            "checkout, equipment, and scheduledForEmail required for scheduled on behalf email",
+        );
+        return;
+    }
+
+    const c = typeof checkout.get === "function" ? checkout.get() : checkout;
+    const e = typeof equipment.get === "function" ? equipment.get() : equipment;
+
+    const fmt = (d) => {
+        try {
+            return new Date(d).toLocaleString();
+        } catch {
+            return d || "N/A";
+        }
+    };
+
+    const subject = `Reservation Scheduled on Your Behalf: ${e.name}`;
+    const body = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">📅 Reservation Scheduled on Your Behalf</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Someone has scheduled equipment for you</p>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Hello,</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">
+                        ${scheduledByUserName || "A user"} has scheduled an equipment reservation <strong>on your behalf</strong>.
+                    </p>
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Equipment:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.name
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.location || "N/A"
+                            }</td></tr>
+                        </table>
+                        <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
+                            process.env.BASE_URL || "http://localhost:3000"
+                        }/equipment/${
+                            e.id
+                        }" style="color: #667eea; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
+                    </div>
+                    <div style="background-color: #e7f3ff; border-left: 4px solid #2196f3; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
+                        <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📅 Reservation Details</h2>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px; width: 40%;"><strong>Scheduled By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${scheduledByUserName}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Start Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                c.start_time,
+                            )}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
+                                c.end_time,
+                            )}</td></tr>
+                            ${
+                                c.purpose
+                                    ? `<tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${c.purpose}</td></tr>`
+                                    : ""
+                            }
+                            ${
+                                c.project_number
+                                    ? `<tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Project Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${c.project_number}</td></tr>`
+                                    : ""
+                            }
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td><td style="padding: 8px 0;"><span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${
+                                c.status === "approved"
+                                    ? "background-color: #d4edda; color: #155724;"
+                                    : "background-color: #fff3cd; color: #856404;"
+                            }">${c.status.toUpperCase()}</span></td></tr>
+                        </table>
+                    </div>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">This is a notification email. If you have questions about this reservation, please contact ${scheduledByUserName}${
+                        c.status === "pending"
+                            ? " or wait for approval confirmation."
+                            : "."
+                    }</p>
+                </div>
+                <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
+                    <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    try {
+        const transporter = nodemailer.createTransport(SMTP_Server);
+        const mailOpts = applyEmailOverride({
+            from: "noreply@sealimited.com",
+            to: scheduledForEmail,
+            subject,
+            html: body,
+        });
+
+        if (!SEND_EMAILS_ACTIVE) {
+            console.log(
+                `SEND_EMAILS disabled - skipping scheduled on behalf email to ${mailOpts.to}`,
+            );
+            return;
+        }
+
+        try {
+            const info = await transporter.sendMail(mailOpts);
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "SUCCESS",
+                info,
+            });
+            console.log(
+                `Scheduled on behalf email sent to ${scheduledForEmail}: ${info.messageId}`,
+            );
+        } catch (error) {
+            await logEmailToFile({
+                to: mailOpts.to,
+                subject: mailOpts.subject,
+                status: "FAILED",
+                error: error.message,
+            });
+            throw error;
+        }
+    } catch (error) {
+        logErrorToFile(error);
+        console.error(
+            `Error sending scheduled on behalf email to ${scheduledForEmail}:`,
+            error,
+        );
     }
 };
 
@@ -1736,4 +2064,5 @@ module.exports = {
     sendCheckoutCreatedEmail,
     sendEquipmentCheckedOutEmail,
     sendEquipmentStatusChangeEmail,
+    sendScheduledOnBehalfEmail,
 };
