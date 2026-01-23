@@ -125,7 +125,7 @@ const sendCheckoutApprovalRequestEmail = async (
     const c = typeof checkout.get === "function" ? checkout.get() : checkout;
     const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
-    const { id, start_time, end_time, purpose, user_id } = c;
+    const { id, start_time, end_time, notes, user_id } = c;
 
     const formatDate = (d) => {
         if (!d) return "N/A";
@@ -191,8 +191,8 @@ const sendCheckoutApprovalRequestEmail = async (
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>End Time</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${formatDate(
             end_time,
         )}</td></tr>
-        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Purpose</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
-            purpose || "N/A"
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Notes</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+            notes || "N/A"
         }</td></tr>
     </table>
     <p style="margin-top:16px;">Please review and take the appropriate action.</p>
@@ -278,7 +278,7 @@ const sendCheckoutApprovedEmail = async (
     const c = typeof checkout.get === "function" ? checkout.get() : checkout;
     const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
-    const { id, start_time, end_time, purpose } = c;
+    const { id, start_time, end_time, notes } = c;
 
     const fmt = (d) => {
         try {
@@ -301,7 +301,7 @@ const sendCheckoutApprovedEmail = async (
         }
     } catch {}
 
-    const subject = `Equipment Reservation Approved: ${e.name}`;
+    const subject = `Equipment Reservation Confirmed: ${e.name}`;
     const body = `
         <!DOCTYPE html>
         <html>
@@ -312,12 +312,12 @@ const sendCheckoutApprovedEmail = async (
         <body style="margin: 0; padding: 20px; background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                 <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); padding: 30px; text-align: center;">
-                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Reservation Approved</h1>
-                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Your equipment request has been approved</p>
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Reservation Confirmed</h1>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Your equipment reservation is confirmed</p>
                 </div>
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; margin: 0 0 20px 0;">Dear ${requesterName},</p>
-                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment reservation request has been <strong style="color:#2e7d32;">approved</strong>.</p>
+                    <p style="color: #666; font-size: 14px; margin: 0 0 25px 0;">Your equipment reservation is confirmed.</p>
                     <div style="background-color: #f8f9fa; border-left: 4px solid #4caf50; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
                         <h2 style="color: #333; font-size: 18px; margin: 0 0 15px 0;">📦 Equipment Information</h2>
                         <table style="width: 100%; border-collapse: collapse;">
@@ -336,8 +336,8 @@ const sendCheckoutApprovedEmail = async (
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
                                 end_time,
                             )}</td></tr>
-                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
-                                purpose || "N/A"
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                notes || "N/A"
                             }</td></tr>
                         </table>
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
@@ -429,7 +429,7 @@ const sendCheckoutCancelledEmail = async (
     const c = typeof checkout.get === "function" ? checkout.get() : checkout;
     const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
-    const { start_time, end_time, purpose } = c;
+    const { start_time, end_time, notes } = c;
 
     const fmt = (d) => {
         try {
@@ -498,8 +498,8 @@ const sendCheckoutCancelledEmail = async (
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
                                 end_time,
                             )}</td></tr>
-                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
-                                purpose || "N/A"
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                notes || "N/A"
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Cancelled By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${cancelledBy}</td></tr>
                         </table>
@@ -582,7 +582,7 @@ const sendCheckoutDeclinedEmail = async (
     const c = typeof checkout.get === "function" ? checkout.get() : checkout;
     const e = typeof equipment.get === "function" ? equipment.get() : equipment;
 
-    const { id, start_time, end_time, purpose } = c;
+    const { id, start_time, end_time, notes } = c;
 
     const fmt = (d) => {
         try {
@@ -690,8 +690,8 @@ const sendCheckoutDeclinedEmail = async (
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>End Time:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${fmt(
                                 end_time,
                             )}</td></tr>
-                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
-                                purpose || "N/A"
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                notes || "N/A"
                             }</td></tr>
                         </table>
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
@@ -878,11 +878,11 @@ const sendEquipmentReturnedEmail = async (
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${returnDate}</td>
                             </tr>
                             ${
-                                c.purpose
+                                c.notes
                                     ? `
                             <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Used For:</strong></td>
-                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${c.purpose}</td>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${c.notes}</td>
                             </tr>`
                                     : ""
                             }
@@ -1429,9 +1429,9 @@ const sendCheckoutCreatedEmail = async (
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${endDate}</td>
                             </tr>
                             <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
-                                    checkoutData.purpose || "Not specified"
+                                    checkoutData.notes || "Not specified"
                                 }</td>
                             </tr>
                             ${
@@ -1443,29 +1443,6 @@ const sendCheckoutCreatedEmail = async (
                             </tr>`
                                     : ""
                             }
-                            <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td>
-                                <td style="padding: 8px 0;">
-                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; 
-                                        ${
-                                            checkoutData.status === "approved"
-                                                ? "background-color: #d4edda; color: #155724;"
-                                                : ""
-                                        }
-                                        ${
-                                            checkoutData.status === "pending"
-                                                ? "background-color: #fff3cd; color: #856404;"
-                                                : ""
-                                        }
-                                        ${
-                                            checkoutData.status ===
-                                            "checked_out"
-                                                ? "background-color: #d1ecf1; color: #0c5460;"
-                                                : ""
-                                        }
-                                    ">${checkoutData.status.toUpperCase()}</span>
-                                </td>
-                            </tr>
                         </table>
                     </div>
                 </div>
@@ -1613,11 +1590,11 @@ const sendEquipmentCheckedOutEmail = async (
                                 <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${endDate}</td>
                             </tr>
                             ${
-                                checkoutData.purpose
+                                checkoutData.notes
                                     ? `
                             <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Purpose:</strong></td>
-                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${checkoutData.purpose}</td>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${checkoutData.notes}</td>
                             </tr>`
                                     : ""
                             }
@@ -1630,12 +1607,6 @@ const sendEquipmentCheckedOutEmail = async (
                             </tr>`
                                     : ""
                             }
-                            <tr>
-                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td>
-                                <td style="padding: 8px 0;">
-                                    <span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; background-color: #0c5460; color: #000000;">📤 IN USE</span>
-                                </td>
-                            </tr>
                         </table>
                         <p style="margin: 15px 0 0 0; font-size: 13px;"><a href="${
                             process.env.BASE_URL || "http://localhost:3000"
@@ -1977,8 +1948,8 @@ const sendScheduledOnBehalfEmail = async (
                                 c.end_time,
                             )}</td></tr>
                             ${
-                                c.purpose
-                                    ? `<tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${c.purpose}</td></tr>`
+                                c.notes
+                                    ? `<tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Notes:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${c.notes}</td></tr>`
                                     : ""
                             }
                             ${
@@ -1986,18 +1957,9 @@ const sendScheduledOnBehalfEmail = async (
                                     ? `<tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Project Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">${c.project_number}</td></tr>`
                                     : ""
                             }
-                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Status:</strong></td><td style="padding: 8px 0;"><span style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${
-                                c.status === "approved"
-                                    ? "background-color: #d4edda; color: #155724;"
-                                    : "background-color: #fff3cd; color: #856404;"
-                            }">${c.status.toUpperCase()}</span></td></tr>
                         </table>
                     </div>
-                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">This is a notification email. If you have questions about this reservation, please contact ${scheduledByUserName}${
-                        c.status === "pending"
-                            ? " or wait for approval confirmation."
-                            : "."
-                    }</p>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">This is a notification email. If you have questions about this reservation, please contact ${scheduledByUserName}.</p>
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>

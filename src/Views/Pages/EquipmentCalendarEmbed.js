@@ -76,7 +76,7 @@ const EquipmentCalendarEmbed = () => {
                                   : "#d32f2f",
                     extendedProps: {
                         status: checkout.status,
-                        purpose: checkout.purpose,
+                        notes: checkout.notes,
                         user_id: checkout.user_id,
                         recurrence_id: checkout.recurrence_id,
                     },

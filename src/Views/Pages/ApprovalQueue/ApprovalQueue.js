@@ -463,7 +463,7 @@ export default function ApprovalQueue({ setLoading }) {
                                                 />
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
-                                                {checkout.purpose || "N/A"}
+                                                {checkout.notes || "N/A"}
                                             </StyledTableCell>
                                         </StyledTableRow>
                                     );

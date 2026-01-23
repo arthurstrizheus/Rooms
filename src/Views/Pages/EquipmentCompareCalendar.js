@@ -276,7 +276,7 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
         setOpenBookingDialog(false);
         setSelectedSlot(null);
         setFormData({
-            purpose: "",
+            notes: "",
             project_number: "",
             scheduled_on_behalf_of: "",
             isRecurring: false,
@@ -317,7 +317,6 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                     end_time: selectedSlot.end.toISOString(),
                     notes: formData.notes || null,
                     project_number: formData.project_number || null,
-                    notes: formData.notes || null,
                     scheduled_on_behalf_of:
                         formData.scheduled_on_behalf_of || null,
                 };
@@ -357,7 +356,7 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
             }
             handleCloseBookingDialog();
         } catch (error) {
-            console.error("Error creating checkout:", error);
+            console.error("Error creating reservation:", error);
             showAlert(
                 "Error creating reservation: " +
                     (error.response?.data?.message || error.message),

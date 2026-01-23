@@ -218,7 +218,7 @@ const EquipmentCalendar = ({
             end: selectInfo.end,
         });
         setFormData({
-            purpose: "",
+            notes: "",
             scheduled_on_behalf_of: "",
             isRecurring: false,
             recurrencePattern: "daily",
@@ -291,9 +291,8 @@ const EquipmentCalendar = ({
                 user_id: user.id,
                 start_time: selectedSlot.start.toISOString(),
                 end_time: selectedSlot.end.toISOString(),
-                notes: formData.notes,
-                project_number: formData.project_number || null,
                 notes: formData.notes || null,
+                project_number: formData.project_number || null,
                 scheduled_on_behalf_of: formData.scheduled_on_behalf_of || null,
             };
 
@@ -313,9 +312,9 @@ const EquipmentCalendar = ({
             fetchCheckouts(dateRange.start, dateRange.end);
             handleCloseDialog();
         } catch (error) {
-            console.error("Error creating checkout:", error);
+            console.error("Error creating reservation:", error);
             showAlert(
-                "Error creating checkout: " +
+                "Error creating reservation: " +
                     (error.response?.data?.message || error.message),
                 "error",
             );
@@ -470,9 +469,9 @@ const EquipmentCalendar = ({
             setSelectedCheckout(null);
             setUpdateMode(null);
         } catch (error) {
-            console.error("Error updating checkout:", error);
+            console.error("Error updating reservation:", error);
             showAlert(
-                "Error updating checkout: " +
+                "Error updating reservation: " +
                     (error.response?.data?.message || error.message),
                 "error",
             );

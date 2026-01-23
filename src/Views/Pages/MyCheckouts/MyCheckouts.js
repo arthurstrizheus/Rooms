@@ -236,7 +236,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
             setEditMode(false);
             handleCloseDetails();
         } catch (error) {
-            console.error("Error updating checkout:", error);
+            console.error("Error updating reservation:", error);
             showAlert("Failed to update checkout", "error");
         } finally {
             setLoading(false);

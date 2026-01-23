@@ -552,7 +552,6 @@ const Post = async (req, res, next) => {
             user_id,
             start_time,
             end_time,
-            purpose,
             project_number,
             notes,
             scheduled_on_behalf_of,
@@ -825,7 +824,7 @@ const Update = async (req, res, next) => {
                                 new Date(checkout.start_time)) /
                                 (1000 * 60 * 60 * 24),
                         ),
-                    purpose: updates.purpose || checkout.purpose,
+                    notes: updates.notes || checkout.notes,
                     project_number:
                         updates.project_number || checkout.project_number,
                     notes: updates.notes || checkout.notes,
@@ -995,7 +994,7 @@ const Update = async (req, res, next) => {
                                 new Date(checkout.start_time)) /
                                 (1000 * 60 * 60 * 24),
                         ),
-                    purpose: updates.purpose || checkout.purpose,
+                    notes: updates.notes || checkout.notes,
                     project_number:
                         updates.project_number || checkout.project_number,
                     notes: updates.notes || checkout.notes,

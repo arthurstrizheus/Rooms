@@ -88,7 +88,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                 : "";
             const matchesSearch =
                 userName.includes(search) ||
-                checkout.purpose?.toLowerCase().includes(search) ||
+                checkout.notes?.toLowerCase().includes(search) ||
                 checkout.project_number?.toLowerCase().includes(search) ||
                 checkout.status?.toLowerCase().includes(search);
             const matchesStatus =
@@ -193,13 +193,13 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                         {getRecurrenceDescription(checkout)}
                     </Typography>
                 </Box>
-                {checkout.purpose && (
+                {checkout.notes && (
                     <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ mb: 0.5 }}
                     >
-                        <strong>Purpose:</strong> {checkout.purpose}
+                        <strong>Purpose:</strong> {checkout.notes}
                     </Typography>
                 )}
                 {checkout.project_number && (
@@ -247,13 +247,13 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                         size="small"
                     />
                 </Box>
-                {checkout.purpose && (
+                {checkout.notes && (
                     <Typography
                         variant="body2"
                         color="text.secondary"
                         sx={{ mb: 0.5 }}
                     >
-                        <strong>Purpose:</strong> {checkout.purpose}
+                        <strong>Purpose:</strong> {checkout.notes}
                     </Typography>
                 )}
                 {checkout.project_number && (
@@ -421,7 +421,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                     Purpose
                                 </Typography>
                                 <Typography variant="body1">
-                                    {selectedCheckout.purpose || "N/A"}
+                                    {selectedCheckout.notes || "N/A"}
                                 </Typography>
                             </Box>
 
@@ -477,7 +477,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                         }}
                     >
                         <TextField
-                            placeholder="Search by user, purpose, project #..."
+                            placeholder="Search by user, notes, project #..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             size="small"
@@ -622,7 +622,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
-                                                                        {checkout.purpose ||
+                                                                        {checkout.notes ||
                                                                             "N/A"}
                                                                     </TableCell>
                                                                     <TableCell>
@@ -731,7 +731,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                                                         />
                                                                     </TableCell>
                                                                     <TableCell>
-                                                                        {checkout.purpose ||
+                                                                        {checkout.notes ||
                                                                             "N/A"}
                                                                     </TableCell>
                                                                     <TableCell>
