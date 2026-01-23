@@ -29,6 +29,7 @@ import {
     Accordion,
     AccordionSummary,
     AccordionDetails,
+    Autocomplete,
 } from "@mui/material";
 import {
     Delete,
@@ -39,6 +40,8 @@ import {
     Repeat,
     Science,
     ExpandMore,
+    Add as AddIcon,
+    Remove as RemoveIcon,
 } from "@mui/icons-material";
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -61,6 +64,8 @@ const MyCheckouts = ({ setLoading, loading }) => {
     const [editedCheckout, setEditedCheckout] = useState({});
     const [recurringExpanded, setRecurringExpanded] = useState(true);
     const [nonRecurringExpanded, setNonRecurringExpanded] = useState(true);
+    const [users, setUsers] = useState([]);
+    const [showOptionalFields, setShowOptionalFields] = useState(false);
     const { user } = useAuth();
     const { showAlert, alertState, hideAlert } = useAlertDialog();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
@@ -70,6 +75,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
     useEffect(() => {
         fetchCheckouts();
+        fetchUsers();
     }, [user]);
 
     const fetchCheckouts = async () => {
@@ -149,6 +155,18 @@ const MyCheckouts = ({ setLoading, loading }) => {
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const response = await axios.get("/api/users", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setUsers(response.data);
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        }
+    };
+
     const formatDateTime = (dateString) => {
         try {
             return format(new Date(dateString), "MMM dd, yyyy hh:mm a");
@@ -166,8 +184,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
     const handleOpenDetails = (checkout) => {
         setSelectedCheckout(checkout);
         setEditedCheckout({
-            purpose: checkout.purpose || "",
+            notes: checkout.notes || "",
             project_number: checkout.project_number || "",
+            scheduled_on_behalf_of: checkout.scheduled_on_behalf_of || "",
         });
         setDetailsOpen(true);
         setEditMode(false);
@@ -187,12 +206,23 @@ const MyCheckouts = ({ setLoading, loading }) => {
     const handleCancelEdit = () => {
         setEditMode(false);
         setEditedCheckout({
-            purpose: selectedCheckout.purpose || "",
+            notes: selectedCheckout.notes || "",
             project_number: selectedCheckout.project_number || "",
+            scheduled_on_behalf_of:
+                selectedCheckout.scheduled_on_behalf_of || "",
         });
     };
 
     const handleSaveEdit = async () => {
+        // Validate required fields
+        if (
+            !editedCheckout.project_number ||
+            editedCheckout.project_number.trim() === ""
+        ) {
+            showAlert("Project Number is required", "error");
+            return;
+        }
+
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -243,9 +273,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 aValue = a.status || "";
                 bValue = b.status || "";
                 break;
-            case "purpose":
-                aValue = a.purpose || "";
-                bValue = b.purpose || "";
+            case "notes":
+                aValue = a.notes || "";
+                bValue = b.notes || "";
                 break;
             default:
                 return 0;
@@ -300,7 +330,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
             checkout.Equipment?.serial_number?.toLowerCase().includes(search) ||
             checkout.Equipment?.location?.toLowerCase().includes(search) ||
             checkout.Equipment?.description?.toLowerCase().includes(search) ||
-            checkout.purpose?.toLowerCase().includes(search) ||
+            checkout.notes?.toLowerCase().includes(search) ||
             checkout.project_number?.toLowerCase().includes(search) ||
             checkout.status?.toLowerCase().includes(search) ||
             checkout.approval_notes?.toLowerCase().includes(search) ||
@@ -397,21 +427,6 @@ const MyCheckouts = ({ setLoading, loading }) => {
                         ),
                     }}
                 />
-                <TextField
-                    select
-                    label="Status"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    size="small"
-                    sx={{ flex: isMobile ? "1" : "0 0 150px" }}
-                >
-                    <MenuItem value="all">All Status</MenuItem>
-                    <MenuItem value="approved">Approved</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="checked_out">In Use</MenuItem>
-                    <MenuItem value="returned">Returned</MenuItem>
-                    <MenuItem value="cancelled">Cancelled</MenuItem>
-                </TextField>
             </Box>
 
             {checkouts.length === 0 ? (
@@ -532,14 +547,12 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 checkout.start_time,
                                                             )}
                                                         </Typography>
-                                                        {checkout.purpose && (
+                                                        {checkout.notes && (
                                                             <Typography variant="body2">
                                                                 <strong>
-                                                                    Purpose:
+                                                                    notes:
                                                                 </strong>{" "}
-                                                                {
-                                                                    checkout.purpose
-                                                                }
+                                                                {checkout.notes}
                                                             </Typography>
                                                         )}
                                                     </Stack>
@@ -601,17 +614,17 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <TableSortLabel
                                                             active={
                                                                 orderBy ===
-                                                                "purpose"
+                                                                "notes"
                                                             }
                                                             direction={
                                                                 orderBy ===
-                                                                "purpose"
+                                                                "notes"
                                                                     ? order
                                                                     : "asc"
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "purpose",
+                                                                    "notes",
                                                                 )
                                                             }
                                                         >
@@ -696,7 +709,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 </Typography>
                                                             </TableCell>
                                                             <TableCell>
-                                                                {checkout.purpose ||
+                                                                {checkout.notes ||
                                                                     "N/A"}
                                                             </TableCell>
                                                             <TableCell>
@@ -837,13 +850,13 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                     checkout.end_time,
                                                                 )}
                                                             </Typography>
-                                                            {checkout.purpose && (
+                                                            {checkout.notes && (
                                                                 <Typography variant="body2">
                                                                     <strong>
-                                                                        Purpose:
+                                                                        notes:
                                                                     </strong>{" "}
                                                                     {
-                                                                        checkout.purpose
+                                                                        checkout.notes
                                                                     }
                                                                 </Typography>
                                                             )}
@@ -925,17 +938,17 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <TableSortLabel
                                                             active={
                                                                 orderBy ===
-                                                                "purpose"
+                                                                "notes"
                                                             }
                                                             direction={
                                                                 orderBy ===
-                                                                "purpose"
+                                                                "notes"
                                                                     ? order
                                                                     : "asc"
                                                             }
                                                             onClick={() =>
                                                                 handleSort(
-                                                                    "purpose",
+                                                                    "notes",
                                                                 )
                                                             }
                                                         >
@@ -1015,7 +1028,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>
-                                                                {checkout.purpose ||
+                                                                {checkout.notes ||
                                                                     "N/A"}
                                                             </TableCell>
                                                             <TableCell>
@@ -1375,88 +1388,208 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                 variant="caption"
                                                 color="text.secondary"
                                             >
-                                                Purpose:
+                                                Project Number:
                                             </Typography>
                                             {editMode ? (
                                                 <TextField
                                                     fullWidth
-                                                    multiline
-                                                    rows={2}
                                                     value={
-                                                        editedCheckout.purpose ||
+                                                        editedCheckout.project_number ||
                                                         ""
                                                     }
                                                     onChange={(e) =>
                                                         setEditedCheckout({
                                                             ...editedCheckout,
-                                                            purpose:
+                                                            project_number:
                                                                 e.target.value,
                                                         })
                                                     }
                                                     size="small"
                                                     sx={{ mt: 1 }}
+                                                    required
                                                 />
                                             ) : (
                                                 <Typography variant="body1">
-                                                    {selectedCheckout.purpose ||
+                                                    {selectedCheckout.project_number ||
                                                         "N/A"}
                                                 </Typography>
                                             )}
                                         </Box>
-                                        {(selectedCheckout.project_number ||
-                                            editMode) && (
-                                            <Box>
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
+
+                                        {/* Optional Fields Toggle */}
+                                        {editMode && (
+                                            <Box sx={{ mt: 2 }}>
+                                                <Button
+                                                    size="small"
+                                                    startIcon={
+                                                        showOptionalFields ? (
+                                                            <RemoveIcon />
+                                                        ) : (
+                                                            <AddIcon />
+                                                        )
+                                                    }
+                                                    onClick={() =>
+                                                        setShowOptionalFields(
+                                                            !showOptionalFields,
+                                                        )
+                                                    }
                                                 >
-                                                    Project Number:
-                                                </Typography>
-                                                {editMode ? (
+                                                    Optional Fields
+                                                </Button>
+                                            </Box>
+                                        )}
+
+                                        {showOptionalFields && editMode && (
+                                            <>
+                                                <Box>
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        Notes:
+                                                    </Typography>
                                                     <TextField
                                                         fullWidth
+                                                        multiline
+                                                        rows={2}
                                                         value={
-                                                            editedCheckout.project_number ||
+                                                            editedCheckout.notes ||
                                                             ""
                                                         }
                                                         onChange={(e) =>
                                                             setEditedCheckout({
                                                                 ...editedCheckout,
-                                                                project_number:
-                                                                    e.target
-                                                                        .value,
+                                                                notes: e.target
+                                                                    .value,
                                                             })
                                                         }
                                                         size="small"
                                                         sx={{ mt: 1 }}
                                                     />
-                                                ) : (
-                                                    <Typography variant="body1">
-                                                        {selectedCheckout.project_number ||
-                                                            "N/A"}
+                                                </Box>
+                                                <Box>
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        Scheduled On Behalf Of:
                                                     </Typography>
-                                                )}
-                                            </Box>
+                                                    <Autocomplete
+                                                        options={users.filter(
+                                                            (u) =>
+                                                                u.id !==
+                                                                user?.id,
+                                                        )}
+                                                        getOptionLabel={(
+                                                            option,
+                                                        ) =>
+                                                            typeof option ===
+                                                            "string"
+                                                                ? option
+                                                                : `${option.first_name} ${option.last_name}`
+                                                        }
+                                                        value={
+                                                            users.find(
+                                                                (u) =>
+                                                                    `${u.first_name} ${u.last_name}` ===
+                                                                    editedCheckout.scheduled_on_behalf_of,
+                                                            ) ||
+                                                            editedCheckout.scheduled_on_behalf_of ||
+                                                            null
+                                                        }
+                                                        onChange={(
+                                                            event,
+                                                            newValue,
+                                                        ) => {
+                                                            setEditedCheckout({
+                                                                ...editedCheckout,
+                                                                scheduled_on_behalf_of:
+                                                                    newValue
+                                                                        ? typeof newValue ===
+                                                                          "string"
+                                                                            ? newValue
+                                                                            : `${newValue.first_name} ${newValue.last_name}`
+                                                                        : "",
+                                                            });
+                                                        }}
+                                                        freeSolo
+                                                        renderInput={(
+                                                            params,
+                                                        ) => (
+                                                            <TextField
+                                                                {...params}
+                                                                placeholder="Select or type a name"
+                                                                size="small"
+                                                                sx={{ mt: 1 }}
+                                                            />
+                                                        )}
+                                                        renderOption={(
+                                                            props,
+                                                            option,
+                                                        ) => (
+                                                            <li
+                                                                {...props}
+                                                                key={option.id}
+                                                            >
+                                                                {
+                                                                    option.first_name
+                                                                }{" "}
+                                                                {
+                                                                    option.last_name
+                                                                }{" "}
+                                                                ({option.email})
+                                                            </li>
+                                                        )}
+                                                        isOptionEqualToValue={(
+                                                            option,
+                                                            value,
+                                                        ) =>
+                                                            option.id ===
+                                                            value?.id
+                                                        }
+                                                        ListboxProps={{
+                                                            style: {
+                                                                maxHeight:
+                                                                    "250px",
+                                                            },
+                                                        }}
+                                                        fullWidth
+                                                    />
+                                                </Box>
+                                            </>
                                         )}
-                                        <Box>
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                            >
-                                                Checkout Status:
-                                            </Typography>
-                                            <Box sx={{ mt: 0.5 }}>
-                                                <Chip
-                                                    label={
-                                                        selectedCheckout.status
-                                                    }
-                                                    color={getStatusColor(
-                                                        selectedCheckout.status,
-                                                    )}
-                                                    size="small"
-                                                />
-                                            </Box>
-                                        </Box>
+
+                                        {!editMode &&
+                                            selectedCheckout.notes && (
+                                                <Box>
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        Notes:
+                                                    </Typography>
+                                                    <Typography variant="body1">
+                                                        {selectedCheckout.notes}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+
+                                        {!editMode &&
+                                            selectedCheckout.scheduled_on_behalf_of && (
+                                                <Box>
+                                                    <Typography
+                                                        variant="caption"
+                                                        color="text.secondary"
+                                                    >
+                                                        Scheduled On Behalf Of:
+                                                    </Typography>
+                                                    <Typography variant="body1">
+                                                        {
+                                                            selectedCheckout.scheduled_on_behalf_of
+                                                        }
+                                                    </Typography>
+                                                </Box>
+                                            )}
 
                                         {/* Recurrence Information */}
                                         {selectedCheckout.Recurrence && (

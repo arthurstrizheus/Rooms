@@ -893,12 +893,12 @@ const DisplayCheckout = ({
                             >
                                 Checked out by:
                             </Typography>
-                            {checkout.purpose && (
+                            {checkout.notes && (
                                 <Typography
                                     variant="body1"
                                     color={theme.palette.primary.text.dark}
                                 >
-                                    Purpose:
+                                    notes:
                                 </Typography>
                             )}
                             {checkout.repeats && (
@@ -924,9 +924,9 @@ const DisplayCheckout = ({
                                     ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
                                     : "Loading..."}
                             </Typography>
-                            {checkout.purpose && (
+                            {checkout.notes && (
                                 <Typography variant="body1">
-                                    {checkout.purpose}
+                                    {checkout.notes}
                                 </Typography>
                             )}
                             {checkout.repeats && (

@@ -64,7 +64,7 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     const [bookingTarget, setBookingTarget] = useState("equipment1"); // 'equipment1', 'equipment2', 'both'
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [formData, setFormData] = useState({
-        purpose: "",
+        notes: "",
         project_number: "",
         scheduled_on_behalf_of: "",
         isRecurring: false,
@@ -203,7 +203,6 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         equipmentName: equipment1?.name || "Equipment 1",
                         equipmentId: equipmentId1,
                         status: checkout.status,
-                        purpose: checkout.purpose,
                         notes: checkout.notes,
                         scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
                         isRecurring: checkout.isRecurring || false,
@@ -230,7 +229,6 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         equipmentName: equipment2?.name || "Equipment 2",
                         equipmentId: equipmentId2,
                         status: checkout.status,
-                        purpose: checkout.purpose,
                         notes: checkout.notes,
                         scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
                         isRecurring: checkout.isRecurring || false,
@@ -291,6 +289,12 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     };
 
     const handleCreateCheckout = async () => {
+        // Validate required fields
+        if (!formData.project_number || formData.project_number.trim() === "") {
+            showAlert("Project Number is required", "error");
+            return;
+        }
+
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -311,18 +315,21 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                     equipment_id: equipmentId,
                     start_time: selectedSlot.start.toISOString(),
                     end_time: selectedSlot.end.toISOString(),
-                    purpose: formData.purpose || null,
+                    notes: formData.notes || null,
                     project_number: formData.project_number || null,
+                    notes: formData.notes || null,
                     scheduled_on_behalf_of:
                         formData.scheduled_on_behalf_of || null,
                 };
 
                 if (formData.isRecurring) {
-                    checkoutData.isRecurring = true;
-                    checkoutData.recurrencePattern = formData.recurrencePattern;
-                    checkoutData.recurrenceInterval =
-                        formData.recurrenceInterval;
-                    checkoutData.recurrenceEndDate = formData.recurrenceEndDate;
+                    checkoutData.recurrence_pattern =
+                        formData.recurrencePattern;
+                    checkoutData.separation_count = formData.recurrenceInterval;
+                    checkoutData.recurrence_end_date =
+                        formData.recurrenceEndDate
+                            ? new Date(formData.recurrenceEndDate).toISOString()
+                            : null;
                 }
 
                 return axios.post("/api/checkouts", checkoutData, {
@@ -678,11 +685,11 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                             <>
                                 <TextField
                                     label="Notes"
-                                    value={formData.purpose}
+                                    value={formData.notes}
                                     onChange={(e) =>
                                         setFormData({
                                             ...formData,
-                                            purpose: e.target.value,
+                                            notes: e.target.value,
                                         })
                                     }
                                     multiline
@@ -690,7 +697,9 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                     fullWidth
                                 />
                                 <Autocomplete
-                                    options={users}
+                                    options={users.filter(
+                                        (u) => u.id !== user?.id,
+                                    )}
                                     getOptionLabel={(option) =>
                                         typeof option === "string"
                                             ? option

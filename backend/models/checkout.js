@@ -41,12 +41,8 @@ const Checkout = sequelize.define(
                 "returned",
                 "cancelled",
             ),
-            defaultValue: "pending",
+            defaultValue: "approved",
             allowNull: false,
-        },
-        purpose: {
-            type: DataTypes.TEXT,
-            allowNull: true,
         },
         approved_by_user_id: {
             type: DataTypes.INTEGER,

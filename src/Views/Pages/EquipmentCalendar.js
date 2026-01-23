@@ -52,7 +52,7 @@ const EquipmentCalendar = ({
     const [dateRange, setDateRange] = useState({ start: null, end: null });
     const [updateMode, setUpdateMode] = useState(null);
     const [formData, setFormData] = useState({
-        purpose: "",
+        notes: "",
         project_number: "",
         scheduled_on_behalf_of: "",
         isRecurring: false,
@@ -65,8 +65,9 @@ const EquipmentCalendar = ({
     const [editFormData, setEditFormData] = useState({
         start_time: "",
         end_time: "",
-        purpose: "",
+        notes: "",
         project_number: "",
+        scheduled_on_behalf_of: "",
         status: "",
     });
     const { user } = useAuth();
@@ -174,7 +175,6 @@ const EquipmentCalendar = ({
                     backgroundColor: getStatusColor(checkout.status),
                     extendedProps: {
                         status: checkout.status,
-                        purpose: checkout.purpose,
                         notes: checkout.notes,
                         scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
                         isRecurring: checkout.isRecurring || false,
@@ -237,8 +237,8 @@ const EquipmentCalendar = ({
             start_time: event.start,
             end_time: event.end,
             status: event.extendedProps.status,
-            purpose: event.extendedProps.purpose,
             notes: event.extendedProps.notes,
+            project_number: event.extendedProps.project_number,
             user_id: event.extendedProps.user_id,
             equipment_id: event.extendedProps.equipment_id,
             approved_by_user_id: event.extendedProps.approved_by_user_id,
@@ -291,7 +291,9 @@ const EquipmentCalendar = ({
                 user_id: user.id,
                 start_time: selectedSlot.start.toISOString(),
                 end_time: selectedSlot.end.toISOString(),
-                purpose: formData.purpose,
+                notes: formData.notes,
+                project_number: formData.project_number || null,
+                notes: formData.notes || null,
                 scheduled_on_behalf_of: formData.scheduled_on_behalf_of || null,
             };
 
@@ -326,7 +328,7 @@ const EquipmentCalendar = ({
         setOpenDialog(false);
         setSelectedSlot(null);
         setFormData({
-            purpose: "",
+            notes: "",
             scheduled_on_behalf_of: "",
             isRecurring: false,
             recurrencePattern: "daily",
@@ -362,8 +364,10 @@ const EquipmentCalendar = ({
         setEditFormData({
             start_time: formatLocalDateTime(startTime),
             end_time: formatLocalDateTime(endTime),
-            purpose: selectedCheckout.purpose || "",
+            notes: selectedCheckout.notes || "",
             project_number: selectedCheckout.project_number || "",
+            scheduled_on_behalf_of:
+                selectedCheckout.scheduled_on_behalf_of || "",
             status: selectedCheckout.status,
         });
 
@@ -377,8 +381,9 @@ const EquipmentCalendar = ({
         setEditFormData({
             start_time: "",
             end_time: "",
-            purpose: "",
+            notes: "",
             project_number: "",
+            scheduled_on_behalf_of: "",
             status: "",
         });
         setUpdateMode(null);
@@ -386,6 +391,15 @@ const EquipmentCalendar = ({
 
     const handleSaveEdit = async () => {
         if (!selectedCheckout) return;
+
+        // Validate required fields
+        if (
+            !editFormData.project_number ||
+            editFormData.project_number.trim() === ""
+        ) {
+            showAlert("Project Number is required", "error");
+            return;
+        }
 
         // Check if this is a recurring checkout - either by the isRecurring flag or by virtual ID
         const isVirtualOccurrence =
@@ -412,8 +426,10 @@ const EquipmentCalendar = ({
             const updateData = {
                 start_time: new Date(editFormData.start_time).toISOString(),
                 end_time: new Date(editFormData.end_time).toISOString(),
-                purpose: editFormData.purpose,
+                notes: editFormData.notes,
                 project_number: editFormData.project_number || null,
+                scheduled_on_behalf_of:
+                    editFormData.scheduled_on_behalf_of || null,
             };
 
             // Only admins can change status
@@ -653,11 +669,11 @@ const EquipmentCalendar = ({
                             <>
                                 <TextField
                                     label="Notes"
-                                    value={formData.purpose}
+                                    value={formData.notes}
                                     onChange={(e) =>
                                         setFormData({
                                             ...formData,
-                                            purpose: e.target.value,
+                                            notes: e.target.value,
                                         })
                                     }
                                     multiline
@@ -665,7 +681,9 @@ const EquipmentCalendar = ({
                                     fullWidth
                                 />
                                 <Autocomplete
-                                    options={users}
+                                    options={users.filter(
+                                        (u) => u.id !== user?.id,
+                                    )}
                                     getOptionLabel={(option) =>
                                         typeof option === "string"
                                             ? option
@@ -880,20 +898,7 @@ const EquipmentCalendar = ({
                             fullWidth
                         />
                         <TextField
-                            label="Notes"
-                            value={editFormData.purpose}
-                            onChange={(e) =>
-                                setEditFormData({
-                                    ...editFormData,
-                                    purpose: e.target.value,
-                                })
-                            }
-                            multiline
-                            rows={3}
-                            fullWidth
-                        />
-                        <TextField
-                            label="Project Number (Optional)"
+                            label="Project Number"
                             value={editFormData.project_number}
                             onChange={(e) =>
                                 setEditFormData({
@@ -901,37 +906,93 @@ const EquipmentCalendar = ({
                                     project_number: e.target.value,
                                 })
                             }
+                            required
                             fullWidth
                         />
-                        {/* Only show status selector to admin users */}
-                        {(user?.admin || user?.equipment_admin) && (
-                            <FormControl fullWidth>
-                                <InputLabel>Status</InputLabel>
-                                <Select
-                                    value={editFormData.status || ""}
-                                    label="Status"
+
+                        {/* Optional Fields Toggle */}
+                        <Button
+                            size="small"
+                            startIcon={
+                                showOptionalFields ? (
+                                    <RemoveIcon />
+                                ) : (
+                                    <AddIcon />
+                                )
+                            }
+                            onClick={() =>
+                                setShowOptionalFields(!showOptionalFields)
+                            }
+                        >
+                            Optional Fields
+                        </Button>
+
+                        {showOptionalFields && (
+                            <>
+                                <TextField
+                                    label="Notes"
+                                    value={editFormData.notes}
                                     onChange={(e) =>
                                         setEditFormData({
                                             ...editFormData,
-                                            status: e.target.value,
+                                            notes: e.target.value,
                                         })
                                     }
-                                >
-                                    <MenuItem value="pending">Pending</MenuItem>
-                                    <MenuItem value="approved">
-                                        Approved
-                                    </MenuItem>
-                                    <MenuItem value="checked_out">
-                                        Checked Out
-                                    </MenuItem>
-                                    <MenuItem value="returned">
-                                        Returned
-                                    </MenuItem>
-                                    <MenuItem value="cancelled">
-                                        Cancelled
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
+                                    multiline
+                                    rows={3}
+                                    fullWidth
+                                />
+                                <Autocomplete
+                                    options={users.filter(
+                                        (u) => u.id !== user?.id,
+                                    )}
+                                    getOptionLabel={(option) =>
+                                        typeof option === "string"
+                                            ? option
+                                            : `${option.first_name} ${option.last_name}`
+                                    }
+                                    value={
+                                        users.find(
+                                            (u) =>
+                                                `${u.first_name} ${u.last_name}` ===
+                                                editFormData.scheduled_on_behalf_of,
+                                        ) ||
+                                        editFormData.scheduled_on_behalf_of ||
+                                        null
+                                    }
+                                    onChange={(event, newValue) => {
+                                        setEditFormData({
+                                            ...editFormData,
+                                            scheduled_on_behalf_of: newValue
+                                                ? typeof newValue === "string"
+                                                    ? newValue
+                                                    : `${newValue.first_name} ${newValue.last_name}`
+                                                : "",
+                                        });
+                                    }}
+                                    freeSolo
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Scheduled On Behalf Of"
+                                            placeholder="Select or type a name"
+                                        />
+                                    )}
+                                    renderOption={(props, option) => (
+                                        <li {...props} key={option.id}>
+                                            {option.first_name}{" "}
+                                            {option.last_name} ({option.email})
+                                        </li>
+                                    )}
+                                    isOptionEqualToValue={(option, value) =>
+                                        option.id === value?.id
+                                    }
+                                    ListboxProps={{
+                                        style: { maxHeight: "250px" },
+                                    }}
+                                    fullWidth
+                                />
+                            </>
                         )}
 
                         {/* Show update mode selector for recurring checkouts */}

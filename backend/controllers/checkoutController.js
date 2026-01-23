@@ -432,7 +432,9 @@ const Post = async (req, res, next) => {
             user_id,
             start_time,
             end_time,
-            purpose,
+            notes,
+            project_number,
+            scheduled_on_behalf_of,
             recurrence_pattern,
             separation_count,
             max_occurrences,
@@ -551,6 +553,9 @@ const Post = async (req, res, next) => {
             start_time,
             end_time,
             purpose,
+            project_number,
+            notes,
+            scheduled_on_behalf_of,
             status: equipment.requires_approval ? "pending" : "approved",
             repeats: recurrence_pattern || null,
         };
@@ -821,6 +826,12 @@ const Update = async (req, res, next) => {
                                 (1000 * 60 * 60 * 24),
                         ),
                     purpose: updates.purpose || checkout.purpose,
+                    project_number:
+                        updates.project_number || checkout.project_number,
+                    notes: updates.notes || checkout.notes,
+                    scheduled_on_behalf_of:
+                        updates.scheduled_on_behalf_of ||
+                        checkout.scheduled_on_behalf_of,
                     status: updates.status || checkout.status,
                     approved_by_user_id: checkout.approved_by_user_id,
                     approved_at: checkout.approved_at,
@@ -880,7 +891,10 @@ const Update = async (req, res, next) => {
                         user_id: checkout.user_id,
                         start_time: newStartTime,
                         end_time: newEndTime,
-                        purpose: checkout.purpose,
+                        notes: checkout.notes,
+                        project_number: checkout.project_number,
+                        notes: checkout.notes,
+                        scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
                         status: checkout.status,
                         approved_by_user_id: checkout.approved_by_user_id,
                         approved_at: checkout.approved_at,
@@ -982,6 +996,12 @@ const Update = async (req, res, next) => {
                                 (1000 * 60 * 60 * 24),
                         ),
                     purpose: updates.purpose || checkout.purpose,
+                    project_number:
+                        updates.project_number || checkout.project_number,
+                    notes: updates.notes || checkout.notes,
+                    scheduled_on_behalf_of:
+                        updates.scheduled_on_behalf_of ||
+                        checkout.scheduled_on_behalf_of,
                     status: updates.status || checkout.status,
                     approved_by_user_id: checkout.approved_by_user_id,
                     approved_at: checkout.approved_at,
@@ -1064,7 +1084,19 @@ const Update = async (req, res, next) => {
                 await checkout.update({
                     start_time: newStartTime,
                     end_time: newEndTime,
-                    purpose: updates.purpose || checkout.purpose,
+                    notes: updates.notes || checkout.notes,
+                    project_number:
+                        updates.project_number !== undefined
+                            ? updates.project_number
+                            : checkout.project_number,
+                    notes:
+                        updates.notes !== undefined
+                            ? updates.notes
+                            : checkout.notes,
+                    scheduled_on_behalf_of:
+                        updates.scheduled_on_behalf_of !== undefined
+                            ? updates.scheduled_on_behalf_of
+                            : checkout.scheduled_on_behalf_of,
                     status: updates.status || checkout.status,
                 });
 
