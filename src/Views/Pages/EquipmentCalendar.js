@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import { Fab } from "@mui/material";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -203,7 +204,7 @@ const EquipmentCalendar = ({
                 return "#4caf50";
             case "pending":
                 return "#ff9800";
-            case "checked_out":
+            case "reserved":
                 return "#2196f3";
             case "returned":
                 return "#9e9e9e";
@@ -213,6 +214,9 @@ const EquipmentCalendar = ({
     };
 
     const handleDateSelect = (selectInfo) => {
+        // Only handle when not on mobile - mobile users will use FAB
+        if (isMobile) return;
+
         setSelectedSlot({
             start: selectInfo.start,
             end: selectInfo.end,
@@ -231,7 +235,7 @@ const EquipmentCalendar = ({
     const handleEventClick = (clickInfo) => {
         const event = clickInfo.event;
 
-        // Create checkout object from event data
+        // Create Reservation object from event data
         const checkout = {
             id: event.id,
             start_time: event.start,
@@ -285,7 +289,7 @@ const EquipmentCalendar = ({
             setLoading(true);
             const token = localStorage.getItem("authToken");
 
-            // Create checkout data (works for both single and recurring)
+            // Create Reservation data (works for both single and recurring)
             const checkoutData = {
                 equipment_id: parseInt(equipmentId),
                 user_id: user.id,
@@ -534,12 +538,12 @@ const EquipmentCalendar = ({
                               }
                     }
                     editable={false}
-                    selectable={true}
+                    selectable={!isMobile}
                     selectMirror={true}
                     dayMaxEvents={true}
                     weekends={true}
                     events={checkouts}
-                    select={handleDateSelect}
+                    select={isMobile ? undefined : handleDateSelect}
                     eventClick={handleEventClick}
                     datesSet={(dateInfo) => {
                         const start = dateInfo.start.toISOString();
@@ -825,7 +829,7 @@ const EquipmentCalendar = ({
                 <DialogActions>
                     <Button onClick={handleCloseDialog}>Cancel</Button>
                     <Button onClick={handleSaveCheckout} variant="contained">
-                        Create Checkout
+                        Create Reservation
                     </Button>
                 </DialogActions>
             </Dialog>
@@ -1034,6 +1038,41 @@ const EquipmentCalendar = ({
                 severity={alertState.severity}
                 confirmText={alertState.confirmText}
             />
+            {/* Floating Action Button for mobile users */}
+            {isMobile && (
+                <Fab
+                    color="primary"
+                    aria-label="add reservation"
+                    onClick={() => {
+                        // Set default times: start now, end 1 hour from now
+                        const now = new Date();
+                        const oneHourLater = new Date(
+                            now.getTime() + 60 * 60 * 1000,
+                        );
+                        setSelectedSlot({
+                            start: now,
+                            end: oneHourLater,
+                        });
+                        setFormData({
+                            notes: "",
+                            scheduled_on_behalf_of: "",
+                            isRecurring: false,
+                            recurrencePattern: "daily",
+                            recurrenceInterval: 1,
+                            recurrenceEndDate: "",
+                        });
+                        setOpenDialog(true);
+                    }}
+                    sx={{
+                        position: "fixed",
+                        bottom: 16,
+                        right: 16,
+                        zIndex: 1000,
+                    }}
+                >
+                    <AddIcon />
+                </Fab>
+            )}
         </Box>
     );
 };

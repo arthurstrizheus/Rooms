@@ -190,6 +190,28 @@ const startServer = async () => {
                 console.log("✓ project_number column added");
             }
 
+            // Update status ENUM to remove 'returned'
+            try {
+                await queryInterface.sequelize.query(`
+                    IF EXISTS (
+                        SELECT 1 FROM sys.check_constraints 
+                        WHERE name = 'Equipment-Checkouts_status_chk'
+                        AND definition LIKE '%returned%'
+                    )
+                    BEGIN
+                        ALTER TABLE [Equipment-Checkouts] DROP CONSTRAINT [Equipment-Checkouts_status_chk];
+                        ALTER TABLE [Equipment-Checkouts] ADD CONSTRAINT [Equipment-Checkouts_status_chk] 
+                        CHECK ([status] IN ('pending','approved','reserved','cancelled'));
+                    END
+                `);
+                console.log("✓ status ENUM updated to remove 'returned'");
+            } catch (enumErr) {
+                console.log(
+                    "Note: status ENUM update skipped (may already be updated):",
+                    enumErr.message,
+                );
+            }
+
             console.log("✓ Checkout synced");
         } catch (err) {
             console.error("✗ Checkout sync failed:", err.message);
@@ -215,6 +237,32 @@ const startServer = async () => {
             console.log("Syncing EquipmentAlert");
             // Use alter: false to avoid CHECK constraint issues
             await EquipmentAlert.sync({ alter: false });
+
+            // Manually update the alert_type ENUM to include 'all_alerts'
+            try {
+                const queryInterface = sequelize.getQueryInterface();
+                await queryInterface.sequelize.query(`
+                    IF NOT EXISTS (
+                        SELECT 1 FROM sys.check_constraints 
+                        WHERE name = 'Equipment-Alerts_alert_type_chk'
+                        AND definition LIKE '%all_alerts%'
+                    )
+                    BEGIN
+                        ALTER TABLE [Equipment-Alerts] DROP CONSTRAINT [Equipment-Alerts_alert_type_chk];
+                        ALTER TABLE [Equipment-Alerts] ADD CONSTRAINT [Equipment-Alerts_alert_type_chk] 
+                        CHECK ([alert_type] IN ('checkout_created','checkout_cancelled','equipment_returned','calibration_due','status_change','all_alerts'));
+                    END
+                `);
+                console.log(
+                    "✓ alert_type ENUM updated to include 'all_alerts'",
+                );
+            } catch (enumErr) {
+                console.log(
+                    "Note: alert_type ENUM update skipped (may already exist):",
+                    enumErr.message,
+                );
+            }
+
             console.log("✓ EquipmentAlert synced");
         } catch (err) {
             console.error("✗ EquipmentAlert sync failed:", err.message);

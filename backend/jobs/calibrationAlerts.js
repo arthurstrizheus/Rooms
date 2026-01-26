@@ -92,7 +92,29 @@ const checkCalibrationAlerts = async () => {
             const isBetweenNotificationAndDue =
                 today >= notificationDate && today <= dueDate;
 
-            if (isPastDue || isNotificationDay || isBetweenNotificationAndDue) {
+            // Determine if we should send a reminder today
+            let shouldSendReminder = false;
+
+            if (isNotificationDay) {
+                // First reminder: X days before due date
+                shouldSendReminder = true;
+            } else if (isBetweenNotificationAndDue) {
+                // Weekly reminders between notification date and due date
+                const daysSinceNotification = Math.ceil(
+                    (today - notificationDate) / (1000 * 60 * 60 * 24),
+                );
+                // Send every 7 days after the initial notification
+                shouldSendReminder = daysSinceNotification % 7 === 0;
+            } else if (isPastDue) {
+                // After due date: send reminders every 14 days (2 weeks)
+                const daysOverdue = Math.ceil(
+                    (today - dueDate) / (1000 * 60 * 60 * 24),
+                );
+                // Send on the day it becomes overdue, then every 14 days after
+                shouldSendReminder = daysOverdue % 14 === 0;
+            }
+
+            if (shouldSendReminder) {
                 const daysUntilDue = Math.ceil(
                     (dueDate - today) / (1000 * 60 * 60 * 24),
                 );

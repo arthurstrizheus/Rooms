@@ -324,7 +324,11 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 equipment.calibration_interval_value || "",
             calibration_interval_unit:
                 equipment.calibration_interval_unit || "days",
-            last_calibration_date: equipment.last_calibration_date || "",
+            last_calibration_date: equipment.last_calibration_date
+                ? new Date(equipment.last_calibration_date)
+                      .toISOString()
+                      .split("T")[0]
+                : "",
         });
         setOpenEditDialog(true);
     };
@@ -487,7 +491,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         switch (status) {
             case "available":
                 return "success";
-            case "checked_out":
+            case "reserved":
                 return "info";
             case "maintenance":
                 return "warning";
@@ -772,7 +776,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                     </Typography>
                                 </Grid>
 
-                                <Grid item xs={12} sm={6}>
+                                {/* <Grid item xs={12} sm={6}>
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
@@ -787,7 +791,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                             ? "Yes"
                                             : "No"}
                                     </Typography>
-                                </Grid>
+                                </Grid> */}
                             </Grid>
                         </CardContent>
                     </Card>
@@ -939,7 +943,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                 key="status-checked_out"
                                 value="checked_out"
                             >
-                                Checked Out
+                                Reserved
                             </MenuItem>
                             <MenuItem
                                 key="status-maintenance"
@@ -951,7 +955,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                 Retired
                             </MenuItem>
                         </TextField>
-                        <TextField
+                        {/* <TextField
                             name="requires_approval"
                             label="Requires Approval"
                             value={formData.requires_approval}
@@ -965,7 +969,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             <MenuItem key="approval-false" value={false}>
                                 No
                             </MenuItem>
-                        </TextField>
+                        </TextField> */}
                         <TextField
                             name="last_calibration_date"
                             label="Last Calibration Date"

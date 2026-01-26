@@ -37,8 +37,7 @@ const Checkout = sequelize.define(
             type: DataTypes.ENUM(
                 "pending",
                 "approved",
-                "checked_out",
-                "returned",
+                "reserved",
                 "cancelled",
             ),
             defaultValue: "approved",

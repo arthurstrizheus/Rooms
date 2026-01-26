@@ -130,7 +130,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 return "success";
             case "pending":
                 return "warning";
-            case "checked_out":
+            case "reserved":
                 return "info";
             case "returned":
                 return "default";
@@ -145,7 +145,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
         switch (status) {
             case "available":
                 return "success";
-            case "checked_out":
+            case "reserved":
                 return "info";
             case "maintenance":
                 return "warning";
@@ -793,6 +793,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                             );
                                                                         }}
                                                                         color="error"
+                                                                        title="Cancel Reservation"
                                                                     >
                                                                         <Delete />
                                                                     </IconButton>
@@ -1112,6 +1113,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                             );
                                                                         }}
                                                                         color="error"
+                                                                        title="Cancel Reservation"
                                                                     >
                                                                         <Delete />
                                                                     </IconButton>

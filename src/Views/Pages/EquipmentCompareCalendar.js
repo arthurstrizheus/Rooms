@@ -308,7 +308,7 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                 equipmentIds.push(equipmentId1, equipmentId2);
             }
 
-            // Create checkout for each selected equipment
+            // Create Reservation for each selected equipment
             const promises = equipmentIds.map((equipmentId) => {
                 const checkoutData = {
                     user_id: user.id,

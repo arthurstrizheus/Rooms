@@ -20,6 +20,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import CategoryIcon from "@mui/icons-material/Category";
 import PersonIcon from "@mui/icons-material/Person";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useState, useEffect } from "react";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
@@ -98,7 +99,7 @@ const DisplayCheckout = ({
         {
             pending: theme.palette.warning.main,
             approved: theme.palette.success.main,
-            checked_out: theme.palette.info.main,
+            reserved: theme.palette.info.main,
             returned: theme.palette.grey[500],
             cancelled: theme.palette.error.main,
         }[checkout?.status] || theme.palette.grey[400];
@@ -891,7 +892,7 @@ const DisplayCheckout = ({
                                 variant="body1"
                                 color={theme.palette.primary.text.dark}
                             >
-                                Checked out by:
+                                Reserved by:
                             </Typography>
                             {checkout.notes && (
                                 <Typography

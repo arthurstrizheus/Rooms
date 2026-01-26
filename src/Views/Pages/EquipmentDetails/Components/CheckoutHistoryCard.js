@@ -503,7 +503,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                             <MenuItem value="all">All Status</MenuItem>
                             <MenuItem value="pending">Pending</MenuItem>
                             <MenuItem value="approved">Approved</MenuItem>
-                            <MenuItem value="checked_out">In Use</MenuItem>
+                            <MenuItem value="reserved">In Use</MenuItem>
                             <MenuItem value="returned">Returned</MenuItem>
                             <MenuItem value="cancelled">Cancelled</MenuItem>
                         </TextField>

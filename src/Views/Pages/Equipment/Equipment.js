@@ -90,6 +90,7 @@ const Equipment = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        last_calibration_date: "",
         calibration_interval_value: "",
         calibration_interval_unit: "days",
     });
@@ -171,7 +172,14 @@ const Equipment = ({ setLoading, loading }) => {
     const handleOpenDialog = (item = null) => {
         if (item) {
             setSelectedEquipment(item);
-            setFormData(item);
+            setFormData({
+                ...item,
+                last_calibration_date: item.last_calibration_date
+                    ? new Date(item.last_calibration_date)
+                          .toISOString()
+                          .split("T")[0]
+                    : "",
+            });
         } else {
             setSelectedEquipment(null);
             setFormData({
@@ -183,6 +191,7 @@ const Equipment = ({ setLoading, loading }) => {
                 contact_person_id: null,
                 status: "available",
                 requires_approval: false,
+                last_calibration_date: "",
                 calibration_interval_value: "",
                 calibration_interval_unit: "days",
             });
@@ -430,7 +439,7 @@ const Equipment = ({ setLoading, loading }) => {
                     >
                         <MenuItem value="all">All Status</MenuItem>
                         <MenuItem value="available">Available</MenuItem>
-                        <MenuItem value="checked_out">Checked Out</MenuItem>
+                        <MenuItem value="reserved">Reserved</MenuItem>
                         <MenuItem value="maintenance">Maintenance</MenuItem>
                         <MenuItem value="retired">Retired</MenuItem>
                     </TextField>
@@ -848,11 +857,11 @@ const Equipment = ({ setLoading, loading }) => {
                             fullWidth
                         >
                             <MenuItem value="available">Available</MenuItem>
-                            <MenuItem value="checked_out">Checked Out</MenuItem>
+                            <MenuItem value="reserved">Reserved</MenuItem>
                             <MenuItem value="maintenance">Maintenance</MenuItem>
                             <MenuItem value="retired">Retired</MenuItem>
                         </TextField>
-                        <TextField
+                        {/* <TextField
                             select
                             label="Requires Approval"
                             value={formData.requires_approval}
@@ -867,7 +876,20 @@ const Equipment = ({ setLoading, loading }) => {
                         >
                             <MenuItem value={false}>No</MenuItem>
                             <MenuItem value={true}>Yes</MenuItem>
-                        </TextField>
+                        </TextField> */}
+                        <TextField
+                            label="Last Calibration Date"
+                            type="date"
+                            value={formData.last_calibration_date}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    last_calibration_date: e.target.value,
+                                })
+                            }
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                        />
                         <Box sx={{ display: "flex", gap: 2 }}>
                             <TextField
                                 label="Calibration Interval"

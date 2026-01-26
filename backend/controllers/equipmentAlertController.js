@@ -257,7 +257,7 @@ const GetSubscribers = async (equipmentId, alertType) => {
         const alerts = await EquipmentAlert.findAll({
             where: {
                 equipment_id: equipmentId,
-                alert_type: alertType,
+                alert_type: [alertType, "all_alerts"],
                 enabled: true,
             },
             include: [

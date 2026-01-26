@@ -42,7 +42,7 @@ function App() {
     const location = useLocation();
     const navigate = useNavigate();
     const [open, setOpen] = useState(
-        isMobile ? false : isAuthenticated ? true : false
+        isMobile ? false : isAuthenticated ? true : false,
     );
 
     const handleDrawerOpen = () => setOpen(true);
@@ -134,7 +134,8 @@ function App() {
                 height: "100vh",
                 display: "flex",
                 flexDirection: "column",
-                overflow: "hidden",
+                overflow: isMobile ? "auto" : "hidden",
+                WebkitOverflowScrolling: isMobile ? "touch" : "auto",
             }}
         >
             <ThemeProvider theme={theme(mode)}>
@@ -145,7 +146,7 @@ function App() {
                                 flexGrow: 1,
                                 display: "flex",
                                 flexDirection: "column",
-                                overflow: "hidden",
+                                overflow: isMobile ? "visible" : "hidden",
                                 transition: (theme) =>
                                     theme.transitions.create("margin", {
                                         easing: theme.transitions.easing.sharp,
@@ -227,7 +228,7 @@ function App() {
                                     flexGrow: 1,
                                     display: "flex",
                                     flexDirection: "column",
-                                    overflow: "hidden",
+                                    overflow: isMobile ? "visible" : "hidden",
                                 }}
                             >
                                 {/* Banner (with drawer toggle) */}
@@ -246,8 +247,13 @@ function App() {
                                 <Box
                                     sx={{
                                         flexGrow: 1,
-                                        overflowY: "auto",
-                                        overflowX: "auto",
+                                        overflowY: isMobile
+                                            ? "visible"
+                                            : "auto",
+                                        overflowX: isMobile
+                                            ? "visible"
+                                            : "auto",
+                                        WebkitOverflowScrolling: "touch",
                                     }}
                                 >
                                     {isAuthenticated ? (

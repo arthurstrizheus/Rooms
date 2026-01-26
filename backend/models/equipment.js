@@ -40,7 +40,7 @@ const Equipment = sequelize.define(
         status: {
             type: DataTypes.ENUM(
                 "available",
-                "checked_out",
+                "reserved",
                 "maintenance",
                 "retired",
             ),

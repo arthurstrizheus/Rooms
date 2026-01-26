@@ -1,8 +1,11 @@
-import { Box } from "@mui/material";
+import { Box, useMediaQuery, useTheme } from "@mui/material";
 import { useEffect } from "react";
 import Users from "./Components/Users";
 
 const UserManagement = ({ setLoading }) => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+
     useEffect(() => {});
 
     return (
@@ -11,8 +14,8 @@ const UserManagement = ({ setLoading }) => {
                 display: "flex",
                 flexGrow: 1,
                 flexDirection: "column",
-                height: "100%",
-                overflow: "hidden",
+                height: isMobile ? "auto" : "100%",
+                overflow: isMobile ? "visible" : "hidden",
                 padding: 2,
             }}
         >

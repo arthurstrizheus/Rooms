@@ -138,11 +138,7 @@ const sendCheckoutApprovalRequestEmail = async (
 
     const approvalBaseUrl =
         process.env.REACT_APP_URL || "https://equipment.sealimited.com";
-    const approvalLink = id
-        ? `${approvalBaseUrl}/checkout-approval?checkoutId=${encodeURIComponent(
-              id,
-          )}`
-        : approvalBaseUrl;
+    const approvalLink = `${approvalBaseUrl}/approve`;
 
     // Get requester name
     let requesterName = "User";
@@ -372,11 +368,12 @@ const sendCheckoutApprovedEmail = async (
         }
 
         try {
-            await transporter.sendMail(mailOpts);
+            const info = await transporter.sendMail(mailOpts);
             await logEmailToFile({
                 to: mailOpts.to,
                 subject: mailOpts.subject,
                 status: "SUCCESS",
+                info,
             });
         } catch (error) {
             await logEmailToFile({
@@ -533,11 +530,12 @@ const sendCheckoutCancelledEmail = async (
             }
 
             try {
-                await transporter.sendMail(mailOpts);
+                const info = await transporter.sendMail(mailOpts);
                 await logEmailToFile({
                     to: mailOpts.to,
                     subject: mailOpts.subject,
                     status: "SUCCESS",
+                    info,
                 });
             } catch (error) {
                 await logEmailToFile({
@@ -555,7 +553,7 @@ const sendCheckoutCancelledEmail = async (
         );
     } catch (error) {
         logErrorToFile(error);
-        console.error("Error sending checkout cancelled emails", error);
+        console.error("Error sending reservation cancelled emails", error);
     }
 };
 
@@ -819,13 +817,13 @@ const sendEquipmentReturnedEmail = async (
                 <!-- Header -->
                 <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 30px; text-align: center;">
                     <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">✅ Equipment Returned</h1>
-                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Now available for checkout</p>
+                    <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Now available for reservation</p>
                 </div>
                 
                 <!-- Content -->
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
-                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">The following equipment has been returned and is now available for checkout:</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">The following equipment has been returned and is now available for reservation:</p>
                     
                     <!-- Equipment Info Card -->
                     <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
@@ -899,7 +897,7 @@ const sendEquipmentReturnedEmail = async (
                     </div>
 
                     <div style="background-color: #e7f3ff; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                        <p style="color: #0d47a1; font-size: 13px; line-height: 1.6; margin: 0;">ℹ️ This equipment may have additional bookings scheduled. Please check availability before requesting checkout.</p>
+                        <p style="color: #0d47a1; font-size: 13px; line-height: 1.6; margin: 0;">ℹ️ This equipment may have additional bookings scheduled. Please check availability before requesting reservation.</p>
                     </div>
                 </div>
                 
@@ -932,11 +930,12 @@ const sendEquipmentReturnedEmail = async (
             }
 
             try {
-                await transporter.sendMail(mailOpts);
+                const info = await transporter.sendMail(mailOpts);
                 await logEmailToFile({
                     to: mailOpts.to,
                     subject: mailOpts.subject,
                     status: "SUCCESS",
+                    info,
                 });
             } catch (error) {
                 await logEmailToFile({
@@ -972,7 +971,7 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
     const subject = `Equipment Available: ${e.name}`;
     const body = `
         <p>Dear Equipment Scheduler User,</p>
-        <p>The following equipment is now <strong style="color:#2e7d32;">available</strong> for checkout with no upcoming bookings in the next 2 hours:</p>
+        <p>The following equipment is now <strong style="color:#2e7d32;">available</strong> for reservation with no upcoming bookings in the next 2 hours:</p>
         <table style="border-collapse:collapse;font-size:14px;margin-top:8px;">
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Equipment</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
                 e.name
@@ -1011,11 +1010,12 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
             }
 
             try {
-                await transporter.sendMail(mailOpts);
+                const info = await transporter.sendMail(mailOpts);
                 await logEmailToFile({
                     to: mailOpts.to,
                     subject: mailOpts.subject,
                     status: "SUCCESS",
+                    info,
                 });
             } catch (error) {
                 await logEmailToFile({
@@ -1253,11 +1253,12 @@ const sendCalibrationDueEmail = async (
             }
 
             try {
-                await transporter.sendMail(mailOpts);
+                const info = await transporter.sendMail(mailOpts);
                 await logEmailToFile({
                     to: mailOpts.to,
                     subject: mailOpts.subject,
                     status: "SUCCESS",
+                    info,
                 });
             } catch (error) {
                 await logEmailToFile({
@@ -1500,7 +1501,7 @@ const sendCheckoutCreatedEmail = async (
 };
 
 /**
- * Sends an email when equipment is checked out
+ * Sends an email when equipment is reserved
  */
 const sendEquipmentCheckedOutEmail = async (
     checkout,
@@ -1508,7 +1509,7 @@ const sendEquipmentCheckedOutEmail = async (
     subscriberEmails,
 ) => {
     if (!subscriberEmails || subscriberEmails.length === 0) {
-        console.log("No subscribers for equipment checked out notification");
+        console.log("No subscribers for equipment reserved notification");
         return;
     }
 
@@ -1539,14 +1540,14 @@ const sendEquipmentCheckedOutEmail = async (
             <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); overflow: hidden;">
                 <!-- Header -->
                 <div style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); padding: 30px; text-align: center;">
-                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">📤 Equipment Checked Out</h1>
+                    <h1 style="color: #000000; margin: 0; font-size: 24px; font-weight: 600;">📤 Equipment Reserved</h1>
                     <p style="color: #000000; margin: 10px 0 0 0; font-size: 14px;">Currently in use</p>
                 </div>
                 
                 <!-- Content -->
                 <div style="padding: 30px;">
                     <p style="color: #333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">Hello,</p>
-                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">Equipment you're monitoring has been checked out and is currently in use:</p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6; margin: 0 0 25px 0;">Equipment you're monitoring has been reserved and is currently in use:</p>
                     
                     <!-- Equipment Info Card -->
                     <div style="background-color: #f8f9fa; border-left: 4px solid #17a2b8; padding: 20px; margin-bottom: 20px; border-radius: 4px;">
@@ -1625,7 +1626,7 @@ const sendEquipmentCheckedOutEmail = async (
                     <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
                     ${getUnsubscribeFooter(
                         equipmentData.id,
-                        "equipment_checked_out",
+                        "equipment_reserved",
                     )}
                 </div>
             </div>
@@ -1641,7 +1642,7 @@ const sendEquipmentCheckedOutEmail = async (
     };
 
     if (!SEND_EMAILS_ACTIVE) {
-        console.log("Email disabled. Would send equipment checked out email:", {
+        console.log("Email disabled. Would send equipment reserved email:", {
             to: subscriberEmails,
             equipment: equipmentData.name,
         });
@@ -1658,7 +1659,7 @@ const sendEquipmentCheckedOutEmail = async (
             status: "SUCCESS",
             info,
         });
-        console.log(`Equipment checked out email sent: ${info.messageId}`);
+        console.log(`Equipment reserved email sent: ${info.messageId}`);
         return info;
     } catch (error) {
         await logEmailToFile({
@@ -1668,7 +1669,7 @@ const sendEquipmentCheckedOutEmail = async (
             error: error.message,
         });
         logErrorToFile(error);
-        console.error("Error sending equipment checked out email:", error);
+        console.error("Error sending equipment reserved email:", error);
     }
 };
 
@@ -1694,7 +1695,7 @@ const sendEquipmentStatusChangeEmail = async (
     const statusColor =
         {
             available: "#28a745",
-            checked_out: "#17a2b8",
+            reserved: "#17a2b8",
             maintenance: "#fd7e14",
             retired: "#dc3545",
         }[newStatus] || "#6c757d";
@@ -1702,7 +1703,7 @@ const sendEquipmentStatusChangeEmail = async (
     const statusBgColor =
         {
             available: "#d4edda",
-            checked_out: "#d1ecf1",
+            reserved: "#d1ecf1",
             maintenance: "#fff3cd",
             retired: "#f8d7da",
         }[newStatus] || "#e9ecef";
@@ -1710,7 +1711,7 @@ const sendEquipmentStatusChangeEmail = async (
     const statusIcon =
         {
             available: "✅",
-            checked_out: "📤",
+            reserved: "📤",
             maintenance: "🔧",
             retired: "🚫",
         }[newStatus] || "ℹ️";
@@ -1790,7 +1791,7 @@ const sendEquipmentStatusChangeEmail = async (
                         newStatus === "maintenance"
                             ? `
                     <div style="background-color: #fff3cd; border-left: 4px solid #fd7e14; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                        <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">⚠️ This equipment is currently under maintenance and unavailable for checkout.</p>
+                        <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">⚠️ This equipment is currently under maintenance and unavailable for reservation.</p>
                     </div>`
                             : ""
                     }
@@ -1808,7 +1809,7 @@ const sendEquipmentStatusChangeEmail = async (
                         newStatus === "available"
                             ? `
                     <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                        <p style="color: #155724; font-size: 13px; line-height: 1.6; margin: 0;">✅ This equipment is now available and ready for checkout.</p>
+                        <p style="color: #155724; font-size: 13px; line-height: 1.6; margin: 0;">✅ This equipment is now available and ready for reservation.</p>
                     </div>`
                             : ""
                     }

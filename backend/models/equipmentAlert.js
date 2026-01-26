@@ -31,7 +31,8 @@ const EquipmentAlert = sequelize.define(
                 "checkout_cancelled",
                 "equipment_returned",
                 "calibration_due",
-                "status_change"
+                "status_change",
+                "all_alerts",
             ),
             allowNull: false,
         },
@@ -48,7 +49,7 @@ const EquipmentAlert = sequelize.define(
         tableName: "Equipment-Alerts",
         timestamps: true,
         underscored: false, // Use camelCase for createdAt/updatedAt
-    }
+    },
 );
 
 module.exports = EquipmentAlert;

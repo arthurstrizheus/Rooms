@@ -1264,31 +1264,6 @@ const Update = async (req, res, next) => {
                     );
                 }
             })();
-        } else if (updates.status === "returned") {
-            (async () => {
-                try {
-                    const equipment = await Equipment.findByPk(
-                        checkout.equipment_id,
-                    );
-
-                    const subscribers = await GetSubscribers(
-                        checkout.equipment_id,
-                        "equipment_returned",
-                    );
-                    if (subscribers && subscribers.length > 0) {
-                        await sendEquipmentReturnedEmail(
-                            completeCheckout,
-                            equipment,
-                            subscribers,
-                        );
-                    }
-                } catch (emailError) {
-                    console.error(
-                        "Error sending equipment returned emails:",
-                        emailError,
-                    );
-                }
-            })();
         }
 
         // Emit socket event

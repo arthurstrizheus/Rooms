@@ -40,10 +40,17 @@ const AlertsCard = ({
     const [myAlerts, setMyAlerts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [newAlertType, setNewAlertType] = useState("checkout_created");
+    const [notificationDays, setNotificationDays] = useState(30);
     const { socket } = useSocket();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
 
     const alertTypes = [
+        {
+            value: "all_alerts",
+            label: "All Alerts",
+            description:
+                "Get notified for all events related to this equipment",
+        },
         {
             value: "checkout_created",
             label: "Reservation Created",
@@ -131,6 +138,7 @@ const AlertsCard = ({
                 {
                     equipment_id: parseInt(equipmentId),
                     alert_type: newAlertType,
+                    notification_days_before: notificationDays,
                 },
                 {
                     headers: { Authorization: `Bearer ${token}` },
@@ -139,6 +147,7 @@ const AlertsCard = ({
 
             showSuccess("Successfully subscribed to alerts");
             setOpenDialog(false);
+            setNotificationDays(30);
             fetchMyAlerts();
             if (onSubscribeSuccess) {
                 onSubscribeSuccess();
@@ -376,6 +385,24 @@ const AlertsCard = ({
                             </MenuItem>
                         ))}
                     </TextField>
+                    {newAlertType === "calibration_due" && (
+                        <TextField
+                            type="number"
+                            fullWidth
+                            label="Notify Days Before"
+                            value={notificationDays}
+                            onChange={(e) =>
+                                setNotificationDays(
+                                    parseInt(e.target.value) || 30,
+                                )
+                            }
+                            sx={{ mt: 2 }}
+                            helperText="Number of days before calibration due date to receive first notification (then weekly until due, bi-weekly after)"
+                            InputProps={{
+                                inputProps: { min: 1, max: 365 },
+                            }}
+                        />
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
