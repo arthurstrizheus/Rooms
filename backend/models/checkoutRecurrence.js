@@ -41,11 +41,27 @@ const CheckoutRecurrence = sequelize.define(
             type: DataTypes.DATE,
             allowNull: true,
         },
+        created_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
     },
     {
         tableName: "Equipment-CheckoutRecurrences",
         timestamps: true,
-    }
+    },
 );
 
 module.exports = CheckoutRecurrence;

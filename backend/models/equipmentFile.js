@@ -56,11 +56,27 @@ const EquipmentFile = sequelize.define(
             type: DataTypes.DATE,
             defaultValue: DataTypes.NOW,
         },
+        created_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
     },
     {
         tableName: "Equipment-Files",
         timestamps: true,
-    }
+    },
 );
 
 module.exports = EquipmentFile;

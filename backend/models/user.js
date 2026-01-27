@@ -62,6 +62,10 @@ const User = sequelize.define(
             type: DataTypes.INTEGER,
             allowNull: true,
         },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+        },
         createdAt: {
             type: DataTypes.DATE,
             allowNull: true,
@@ -76,7 +80,7 @@ const User = sequelize.define(
     {
         tableName: "Rooms-Users",
         timestamps: true,
-    }
+    },
 );
 
 module.exports = User;

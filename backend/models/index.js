@@ -114,6 +114,121 @@ const initModels = () => {
         as: "Recurrence",
         onDelete: "CASCADE",
     });
+
+    // Audit trail associations - created_by and updated_by
+    // Equipment
+    User.hasMany(Equipment, {
+        foreignKey: "created_by",
+        as: "CreatedEquipment",
+    });
+    Equipment.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "CreatedBy",
+    });
+    User.hasMany(Equipment, {
+        foreignKey: "updated_by",
+        as: "UpdatedEquipment",
+    });
+    Equipment.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "UpdatedBy",
+    });
+
+    // Checkout
+    User.hasMany(Checkout, {
+        foreignKey: "created_by",
+        as: "CreatedCheckouts",
+    });
+    Checkout.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "CheckoutCreatedBy",
+    });
+    User.hasMany(Checkout, {
+        foreignKey: "updated_by",
+        as: "UpdatedCheckouts",
+    });
+    Checkout.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "CheckoutUpdatedBy",
+    });
+
+    // EquipmentFile
+    User.hasMany(EquipmentFile, {
+        foreignKey: "created_by",
+        as: "CreatedFiles",
+    });
+    EquipmentFile.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "FileCreatedBy",
+    });
+    User.hasMany(EquipmentFile, {
+        foreignKey: "updated_by",
+        as: "UpdatedFiles",
+    });
+    EquipmentFile.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "FileUpdatedBy",
+    });
+
+    // CalibrationHistory
+    User.hasMany(CalibrationHistory, {
+        foreignKey: "created_by",
+        as: "CreatedCalibrations",
+    });
+    CalibrationHistory.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "CalibrationCreatedBy",
+    });
+    User.hasMany(CalibrationHistory, {
+        foreignKey: "updated_by",
+        as: "UpdatedCalibrations",
+    });
+    CalibrationHistory.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "CalibrationUpdatedBy",
+    });
+
+    // EquipmentAlert
+    User.hasMany(EquipmentAlert, {
+        foreignKey: "created_by",
+        as: "CreatedAlerts",
+    });
+    EquipmentAlert.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "AlertCreatedBy",
+    });
+    User.hasMany(EquipmentAlert, {
+        foreignKey: "updated_by",
+        as: "UpdatedAlerts",
+    });
+    EquipmentAlert.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "AlertUpdatedBy",
+    });
+
+    // CheckoutRecurrence
+    User.hasMany(CheckoutRecurrence, {
+        foreignKey: "created_by",
+        as: "CreatedRecurrences",
+    });
+    CheckoutRecurrence.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "RecurrenceCreatedBy",
+    });
+    User.hasMany(CheckoutRecurrence, {
+        foreignKey: "updated_by",
+        as: "UpdatedRecurrences",
+    });
+    CheckoutRecurrence.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "RecurrenceUpdatedBy",
+    });
+
+    // User updated_by (self-referential)
+    User.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "UserUpdatedBy",
+    });
 };
 
 module.exports = {

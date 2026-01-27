@@ -83,6 +83,22 @@ const Checkout = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        created_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
     },
     {
         tableName: "Equipment-Checkouts",

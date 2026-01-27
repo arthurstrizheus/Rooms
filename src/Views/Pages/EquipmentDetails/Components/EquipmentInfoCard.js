@@ -51,6 +51,18 @@ const EquipmentInfoCard = ({
         { label: "Serial Number", value: equipment.serial_number || "N/A" },
         { label: "Location", value: equipment.location || "N/A" },
         { label: "Contact Person", value: equipment.contact_person || "N/A" },
+        {
+            label: "Created By",
+            value: equipment.CreatedBy
+                ? `${equipment.CreatedBy.first_name} ${equipment.CreatedBy.last_name}`
+                : "N/A",
+        },
+        {
+            label: "Updated By",
+            value: equipment.UpdatedBy
+                ? `${equipment.UpdatedBy.first_name} ${equipment.UpdatedBy.last_name}`
+                : "N/A",
+        },
         // {
         //     label: "Requires Approval",
         //     value: equipment.requires_approval ? "Yes" : "No",

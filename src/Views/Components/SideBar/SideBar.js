@@ -252,7 +252,9 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                   ]
                         }
                     />
-                    {user?.admin && (
+                    {(user?.admin ||
+                        user?.equipment_admin ||
+                        user?.equipment_office_admin) && (
                         <>
                             <Divider />
                             <MenuItem

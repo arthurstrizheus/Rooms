@@ -21,6 +21,16 @@ const GetByEquipmentId = async (req, res, next) => {
                     as: "CertificateFile",
                     attributes: ["id", "file_name", "file_path"],
                 },
+                {
+                    model: User,
+                    as: "CalibrationCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "CalibrationUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
             ],
             order: [["calibration_date", "DESC"]],
         });
@@ -84,6 +94,16 @@ const Post = async (req, res, next) => {
                         as: "CertificateFile",
                         attributes: ["id", "file_name", "file_path"],
                     },
+                    {
+                        model: User,
+                        as: "CalibrationCreatedBy",
+                        attributes: ["id", "first_name", "last_name", "email"],
+                    },
+                    {
+                        model: User,
+                        as: "CalibrationUpdatedBy",
+                        attributes: ["id", "first_name", "last_name", "email"],
+                    },
                 ],
             },
         );
@@ -144,6 +164,16 @@ const Update = async (req, res, next) => {
                     model: EquipmentFile,
                     as: "CertificateFile",
                     attributes: ["id", "file_name", "file_path"],
+                },
+                {
+                    model: User,
+                    as: "CalibrationCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "CalibrationUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });

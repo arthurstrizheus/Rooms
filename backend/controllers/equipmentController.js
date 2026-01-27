@@ -1,4 +1,4 @@
-const { Equipment, EquipmentFile, Checkout } = require("../models");
+const { Equipment, EquipmentFile, Checkout, User } = require("../models");
 const path = require("path");
 const fs = require("fs");
 const { GetSubscribers } = require("./equipmentAlertController");
@@ -23,6 +23,16 @@ const GetById = async (req, res, next) => {
                 {
                     model: EquipmentFile,
                     as: "EquipmentFiles",
+                },
+                {
+                    model: User,
+                    as: "CreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "UpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });

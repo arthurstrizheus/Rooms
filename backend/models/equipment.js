@@ -55,6 +55,10 @@ const Equipment = sequelize.define(
             type: DataTypes.BOOLEAN,
             defaultValue: false,
         },
+        can_book: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true,
+        },
         calibration_interval_value: {
             type: DataTypes.INTEGER,
             allowNull: true,
@@ -66,6 +70,22 @@ const Equipment = sequelize.define(
         last_calibration_date: {
             type: DataTypes.DATE,
             allowNull: true,
+        },
+        created_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
         },
     },
     {

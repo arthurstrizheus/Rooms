@@ -44,6 +44,22 @@ const EquipmentAlert = sequelize.define(
             type: DataTypes.INTEGER,
             defaultValue: 7,
         },
+        created_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
     },
     {
         tableName: "Equipment-Alerts",

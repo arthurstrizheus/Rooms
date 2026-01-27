@@ -17,6 +17,7 @@ const {
     CheckoutRecurrence,
 } = require("./models");
 const { authenticateUser } = require("./middleware/auth");
+const addAuditFields = require("./middleware/auditMiddleware");
 const connectedUsersRoutes = require("./routes/connectedUsers");
 const { handleSocketConnection } = require("./sockets/socketHandler");
 const { setSocketInstance } = require("./utils/socketUtils");
@@ -118,6 +119,10 @@ app.use(
 
 // Add authentication middleware globally
 app.use(authenticateUser);
+
+// Add audit middleware to track created_by and updated_by
+app.use(addAuditFields);
+
 app.use("/api/connected-users", connectedUsersRoutes);
 app.use("/api/equipment", equipmentRouter);
 app.use("/api/checkouts", checkoutsRouter);

@@ -6,6 +6,18 @@ const GetByCheckoutId = async (req, res, next) => {
         const { checkoutId } = req.params;
         const recurrences = await CheckoutRecurrence.findAll({
             where: { checkout_id: checkoutId },
+            include: [
+                {
+                    model: User,
+                    as: "RecurrenceCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "RecurrenceUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+            ],
         });
         res.json(recurrences);
     } catch (err) {
@@ -37,14 +49,33 @@ const Post = async (req, res, next) => {
             end_date,
         });
 
-        res.status(201).json(recurrence);
+        // Fetch complete recurrence with associations
+        const completeRecurrence = await CheckoutRecurrence.findByPk(
+            recurrence.id,
+            {
+                include: [
+                    {
+                        model: User,
+                        as: "RecurrenceCreatedBy",
+                        attributes: ["id", "first_name", "last_name", "email"],
+                    },
+                    {
+                        model: User,
+                        as: "RecurrenceUpdatedBy",
+                        attributes: ["id", "first_name", "last_name", "email"],
+                    },
+                ],
+            },
+        );
+
+        res.status(201).json(completeRecurrence);
 
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
             io.emit("message", {
                 message: "recurrence_created",
-                data: recurrence,
+                data: completeRecurrence,
             });
         }
     } catch (err) {
@@ -65,14 +96,30 @@ const Update = async (req, res, next) => {
 
         await recurrence.update(updates);
 
-        res.json(recurrence);
+        // Fetch complete recurrence with associations
+        const completeRecurrence = await CheckoutRecurrence.findByPk(id, {
+            include: [
+                {
+                    model: User,
+                    as: "RecurrenceCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "RecurrenceUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+            ],
+        });
+
+        res.json(completeRecurrence);
 
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
             io.emit("message", {
                 message: "recurrence_updated",
-                data: recurrence,
+                data: completeRecurrence,
             });
         }
     } catch (err) {
@@ -108,7 +155,7 @@ const generateRecurringCheckouts = (
     baseCheckout,
     recurrence,
     startDate,
-    endDate
+    endDate,
 ) => {
     const occurrences = [];
     const checkoutDuration =
@@ -134,7 +181,7 @@ const generateRecurringCheckouts = (
         }
 
         const occurrenceEnd = new Date(
-            currentDate.getTime() + checkoutDuration
+            currentDate.getTime() + checkoutDuration,
         );
 
         // Include occurrence if it overlaps with requested range
@@ -164,13 +211,13 @@ const generateRecurringCheckouts = (
             case "weekly":
                 currentDate = addWeeks(
                     currentDate,
-                    recurrence.separation_count
+                    recurrence.separation_count,
                 );
                 break;
             case "monthly":
                 currentDate = addMonths(
                     currentDate,
-                    recurrence.separation_count
+                    recurrence.separation_count,
                 );
                 break;
             default:

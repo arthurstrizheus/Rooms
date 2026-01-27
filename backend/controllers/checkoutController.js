@@ -323,6 +323,16 @@ const GetByEquipmentId = async (req, res, next) => {
                     attributes: ["id", "username", "first_name", "last_name"],
                 },
                 {
+                    model: User,
+                    as: "CheckoutCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "CheckoutUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
                     model: CheckoutRecurrence,
                     as: "Recurrence",
                     required: false,
@@ -547,6 +557,13 @@ const Post = async (req, res, next) => {
             return res.status(404).json({ message: "Equipment not found" });
         }
 
+        // Check if equipment can be booked
+        if (equipment.can_book === false) {
+            return res.status(403).json({
+                message: "This equipment is not available for booking",
+            });
+        }
+
         const checkoutData = {
             equipment_id,
             user_id,
@@ -600,6 +617,16 @@ const Post = async (req, res, next) => {
                     model: CheckoutRecurrence,
                     as: "Recurrence",
                     required: false,
+                },
+                {
+                    model: User,
+                    as: "CheckoutCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "CheckoutUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });
@@ -836,6 +863,56 @@ const Update = async (req, res, next) => {
                     approved_at: checkout.approved_at,
                 });
 
+                // Fetch complete checkout with audit fields
+                const completeNewCheckout = await Checkout.findByPk(
+                    newCheckout.id,
+                    {
+                        include: [
+                            {
+                                model: User,
+                                as: "User",
+                                attributes: [
+                                    "id",
+                                    "username",
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                ],
+                            },
+                            {
+                                model: User,
+                                as: "ApprovedBy",
+                                attributes: [
+                                    "id",
+                                    "username",
+                                    "first_name",
+                                    "last_name",
+                                ],
+                            },
+                            {
+                                model: User,
+                                as: "CheckoutCreatedBy",
+                                attributes: [
+                                    "id",
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                ],
+                            },
+                            {
+                                model: User,
+                                as: "CheckoutUpdatedBy",
+                                attributes: [
+                                    "id",
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                ],
+                            },
+                        ],
+                    },
+                );
+
                 // Create new recurrence starting the day after with ORIGINAL pattern and times
                 if (
                     !originalEndDate ||
@@ -907,11 +984,11 @@ const Update = async (req, res, next) => {
                 if (io) {
                     io.emit("message", {
                         message: "checkout_updated",
-                        data: newCheckout,
+                        data: completeNewCheckout,
                     });
                 }
 
-                return res.json(newCheckout);
+                return res.json(completeNewCheckout);
             } else if (updateMode === "following" || updateMode === "next") {
                 // Edit this and following: End current recurrence before this date,
                 // create new checkout with new recurrence from this date
@@ -1008,16 +1085,67 @@ const Update = async (req, res, next) => {
                     repeats: newRecurrence.recurrence_pattern,
                 });
 
+                // Fetch complete checkout with audit fields
+                const completeNewCheckout = await Checkout.findByPk(
+                    newCheckout.id,
+                    {
+                        include: [
+                            {
+                                model: User,
+                                as: "User",
+                                attributes: [
+                                    "id",
+                                    "username",
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                ],
+                            },
+                            {
+                                model: User,
+                                as: "ApprovedBy",
+                                attributes: [
+                                    "id",
+                                    "username",
+                                    "first_name",
+                                    "last_name",
+                                ],
+                            },
+                            { model: CheckoutRecurrence, as: "Recurrence" },
+                            {
+                                model: User,
+                                as: "CheckoutCreatedBy",
+                                attributes: [
+                                    "id",
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                ],
+                            },
+                            {
+                                model: User,
+                                as: "CheckoutUpdatedBy",
+                                attributes: [
+                                    "id",
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                ],
+                            },
+                        ],
+                    },
+                );
+
                 // Emit socket event
                 const io = req.app.get("io");
                 if (io) {
                     io.emit("message", {
                         message: "checkout_updated",
-                        data: newCheckout,
+                        data: completeNewCheckout,
                     });
                 }
 
-                return res.json(newCheckout);
+                return res.json(completeNewCheckout);
             } else if (updateMode === "all") {
                 // Edit all occurrences: Update base checkout and recurrence
                 console.log("=== EDIT ALL MODE ===");
@@ -1146,6 +1274,26 @@ const Update = async (req, res, next) => {
                             ],
                         },
                         { model: CheckoutRecurrence, as: "Recurrence" },
+                        {
+                            model: User,
+                            as: "CheckoutCreatedBy",
+                            attributes: [
+                                "id",
+                                "first_name",
+                                "last_name",
+                                "email",
+                            ],
+                        },
+                        {
+                            model: User,
+                            as: "CheckoutUpdatedBy",
+                            attributes: [
+                                "id",
+                                "first_name",
+                                "last_name",
+                                "email",
+                            ],
+                        },
                     ],
                 });
 
@@ -1206,6 +1354,16 @@ const Update = async (req, res, next) => {
                     model: User,
                     as: "ApprovedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
+                },
+                {
+                    model: User,
+                    as: "CheckoutCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "CheckoutUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });
@@ -1332,6 +1490,16 @@ const Approve = async (req, res, next) => {
                     model: User,
                     as: "ApprovedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
+                },
+                {
+                    model: User,
+                    as: "CheckoutCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "CheckoutUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });

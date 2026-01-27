@@ -33,6 +33,7 @@ import {
     InputAdornment,
 } from "@mui/material";
 import AddUserFromAD from "./AddUserFromAD";
+import AddNewUser from "./AddNewUser";
 import AddIcon from "@mui/icons-material/AddOutlined";
 import { Search } from "@mui/icons-material";
 import ShortSelect from "../../../../Components/ShortSelect";
@@ -148,6 +149,8 @@ export default function Users({ setLoading }) {
     const [locations, setLocations] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [addFromAdOpen, setAddFromAdOpen] = useState(false);
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editUserLocation, setEditUserLocation] = useState(null);
 
     const handleSubmit = () => {
         const remove = async () => {
@@ -290,6 +293,14 @@ export default function Users({ setLoading }) {
 
     const hadleEditUser = (user, location) => {
         setSelectedUser(user);
+        setEditUserLocation(location);
+        setEditDialogOpen(true);
+    };
+
+    const handleCloseEditDialog = () => {
+        setEditDialogOpen(false);
+        setSelectedUser(null);
+        setEditUserLocation(null);
     };
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
@@ -415,6 +426,16 @@ export default function Users({ setLoading }) {
                 setOpen={setAddFromAdOpen}
                 locations={locations}
                 setUpdate={setUpdate}
+            />
+
+            <AddNewUser
+                open={editDialogOpen}
+                setOpen={handleCloseEditDialog}
+                userLocation={editUserLocation}
+                selectedUser={selectedUser}
+                locations={locations}
+                setUpdate={setUpdate}
+                filterLocation={filterLocation}
             />
 
             {/* Filter and Search Section */}

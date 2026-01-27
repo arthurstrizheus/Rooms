@@ -53,11 +53,27 @@ const CalibrationHistory = sequelize.define(
             type: DataTypes.TEXT,
             allowNull: true,
         },
+        created_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
+        updated_by: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            references: {
+                model: "Rooms-Users",
+                key: "id",
+            },
+        },
     },
     {
         tableName: "Equipment-CalibrationHistory",
         timestamps: true,
-    }
+    },
 );
 
 module.exports = CalibrationHistory;

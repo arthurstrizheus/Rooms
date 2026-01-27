@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     Box,
     Typography,
@@ -75,12 +75,20 @@ const EquipmentCalendar = ({
     const { socket } = useSocket();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchEquipment();
         fetchUsers();
         // Don't fetch checkouts here - let datesSet callback handle it when calendar initializes
     }, [equipmentId, update]);
+
+    // Redirect if equipment cannot be booked
+    useEffect(() => {
+        if (equipment && equipment.can_book === false) {
+            navigate(`/equipment/${equipmentId}`);
+        }
+    }, [equipment, equipmentId, navigate]);
 
     // Socket listener for real-time updates
     useEffect(() => {
@@ -236,8 +244,8 @@ const EquipmentCalendar = ({
     const handleEventClick = (clickInfo) => {
         const event = clickInfo.event;
 
-        // Create Reservation object from event data
-        const checkout = {
+        // Use the full checkoutData from extendedProps which includes audit fields
+        const checkout = event.extendedProps.checkoutData || {
             id: event.id,
             start_time: event.start,
             end_time: event.end,

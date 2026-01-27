@@ -76,12 +76,12 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                     background: `linear-gradient(135deg, rgba(${hexToRgba(
                                         theme.palette.background.fill.light
                                             .light,
-                                        0.5
+                                        0.5,
                                     )}) 0%, rgba(${darkenHexColorWithAplha(
                                         theme.palette.background.fill.light
                                             .light,
                                         60,
-                                        0.5
+                                        0.5,
                                     )}) 100%)`,
                                 }}
                             >
@@ -128,17 +128,17 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                 {rowItem(
                                     "Name",
                                     row.name,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Email",
                                     row.email,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Admin",
                                     row.admin ? "True" : "False",
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Equipment Office Admin",
@@ -147,21 +147,21 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                               locations?.find(
                                                   (lc) =>
                                                       lc.officeid ==
-                                                      row?.equipment_office_admin
+                                                      row?.equipment_office_admin,
                                               )?.Alias
                                           }`
                                         : "None",
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Equipment Admin",
                                     row.equipment_admin ? "True" : "False",
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Last Login",
                                     new Date(
-                                        rowUser?.last_login
+                                        rowUser?.last_login,
                                     ).toLocaleDateString("en-US", {
                                         hour: "numeric",
                                         minute: "numeric",
@@ -170,8 +170,14 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                         day: "numeric",
                                         year: "numeric",
                                     }),
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
+                                {rowUser?.UserUpdatedBy &&
+                                    rowItem(
+                                        "Updated By",
+                                        `${rowUser.UserUpdatedBy.first_name} ${rowUser.UserUpdatedBy.last_name}`,
+                                        theme.palette.primary.text.dark,
+                                    )}
                             </Stack>
                         </Grid>
                         <Grid
@@ -190,12 +196,12 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                     background: `linear-gradient(135deg, rgba(${hexToRgba(
                                         theme.palette.background.fill.light
                                             .light,
-                                        0.5
+                                        0.5,
                                     )}) 0%, rgba(${darkenHexColorWithAplha(
                                         theme.palette.background.fill.light
                                             .light,
                                         60,
-                                        0.5
+                                        0.5,
                                     )}) 100%)`,
                                 }}
                             >
@@ -214,37 +220,37 @@ const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
                                 {rowItem(
                                     "Alias",
                                     location.Alias,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Number",
                                     location.Number,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "City",
                                     location.City,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "State",
                                     location.state,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Zip",
                                     location.Zip,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Address",
                                     location.SAddress,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                                 {rowItem(
                                     "Airport",
                                     location.Airport,
-                                    theme.palette.primary.text.dark
+                                    theme.palette.primary.text.dark,
                                 )}
                             </Stack>
                         </Grid>

@@ -95,6 +95,7 @@ const Equipment = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        can_book: true,
         last_calibration_date: "",
         calibration_interval_value: "",
         calibration_interval_unit: "days",
@@ -260,6 +261,7 @@ const Equipment = ({ setLoading, loading }) => {
                 contact_person_id: null,
                 status: "available",
                 requires_approval: false,
+                can_book: true,
                 last_calibration_date: "",
                 calibration_interval_value: "",
                 calibration_interval_unit: "days",
@@ -1050,6 +1052,21 @@ const Equipment = ({ setLoading, loading }) => {
                             <MenuItem value="reserved">Reserved</MenuItem>
                             <MenuItem value="maintenance">Maintenance</MenuItem>
                             <MenuItem value="retired">Retired</MenuItem>
+                        </TextField>
+                        <TextField
+                            select
+                            label="Can Be Booked"
+                            value={formData.can_book}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    can_book: e.target.value === "true",
+                                })
+                            }
+                            fullWidth
+                        >
+                            <MenuItem value={true}>Yes</MenuItem>
+                            <MenuItem value={false}>No</MenuItem>
                         </TextField>
                         {/* <TextField
                             select

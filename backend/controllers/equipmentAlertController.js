@@ -17,6 +17,16 @@ const GetAlertsByEquipment = async (req, res, next) => {
                     model: User,
                     attributes: ["id", "first_name", "last_name", "email"],
                 },
+                {
+                    model: User,
+                    as: "AlertCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
             ],
             order: [["createdAt", "DESC"]],
         });
@@ -41,6 +51,16 @@ const GetAlertsByUser = async (req, res, next) => {
                 {
                     model: Equipment,
                     attributes: ["id", "name", "serial_number", "location"],
+                },
+                {
+                    model: User,
+                    as: "AlertCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
             order: [["createdAt", "DESC"]],
@@ -72,6 +92,16 @@ const GetMyAlerts = async (req, res, next) => {
                         "location",
                         "status",
                     ],
+                },
+                {
+                    model: User,
+                    as: "AlertCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
             order: [["createdAt", "DESC"]],
@@ -123,14 +153,34 @@ const Subscribe = async (req, res, next) => {
             notification_days_before: notification_days_before || 7,
         });
 
-        res.status(201).json(alert);
+        // Fetch complete alert with associations
+        const completeAlert = await EquipmentAlert.findByPk(alert.id, {
+            include: [
+                {
+                    model: User,
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+            ],
+        });
+
+        res.status(201).json(completeAlert);
 
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
             io.emit("message", {
                 message: "alert_subscribed",
-                data: { alert, equipment_id, user_id },
+                data: { alert: completeAlert, equipment_id, user_id },
             });
         }
     } catch (error) {
@@ -233,7 +283,28 @@ const UpdateAlert = async (req, res, next) => {
         }
 
         await alert.save();
-        res.status(200).json(alert);
+
+        // Fetch complete alert with associations
+        const completeAlert = await EquipmentAlert.findByPk(alert.id, {
+            include: [
+                {
+                    model: User,
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "AlertUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+            ],
+        });
+
+        res.status(200).json(completeAlert);
 
         // Emit socket event
         const io = req.app.get("io");

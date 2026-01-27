@@ -208,7 +208,8 @@ const AddNewUser = ({
                                 value={location?.officeid || ""}
                                 onChange={(e) => {
                                     const selectedItem = locations?.find(
-                                        (itm) => itm.officeid === e.target.value
+                                        (itm) =>
+                                            itm.officeid === e.target.value,
                                     );
                                     setLocation(selectedItem);
                                 }}
@@ -246,7 +247,7 @@ const AddNewUser = ({
                                             <IconButton
                                                 onClick={() =>
                                                     setViewPassword(
-                                                        !viewPassword
+                                                        !viewPassword,
                                                     )
                                                 }
                                                 edge="end"
@@ -310,74 +311,90 @@ const AddNewUser = ({
                         />
                     )}
 
-                    {(user?.admin || user?.equipment_admin) && (
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={equipmentAdmin}
-                                    onChange={(e) =>
-                                        setEquipmentAdmin(e.target.checked)
-                                    }
-                                    sx={{
-                                        "& .MuiSwitch-switchBase": {
-                                            "&.Mui-checked": {
-                                                color: "#fff",
-                                                "& + .MuiSwitch-track": {
-                                                    backgroundColor:
-                                                        theme.palette.mode ===
-                                                        "dark"
-                                                            ? "#2196f3"
-                                                            : "#64b5f6",
-                                                    opacity: 1,
-                                                    border: 0,
+                    {user?.admin ||
+                        (user?.equipment_admin && (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={equipmentAdmin}
+                                        onChange={(e) =>
+                                            setEquipmentAdmin(e.target.checked)
+                                        }
+                                        sx={{
+                                            "& .MuiSwitch-switchBase": {
+                                                "&.Mui-checked": {
+                                                    color: "#fff",
+                                                    "& + .MuiSwitch-track": {
+                                                        backgroundColor:
+                                                            theme.palette
+                                                                .mode === "dark"
+                                                                ? "#2196f3"
+                                                                : "#64b5f6",
+                                                        opacity: 1,
+                                                        border: 0,
+                                                    },
                                                 },
                                             },
-                                        },
-                                    }}
-                                />
-                            }
-                            label="Equipment Administrator (All Offices)"
-                            sx={{
-                                "& .MuiFormControlLabel-label": {
-                                    fontWeight: equipmentAdmin ? "600" : "400",
-                                    color: equipmentAdmin ? "black" : "grey",
-                                },
-                            }}
-                        />
-                    )}
+                                        }}
+                                    />
+                                }
+                                label="Equipment Administrator (All Offices)"
+                                sx={{
+                                    "& .MuiFormControlLabel-label": {
+                                        fontWeight: equipmentAdmin
+                                            ? "600"
+                                            : "400",
+                                        color: equipmentAdmin
+                                            ? "black"
+                                            : "grey",
+                                    },
+                                }}
+                            />
+                        ))}
 
-                    <FormControl variant="outlined" size="small" fullWidth>
-                        <InputLabel id="equipment-admin-label">
-                            Equipment Office Admin (Single Location)
-                        </InputLabel>
-                        <Select
-                            labelId="equipment-admin-label"
-                            value={equipmentOfficeAdmin || ""}
-                            onChange={(e) => {
-                                setEquipmentOfficeAdmin(e.target.value);
-                            }}
-                            label="Equipment Admin"
-                        >
-                            <MenuItem value="">
-                                <em>None</em>
-                            </MenuItem>
-                            {locations
-                                ?.filter((lc) => lc.Alias !== "All")
-                                ?.map((itm, index) => (
-                                    <MenuItem key={index} value={itm.officeid}>
-                                        {itm.Alias}
+                    {user?.admin ||
+                        user?.equipment_admin ||
+                        (user?.equipment_office_admin && (
+                            <FormControl
+                                variant="outlined"
+                                size="small"
+                                fullWidth
+                            >
+                                <InputLabel id="equipment-admin-label">
+                                    Equipment Office Admin (Single Location)
+                                </InputLabel>
+                                <Select
+                                    labelId="equipment-admin-label"
+                                    value={equipmentOfficeAdmin || ""}
+                                    onChange={(e) => {
+                                        setEquipmentOfficeAdmin(e.target.value);
+                                    }}
+                                    label="Equipment Admin"
+                                >
+                                    <MenuItem value="">
+                                        <em>None</em>
                                     </MenuItem>
-                                ))}
-                        </Select>
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{ mt: 0.5, ml: 1.5 }}
-                        >
-                            Allows user to manage equipment for the selected
-                            location
-                        </Typography>
-                    </FormControl>
+                                    {locations
+                                        ?.filter((lc) => lc.Alias !== "All")
+                                        ?.map((itm, index) => (
+                                            <MenuItem
+                                                key={index}
+                                                value={itm.officeid}
+                                            >
+                                                {itm.Alias}
+                                            </MenuItem>
+                                        ))}
+                                </Select>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ mt: 0.5, ml: 1.5 }}
+                                >
+                                    Allows user to manage equipment for the
+                                    selected location
+                                </Typography>
+                            </FormControl>
+                        ))}
                 </Stack>
 
                 <Divider />

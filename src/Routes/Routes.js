@@ -59,7 +59,10 @@ const AppRoutes = ({
             newBannerText = `Approval Queue`;
         } else if (path.startsWith("/account")) {
             newBannerText = `My Account`;
-        } else if (path.startsWith("/manage/users") && user?.admin) {
+        } else if (
+            path.startsWith("/manage/users") &&
+            (user?.admin || user?.equipment_admin)
+        ) {
             newBannerText = `Users`;
         } else if (path.startsWith("/admin-dashboard") && user?.admin) {
             newBannerText = `Admin Dashboard`;
@@ -158,7 +161,7 @@ const AppRoutes = ({
             <Route
                 path="/manage/users"
                 element={
-                    user?.admin ? (
+                    user?.admin || user?.equipment_admin ? (
                         <Users setLoading={setLoading} loading={loading} />
                     ) : (
                         <NotFoundPage />

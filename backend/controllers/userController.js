@@ -57,7 +57,15 @@ const GetAll = async (req, res) => {
 const GetById = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const user = await User.findByPk(id);
+        const user = await User.findByPk(id, {
+            include: [
+                {
+                    model: User,
+                    as: "UserUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+            ],
+        });
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -603,10 +611,13 @@ const Deactivate = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
+
+        // Check permissions: admin and equipment_admin can deactivate any user
+        // equipment_office_admin can only deactivate users in their office
         if (
-            req.user?.equipm &&
-            !req.user?.equipment_adminent_office_admin != resource.location &&
-            !req.user?.admin
+            !req.user?.admin &&
+            !req.user?.equipment_admin &&
+            req.user?.equipment_office_admin != resource.location
         ) {
             return res
                 .status(403)
@@ -635,9 +646,13 @@ const Activate = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
+
+        // Check permissions: admin and equipment_admin can activate any user
+        // equipment_office_admin can only activate users in their office
         if (
-            req.user?.equipment_office_admin != resource.location &&
-            !req.user?.admin
+            !req.user?.admin &&
+            !req.user?.equipment_admin &&
+            req.user?.equipment_office_admin != resource.location
         ) {
             return res
                 .status(403)

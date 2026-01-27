@@ -25,7 +25,6 @@ const CalibrationInfoCard = ({
     onViewHistory,
 }) => {
     const { showAlert, alertState, hideAlert } = useAlertDialog();
-
     const handleDownload = async (fileId, fileName) => {
         try {
             const token = localStorage.getItem("authToken");
@@ -107,6 +106,14 @@ const CalibrationInfoCard = ({
         },
     ];
 
+    if (equipment?.UpdatedBy) {
+        calibrationItems.push({
+            label: "Last Updated By",
+            caption: equipment.UpdatedBy.email,
+            value: `${equipment.UpdatedBy.first_name} ${equipment.UpdatedBy.last_name}`,
+        });
+    }
+
     return (
         <>
             <Card>
@@ -119,15 +126,32 @@ const CalibrationInfoCard = ({
                     <Grid container spacing={2}>
                         {calibrationItems.map((item, index) => (
                             <Grid item xs={12} sm={6} key={index}>
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {item.label}
-                                </Typography>
-                                <Typography variant="body1" sx={{ mt: 0.5 }}>
-                                    {item.value}
-                                </Typography>
+                                <Grid>
+                                    <Typography
+                                        variant={"body2"}
+                                        color="text.secondary"
+                                    >
+                                        {item.label}
+                                    </Typography>
+                                </Grid>
+                                <Grid>
+                                    <Typography
+                                        variant={"body1"}
+                                        sx={{ mt: 0.5 }}
+                                    >
+                                        {item.value}
+                                    </Typography>
+                                </Grid>
+                                {item.caption && (
+                                    <Grid>
+                                        <Typography
+                                            variant={"caption"}
+                                            color="text.secondary"
+                                        >
+                                            {item.caption}
+                                        </Typography>
+                                    </Grid>
+                                )}
                             </Grid>
                         ))}
                     </Grid>

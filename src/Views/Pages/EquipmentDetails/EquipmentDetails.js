@@ -106,6 +106,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        can_book: true,
         calibration_interval_value: "",
         calibration_interval_unit: "days",
         last_calibration_date: "",
@@ -346,6 +347,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             contact_person_id: equipment.contact_person_id || null,
             status: equipment.status,
             requires_approval: equipment.requires_approval,
+            can_book: equipment.can_book !== false,
             calibration_interval_value:
                 equipment.calibration_interval_value || "",
             calibration_interval_unit:
@@ -758,37 +760,43 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                     >
                         Subscribe to Alerts
                     </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<CalendarMonth />}
-                        onClick={() =>
-                            navigate(`/equipment/calendar/${equipmentId}`)
-                        }
-                    >
-                        Calendar
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        startIcon={<CompareArrows />}
-                        onClick={() => setOpenCompareDialog(true)}
-                    >
-                        Compare
-                    </Button>
-                    <Button
-                        variant="contained"
-                        sx={{
-                            backgroundColor: "lightgreen",
-                            color: "black",
-                            ":hover": {
-                                backgroundColor: "green",
-                                color: "white",
-                            },
-                        }}
-                        startIcon={<CalendarMonth />}
-                        onClick={handleOpenReserveDialog}
-                    >
-                        Reserve
-                    </Button>
+                    {equipment.can_book !== false && (
+                        <>
+                            <Button
+                                variant="outlined"
+                                startIcon={<CalendarMonth />}
+                                onClick={() =>
+                                    navigate(
+                                        `/equipment/calendar/${equipmentId}`,
+                                    )
+                                }
+                            >
+                                Calendar
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                startIcon={<CompareArrows />}
+                                onClick={() => setOpenCompareDialog(true)}
+                            >
+                                Compare
+                            </Button>
+                            <Button
+                                variant="contained"
+                                sx={{
+                                    backgroundColor: "lightgreen",
+                                    color: "black",
+                                    ":hover": {
+                                        backgroundColor: "green",
+                                        color: "white",
+                                    },
+                                }}
+                                startIcon={<CalendarMonth />}
+                                onClick={handleOpenReserveDialog}
+                            >
+                                Reserve
+                            </Button>
+                        </>
+                    )}
                     {canEditDelete() && (
                         <>
                             <Button
@@ -1016,18 +1024,21 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                     />
                 </Grid>
 
-                {/* Checkout History */}
-                <Grid item xs={12}>
-                    <CheckoutHistoryCard
-                        checkoutHistory={checkoutHistory}
-                        getCheckoutStatusColor={getCheckoutStatusColor}
-                    />
-                </Grid>
+                {/* Checkout History - Only show if equipment can be booked */}
+                {equipment?.can_book && (
+                    <Grid item xs={12}>
+                        <CheckoutHistoryCard
+                            checkoutHistory={checkoutHistory}
+                            getCheckoutStatusColor={getCheckoutStatusColor}
+                        />
+                    </Grid>
+                )}
 
                 {/* Alert Subscriptions */}
                 <Grid item xs={12}>
                     <AlertsCard
                         equipmentId={equipmentId}
+                        canBook={equipment?.can_book}
                         openDialog={openSubscribeDialog}
                         setOpenDialog={setOpenSubscribeDialog}
                         onSubscribeSuccess={() =>
@@ -1160,6 +1171,26 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             </MenuItem>
                             <MenuItem key="status-retired" value="retired">
                                 Retired
+                            </MenuItem>
+                        </TextField>
+                        <TextField
+                            name="can_book"
+                            label="Can Be Booked"
+                            value={formData.can_book}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    can_book: e.target.value === "true",
+                                })
+                            }
+                            select
+                            fullWidth
+                        >
+                            <MenuItem key="can-book-true" value={true}>
+                                Yes
+                            </MenuItem>
+                            <MenuItem key="can-book-false" value={false}>
+                                No
                             </MenuItem>
                         </TextField>
                         {/* <TextField

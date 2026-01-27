@@ -33,6 +33,7 @@ import {
 
 const AlertsCard = ({
     equipmentId,
+    canBook = true,
     openDialog,
     setOpenDialog,
     onSubscribeSuccess,
@@ -44,39 +45,58 @@ const AlertsCard = ({
     const { socket } = useSocket();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
 
-    const alertTypes = [
+    // Define all alert types
+    const allAlertTypes = [
         {
             value: "all_alerts",
             label: "All Alerts",
             description:
                 "Get notified for all events related to this equipment",
+            requiresBooking: true,
         },
         {
             value: "checkout_created",
             label: "Reservation Created",
             description: "Notify when someone creates a reservation",
+            requiresBooking: true,
         },
         {
             value: "checkout_cancelled",
             label: "Reservation Cancelled",
             description: "Notify when a reservation is cancelled",
+            requiresBooking: true,
         },
         {
             value: "equipment_returned",
             label: "Equipment Returned",
             description: "Notify when equipment is returned and available",
+            requiresBooking: true,
         },
         {
             value: "calibration_due",
             label: "Calibration Due",
             description: "Notify before calibration is due",
+            requiresBooking: false,
         },
         {
             value: "status_change",
             label: "Status Change",
             description: "Notify when equipment status changes",
+            requiresBooking: false,
         },
     ];
+
+    // Filter alert types based on whether equipment can be booked
+    const alertTypes = canBook
+        ? allAlertTypes
+        : allAlertTypes.filter((type) => !type.requiresBooking);
+
+    // Set default alert type based on available options
+    useEffect(() => {
+        if (!canBook && alertTypes.length > 0) {
+            setNewAlertType(alertTypes[0].value);
+        }
+    }, [canBook]);
 
     useEffect(() => {
         fetchMyAlerts();

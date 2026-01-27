@@ -836,7 +836,7 @@ const DisplayCheckout = ({
                                 sx={{ flexWrap: "wrap", gap: 0.5 }}
                             >
                                 {/* Status Chip */}
-                                <Chip
+                                {/* <Chip
                                     label={checkout.status?.toUpperCase()}
                                     size="small"
                                     sx={{
@@ -848,7 +848,7 @@ const DisplayCheckout = ({
                                             fontWeight: "bold",
                                         },
                                     }}
-                                />
+                                /> */}
 
                                 {/* Serial Number */}
                                 {equipment.serial_number && (
@@ -892,8 +892,18 @@ const DisplayCheckout = ({
                                 variant="body1"
                                 color={theme.palette.primary.text.dark}
                             >
-                                Reserved by:
+                                {checkout.scheduled_on_behalf_of
+                                    ? "Reserved on behalf of:"
+                                    : "Reserved by:"}
                             </Typography>
+                            {checkout.scheduled_on_behalf_of && (
+                                <Typography
+                                    variant="body1"
+                                    color={theme.palette.primary.text.dark}
+                                >
+                                    Reserved by:
+                                </Typography>
+                            )}
                             {checkout.notes && (
                                 <Typography
                                     variant="body1"
@@ -918,13 +928,37 @@ const DisplayCheckout = ({
                                     Approved By:
                                 </Typography>
                             )}
+                            {checkout.CheckoutCreatedBy && (
+                                <Typography
+                                    variant="body1"
+                                    color={theme.palette.primary.text.dark}
+                                >
+                                    Created By:
+                                </Typography>
+                            )}
+                            {checkout.CheckoutUpdatedBy && (
+                                <Typography
+                                    variant="body1"
+                                    color={theme.palette.primary.text.dark}
+                                >
+                                    Updated By:
+                                </Typography>
+                            )}
                         </Stack>
                         <Stack direction={"column"} spacing={1}>
                             <Typography variant="body1">
-                                {bookerInfo
-                                    ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
-                                    : "Loading..."}
+                                {checkout.scheduled_on_behalf_of ||
+                                    (bookerInfo
+                                        ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
+                                        : "Loading...")}
                             </Typography>
+                            {checkout.scheduled_on_behalf_of && (
+                                <Typography variant="body1">
+                                    {bookerInfo
+                                        ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
+                                        : "Loading..."}
+                                </Typography>
+                            )}
                             {checkout.notes && (
                                 <Typography variant="body1">
                                     {checkout.notes}
@@ -938,6 +972,16 @@ const DisplayCheckout = ({
                             {checkout.approved_by_user_id && (
                                 <Typography variant="body1">
                                     Approved
+                                </Typography>
+                            )}
+                            {checkout.CheckoutCreatedBy && (
+                                <Typography variant="body1">
+                                    {`${checkout.CheckoutCreatedBy.first_name} ${checkout.CheckoutCreatedBy.last_name}`}
+                                </Typography>
+                            )}
+                            {checkout.CheckoutUpdatedBy && (
+                                <Typography variant="body1">
+                                    {`${checkout.CheckoutUpdatedBy.first_name} ${checkout.CheckoutUpdatedBy.last_name}`}
                                 </Typography>
                             )}
                         </Stack>

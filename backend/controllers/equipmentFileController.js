@@ -13,6 +13,16 @@ const GetByEquipmentId = async (req, res, next) => {
                     as: "UploadedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
                 },
+                {
+                    model: User,
+                    as: "FileCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "FileUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
             ],
             order: [["upload_date", "DESC"]],
         });
@@ -72,7 +82,7 @@ const Post = async (req, res, next) => {
         const equipmentDir = path.join(
             __dirname,
             "../../uploads",
-            `equipment_${equipment_id}`
+            `equipment_${equipment_id}`,
         );
         if (!fs.existsSync(equipmentDir)) {
             fs.mkdirSync(equipmentDir, { recursive: true });
@@ -103,6 +113,16 @@ const Post = async (req, res, next) => {
                     model: User,
                     as: "UploadedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
+                },
+                {
+                    model: User,
+                    as: "FileCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "FileUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });
@@ -144,7 +164,7 @@ const Update = async (req, res, next) => {
             const equipmentDir = path.join(
                 __dirname,
                 "../../uploads",
-                `equipment_${file.equipment_id}`
+                `equipment_${file.equipment_id}`,
             );
             if (!fs.existsSync(equipmentDir)) {
                 fs.mkdirSync(equipmentDir, { recursive: true });
@@ -154,7 +174,7 @@ const Update = async (req, res, next) => {
             const oldFilePath = path.join(
                 __dirname,
                 "../../uploads",
-                file.file_path
+                file.file_path,
             );
             if (fs.existsSync(oldFilePath)) {
                 fs.unlinkSync(oldFilePath);
@@ -180,6 +200,16 @@ const Update = async (req, res, next) => {
                     model: User,
                     as: "UploadedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
+                },
+                {
+                    model: User,
+                    as: "FileCreatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: User,
+                    as: "FileUpdatedBy",
+                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });
