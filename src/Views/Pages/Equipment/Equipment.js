@@ -677,19 +677,21 @@ const Equipment = ({ setLoading, loading }) => {
                                         >
                                             Details
                                         </Button>
-                                        <Button
-                                            size="small"
-                                            variant="outlined"
-                                            startIcon={<CalendarMonth />}
-                                            onClick={() =>
-                                                navigate(
-                                                    `/equipment/calendar/${item.id}`,
-                                                )
-                                            }
-                                            fullWidth
-                                        >
-                                            Calendar
-                                        </Button>
+                                        {item?.can_book !== false && (
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<CalendarMonth />}
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/equipment/calendar/${item.id}`,
+                                                    )
+                                                }
+                                                fullWidth
+                                            >
+                                                Calendar
+                                            </Button>
+                                        )}
                                     </Box>
                                 </CardContent>
                             </Card>
@@ -884,17 +886,20 @@ const Equipment = ({ setLoading, loading }) => {
                                                     >
                                                         <Visibility />
                                                     </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() =>
-                                                            navigate(
-                                                                `/equipment/calendar/${item.id}`,
-                                                            )
-                                                        }
-                                                        title="Calendar"
-                                                    >
-                                                        <CalendarMonth />
-                                                    </IconButton>
+                                                    {item?.can_book !==
+                                                        false && (
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/equipment/calendar/${item.id}`,
+                                                                )
+                                                            }
+                                                            title="Calendar"
+                                                        >
+                                                            <CalendarMonth />
+                                                        </IconButton>
+                                                    )}
                                                 </Box>
                                             </TableCell>
                                         </TableRow>
