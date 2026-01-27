@@ -8,8 +8,10 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 router.get("/", userController.GetAll);
+router.get("/ad/all", asyncHandler(userController.GetAllAdUsers));
 router.get("/:id", asyncHandler(userController.GetById));
 router.post("/", userController.Post);
+router.post("/ad/create", asyncHandler(userController.CreateFromAd));
 router.put("/:id", userController.Update);
 router.put("/details/:id", userController.UpdateDetails);
 router.put("/password/:id", userController.UpdatePassword);

@@ -148,6 +148,20 @@ const Post = async (req, res) => {
             ...newResource.get(),
             password: undefined,
         };
+
+        // Send socket message to update user lists
+        const io = req.app.get("io");
+        if (io) {
+            const { SendMessage } = require("../utils/socketUtils");
+            SendMessage(
+                {
+                    message: "user_created",
+                    data: { user: userWithoutPassword },
+                },
+                {}, // Send to all connected users
+            );
+        }
+
         // Return the created record as a JSON response
         res.status(201).json(userWithoutPassword);
     } catch (err) {
@@ -643,6 +657,181 @@ const Activate = async (req, res) => {
     }
 };
 
+const GetAllAdUsers = async (req, res) => {
+    try {
+        // Query AD for all users
+        const findAllUsers = util.promisify(ad.findUsers.bind(ad));
+        const adUsers = await findAllUsers();
+
+        if (!adUsers || adUsers.length === 0) {
+            return res.json([]);
+        }
+
+        // Get existing users from database
+        const existingUsers = await User.findAll({
+            attributes: ["username"],
+        });
+        const existingUsernames = new Set(
+            existingUsers.map((u) => u.username?.toLowerCase()),
+        );
+
+        // Filter and format AD users
+        const availableUsers = adUsers
+            .filter((adUser) => {
+                const username = adUser.sAMAccountName?.toLowerCase();
+                const displayName = adUser.displayName?.toLowerCase() || "";
+                const firstName = adUser.givenName;
+
+                // Filter out users already in database
+                if (!username || existingUsernames.has(username)) {
+                    return false;
+                }
+
+                // Filter out users without first name
+                if (!firstName || firstName.trim() === "") {
+                    return false;
+                }
+
+                // Filter out users with "admin" in username or display name
+                if (
+                    username.includes("admin") ||
+                    displayName.includes("admin")
+                ) {
+                    return false;
+                }
+
+                if (username.includes("vimf") || displayName.includes("vimf")) {
+                    return false;
+                }
+
+                if (username.includes("svc") || displayName.includes("svc")) {
+                    return false;
+                }
+
+                if (username.includes("test") || displayName.includes("test")) {
+                    return false;
+                }
+
+                if (username.includes("demo") || displayName.includes("demo")) {
+                    return false;
+                }
+                if (
+                    username.includes("guest") ||
+                    displayName.includes("guest")
+                ) {
+                    return false;
+                }
+                if (username.includes("temp") || displayName.includes("temp")) {
+                    return false;
+                }
+                if (
+                    username.includes("backup") ||
+                    displayName.includes("backup")
+                ) {
+                    return false;
+                }
+
+                return true;
+            })
+            .map((adUser) => ({
+                username: adUser.sAMAccountName,
+                displayName:
+                    adUser.displayName || `${adUser.givenName} ${adUser.sn}`,
+                firstName: adUser.givenName,
+                lastName: adUser.sn,
+                email: adUser.mail || `${adUser.sAMAccountName}@sealimited.com`,
+            }))
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+        res.json(availableUsers);
+    } catch (error) {
+        console.error("Error fetching AD users:", error);
+        res.status(500).json({
+            message: "Failed to retrieve AD users",
+            error: error.message,
+        });
+    }
+};
+
+const CreateFromAd = async (req, res) => {
+    try {
+        const { username, location } = req.body;
+
+        if (!username || !location) {
+            return res
+                .status(400)
+                .json({ message: "Username and location are required" });
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ where: { username } });
+        if (existingUser) {
+            return res
+                .status(409)
+                .json({ message: "User already exists in database" });
+        }
+
+        // Get user info from AD
+        let adUser;
+        try {
+            adUser = await findUserAsync(username);
+        } catch (err) {
+            console.error("Error finding user in AD:", err);
+            return res
+                .status(404)
+                .json({ message: "User not found in Active Directory" });
+        }
+
+        if (!adUser) {
+            return res
+                .status(404)
+                .json({ message: "User not found in Active Directory" });
+        }
+
+        // Create user in database
+        const newUser = await User.create({
+            username: username,
+            email: adUser.mail || `${username}@sealimited.com`,
+            admin: false,
+            password: "",
+            first_name: adUser.givenName,
+            last_name: adUser.sn,
+            last_login: null,
+            created_user_id: req.user?.id,
+            active: true,
+            location: location,
+            equipment_office_admin: null,
+            equipment_admin: false,
+        });
+
+        const userWithoutPassword = {
+            ...newUser.get(),
+            password: undefined,
+        };
+
+        // Send socket message to update user lists
+        const io = req.app.get("io");
+        if (io) {
+            const { SendMessage } = require("../utils/socketUtils");
+            SendMessage(
+                {
+                    message: "user_created",
+                    data: { user: userWithoutPassword },
+                },
+                {}, // Send to all connected users
+            );
+        }
+
+        res.status(201).json(userWithoutPassword);
+    } catch (error) {
+        console.error("Error creating user from AD:", error);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message,
+        });
+    }
+};
+
 module.exports = {
     GetAll,
     GetById,
@@ -656,4 +845,6 @@ module.exports = {
     UpdatePassword,
     AuthenticateAD,
     userExistsInAd,
+    GetAllAdUsers,
+    CreateFromAd,
 };

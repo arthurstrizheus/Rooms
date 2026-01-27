@@ -4,6 +4,7 @@ import TableCell, { tableCellClasses } from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import { useTheme } from "@emotion/react";
 import { useAuth } from "../../../../Utilites/AuthContext";
+import { useSocket } from "../../../../Contexts/SocketContext";
 import { useNavigate } from "react-router-dom";
 import {
     Stack,
@@ -31,7 +32,7 @@ import {
     TextField,
     InputAdornment,
 } from "@mui/material";
-import AddNewUser from "./AddNewUser";
+import AddUserFromAD from "./AddUserFromAD";
 import AddIcon from "@mui/icons-material/AddOutlined";
 import { Search } from "@mui/icons-material";
 import ShortSelect from "../../../../Components/ShortSelect";
@@ -127,6 +128,7 @@ function delay(ms) {
 
 export default function Users({ setLoading }) {
     const { user } = useAuth();
+    const { socket } = useSocket();
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -139,14 +141,13 @@ export default function Users({ setLoading }) {
     const [rowsOpen, setRowsOpen] = useState([]);
     const [action, setAction] = useState("Activate");
     const [users, setUsers] = useState([]);
-    const [editUserOpen, setEditUserOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [filterLocation, setFilterLocation] = useState();
-    const [selectedUserLocation, setSelectedUserLocation] = useState(null);
     const [update, setUpdate] = useState(0);
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [locations, setLocations] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
+    const [addFromAdOpen, setAddFromAdOpen] = useState(false);
 
     const handleSubmit = () => {
         const remove = async () => {
@@ -288,15 +289,7 @@ export default function Users({ setLoading }) {
     };
 
     const hadleEditUser = (user, location) => {
-        setSelectedUserLocation(location);
         setSelectedUser(user);
-        setEditUserOpen(true);
-    };
-
-    const handleAdduser = () => {
-        setSelectedUserLocation(filterLocation);
-        setSelectedUser(null);
-        setEditUserOpen(true);
     };
 
     const isSelected = (id) => selected.indexOf(id) !== -1;
@@ -388,6 +381,24 @@ export default function Users({ setLoading }) {
         searchTerm,
     ]);
 
+    // Listen for socket messages about user creation
+    useEffect(() => {
+        if (!socket?.connected) return;
+
+        const handleMessage = (payload) => {
+            if (payload?.message === "user_created") {
+                console.log("User created via socket, refreshing user list");
+                setUpdate((prev) => prev + 1);
+            }
+        };
+
+        socket.on("message", handleMessage);
+
+        return () => {
+            socket.off("message", handleMessage);
+        };
+    }, [socket?.connected]);
+
     return (
         <Box
             sx={{
@@ -399,14 +410,11 @@ export default function Users({ setLoading }) {
                 minHeight: isMobile ? "100vh" : "auto",
             }}
         >
-            <AddNewUser
-                open={editUserOpen}
-                setOpen={setEditUserOpen}
-                userLocation={selectedUserLocation}
+            <AddUserFromAD
+                open={addFromAdOpen}
+                setOpen={setAddFromAdOpen}
                 locations={locations}
-                selectedUser={selectedUser}
                 setUpdate={setUpdate}
-                filterLocation={filterLocation}
             />
 
             {/* Filter and Search Section */}
@@ -473,6 +481,24 @@ export default function Users({ setLoading }) {
                             ))}
                         </Select>
                     </FormControl>
+
+                    {(user?.admin ||
+                        user?.equipment_admin ||
+                        user?.equipment_office_admin) && (
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
+                            onClick={() => setAddFromAdOpen(true)}
+                            size="small"
+                            sx={{
+                                ml: "auto",
+                                color: "white",
+                                ":hover": { color: "white" },
+                            }}
+                        >
+                            Add User
+                        </Button>
+                    )}
                 </Box>
             </Box>
 
