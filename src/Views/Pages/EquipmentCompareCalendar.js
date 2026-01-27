@@ -818,6 +818,14 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         onClick={handleCreateCheckout}
                         variant="contained"
                         disabled={!selectedSlot?.start || !selectedSlot?.end}
+                        sx={{
+                            backgroundColor: "lightgreen",
+                            color: "black",
+                            ":hover": {
+                                backgroundColor: "green",
+                                color: "white",
+                            },
+                        }}
                     >
                         Create Reservation
                     </Button>

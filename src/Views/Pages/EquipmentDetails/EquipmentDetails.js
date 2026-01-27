@@ -10,6 +10,7 @@ import {
     DialogActions,
     TextField,
     MenuItem,
+    Menu,
     Autocomplete,
     useMediaQuery,
     useTheme,
@@ -27,6 +28,7 @@ import {
     Warning,
     NotificationsActive,
     CompareArrows,
+    MoreVert,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
@@ -126,8 +128,17 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [alertsRefresh, setAlertsRefresh] = useState(0);
     const [openCompareDialog, setOpenCompareDialog] = useState(false);
     const [allEquipment, setAllEquipment] = useState([]);
+    const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
     const [selectedCompareEquipment, setSelectedCompareEquipment] =
         useState(null);
+    const [openReserveDialog, setOpenReserveDialog] = useState(false);
+    const [reserveFormData, setReserveFormData] = useState({
+        start_time: "",
+        end_time: "",
+        notes: "",
+        project_number: "",
+        scheduled_on_behalf_of: "",
+    });
 
     useEffect(() => {
         fetchEquipment();
@@ -539,6 +550,89 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         return equipment.status;
     };
 
+    const handleOpenReserveDialog = () => {
+        const now = new Date();
+        const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+        now.setMinutes(roundedMinutes, 0, 0);
+
+        const endTime = new Date(now);
+        endTime.setHours(endTime.getHours() + 1);
+
+        const formatDateTime = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, "0");
+            const day = String(date.getDate()).padStart(2, "0");
+            const hours = String(date.getHours()).padStart(2, "0");
+            const minutes = String(date.getMinutes()).padStart(2, "0");
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+
+        setReserveFormData({
+            start_time: formatDateTime(now),
+            end_time: formatDateTime(endTime),
+            notes: "",
+            project_number: "",
+            scheduled_on_behalf_of: "",
+        });
+        setOpenReserveDialog(true);
+    };
+
+    const handleCloseReserveDialog = () => {
+        setOpenReserveDialog(false);
+    };
+
+    const handleReserveSubmit = async () => {
+        if (
+            !reserveFormData.project_number ||
+            reserveFormData.project_number.trim() === ""
+        ) {
+            showAlert("Project Number is required", "error");
+            return;
+        }
+
+        const startTime = new Date(reserveFormData.start_time);
+        const endTime = new Date(reserveFormData.end_time);
+
+        if (endTime <= startTime) {
+            showAlert("End time must be after start time", "error");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const token = localStorage.getItem("authToken");
+
+            const checkoutData = {
+                equipment_id: parseInt(equipmentId),
+                user_id: user.id,
+                start_time: new Date(reserveFormData.start_time).toISOString(),
+                end_time: new Date(reserveFormData.end_time).toISOString(),
+                notes: reserveFormData.notes || null,
+                project_number: reserveFormData.project_number || null,
+                scheduled_on_behalf_of:
+                    reserveFormData.scheduled_on_behalf_of || null,
+            };
+
+            await axios.post("/api/checkouts", checkoutData, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            showAlert("Reservation created successfully", "success");
+            fetchCheckoutHistory();
+            fetchActiveCheckouts();
+            handleCloseReserveDialog();
+        } catch (error) {
+            console.error("Error creating reservation:", error);
+            showAlert(
+                "Error creating reservation: " +
+                    (error.response?.data?.message || error.message),
+                "error",
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
             case "available":
@@ -677,36 +771,73 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                         variant="outlined"
                         startIcon={<CompareArrows />}
                         onClick={() => setOpenCompareDialog(true)}
-                        color="secondary"
                     >
                         Compare
                     </Button>
-                    {canEditDelete() && (
-                        <Button
-                            variant="outlined"
-                            startIcon={<UploadFile />}
-                            onClick={handleOpenUploadDialog}
-                        >
-                            Upload File
-                        </Button>
-                    )}
+                    <Button
+                        variant="contained"
+                        sx={{
+                            backgroundColor: "lightgreen",
+                            color: "black",
+                            ":hover": {
+                                backgroundColor: "green",
+                                color: "white",
+                            },
+                        }}
+                        startIcon={<CalendarMonth />}
+                        onClick={handleOpenReserveDialog}
+                    >
+                        Reserve
+                    </Button>
                     {canEditDelete() && (
                         <>
                             <Button
-                                variant="outlined"
-                                startIcon={<Edit />}
-                                onClick={handleOpenEditDialog}
+                                variant="contained"
+                                startIcon={<MoreVert />}
+                                onClick={(e) =>
+                                    setActionMenuAnchor(e.currentTarget)
+                                }
+                                sx={{
+                                    color: "white",
+                                    ":hover": { color: "white" },
+                                }}
                             >
-                                Edit
+                                Actions
                             </Button>
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<Delete />}
-                                onClick={handleDelete}
+                            <Menu
+                                anchorEl={actionMenuAnchor}
+                                open={Boolean(actionMenuAnchor)}
+                                onClose={() => setActionMenuAnchor(null)}
                             >
-                                Delete
-                            </Button>
+                                <MenuItem
+                                    onClick={() => {
+                                        setActionMenuAnchor(null);
+                                        handleOpenUploadDialog();
+                                    }}
+                                >
+                                    <UploadFile sx={{ mr: 1 }} />
+                                    Upload File
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
+                                        setActionMenuAnchor(null);
+                                        handleOpenEditDialog();
+                                    }}
+                                >
+                                    <Edit sx={{ mr: 1 }} />
+                                    Edit
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
+                                        setActionMenuAnchor(null);
+                                        handleDelete();
+                                    }}
+                                    sx={{ color: "error.main" }}
+                                >
+                                    <Delete sx={{ mr: 1 }} />
+                                    Delete
+                                </MenuItem>
+                            </Menu>
                         </>
                     )}
                 </Box>
@@ -1291,6 +1422,106 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                         startIcon={<CompareArrows />}
                     >
                         Compare Schedules
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Reserve Dialog */}
+            <Dialog
+                open={openReserveDialog}
+                onClose={handleCloseReserveDialog}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>Reserve {equipment?.name}</DialogTitle>
+                <DialogContent>
+                    <Box
+                        sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                            mt: 1,
+                        }}
+                    >
+                        <TextField
+                            label="Start Time"
+                            type="datetime-local"
+                            value={reserveFormData.start_time}
+                            onChange={(e) =>
+                                setReserveFormData({
+                                    ...reserveFormData,
+                                    start_time: e.target.value,
+                                })
+                            }
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField
+                            label="End Time"
+                            type="datetime-local"
+                            value={reserveFormData.end_time}
+                            onChange={(e) =>
+                                setReserveFormData({
+                                    ...reserveFormData,
+                                    end_time: e.target.value,
+                                })
+                            }
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField
+                            label="Project Number"
+                            value={reserveFormData.project_number}
+                            onChange={(e) =>
+                                setReserveFormData({
+                                    ...reserveFormData,
+                                    project_number: e.target.value,
+                                })
+                            }
+                            fullWidth
+                            required
+                        />
+                        <TextField
+                            label="Scheduled On Behalf Of (optional)"
+                            value={reserveFormData.scheduled_on_behalf_of}
+                            onChange={(e) =>
+                                setReserveFormData({
+                                    ...reserveFormData,
+                                    scheduled_on_behalf_of: e.target.value,
+                                })
+                            }
+                            fullWidth
+                        />
+                        <TextField
+                            label="Notes (optional)"
+                            value={reserveFormData.notes}
+                            onChange={(e) =>
+                                setReserveFormData({
+                                    ...reserveFormData,
+                                    notes: e.target.value,
+                                })
+                            }
+                            fullWidth
+                            multiline
+                            rows={3}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseReserveDialog}>Cancel</Button>
+                    <Button
+                        onClick={handleReserveSubmit}
+                        variant="contained"
+                        sx={{
+                            backgroundColor: "lightgreen",
+                            color: "black",
+                            ":hover": {
+                                backgroundColor: "green",
+                                color: "white",
+                            },
+                        }}
+                    >
+                        Create Reservation
                     </Button>
                 </DialogActions>
             </Dialog>

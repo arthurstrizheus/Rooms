@@ -24,6 +24,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TableSortLabel,
     Paper,
     InputAdornment,
 } from "@mui/material";
@@ -82,6 +83,8 @@ const Equipment = ({ setLoading, loading }) => {
     const [statusFilter, setStatusFilter] = useState("all");
     const [filterLocation, setFilterLocation] = useState(null);
     const [meatRain, setMeatRain] = useState(false);
+    const [sortBy, setSortBy] = useState(null);
+    const [sortOrder, setSortOrder] = useState("asc");
     const [formData, setFormData] = useState({
         name: "",
         description: "",
@@ -223,6 +226,17 @@ const Equipment = ({ setLoading, loading }) => {
         return item.status;
     };
 
+    const handleSort = (column) => {
+        if (sortBy === column) {
+            // Toggle sort order if clicking same column
+            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+        } else {
+            // Set new column and default to ascending
+            setSortBy(column);
+            setSortOrder("asc");
+        }
+    };
+
     const handleOpenDialog = (item = null) => {
         if (item) {
             setSelectedEquipment(item);
@@ -340,23 +354,59 @@ const Equipment = ({ setLoading, loading }) => {
         return daysUntilDue <= 30 && daysUntilDue >= 0;
     };
 
-    const filteredEquipment = equipment.filter((item) => {
-        const search = searchTerm.toLowerCase();
-        const matchesSearch =
-            item.name?.toLowerCase().includes(search) ||
-            item.serial_number?.toLowerCase().includes(search) ||
-            item.location?.toLowerCase().includes(search) ||
-            item.status?.toLowerCase().includes(search) ||
-            item.contact_person?.toLowerCase().includes(search) ||
-            item.description?.toLowerCase().includes(search);
-        const matchesStatus =
-            statusFilter === "all" || item.status === statusFilter;
-        const matchesLocation =
-            !filterLocation ||
-            filterLocation.officeid === 0 ||
-            item.location === filterLocation?.Alias;
-        return matchesSearch && matchesStatus && matchesLocation;
-    });
+    const filteredEquipment = equipment
+        .filter((item) => {
+            const search = searchTerm.toLowerCase();
+            const displayStatus = getDisplayStatus(item);
+            const matchesSearch =
+                item.name?.toLowerCase().includes(search) ||
+                item.serial_number?.toLowerCase().includes(search) ||
+                item.location?.toLowerCase().includes(search) ||
+                displayStatus?.toLowerCase().includes(search) ||
+                item.contact_person?.toLowerCase().includes(search) ||
+                item.description?.toLowerCase().includes(search);
+            const matchesStatus =
+                statusFilter === "all" || displayStatus === statusFilter;
+            const matchesLocation =
+                !filterLocation ||
+                filterLocation.officeid === 0 ||
+                item.location === filterLocation?.Alias;
+            return matchesSearch && matchesStatus && matchesLocation;
+        })
+        .sort((a, b) => {
+            if (!sortBy) return 0;
+
+            let aValue, bValue;
+
+            switch (sortBy) {
+                case "name":
+                    aValue = a.name?.toLowerCase() || "";
+                    bValue = b.name?.toLowerCase() || "";
+                    break;
+                case "serial_number":
+                    aValue = a.serial_number?.toLowerCase() || "";
+                    bValue = b.serial_number?.toLowerCase() || "";
+                    break;
+                case "location":
+                    aValue = a.location?.toLowerCase() || "";
+                    bValue = b.location?.toLowerCase() || "";
+                    break;
+                case "contact":
+                    aValue = a.contact_person?.toLowerCase() || "";
+                    bValue = b.contact_person?.toLowerCase() || "";
+                    break;
+                case "status":
+                    aValue = getDisplayStatus(a)?.toLowerCase() || "";
+                    bValue = getDisplayStatus(b)?.toLowerCase() || "";
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+            if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
+            return 0;
+        });
 
     return (
         <Box
@@ -657,15 +707,83 @@ const Equipment = ({ setLoading, loading }) => {
                         <Table stickyHeader>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>Name</TableCell>
+                                    <TableCell>
+                                        <TableSortLabel
+                                            active={sortBy === "name"}
+                                            direction={
+                                                sortBy === "name"
+                                                    ? sortOrder
+                                                    : "asc"
+                                            }
+                                            onClick={() => handleSort("name")}
+                                        >
+                                            Name
+                                        </TableSortLabel>
+                                    </TableCell>
                                     {!isMobile && (
-                                        <TableCell>Serial Number</TableCell>
+                                        <TableCell>
+                                            <TableSortLabel
+                                                active={
+                                                    sortBy === "serial_number"
+                                                }
+                                                direction={
+                                                    sortBy === "serial_number"
+                                                        ? sortOrder
+                                                        : "asc"
+                                                }
+                                                onClick={() =>
+                                                    handleSort("serial_number")
+                                                }
+                                            >
+                                                Serial Number
+                                            </TableSortLabel>
+                                        </TableCell>
                                     )}
-                                    <TableCell>Location</TableCell>
+                                    <TableCell>
+                                        <TableSortLabel
+                                            active={sortBy === "location"}
+                                            direction={
+                                                sortBy === "location"
+                                                    ? sortOrder
+                                                    : "asc"
+                                            }
+                                            onClick={() =>
+                                                handleSort("location")
+                                            }
+                                        >
+                                            Location
+                                        </TableSortLabel>
+                                    </TableCell>
                                     {!isMobile && (
-                                        <TableCell>Contact</TableCell>
+                                        <TableCell>
+                                            <TableSortLabel
+                                                active={sortBy === "contact"}
+                                                direction={
+                                                    sortBy === "contact"
+                                                        ? sortOrder
+                                                        : "asc"
+                                                }
+                                                onClick={() =>
+                                                    handleSort("contact")
+                                                }
+                                            >
+                                                Contact
+                                            </TableSortLabel>
+                                        </TableCell>
                                     )}
-                                    <TableCell>Status</TableCell>
+                                    <TableCell>
+                                        <TableSortLabel
+                                            active={sortBy === "status"}
+                                            direction={
+                                                sortBy === "status"
+                                                    ? sortOrder
+                                                    : "asc"
+                                            }
+                                            onClick={() => handleSort("status")}
+                                        >
+                                            Status
+                                        </TableSortLabel>
+                                    </TableCell>
                                     <TableCell align="right">Actions</TableCell>
                                 </TableRow>
                             </TableHead>

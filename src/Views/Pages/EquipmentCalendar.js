@@ -285,6 +285,12 @@ const EquipmentCalendar = ({
             return;
         }
 
+        // Validate end time is after start time
+        if (selectedSlot.end <= selectedSlot.start) {
+            showAlert("End time must be after start time", "error");
+            return;
+        }
+
         try {
             setLoading(true);
             const token = localStorage.getItem("authToken");
@@ -829,7 +835,18 @@ const EquipmentCalendar = ({
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseDialog}>Cancel</Button>
-                    <Button onClick={handleSaveCheckout} variant="contained">
+                    <Button
+                        onClick={handleSaveCheckout}
+                        variant="contained"
+                        sx={{
+                            backgroundColor: "lightgreen",
+                            color: "black",
+                            ":hover": {
+                                backgroundColor: "green",
+                                color: "white",
+                            },
+                        }}
+                    >
                         Create Reservation
                     </Button>
                 </DialogActions>
