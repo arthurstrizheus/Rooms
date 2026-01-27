@@ -90,6 +90,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [files, setFiles] = useState([]);
     const [calibrationHistory, setCalibrationHistory] = useState([]);
     const [checkoutHistory, setCheckoutHistory] = useState([]);
+    const [activeCheckouts, setActiveCheckouts] = useState([]);
     const [openEditDialog, setOpenEditDialog] = useState(false);
     const [locations, setLocations] = useState([]);
     const [users, setUsers] = useState([]);
@@ -97,6 +98,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         name: "",
         description: "",
         serial_number: "",
+        barcode: "",
         location: "",
         contact_person: "",
         contact_person_id: null,
@@ -135,7 +137,17 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         fetchLocations();
         fetchUsers();
         fetchAllEquipment();
+        fetchActiveCheckouts();
     }, [equipmentId]);
+
+    // Auto-refresh active checkouts every minute to update status in real-time
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchActiveCheckouts();
+        }, 60000); // 60 seconds
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Socket listener for real-time updates
     useEffect(() => {
@@ -169,12 +181,14 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                     break;
                 case "checkout_created":
                 case "checkout_updated":
+                case "checkout_approved":
                     // Refresh checkout history if it belongs to this equipment
                     if (
                         data?.equipment_id === parseInt(equipmentId) ||
                         data?.checkout?.equipment_id === parseInt(equipmentId)
                     ) {
                         fetchCheckoutHistory();
+                        fetchActiveCheckouts();
                     }
                     break;
                 default:
@@ -315,6 +329,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             name: equipment.name,
             description: equipment.description || "",
             serial_number: equipment.serial_number || "",
+            barcode: equipment.barcode || "",
             location: equipment.location || "",
             contact_person: equipment.contact_person || "",
             contact_person_id: equipment.contact_person_id || null,
@@ -487,10 +502,49 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         }
     };
 
+    const fetchActiveCheckouts = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const now = new Date().toISOString();
+            const response = await axios.get(
+                `/api/checkouts?start=${now}&end=${now}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+            );
+            setActiveCheckouts(response.data);
+        } catch (error) {
+            console.error("Error fetching active checkouts:", error);
+        }
+    };
+
+    const isEquipmentCurrentlyCheckedOut = (equipmentId) => {
+        const now = new Date();
+        return activeCheckouts.some((checkout) => {
+            if (checkout.equipment_id !== equipmentId) return false;
+            if (checkout.status === "cancelled") return false;
+
+            const start = new Date(checkout.start_time);
+            const end = new Date(checkout.end_time);
+            return now >= start && now <= end;
+        });
+    };
+
+    const getDisplayStatus = () => {
+        if (!equipment) return "available";
+        // If equipment is currently checked out, override status
+        if (isEquipmentCurrentlyCheckedOut(equipment.id)) {
+            return "unavailable";
+        }
+        return equipment.status;
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
             case "available":
                 return "success";
+            case "unavailable":
+                return "error";
             case "reserved":
                 return "info";
             case "maintenance":
@@ -697,9 +751,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                         }}
                                     >
                                         <Chip
-                                            label={equipment.status}
+                                            label={getDisplayStatus()}
                                             color={getStatusColor(
-                                                equipment.status,
+                                                getDisplayStatus(),
                                             )}
                                             size="small"
                                         />
@@ -728,6 +782,21 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                         sx={{ mt: 0.5 }}
                                     >
                                         {equipment.serial_number || "N/A"}
+                                    </Typography>
+                                </Grid>
+
+                                <Grid item xs={12} sm={6}>
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                    >
+                                        Barcode
+                                    </Typography>
+                                    <Typography
+                                        variant="body1"
+                                        sx={{ mt: 0.5 }}
+                                    >
+                                        {equipment.barcode || "N/A"}
                                     </Typography>
                                 </Grid>
 
@@ -876,6 +945,13 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             name="serial_number"
                             label="Serial Number"
                             value={formData.serial_number}
+                            onChange={handleInputChange}
+                            fullWidth
+                        />
+                        <TextField
+                            name="barcode"
+                            label="Barcode"
+                            value={formData.barcode}
                             onChange={handleInputChange}
                             fullWidth
                         />

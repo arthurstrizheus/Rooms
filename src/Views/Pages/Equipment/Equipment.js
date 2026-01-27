@@ -48,6 +48,7 @@ const Equipment = ({ setLoading, loading }) => {
     const [equipment, setEquipment] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedEquipment, setSelectedEquipment] = useState(null);
+    const [activeCheckouts, setActiveCheckouts] = useState([]);
 
     const calculateDueDate = (item) => {
         if (!item.last_calibration_date || !item.calibration_interval_value) {
@@ -85,6 +86,7 @@ const Equipment = ({ setLoading, loading }) => {
         name: "",
         description: "",
         serial_number: "",
+        barcode: "",
         location: "",
         contact_person: "",
         contact_person_id: null,
@@ -105,6 +107,16 @@ const Equipment = ({ setLoading, loading }) => {
         fetchEquipment();
         fetchLocations();
         fetchUsers();
+        fetchActiveCheckouts();
+    }, []);
+
+    // Auto-refresh active checkouts every minute to update status in real-time
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchActiveCheckouts();
+        }, 60000); // 60 seconds
+
+        return () => clearInterval(interval);
     }, []);
 
     // Socket listener for real-time equipment updates
@@ -120,6 +132,12 @@ const Equipment = ({ setLoading, loading }) => {
                 case "equipment_deleted":
                     // Refresh equipment list on any equipment change
                     fetchEquipment();
+                    break;
+                case "checkout_created":
+                case "checkout_updated":
+                case "checkout_approved":
+                    // Refresh active checkouts when checkouts change
+                    fetchActiveCheckouts();
                     break;
                 default:
                     break;
@@ -169,6 +187,42 @@ const Equipment = ({ setLoading, loading }) => {
         }
     };
 
+    const fetchActiveCheckouts = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const now = new Date().toISOString();
+            const response = await axios.get(
+                `/api/checkouts?start=${now}&end=${now}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+            );
+            setActiveCheckouts(response.data);
+        } catch (error) {
+            console.error("Error fetching active checkouts:", error);
+        }
+    };
+
+    const isEquipmentCurrentlyCheckedOut = (equipmentId) => {
+        const now = new Date();
+        return activeCheckouts.some((checkout) => {
+            if (checkout.equipment_id !== equipmentId) return false;
+            if (checkout.status === "cancelled") return false;
+
+            const start = new Date(checkout.start_time);
+            const end = new Date(checkout.end_time);
+            return now >= start && now <= end;
+        });
+    };
+
+    const getDisplayStatus = (item) => {
+        // If equipment is currently checked out, override status
+        if (isEquipmentCurrentlyCheckedOut(item.id)) {
+            return "unavailable";
+        }
+        return item.status;
+    };
+
     const handleOpenDialog = (item = null) => {
         if (item) {
             setSelectedEquipment(item);
@@ -186,6 +240,7 @@ const Equipment = ({ setLoading, loading }) => {
                 name: "",
                 description: "",
                 serial_number: "",
+                barcode: "",
                 location: "",
                 contact_person: "",
                 contact_person_id: null,
@@ -262,6 +317,10 @@ const Equipment = ({ setLoading, loading }) => {
         switch (status) {
             case "available":
                 return "success";
+            case "unavailable":
+                return "error";
+            case "reserved":
+                return "warning";
             case "checked_out":
                 return "warning";
             case "maintenance":
@@ -521,9 +580,9 @@ const Equipment = ({ setLoading, loading }) => {
                                                 />
                                             )}
                                             <Chip
-                                                label={item.status}
+                                                label={getDisplayStatus(item)}
                                                 color={getStatusColor(
-                                                    item.status,
+                                                    getDisplayStatus(item),
                                                 )}
                                                 size="small"
                                             />
@@ -673,9 +732,11 @@ const Equipment = ({ setLoading, loading }) => {
                                             )}
                                             <TableCell>
                                                 <Chip
-                                                    label={item.status}
+                                                    label={getDisplayStatus(
+                                                        item,
+                                                    )}
                                                     color={getStatusColor(
-                                                        item.status,
+                                                        getDisplayStatus(item),
                                                     )}
                                                     size="small"
                                                 />
@@ -775,6 +836,17 @@ const Equipment = ({ setLoading, loading }) => {
                                 setFormData({
                                     ...formData,
                                     serial_number: e.target.value,
+                                })
+                            }
+                            fullWidth
+                        />
+                        <TextField
+                            label="Barcode"
+                            value={formData.barcode}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    barcode: e.target.value,
                                 })
                             }
                             fullWidth

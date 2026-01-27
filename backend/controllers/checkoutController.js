@@ -1355,6 +1355,7 @@ const Delete = async (req, res, next) => {
     try {
         const { id } = req.params;
         const userId = req.user?.id;
+        const isAdmin = req.user?.admin;
 
         const checkout = await Checkout.findByPk(id, {
             include: [
@@ -1378,6 +1379,37 @@ const Delete = async (req, res, next) => {
 
         if (!checkout) {
             return res.status(404).json({ message: "Checkout not found" });
+        }
+
+        // Authorization: Only the creator, admin, or scheduled-on-behalf-of user can delete
+        const isCreator = checkout.user_id === userId;
+        let isScheduledOnBehalfOf = false;
+
+        // Check if current user matches the scheduled_on_behalf_of name
+        if (checkout.scheduled_on_behalf_of) {
+            const nameParts = checkout.scheduled_on_behalf_of.split(" ");
+            if (nameParts.length >= 2) {
+                const firstName = nameParts[0];
+                const lastName = nameParts.slice(1).join(" ");
+
+                const scheduledForUser = await User.findOne({
+                    where: {
+                        first_name: { [Sequelize.Op.iLike]: firstName },
+                        last_name: { [Sequelize.Op.iLike]: lastName },
+                    },
+                });
+
+                if (scheduledForUser && scheduledForUser.id === userId) {
+                    isScheduledOnBehalfOf = true;
+                }
+            }
+        }
+
+        if (!isAdmin && !isCreator && !isScheduledOnBehalfOf) {
+            return res.status(403).json({
+                message:
+                    "You do not have permission to delete this reservation",
+            });
         }
 
         // Soft delete - change status to cancelled instead of destroying
