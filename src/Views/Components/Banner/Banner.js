@@ -10,7 +10,6 @@ import {
     FormControlLabel,
     Tooltip,
 } from "@mui/material";
-import DateSelector from "./Components/DateSelector";
 import { isMobile } from "react-device-detect";
 import useLocalStorage from "../../../hooks/useLocalStorage";
 
@@ -25,7 +24,7 @@ const Banner = ({
     const theme = useTheme();
     const [equipmentView, setEquipmentView] = useLocalStorage(
         "calendar-equipmentView",
-        false
+        false,
     );
 
     return (
@@ -46,24 +45,57 @@ const Banner = ({
                 {isMobile && (
                     <Box
                         sx={{
-                            width: "30%",
                             display: "flex",
                             flexDirection: "row",
+                            alignItems: "center",
+                            width: "100%",
+                            position: "relative",
                         }}
                     >
-                        {!drawerOpen && (
-                            <IconButton onClick={onOpenDrawer} sx={{ mr: 2 }}>
-                                <MenuIcon />
-                            </IconButton>
-                        )}
-
-                        {(bannerText === "Month Schedule" ||
-                            bannerText === "Week Schedule" ||
-                            bannerText === "Day Schedule") && (
-                            <DateSelector
-                                selectedDate={selectedDate}
-                                setSelectedDate={setSelectedDate}
-                            />
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                            }}
+                        >
+                            {!drawerOpen && (
+                                <IconButton
+                                    onClick={onOpenDrawer}
+                                    sx={{ mr: 2 }}
+                                >
+                                    <MenuIcon />
+                                </IconButton>
+                            )}
+                        </Box>
+                        {bannerText === "Equipment" && (
+                            <Box
+                                sx={{
+                                    position: "absolute",
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: "text.secondary",
+                                        fontSize: "0.7rem",
+                                    }}
+                                >
+                                    Full listing:{" "}
+                                    <a
+                                        href="https://sealimited.softlinkliberty.net/liberty/libraryHome.do"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            color: theme.palette.primary.main,
+                                            textDecoration: "none",
+                                        }}
+                                    >
+                                        library website
+                                    </a>
+                                </Typography>
+                            </Box>
                         )}
                     </Box>
                 )}
@@ -74,6 +106,7 @@ const Banner = ({
                             display: "flex",
                             flexDirection: "row",
                             flexGrow: 1,
+                            position: "relative",
                         }}
                     >
                         <Box
@@ -104,63 +137,39 @@ const Banner = ({
                                 {bannerText}
                             </Typography>
                         </Box>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "row",
-                                flexGrow: 1,
-                                justifyContent: "space-between",
-                            }}
-                        >
+
+                        {bannerText === "Equipment" && (
                             <Box
                                 sx={{
-                                    width: "30%",
-                                    display: "flex",
-                                    flexDirection: "row",
+                                    position: "absolute",
+                                    left: "50%",
+                                    top: "50%",
+                                    transform: "translate(-50%, -50%)",
                                 }}
                             >
-                                {(bannerText === "Month Schedule" ||
-                                    bannerText === "Week Schedule" ||
-                                    bannerText === "Day Schedule") && (
-                                    <DateSelector
-                                        selectedDate={selectedDate}
-                                        setSelectedDate={setSelectedDate}
-                                    />
-                                )}
-                            </Box>
-                            {(bannerText === "Month Schedule" ||
-                                bannerText === "Week Schedule" ||
-                                bannerText === "Day Schedule") && (
-                                <Tooltip
-                                    title={
-                                        equipmentView
-                                            ? "Switch to Room Bookings View"
-                                            : "Switch to Equipment Bookings View"
-                                    }
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: "text.secondary",
+                                        whiteSpace: "nowrap",
+                                    }}
                                 >
-                                    <FormControlLabel
-                                        label={
-                                            equipmentView
-                                                ? "Equipment"
-                                                : "Meetings"
-                                        }
-                                        sx={{ marginTop: -1 }}
-                                        zIndex={1000}
-                                        control={
-                                            <Switch
-                                                color="primary"
-                                                checked={equipmentView}
-                                                onChange={() =>
-                                                    setEquipmentView(
-                                                        !equipmentView
-                                                    )
-                                                }
-                                            />
-                                        }
-                                    />
-                                </Tooltip>
-                            )}
-                        </Box>
+                                    Full equipment listing available on the{" "}
+                                    <a
+                                        href="https://sealimited.softlinkliberty.net/liberty/libraryHome.do"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                            color: theme.palette.primary.main,
+                                            textDecoration: "none",
+                                        }}
+                                    >
+                                        library website
+                                    </a>
+                                    .
+                                </Typography>
+                            </Box>
+                        )}
                     </Box>
                 )}
             </Stack>

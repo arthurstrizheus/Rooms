@@ -177,6 +177,7 @@ const EquipmentCalendar = ({
                     extendedProps: {
                         status: checkout.status,
                         notes: checkout.notes,
+                        project_number: checkout.project_number,
                         scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
                         isRecurring: checkout.isRecurring || false,
                         recurrence_id: checkout.recurrence_id || null,
