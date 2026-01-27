@@ -43,6 +43,9 @@ const recurrenceRouter = require("./routes/meetingrecurrences");
 const matterManagerRoutes = require("./routes/matterManagerRoutes");
 const zscalerRouter = require("./routes/zscaler");
 const errorHandler = require("./middleware/errorHandler");
+const {
+    initMatterManagerScheduler,
+} = require("./jobs/MatterManagerGroupNotifications");
 
 const app = express();
 const server = http.createServer(app);
@@ -147,13 +150,16 @@ const startServer = async () => {
 
         // Synchronize all models except Office
         await Promise.all(
-            modelsToSync?.map((model) => model.sync({ alter: false }))
+            modelsToSync?.map((model) => model.sync({ alter: false })),
         );
 
         const port = process.env.PORT || 5000; // Default to 3000 if PORT is not set
         server.listen(port, () => {
             console.log(`Server running on port ${port}`);
             console.log(`WebSocket server initialized`);
+
+            // Initialize scheduled jobs
+            initMatterManagerScheduler();
         });
     } catch (err) {
         console.error("Unable to connect to the database:", err);
