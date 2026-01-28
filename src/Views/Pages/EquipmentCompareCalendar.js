@@ -64,8 +64,13 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     const calendarRef = useRef(null);
 
     // Parse equipment IDs from query params
-    const equipmentIds = searchParams.get('ids')?.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) || [];
-    
+    const equipmentIds =
+        searchParams
+            .get("ids")
+            ?.split(",")
+            .map((id) => parseInt(id))
+            .filter((id) => !isNaN(id)) || [];
+
     const [equipmentList, setEquipmentList] = useState([]);
     const [checkouts, setCheckouts] = useState([]);
     const [dateRange, setDateRange] = useState({ start: null, end: null });
@@ -77,7 +82,9 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     // Booking dialog states
     const [openBookingDialog, setOpenBookingDialog] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState(null);
-    const [selectedBookingEquipment, setSelectedBookingEquipment] = useState([]);
+    const [selectedBookingEquipment, setSelectedBookingEquipment] = useState(
+        [],
+    );
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [formData, setFormData] = useState({
         notes: "",
@@ -95,7 +102,7 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     useEffect(() => {
         if (equipmentIds.length === 0) {
             showAlert("No equipment selected for comparison", "error");
-            navigate('/equipment');
+            navigate("/equipment");
             return;
         }
         fetchAllEquipment();
@@ -108,7 +115,6 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
             fetchCheckouts(dateRange.start, dateRange.end);
         }
     }, [equipmentList]);
-
 
     // Socket listener for real-time updates
     useEffect(() => {
@@ -151,28 +157,32 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     const fetchAllEquipment = async () => {
         try {
             const token = localStorage.getItem("authToken");
-            const promises = equipmentIds.map(id =>
+            const promises = equipmentIds.map((id) =>
                 axios.get(`/api/equipment/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
-                })
+                }),
             );
             const responses = await Promise.all(promises);
             // Filter out equipment where can_book is false
-            const validEquipment = responses.map(r => r.data).filter(eq => eq.can_book !== false);
-            
+            const validEquipment = responses
+                .map((r) => r.data)
+                .filter((eq) => eq.can_book !== false);
+
             // If any equipment was filtered out, update the URL
             if (validEquipment.length !== responses.length) {
-                const validIds = validEquipment.map(e => e.id).join(',');
-                navigate(`/equipment/compare?ids=${validIds}`, { replace: true, state: location.state });
+                const validIds = validEquipment.map((e) => e.id).join(",");
+                navigate(`/equipment/compare?ids=${validIds}`, {
+                    replace: true,
+                    state: location.state,
+                });
             }
-            
+
             setEquipmentList(validEquipment);
         } catch (error) {
             console.error("Error fetching equipment:", error);
             showAlert("Error loading equipment details", "error");
         }
     };
-
 
     const fetchUsers = async () => {
         try {
@@ -197,13 +207,13 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
             if (end) params.end = end;
 
             // Fetch checkouts for all equipment
-            const promises = equipmentIds.map(id =>
+            const promises = equipmentIds.map((id) =>
                 axios.get(`/api/checkouts/equipment/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
                     params,
-                })
+                }),
             );
-            
+
             const responses = await Promise.all(promises);
 
             // Combine and color-code events
@@ -227,12 +237,14 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         backgroundColor: color,
                         borderColor: color,
                         extendedProps: {
-                            equipmentName: equipment?.name || `Equipment ${index + 1}`,
+                            equipmentName:
+                                equipment?.name || `Equipment ${index + 1}`,
                             equipmentId: equipmentId,
                             status: checkout.status,
                             notes: checkout.notes,
                             project_number: checkout.project_number,
-                            scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
+                            scheduled_on_behalf_of:
+                                checkout.scheduled_on_behalf_of,
                             isRecurring: checkout.isRecurring || false,
                             userId: checkout.user_id,
                             checkoutData: checkout,
@@ -299,7 +311,10 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
         }
 
         if (selectedBookingEquipment.length === 0) {
-            showAlert("Please select at least one equipment to reserve", "error");
+            showAlert(
+                "Please select at least one equipment to reserve",
+                "error",
+            );
             return;
         }
 
@@ -337,8 +352,8 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
 
             await Promise.all(promises);
 
-            const equipmentNames = selectedBookingEquipment.map(id => {
-                const eq = equipmentList.find(e => e.id === id);
+            const equipmentNames = selectedBookingEquipment.map((id) => {
+                const eq = equipmentList.find((e) => e.id === id);
                 return eq?.name || `Equipment ${id}`;
             });
 
@@ -410,12 +425,22 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                             <Chip
                                 key={equipment.id}
                                 label={
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                                    <Box
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 1,
+                                        }}
+                                    >
                                         <Box
                                             sx={{
                                                 width: 16,
                                                 height: 16,
-                                                backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length],
+                                                backgroundColor:
+                                                    COLOR_PALETTE[
+                                                        index %
+                                                            COLOR_PALETTE.length
+                                                    ],
                                                 borderRadius: 1,
                                             }}
                                         />
@@ -424,19 +449,36 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                         </Typography>
                                     </Box>
                                 }
-                                onDelete={equipmentList.length > 1 ? () => {
-                                    const newIds = equipmentIds.filter(id => id !== equipment.id).join(',');
-                                    if (newIds) {
-                                        navigate(`/equipment/compare?ids=${newIds}`, { replace: true, state: location.state });
-                                    } else {
-                                        // If no equipment left, go back
-                                        navigate(`/equipment/${fromEquipmentId}`);
-                                    }
-                                } : undefined}
-                                sx={{ 
-                                    pl: 1, 
+                                onDelete={
+                                    equipmentList.length > 1
+                                        ? () => {
+                                              const newIds = equipmentIds
+                                                  .filter(
+                                                      (id) =>
+                                                          id !== equipment.id,
+                                                  )
+                                                  .join(",");
+                                              if (newIds) {
+                                                  navigate(
+                                                      `/equipment/compare?ids=${newIds}`,
+                                                      {
+                                                          replace: true,
+                                                          state: location.state,
+                                                      },
+                                                  );
+                                              } else {
+                                                  // If no equipment left, go back
+                                                  navigate(
+                                                      `/equipment/${fromEquipmentId}`,
+                                                  );
+                                              }
+                                          }
+                                        : undefined
+                                }
+                                sx={{
+                                    pl: 1,
                                     pr: equipmentList.length > 1 ? 1 : 2,
-                                    py: 2
+                                    py: 2,
                                 }}
                             />
                         ))}
@@ -447,7 +489,8 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         sx={{ mt: 2, display: "block" }}
                     >
                         View all equipment schedules on one calendar to find
-                        overlapping availability. Click the X to remove equipment from comparison.
+                        overlapping availability. Click the X to remove
+                        equipment from comparison.
                     </Typography>
                 </CardContent>
             </Card>
@@ -526,18 +569,38 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                             <FormLabel component="legend">
                                 Which equipment do you want to reserve?
                             </FormLabel>
-                            <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+                            <Box
+                                sx={{
+                                    mt: 1,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 1,
+                                }}
+                            >
                                 {equipmentList.map((equipment, index) => (
                                     <FormControlLabel
                                         key={equipment.id}
                                         control={
                                             <Checkbox
-                                                checked={selectedBookingEquipment.includes(equipment.id)}
+                                                checked={selectedBookingEquipment.includes(
+                                                    equipment.id,
+                                                )}
                                                 onChange={(e) => {
                                                     if (e.target.checked) {
-                                                        setSelectedBookingEquipment([...selectedBookingEquipment, equipment.id]);
+                                                        setSelectedBookingEquipment(
+                                                            [
+                                                                ...selectedBookingEquipment,
+                                                                equipment.id,
+                                                            ],
+                                                        );
                                                     } else {
-                                                        setSelectedBookingEquipment(selectedBookingEquipment.filter(id => id !== equipment.id));
+                                                        setSelectedBookingEquipment(
+                                                            selectedBookingEquipment.filter(
+                                                                (id) =>
+                                                                    id !==
+                                                                    equipment.id,
+                                                            ),
+                                                        );
                                                     }
                                                 }}
                                             />
@@ -554,7 +617,11 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                                     sx={{
                                                         width: 16,
                                                         height: 16,
-                                                        backgroundColor: COLOR_PALETTE[index % COLOR_PALETTE.length],
+                                                        backgroundColor:
+                                                            COLOR_PALETTE[
+                                                                index %
+                                                                    COLOR_PALETTE.length
+                                                            ],
                                                         borderRadius: 1,
                                                     }}
                                                 />
@@ -782,7 +849,11 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                     <Button
                         onClick={handleCreateCheckout}
                         variant="contained"
-                        disabled={!selectedSlot?.start || !selectedSlot?.end || selectedBookingEquipment.length === 0}
+                        disabled={
+                            !selectedSlot?.start ||
+                            !selectedSlot?.end ||
+                            selectedBookingEquipment.length === 0
+                        }
                         sx={{
                             backgroundColor: "lightgreen",
                             color: "black",

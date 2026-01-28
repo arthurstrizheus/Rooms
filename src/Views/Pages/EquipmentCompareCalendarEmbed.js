@@ -28,10 +28,15 @@ const EquipmentCompareCalendarEmbed = () => {
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-    
+
     // Parse equipment IDs from query params
-    const equipmentIds = searchParams.get('ids')?.split(',').map(id => parseInt(id)).filter(id => !isNaN(id)) || [];
-    
+    const equipmentIds =
+        searchParams
+            .get("ids")
+            ?.split(",")
+            .map((id) => parseInt(id))
+            .filter((id) => !isNaN(id)) || [];
+
     const [equipmentList, setEquipmentList] = useState([]);
     const [checkouts, setCheckouts] = useState([]);
     const [dateRange, setDateRange] = useState({ start: null, end: null });
@@ -61,21 +66,22 @@ const EquipmentCompareCalendarEmbed = () => {
     const fetchAllEquipment = async () => {
         try {
             const token = localStorage.getItem("authToken");
-            const promises = equipmentIds.map(id =>
+            const promises = equipmentIds.map((id) =>
                 axios.get(`/api/equipment/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
-                })
+                }),
             );
             const responses = await Promise.all(promises);
             // Filter out equipment where can_book is false
-            const validEquipment = responses.map(r => r.data).filter(eq => eq.can_book !== false);
+            const validEquipment = responses
+                .map((r) => r.data)
+                .filter((eq) => eq.can_book !== false);
             setEquipmentList(validEquipment);
         } catch (error) {
             console.error("Error fetching equipment:", error);
             setError("Failed to load equipment data");
         }
     };
-
 
     const fetchCheckouts = async (start, end) => {
         try {
@@ -87,13 +93,13 @@ const EquipmentCompareCalendarEmbed = () => {
             if (end) params.end = end;
 
             // Fetch checkouts for all equipment
-            const promises = equipmentIds.map(id =>
+            const promises = equipmentIds.map((id) =>
                 axios.get(`/api/checkouts/equipment/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
                     params,
-                })
+                }),
             );
-            
+
             const responses = await Promise.all(promises);
 
             // Combine and color-code events

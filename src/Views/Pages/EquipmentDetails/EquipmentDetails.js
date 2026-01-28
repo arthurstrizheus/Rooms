@@ -130,8 +130,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [openCompareDialog, setOpenCompareDialog] = useState(false);
     const [allEquipment, setAllEquipment] = useState([]);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-    const [selectedCompareEquipment, setSelectedCompareEquipment] =
-        useState([]);
+    const [selectedCompareEquipment, setSelectedCompareEquipment] = useState(
+        [],
+    );
     const [openReserveDialog, setOpenReserveDialog] = useState(false);
     const [reserveFormData, setReserveFormData] = useState({
         start_time: "",
@@ -1399,12 +1400,16 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             color="text.secondary"
                             sx={{ mb: 2 }}
                         >
-                            Select one or more equipment to view all schedules on
-                            one calendar
+                            Select one or more equipment to view all schedules
+                            on one calendar
                         </Typography>
                         <Autocomplete
                             multiple
-                            options={allEquipment.filter(eq => eq.can_book !== false && eq.id !== equipment?.id)}
+                            options={allEquipment.filter(
+                                (eq) =>
+                                    eq.can_book !== false &&
+                                    eq.id !== equipment?.id,
+                            )}
                             getOptionLabel={(option) =>
                                 `${option.name}${option.serial_number ? ` (${option.serial_number})` : ""}`
                             }
@@ -1440,16 +1445,26 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => {
-                        setOpenCompareDialog(false);
-                        setSelectedCompareEquipment([]);
-                    }}>
+                    <Button
+                        onClick={() => {
+                            setOpenCompareDialog(false);
+                            setSelectedCompareEquipment([]);
+                        }}
+                    >
                         Cancel
                     </Button>
                     <Button
                         onClick={() => {
-                            if (selectedCompareEquipment && selectedCompareEquipment.length > 0) {
-                                const equipmentIds = [equipmentId, ...selectedCompareEquipment.map(e => e.id)].join(',');
+                            if (
+                                selectedCompareEquipment &&
+                                selectedCompareEquipment.length > 0
+                            ) {
+                                const equipmentIds = [
+                                    equipmentId,
+                                    ...selectedCompareEquipment.map(
+                                        (e) => e.id,
+                                    ),
+                                ].join(",");
                                 navigate(
                                     `/equipment/compare?ids=${equipmentIds}`,
                                     { state: { fromEquipmentId: equipmentId } },
@@ -1457,7 +1472,10 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             }
                         }}
                         variant="contained"
-                        disabled={!selectedCompareEquipment || selectedCompareEquipment.length === 0}
+                        disabled={
+                            !selectedCompareEquipment ||
+                            selectedCompareEquipment.length === 0
+                        }
                         startIcon={<CompareArrows />}
                     >
                         Compare Schedules
