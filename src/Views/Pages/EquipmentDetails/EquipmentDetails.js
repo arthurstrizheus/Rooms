@@ -131,7 +131,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [allEquipment, setAllEquipment] = useState([]);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
     const [selectedCompareEquipment, setSelectedCompareEquipment] =
-        useState(null);
+        useState([]);
     const [openReserveDialog, setOpenReserveDialog] = useState(false);
     const [reserveFormData, setReserveFormData] = useState({
         start_time: "",
@@ -1384,11 +1384,14 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             {/* Compare Equipment Dialog */}
             <Dialog
                 open={openCompareDialog}
-                onClose={() => setOpenCompareDialog(false)}
+                onClose={() => {
+                    setOpenCompareDialog(false);
+                    setSelectedCompareEquipment([]);
+                }}
                 maxWidth="sm"
                 fullWidth
             >
-                <DialogTitle>Compare with Another Equipment</DialogTitle>
+                <DialogTitle>Compare Equipment Schedules</DialogTitle>
                 <DialogContent>
                     <Box sx={{ pt: 2 }}>
                         <Typography
@@ -1396,11 +1399,12 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             color="text.secondary"
                             sx={{ mb: 2 }}
                         >
-                            Select another equipment to view both schedules on
+                            Select one or more equipment to view all schedules on
                             one calendar
                         </Typography>
                         <Autocomplete
-                            options={allEquipment}
+                            multiple
+                            options={allEquipment.filter(eq => eq.can_book !== false && eq.id !== equipment?.id)}
                             getOptionLabel={(option) =>
                                 `${option.name}${option.serial_number ? ` (${option.serial_number})` : ""}`
                             }
@@ -1436,20 +1440,24 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                     </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setOpenCompareDialog(false)}>
+                    <Button onClick={() => {
+                        setOpenCompareDialog(false);
+                        setSelectedCompareEquipment([]);
+                    }}>
                         Cancel
                     </Button>
                     <Button
                         onClick={() => {
-                            if (selectedCompareEquipment) {
+                            if (selectedCompareEquipment && selectedCompareEquipment.length > 0) {
+                                const equipmentIds = [equipmentId, ...selectedCompareEquipment.map(e => e.id)].join(',');
                                 navigate(
-                                    `/equipment/compare/${equipmentId}/${selectedCompareEquipment.id}`,
+                                    `/equipment/compare?ids=${equipmentIds}`,
                                     { state: { fromEquipmentId: equipmentId } },
                                 );
                             }
                         }}
                         variant="contained"
-                        disabled={!selectedCompareEquipment}
+                        disabled={!selectedCompareEquipment || selectedCompareEquipment.length === 0}
                         startIcon={<CompareArrows />}
                     >
                         Compare Schedules

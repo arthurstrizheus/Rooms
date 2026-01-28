@@ -45,7 +45,7 @@ const AppRoutes = ({
         let newBannerText = "";
         if (path === "/") {
             newBannerText = "Equipment";
-        } else if (path.match(/\/equipment\/compare\/\d+\/\d+$/)) {
+        } else if (path.startsWith("/equipment/compare")) {
             newBannerText = `Compare Equipment Schedules`;
         } else if (path.startsWith("/equipment/calendar")) {
             newBannerText = `Equipment Schedule`;
@@ -99,11 +99,11 @@ const AppRoutes = ({
                 }
             />
             <Route
-                path="/equipment/compare/:equipmentId1/:equipmentId2/embed"
+                path="/equipment/compare/embed"
                 element={<EquipmentCompareCalendarEmbed />}
             />
             <Route
-                path="/equipment/compare/:equipmentId1/:equipmentId2"
+                path="/equipment/compare"
                 element={
                     <EquipmentCompareCalendar
                         setLoading={setLoading}
