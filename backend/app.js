@@ -15,6 +15,9 @@ const {
     EquipmentAlert,
     CalibrationHistory,
     CheckoutRecurrence,
+    AssetTaxMeta,
+    DepreciationCarryforward,
+    DepreciationEntry,
 } = require("./models");
 const { authenticateUser } = require("./middleware/auth");
 const addAuditFields = require("./middleware/auditMiddleware");
@@ -30,6 +33,9 @@ const equipmentAlertsRouter = require("./routes/equipmentAlerts");
 const calibrationAlertsRouter = require("./routes/calibrationAlerts");
 const usersRouter = require("./routes/users");
 const officeRouter = require("./routes/offices");
+const assetTaxMetaRouter = require("./routes/assetTaxMeta");
+const depreciationRouter = require("./routes/depreciation");
+const taxRulesRouter = require("./routes/taxRules");
 const errorHandler = require("./middleware/errorHandler");
 const { initCalibrationAlertsScheduler } = require("./jobs/calibrationAlerts");
 
@@ -133,6 +139,9 @@ app.use("/api/equipment-alerts", equipmentAlertsRouter);
 app.use("/api/calibration-alerts", calibrationAlertsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/locations", officeRouter);
+app.use("/api/asset-tax-meta", assetTaxMetaRouter);
+app.use("/api/depreciation", depreciationRouter);
+app.use("/api/tax-rules", taxRulesRouter);
 
 // Initialize WebSocket handlers
 handleSocketConnection(io);
@@ -195,28 +204,6 @@ const startServer = async () => {
                 console.log("✓ project_number column added");
             }
 
-            // Update status ENUM to remove 'returned'
-            try {
-                await queryInterface.sequelize.query(`
-                    IF EXISTS (
-                        SELECT 1 FROM sys.check_constraints 
-                        WHERE name = 'Equipment-Checkouts_status_chk'
-                        AND definition LIKE '%returned%'
-                    )
-                    BEGIN
-                        ALTER TABLE [Equipment-Checkouts] DROP CONSTRAINT [Equipment-Checkouts_status_chk];
-                        ALTER TABLE [Equipment-Checkouts] ADD CONSTRAINT [Equipment-Checkouts_status_chk] 
-                        CHECK ([status] IN ('pending','approved','reserved','cancelled'));
-                    END
-                `);
-                console.log("✓ status ENUM updated to remove 'returned'");
-            } catch (enumErr) {
-                console.log(
-                    "Note: status ENUM update skipped (may already be updated):",
-                    enumErr.message,
-                );
-            }
-
             console.log("✓ Checkout synced");
         } catch (err) {
             console.error("✗ Checkout sync failed:", err.message);
@@ -243,34 +230,42 @@ const startServer = async () => {
             // Use alter: false to avoid CHECK constraint issues
             await EquipmentAlert.sync({ alter: false });
 
-            // Manually update the alert_type ENUM to include 'all_alerts'
-            try {
-                const queryInterface = sequelize.getQueryInterface();
-                await queryInterface.sequelize.query(`
-                    IF NOT EXISTS (
-                        SELECT 1 FROM sys.check_constraints 
-                        WHERE name = 'Equipment-Alerts_alert_type_chk'
-                        AND definition LIKE '%all_alerts%'
-                    )
-                    BEGIN
-                        ALTER TABLE [Equipment-Alerts] DROP CONSTRAINT [Equipment-Alerts_alert_type_chk];
-                        ALTER TABLE [Equipment-Alerts] ADD CONSTRAINT [Equipment-Alerts_alert_type_chk] 
-                        CHECK ([alert_type] IN ('checkout_created','checkout_cancelled','equipment_returned','calibration_due','status_change','all_alerts'));
-                    END
-                `);
-                console.log(
-                    "✓ alert_type ENUM updated to include 'all_alerts'",
-                );
-            } catch (enumErr) {
-                console.log(
-                    "Note: alert_type ENUM update skipped (may already exist):",
-                    enumErr.message,
-                );
-            }
-
             console.log("✓ EquipmentAlert synced");
         } catch (err) {
             console.error("✗ EquipmentAlert sync failed:", err.message);
+        }
+
+        try {
+            console.log("Syncing assetTaxMeta");
+            // Use alter: false to avoid CHECK constraint issues
+            await AssetTaxMeta.sync({ alter: false });
+
+            console.log("✓ assetTaxMeta synced");
+        } catch (err) {
+            console.error("✗ assetTaxMeta sync failed:", err.message);
+        }
+
+        try {
+            console.log("Syncing DepreciationEntry");
+            // Use alter: false to avoid CHECK constraint issues
+            await DepreciationEntry.sync({ alter: false });
+
+            console.log("✓ DepreciationEntry synced");
+        } catch (err) {
+            console.error("✗ DepreciationEntry sync failed:", err.message);
+        }
+
+        try {
+            console.log("Syncing depreciationCarryforward");
+            // Use alter: false to avoid CHECK constraint issues
+            await DepreciationCarryforward.sync({ alter: false });
+
+            console.log("✓ depreciationCarryforward synced");
+        } catch (err) {
+            console.error(
+                "✗ depreciationCarryforward sync failed:",
+                err.message,
+            );
         }
 
         console.log("\n✅ Database migration complete!");

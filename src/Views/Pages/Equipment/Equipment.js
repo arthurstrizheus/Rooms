@@ -27,6 +27,10 @@ import {
     TableSortLabel,
     Paper,
     InputAdornment,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails,
+    Link,
 } from "@mui/material";
 import {
     Add,
@@ -34,6 +38,7 @@ import {
     Warning,
     Search,
     Visibility,
+    ExpandMore,
 } from "@mui/icons-material";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -44,6 +49,187 @@ import { useSocket } from "../../../Contexts/SocketContext";
 import ConfirmDialog from "../../../Components/ConfirmDialog";
 import useConfirmDialog from "../../../hooks/useConfirmDialog";
 import axios from "axios";
+
+// Helper functions to get state-specific tax resource links
+const getStateDepreciationLink = (state) => {
+    const links = {
+        OH: (
+            <Link
+                href="https://tax.ohio.gov/faq-IncomeDepreciation"
+                target="_blank"
+                rel="noopener"
+            >
+                OH depreciation guidance
+            </Link>
+        ),
+        MO: (
+            <Link
+                href="https://dor.mo.gov/faq/taxation/business/corporation-income.html"
+                target="_blank"
+                rel="noopener"
+            >
+                MO tax guidance
+            </Link>
+        ),
+        TX: (
+            <Link
+                href="https://comptroller.texas.gov/taxes/franchise/"
+                target="_blank"
+                rel="noopener"
+            >
+                TX franchise tax info
+            </Link>
+        ),
+        IL: (
+            <Link
+                href="https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
+                target="_blank"
+                rel="noopener"
+            >
+                IL Form 4562
+            </Link>
+        ),
+        FL: (
+            <Link
+                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
+                target="_blank"
+                rel="noopener"
+            >
+                FL depreciation adjustments
+            </Link>
+        ),
+        MD: (
+            <Link
+                href="https://www.marylandtaxes.gov/forms/23_forms/500DM.pdf"
+                target="_blank"
+                rel="noopener"
+            >
+                MD Form 500DM
+            </Link>
+        ),
+        GA: (
+            <Link
+                href="https://dor.georgia.gov/irc-section-168k-special-depreciation-allowance-bonus-depreciation"
+                target="_blank"
+                rel="noopener"
+            >
+                GA depreciation info
+            </Link>
+        ),
+        NC: (
+            <Link
+                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
+                target="_blank"
+                rel="noopener"
+            >
+                NC depreciation guidance
+            </Link>
+        ),
+        CO: (
+            <Link
+                href="https://tax.colorado.gov/depreciation-addback-subtraction"
+                target="_blank"
+                rel="noopener"
+            >
+                CO depreciation adjustment
+            </Link>
+        ),
+        MI: (
+            <Link
+                href="https://www.michigan.gov/taxes/business-taxes/cit/cit-faqs"
+                target="_blank"
+                rel="noopener"
+            >
+                MI CIT guidance
+            </Link>
+        ),
+    };
+    return links[state] || <span>state tax guidance</span>;
+};
+
+const getStateBonusDepreciationLink = (state) => {
+    const links = {
+        OH: (
+            <Link
+                href="https://tax.ohio.gov/business/pass-through-entity-and-fiduciary-income-tax"
+                target="_blank"
+                rel="noopener"
+            >
+                OH bonus add-back
+            </Link>
+        ),
+        FL: (
+            <Link
+                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
+                target="_blank"
+                rel="noopener"
+            >
+                FL bonus treatment
+            </Link>
+        ),
+        IL: (
+            <Link
+                href="https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
+                target="_blank"
+                rel="noopener"
+            >
+                IL bonus reversal
+            </Link>
+        ),
+        GA: (
+            <Link
+                href="https://dor.georgia.gov/irc-section-168k-special-depreciation-allowance-bonus-depreciation"
+                target="_blank"
+                rel="noopener"
+            >
+                GA bonus info
+            </Link>
+        ),
+        NC: (
+            <Link
+                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
+                target="_blank"
+                rel="noopener"
+            >
+                NC bonus treatment
+            </Link>
+        ),
+    };
+    return links[state] || <span>state bonus info</span>;
+};
+
+const getStateSection179Link = (state) => {
+    const links = {
+        OH: (
+            <Link
+                href="https://tax.ohio.gov/faq-IncomeDepreciation"
+                target="_blank"
+                rel="noopener"
+            >
+                OH Section 179 threshold
+            </Link>
+        ),
+        FL: (
+            <Link
+                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
+                target="_blank"
+                rel="noopener"
+            >
+                FL Section 179 treatment
+            </Link>
+        ),
+        NC: (
+            <Link
+                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
+                target="_blank"
+                rel="noopener"
+            >
+                NC Section 179 guidance
+            </Link>
+        ),
+    };
+    return links[state] || <span>state Section 179 info</span>;
+};
 
 const Equipment = ({ setLoading, loading }) => {
     const [equipment, setEquipment] = useState([]);
@@ -100,6 +286,13 @@ const Equipment = ({ setLoading, loading }) => {
         last_calibration_date: "",
         calibration_interval_value: "",
         calibration_interval_unit: "days",
+        // Depreciation fields
+        placed_in_service_date: "",
+        cost_basis: "",
+        property_class: "5yr",
+        method: "MACRS",
+        bonus_eligible: true,
+        section179_elected: "",
     });
     const navigate = useNavigate();
     const { user } = useAuth();
@@ -249,6 +442,17 @@ const Equipment = ({ setLoading, loading }) => {
                           .toISOString()
                           .split("T")[0]
                     : "",
+                placed_in_service_date: item.AssetTaxMeta
+                    ?.placed_in_service_date
+                    ? new Date(item.AssetTaxMeta.placed_in_service_date)
+                          .toISOString()
+                          .split("T")[0]
+                    : "",
+                cost_basis: item.AssetTaxMeta?.cost_basis || "",
+                property_class: item.AssetTaxMeta?.property_class || "5yr",
+                method: item.AssetTaxMeta?.method || "MACRS",
+                bonus_eligible: item.AssetTaxMeta?.bonus_eligible ?? true,
+                section179_elected: item.AssetTaxMeta?.section179_elected || "",
             });
         } else {
             setSelectedEquipment(null);
@@ -267,6 +471,13 @@ const Equipment = ({ setLoading, loading }) => {
                 last_calibration_date: "",
                 calibration_interval_value: "",
                 calibration_interval_unit: "days",
+                // Depreciation fields
+                placed_in_service_date: "",
+                cost_basis: "",
+                property_class: "5yr",
+                method: "MACRS",
+                bonus_eligible: true,
+                section179_elected: "",
             });
         }
         setOpenDialog(true);
@@ -997,6 +1208,7 @@ const Equipment = ({ setLoading, loading }) => {
                                 min: "0",
                             }}
                         />
+
                         <TextField
                             select
                             label="Location"
@@ -1157,6 +1369,302 @@ const Equipment = ({ setLoading, loading }) => {
                                 <MenuItem value="years">Years</MenuItem>
                             </TextField>
                         </Box>
+
+                        {/* Optional Tax Depreciation Section */}
+                        <Accordion sx={{ mt: 3 }}>
+                            <AccordionSummary
+                                expandIcon={<ExpandMore />}
+                                aria-controls="tax-fields-content"
+                                id="tax-fields-header"
+                            >
+                                <Typography variant="subtitle1">
+                                    Optional Tax Depreciation Fields
+                                </Typography>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 2,
+                                    }}
+                                >
+                                    <TextField
+                                        label="Placed in Service Date"
+                                        type="date"
+                                        value={formData.placed_in_service_date}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                placed_in_service_date:
+                                                    e.target.value,
+                                            })
+                                        }
+                                        fullWidth
+                                        InputLabelProps={{ shrink: true }}
+                                        helperText={
+                                            <span>
+                                                Date asset was put into service
+                                                for tax purposes. See{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107485"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    IRS Pub 946
+                                                </Link>
+                                                {formData.location &&
+                                                    locations.find(
+                                                        (l) =>
+                                                            l.Alias ===
+                                                            formData.location,
+                                                    )?.state && (
+                                                        <>
+                                                            {" "}
+                                                            and{" "}
+                                                            {getStateDepreciationLink(
+                                                                locations.find(
+                                                                    (l) =>
+                                                                        l.Alias ===
+                                                                        formData.location,
+                                                                )?.state,
+                                                            )}
+                                                        </>
+                                                    )}
+                                            </span>
+                                        }
+                                    />
+
+                                    <TextField
+                                        label="Cost Basis for Depreciation"
+                                        type="number"
+                                        value={formData.cost_basis}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                cost_basis: e.target.value,
+                                            })
+                                        }
+                                        fullWidth
+                                        InputProps={{
+                                            startAdornment: "$",
+                                        }}
+                                        inputProps={{
+                                            step: "0.01",
+                                            min: "0",
+                                        }}
+                                        helperText={
+                                            <span>
+                                                Leave blank to use Purchase
+                                                Cost. See{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107507"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    IRS Pub 946 - Basis
+                                                </Link>
+                                            </span>
+                                        }
+                                    />
+
+                                    <TextField
+                                        select
+                                        label="Property Class"
+                                        value={formData.property_class}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                property_class: e.target.value,
+                                            })
+                                        }
+                                        fullWidth
+                                        helperText={
+                                            <span>
+                                                IRS depreciation recovery
+                                                period. See{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107513"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    IRS Pub 946 - MACRS Recovery
+                                                    Periods
+                                                </Link>
+                                            </span>
+                                        }
+                                    >
+                                        <MenuItem value="3yr">
+                                            3-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="5yr">
+                                            5-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="7yr">
+                                            7-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="10yr">
+                                            10-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="15yr">
+                                            15-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="20yr">
+                                            20-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="27.5yr">
+                                            27.5-Year Property
+                                        </MenuItem>
+                                        <MenuItem value="39yr">
+                                            39-Year Property
+                                        </MenuItem>
+                                    </TextField>
+
+                                    <TextField
+                                        select
+                                        label="Depreciation Method"
+                                        value={formData.method}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                method: e.target.value,
+                                            })
+                                        }
+                                        fullWidth
+                                        helperText={
+                                            <span>
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107524"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    MACRS (Modified Accelerated
+                                                    Cost Recovery)
+                                                </Link>{" "}
+                                                vs{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107555"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    ADS (Alternative
+                                                    Depreciation System)
+                                                </Link>
+                                            </span>
+                                        }
+                                    >
+                                        <MenuItem value="MACRS">
+                                            MACRS (Modified Accelerated)
+                                        </MenuItem>
+                                        <MenuItem value="ADS">
+                                            ADS (Alternative Depreciation)
+                                        </MenuItem>
+                                    </TextField>
+
+                                    <TextField
+                                        select
+                                        label="Bonus Depreciation Eligible"
+                                        value={formData.bonus_eligible}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                bonus_eligible:
+                                                    e.target.value === "true",
+                                            })
+                                        }
+                                        fullWidth
+                                        helperText={
+                                            <span>
+                                                IRC Section 168(k) Bonus
+                                                Depreciation. See{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000293543"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    IRS Pub 946 - Special
+                                                    Depreciation Allowance
+                                                </Link>
+                                                {formData.location &&
+                                                    locations.find(
+                                                        (l) =>
+                                                            l.Alias ===
+                                                            formData.location,
+                                                    )?.state && (
+                                                        <>
+                                                            {" "}
+                                                            |{" "}
+                                                            {getStateBonusDepreciationLink(
+                                                                locations.find(
+                                                                    (l) =>
+                                                                        l.Alias ===
+                                                                        formData.location,
+                                                                )?.state,
+                                                            )}
+                                                        </>
+                                                    )}
+                                            </span>
+                                        }
+                                    >
+                                        <MenuItem value={true}>Yes</MenuItem>
+                                        <MenuItem value={false}>No</MenuItem>
+                                    </TextField>
+
+                                    <TextField
+                                        label="Section 179 Election Amount"
+                                        type="number"
+                                        value={formData.section179_elected}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                section179_elected:
+                                                    e.target.value,
+                                            })
+                                        }
+                                        fullWidth
+                                        InputProps={{
+                                            startAdornment: "$",
+                                        }}
+                                        inputProps={{
+                                            step: "1",
+                                            min: "0",
+                                        }}
+                                        helperText={
+                                            <span>
+                                                Amount elected for immediate
+                                                Section 179 expensing. See{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107488"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    IRS Pub 946 - Section 179
+                                                    Deduction
+                                                </Link>
+                                                {formData.location &&
+                                                    locations.find(
+                                                        (l) =>
+                                                            l.Alias ===
+                                                            formData.location,
+                                                    )?.state && (
+                                                        <>
+                                                            {" "}
+                                                            |{" "}
+                                                            {getStateSection179Link(
+                                                                locations.find(
+                                                                    (l) =>
+                                                                        l.Alias ===
+                                                                        formData.location,
+                                                                )?.state,
+                                                            )}
+                                                        </>
+                                                    )}
+                                            </span>
+                                        }
+                                    />
+                                </Box>
+                            </AccordionDetails>
+                        </Accordion>
                     </Box>
                 </DialogContent>
                 <DialogActions>

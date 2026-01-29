@@ -7,6 +7,9 @@ const EquipmentAlert = require("./equipmentAlert");
 const CalibrationHistory = require("./calibrationHistory");
 const CheckoutRecurrence = require("./checkoutRecurrence");
 const Office = require("./office");
+const AssetTaxMeta = require("./assetTaxMeta");
+const DepreciationEntry = require("./depreciationEntry");
+const DepreciationCarryforward = require("./depreciationCarryforward");
 
 const initModels = () => {
     // Equipment associations
@@ -43,6 +46,37 @@ const initModels = () => {
     });
     CalibrationHistory.belongsTo(Equipment, {
         foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+
+    Equipment.hasOne(AssetTaxMeta, {
+        foreignKey: "asset_id",
+        as: "AssetTaxMeta",
+        onDelete: "CASCADE",
+    });
+    AssetTaxMeta.belongsTo(Equipment, {
+        foreignKey: "asset_id",
+        as: "Equipment",
+        onDelete: "CASCADE",
+    });
+
+    Equipment.hasMany(DepreciationEntry, {
+        foreignKey: "asset_id",
+        onDelete: "CASCADE",
+    });
+    DepreciationEntry.belongsTo(Equipment, {
+        foreignKey: "asset_id",
+        as: "Equipment",
+        onDelete: "CASCADE",
+    });
+
+    Equipment.hasMany(DepreciationCarryforward, {
+        foreignKey: "asset_id",
+        onDelete: "CASCADE",
+    });
+    DepreciationCarryforward.belongsTo(Equipment, {
+        foreignKey: "asset_id",
+        as: "Equipment",
         onDelete: "CASCADE",
     });
 
@@ -241,5 +275,8 @@ module.exports = {
     CalibrationHistory,
     CheckoutRecurrence,
     Office,
+    AssetTaxMeta,
+    DepreciationEntry,
+    DepreciationCarryforward,
     initModels,
 };

@@ -1,4 +1,10 @@
-const { Equipment, EquipmentFile, Checkout, User } = require("../models");
+const {
+    Equipment,
+    EquipmentFile,
+    Checkout,
+    User,
+    AssetTaxMeta,
+} = require("../models");
 const path = require("path");
 const fs = require("fs");
 const { GetSubscribers } = require("./equipmentAlertController");
@@ -8,6 +14,12 @@ const GetAll = async (req, res, next) => {
     try {
         const equipment = await Equipment.findAll({
             order: [["name", "ASC"]],
+            include: [
+                {
+                    model: AssetTaxMeta,
+                    as: "AssetTaxMeta",
+                },
+            ],
         });
         res.json(equipment);
     } catch (err) {
@@ -33,6 +45,10 @@ const GetById = async (req, res, next) => {
                     model: User,
                     as: "UpdatedBy",
                     attributes: ["id", "first_name", "last_name", "email"],
+                },
+                {
+                    model: AssetTaxMeta,
+                    as: "AssetTaxMeta",
                 },
             ],
         });
@@ -93,6 +109,28 @@ const Post = async (req, res, next) => {
         }
 
         const equipment = await Equipment.create(equipmentData);
+
+        // Create AssetTaxMeta if depreciation fields provided
+        const taxMetaFields = {
+            placed_in_service_date: equipmentData.placed_in_service_date,
+            cost_basis: equipmentData.cost_basis || equipmentData.cost,
+            property_class: equipmentData.property_class,
+            method: equipmentData.method,
+            bonus_eligible: equipmentData.bonus_eligible,
+            section179_elected: equipmentData.section179_elected,
+        };
+
+        // Check if any tax meta fields are provided
+        const hasTaxMetaData = Object.values(taxMetaFields).some(
+            (val) => val !== undefined && val !== null && val !== "",
+        );
+
+        if (hasTaxMetaData) {
+            await AssetTaxMeta.create({
+                asset_id: equipment.id,
+                ...taxMetaFields,
+            });
+        }
 
         // Create uploads subdirectory for this equipment
         const equipmentDir = path.join(
@@ -170,6 +208,36 @@ const Update = async (req, res, next) => {
         const oldStatus = equipment.status;
 
         await equipment.update(updates);
+
+        // Update or create AssetTaxMeta if depreciation fields provided
+        const taxMetaFields = {
+            placed_in_service_date: updates.placed_in_service_date,
+            cost_basis: updates.cost_basis || updates.cost,
+            property_class: updates.property_class,
+            method: updates.method,
+            bonus_eligible: updates.bonus_eligible,
+            section179_elected: updates.section179_elected,
+        };
+
+        // Check if any tax meta fields are provided
+        const hasTaxMetaData = Object.values(taxMetaFields).some(
+            (val) => val !== undefined && val !== null && val !== "",
+        );
+
+        if (hasTaxMetaData) {
+            const existingTaxMeta = await AssetTaxMeta.findOne({
+                where: { asset_id: id },
+            });
+
+            if (existingTaxMeta) {
+                await existingTaxMeta.update(taxMetaFields);
+            } else {
+                await AssetTaxMeta.create({
+                    asset_id: id,
+                    ...taxMetaFields,
+                });
+            }
+        }
 
         res.json(equipment);
 

@@ -1,0 +1,385 @@
+{
+    "rulePackMeta": {
+        "name": "SEA_Limited_State_Depreciation_Rules",
+        "version": "2026-01-29",
+        "notes": "State-specific depreciation adjustments for business income/franchise tax computations. URLs are official state government sources.",
+        "defaultAssumption": "Compute Federal depreciation first (MACRS/179/168k), then apply state modifications from this pack."
+    },
+    "taxTypes": [
+        {
+            "taxTypeId": "FEDERAL_INCOME",
+            "label": "Federal Income Tax (baseline)",
+            "depreciationTreatment": { "ruleType": "use_federal_as_is" }
+        },
+        {
+            "taxTypeId": "STATE_BUSINESS_INCOME_OR_FRANCHISE",
+            "label": "State business income / franchise tax base",
+            "depreciationTreatment": { "ruleType": "use_state_rules_by_office" }
+        }
+    ],
+    "offices": [
+        {
+            "officeid": 1,
+            "alias": "Columbus",
+            "state": "OH",
+            "city": "Columbus",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "addback_bonus_plus_179_over_threshold",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2018,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "section179Threshold": 25000,
+                                "addbackFormula": "stateAddback = federalBonus168k + max(0, federalSection179 - 25000)",
+                                "notes": "Ohio add-back uses total Section 179 expense less $25,000 plus all Section 168(k) bonus depreciation."
+                            },
+                            "sources": [
+                                "https://tax.ohio.gov/faq-IncomeDepreciation",
+                                "https://tax.ohio.gov/business/pass-through-entity-and-fiduciary-income-tax"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 2,
+            "alias": "St. Louis",
+            "state": "MO",
+            "city": "Maryland Heights",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "generally_no_addback",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2004,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "Missouri generally does not require depreciation add-back. Narrow modification applies only for property purchased 7/1/2002–6/30/2003."
+                            },
+                            "sources": [
+                                "https://dor.mo.gov/faq/taxation/business/corporation-income.html"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 3,
+            "alias": "Houston",
+            "state": "TX",
+            "city": "Houston",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "texas_franchise_margin_based",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2008,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "Texas is franchise tax (margin), not a standard corporate income tax. Depreciation matters only insofar as it is permitted within the margin deduction method (e.g., COGS). State guidance on bonus depreciation interpretation changed in 2025; do not guess beyond official Comptroller guidance for the report year."
+                            },
+                            "sources": [
+                                "https://comptroller.texas.gov/about/media-center/news/20251201-acting-texas-comptroller-kelly-hancock-updates-franchise-tax-depreciation-rules-to-align-with-federal-provisions-1764005132713",
+                                "https://comptroller.texas.gov/about/media-center/news/"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 4,
+            "alias": "Chicago",
+            "state": "IL",
+            "city": "Rolling Meadows",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "il_4562_reverse_federal_bonus",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2003,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "Illinois uses Form IL-4562 to reverse the effects of federal bonus depreciation under IRC 168(k). Your engine should implement IL-4562 worksheet logic for the requested tax year (rates/lines differ by year)."
+                            },
+                            "sources": [
+                                "https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 5,
+            "alias": "Cleveland",
+            "state": "OH",
+            "city": "Cuyahoga Falls",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "addback_bonus_plus_179_over_threshold",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2018,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "section179Threshold": 25000,
+                                "addbackFormula": "stateAddback = federalBonus168k + max(0, federalSection179 - 25000)"
+                            },
+                            "sources": [
+                                "https://tax.ohio.gov/faq-IncomeDepreciation"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 6,
+            "alias": "Tampa",
+            "state": "FL",
+            "city": "Tampa",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "addback_then_subtract_spread",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2023,
+                            "effectiveToTaxYear": 2026,
+                            "parameters": {
+                                "addbackBase": "federalBonus168k",
+                                "spreadMethod": "straight_line",
+                                "spreadYears": 7,
+                                "annualSubtractionPercent": 14.2857142857,
+                                "eligibility": "Assets placed in service before 2027-01-01",
+                                "notes": "Florida requires an addition for bonus depreciation, then provides it back via equal subtraction over seven years."
+                            },
+                            "sources": [
+                                "https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 7,
+            "alias": "Baltimore",
+            "state": "MD",
+            "city": "Glen Burnie",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "proforma_difference_federal_asfiled_vs_without_decoupled",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2002,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "computation": "stateModification = (federalAsFiledIncludingDecoupling - federalWithoutDecoupledProvisions)",
+                                "implementation": "Compute both depreciation totals for the tax year, then apply delta as MD addition/subtraction per Form 500DM.",
+                                "notes": "Maryland Form 500DM is the mechanism for depreciation decoupling modifications."
+                            },
+                            "sources": [
+                                "https://www.marylandtaxes.gov/forms/23_forms/500DM.pdf",
+                                "https://www.marylandtaxes.gov/forms/Tax_Publications/Administrative_Releases/Income_and_Estate_Tax_Releases/ar_it38.pdf"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 8,
+            "alias": "Atlanta",
+            "state": "GA",
+            "city": "Duluth",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "addback_federal_depreciation_compute_ga_separately",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2001,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "addbackBase": "federalTotalDepreciation",
+                                "thenCompute": "gaDepreciationSchedule",
+                                "notes": "Georgia requires adding back federal depreciation and computing depreciation for GA purposes separately; attach federal Form 4562."
+                            },
+                            "sources": [
+                                "https://dor.georgia.gov/taxes/tax-rules-and-policies/income-tax-federal-tax-changes"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 9,
+            "alias": "Ft. Lauderdale",
+            "state": "FL",
+            "city": "Ft. Lauderdale",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "addback_then_subtract_spread",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2023,
+                            "effectiveToTaxYear": 2026,
+                            "parameters": {
+                                "addbackBase": "federalBonus168k",
+                                "spreadMethod": "straight_line",
+                                "spreadYears": 7,
+                                "annualSubtractionPercent": 14.2857142857,
+                                "eligibility": "Assets placed in service before 2027-01-01"
+                            },
+                            "sources": [
+                                "https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 11,
+            "alias": "Charlotte",
+            "state": "NC",
+            "city": "Charlotte",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "addback_percent_of_federal_bonus_then_spread",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2025,
+                            "effectiveToTaxYear": 2025,
+                            "parameters": {
+                                "bonusAddbackPercent": 85,
+                                "addbackFormula": "stateAddback = 0.85 * federalBonus168k",
+                                "subtractionSchedule": {
+                                    "startsTaxYear": 2026,
+                                    "years": 5,
+                                    "percentPerYear": 20,
+                                    "subtractionFormula": "eachYearSubtraction = 0.20 * stateAddback"
+                                },
+                                "notes": "NC 2025: add back 85% of federal bonus depreciation; then deduct 20% per year over the next five years."
+                            },
+                            "sources": [
+                                "https://www.ncdor.gov/taxes-forms/individual-income-tax/filing-topics/adjustment-bonus-depreciation",
+                                "https://www.ncdor.gov/tax-forms/2024-cd-405-c-corporation-tax-return-instructions/open"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 12,
+            "alias": "Denver",
+            "state": "CO",
+            "city": "Golden",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "requires_manual_confirmation",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2000,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "I am not asserting CO bonus depreciation conformity/decoupling here without an explicit CO DOR statement tied to depreciation/168(k). Use the official corporate income tax guide/statutes to confirm for the specific report year, then codify it into this pack."
+                            },
+                            "sources": [
+                                "https://tax.colorado.gov/corporate-income-tax-guide"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 13,
+            "alias": "Detroit",
+            "state": "MI",
+            "city": "Novi",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "recompute_depreciation_as_if_no_168k",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2012,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "Michigan Corporate Income Tax disallows IRC 168(k) bonus. Compute depreciation using a federally accepted method 'as if 168(k) was not in effect' consistently for the asset life."
+                            },
+                            "sources": [
+                                "https://www.michigan.gov/taxes/questions/cit/corporate/corporate-tax-base-16--the-tax-base-under-the-cit-is-computed-as-though-section-168k-bonus-deprecia"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 14,
+            "alias": "Dallas",
+            "state": "TX",
+            "city": "Irving",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "texas_franchise_margin_based",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2008,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "Same as Houston TX: franchise tax rules; verify depreciation/bonus allowance via Comptroller guidance for the specific report year."
+                            },
+                            "sources": [
+                                "https://comptroller.texas.gov/about/media-center/news/20251201-acting-texas-comptroller-kelly-hancock-updates-franchise-tax-depreciation-rules-to-align-with-federal-provisions-1764005132713"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+
+        {
+            "officeid": 15,
+            "alias": "Kansas City",
+            "state": "MO",
+            "city": "Liberty",
+            "tax": {
+                "STATE_BUSINESS_INCOME_OR_FRANCHISE": {
+                    "ruleType": "generally_no_addback",
+                    "parametersByYear": [
+                        {
+                            "effectiveFromTaxYear": 2004,
+                            "effectiveToTaxYear": null,
+                            "parameters": {
+                                "notes": "Same as St. Louis MO."
+                            },
+                            "sources": [
+                                "https://dor.mo.gov/faq/taxation/business/corporation-income.html"
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

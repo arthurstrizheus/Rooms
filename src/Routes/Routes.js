@@ -15,6 +15,7 @@ import EquipmentCompareCalendar from "../Views/Pages/EquipmentCompareCalendar";
 import EquipmentCompareCalendarEmbed from "../Views/Pages/EquipmentCompareCalendarEmbed";
 import { useMediaQuery } from "@mui/system";
 import AdminDashboard from "../Views/Pages/Admin/AdminDashboard";
+import DepreciationReports from "../Views/Pages/DepreciationReports/DepreciationReports";
 
 const AppRoutes = ({
     setLoading,
@@ -66,6 +67,11 @@ const AppRoutes = ({
             newBannerText = `Users`;
         } else if (path.startsWith("/admin-dashboard") && user?.admin) {
             newBannerText = `Admin Dashboard`;
+        } else if (
+            path.startsWith("/depreciation") &&
+            (user?.admin || user?.equipment_admin)
+        ) {
+            newBannerText = `Depreciation Reports`;
         } else {
             newBannerText = "Page Not Found"; // Default for undefined routes
         }
@@ -176,6 +182,19 @@ const AppRoutes = ({
                             setLoading={setLoading}
                             loading={loading}
                         />
+                    )
+                }
+            />
+            <Route
+                path="/depreciation"
+                element={
+                    user?.admin || user?.equipment_admin ? (
+                        <DepreciationReports
+                            setLoading={setLoading}
+                            loading={loading}
+                        />
+                    ) : (
+                        <NotFoundPage />
                     )
                 }
             />

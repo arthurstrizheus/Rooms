@@ -18,6 +18,7 @@ import AccountBoxOutlinedIcon from "@mui/icons-material/AccountBoxOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import DeveloperModeIcon from "@mui/icons-material/DeveloperMode";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import { isMobile } from "react-device-detect";
 import "./SideBar.css";
 import { useAuth } from "../../../Utilites/AuthContext";
@@ -106,6 +107,10 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
             case "admin-dashboard":
                 setNav({ page: "admin-dashboard" });
                 navigate("/admin-dashboard");
+                break;
+            case "depreciation":
+                setNav({ page: "depreciation" });
+                navigate("/depreciation");
                 break;
             default:
                 setContent(<></>);
@@ -267,6 +272,13 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                         onClick: () => handleMenuClick("users"),
                                         selected: nav.page == "users",
                                     },
+                                    {
+                                        name: "Depreciation Reports",
+                                        icon: <AccountBalanceIcon />,
+                                        onClick: () =>
+                                            handleMenuClick("depreciation"),
+                                        selected: nav.page == "depreciation",
+                                    },
                                 ]}
                             />
                         </>
@@ -372,7 +384,13 @@ const MenuItem = ({ title, icon, onToggle, items, approvalCount }) => {
                             "&:hover": {
                                 backgroundColor:
                                     theme.palette.primary.lightHover,
+                                color: item.selected
+                                    ? "black"
+                                    : theme.palette.text.primary,
                             },
+                            color: item.selected
+                                ? "white"
+                                : theme.palette.text.primary,
                         }}
                         onClick={item.onClick}
                     >
