@@ -1,0 +1,68 @@
+{
+    "version": "2026.1",
+    "lastUpdated": "2026-01-29",
+    "description": "IRC Section 179 overall limits and phase-out thresholds by tax year",
+    "sources": [
+        "https://www.irs.gov/publications/p946#en_US_2023_publink1000107488",
+        "https://www.irs.gov/pub/irs-drop/rp-23-34.pdf"
+    ],
+    "limitsByYear": {
+        "2018": {
+            "maxDeduction": 1000000,
+            "phaseoutThreshold": 2500000,
+            "notes": "TCJA increased limits"
+        },
+        "2019": {
+            "maxDeduction": 1020000,
+            "phaseoutThreshold": 2550000,
+            "notes": "Inflation adjustment"
+        },
+        "2020": {
+            "maxDeduction": 1040000,
+            "phaseoutThreshold": 2590000,
+            "notes": "Inflation adjustment"
+        },
+        "2021": {
+            "maxDeduction": 1050000,
+            "phaseoutThreshold": 2620000,
+            "notes": "Inflation adjustment"
+        },
+        "2022": {
+            "maxDeduction": 1080000,
+            "phaseoutThreshold": 2700000,
+            "notes": "Inflation adjustment"
+        },
+        "2023": {
+            "maxDeduction": 1160000,
+            "phaseoutThreshold": 2890000,
+            "notes": "Inflation adjustment"
+        },
+        "2024": {
+            "maxDeduction": 1220000,
+            "phaseoutThreshold": 3050000,
+            "notes": "Rev. Proc. 2023-34 inflation adjustment"
+        },
+        "2025": {
+            "maxDeduction": 1250000,
+            "phaseoutThreshold": 3130000,
+            "notes": "Projected inflation adjustment"
+        },
+        "2026": {
+            "maxDeduction": 1280000,
+            "phaseoutThreshold": 3200000,
+            "notes": "Projected inflation adjustment (subject to IRS confirmation)"
+        }
+    },
+    "rules": [
+        "Section 179 deduction is limited to taxable income from active trade/business",
+        "Deduction phases out dollar-for-dollar when total property placed in service exceeds threshold",
+        "Once total placed in service exceeds (threshold + maxDeduction), no §179 is available",
+        "Used property acquired from unrelated party qualifies (post-TCJA)",
+        "Real property improvements (qualified improvement property) may qualify under certain conditions"
+    ],
+    "recapture": {
+        "description": "If business use drops to 50% or less in any year during recovery period, §179 deduction must be recaptured",
+        "calculation": "Recapture = (§179 deduction - what would have been allowed via MACRS) + interest",
+        "note": "System currently assumes 100% business use throughout; recapture events require manual review"
+    }
+}

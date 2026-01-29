@@ -81,6 +81,7 @@ function createData(
     office_admin,
     equipment_office_admin,
     equipment_admin,
+    tax_admin,
 ) {
     return {
         id,
@@ -93,6 +94,7 @@ function createData(
         office_admin,
         equipment_office_admin,
         equipment_admin,
+        tax_admin,
     };
 }
 
@@ -371,6 +373,7 @@ export default function Users({ setLoading }) {
                     itm.office_admin,
                     itm.equipment_office_admin,
                     itm.equipment_admin,
+                    itm.tax_admin,
                 );
             });
 
@@ -635,6 +638,17 @@ export default function Users({ setLoading }) {
                                                             "#007acc",
                                                     }}
                                                     label="Equipment Admin"
+                                                />
+                                            )}
+                                            {row.tax_admin && (
+                                                <Chip
+                                                    size="small"
+                                                    sx={{
+                                                        color: "white",
+                                                        backgroundColor:
+                                                            "#9c27b0",
+                                                    }}
+                                                    label="Tax Admin"
                                                 />
                                             )}
                                         </Box>
@@ -1002,6 +1016,34 @@ export default function Users({ setLoading }) {
                                                                 }}
                                                                 label={
                                                                     "Equipment Admin"
+                                                                }
+                                                            />
+                                                        </Tooltip>
+                                                    )}
+                                                    {row.tax_admin && (
+                                                        <Tooltip
+                                                            key={"Tax Admin"}
+                                                            arrow
+                                                            title={
+                                                                <Typography variant="body2">
+                                                                    Tax Admin
+                                                                    Access
+                                                                </Typography>
+                                                            }
+                                                        >
+                                                            <Chip
+                                                                sx={{
+                                                                    cursor: "pointer",
+                                                                    color: "white",
+                                                                    backgroundColor:
+                                                                        "#9c27b0",
+                                                                    marginLeft:
+                                                                        "2px",
+                                                                    marginTop:
+                                                                        "2px",
+                                                                }}
+                                                                label={
+                                                                    "Tax Admin"
                                                                 }
                                                             />
                                                         </Tooltip>

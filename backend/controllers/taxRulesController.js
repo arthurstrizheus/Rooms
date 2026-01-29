@@ -63,7 +63,10 @@ const UpdateOfficeRules = async (req, res, next) => {
         }
 
         // Load current rules
-        const taxJsonPath = path.join(__dirname, "../../Tax.json");
+        const taxJsonPath = path.join(
+            __dirname,
+            "../depreciation/rules/state-depreciation-rules.json",
+        );
         const rulesData = JSON.parse(fs.readFileSync(taxJsonPath, "utf8"));
 
         // Find the office
@@ -167,7 +170,10 @@ const CloseYearRange = async (req, res, next) => {
         }
 
         // Load current rules
-        const taxJsonPath = path.join(__dirname, "../../Tax.json");
+        const taxJsonPath = path.join(
+            __dirname,
+            "../depreciation/rules/state-depreciation-rules.json",
+        );
         const rulesData = JSON.parse(fs.readFileSync(taxJsonPath, "utf8"));
 
         // Find the office

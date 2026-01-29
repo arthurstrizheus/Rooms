@@ -286,7 +286,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         name: "",
         description: "",
         serial_number: "",
-        barcode: "",
         cost: "",
         location: "",
         contact_person: "",
@@ -304,6 +303,12 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         method: "MACRS",
         bonus_eligible: true,
         section179_elected: "",
+        vehicle_class: "UNKNOWN",
+        convention: "half-year",
+        // Disposal tracking
+        disposal_date: "",
+        sale_proceeds: "",
+        disposal_method: "",
     });
     const [openUploadDialog, setOpenUploadDialog] = useState(false);
     const [uploadFormData, setUploadFormData] = useState({
@@ -536,7 +541,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             name: equipment.name,
             description: equipment.description || "",
             serial_number: equipment.serial_number || "",
-            barcode: equipment.barcode || "",
             cost: equipment.cost || "",
             location: equipment.location || "",
             contact_person: equipment.contact_person || "",
@@ -566,6 +570,15 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             bonus_eligible: equipment.AssetTaxMeta?.bonus_eligible ?? true,
             section179_elected:
                 equipment.AssetTaxMeta?.section179_elected || "",
+            vehicle_class: equipment.AssetTaxMeta?.vehicle_class || "UNKNOWN",
+            convention: equipment.AssetTaxMeta?.convention || "half-year",
+            disposal_date: equipment.AssetTaxMeta?.disposal_date
+                ? new Date(equipment.AssetTaxMeta.disposal_date)
+                      .toISOString()
+                      .split("T")[0]
+                : "",
+            sale_proceeds: equipment.AssetTaxMeta?.sale_proceeds || "",
+            disposal_method: equipment.AssetTaxMeta?.disposal_method || "",
         });
         setOpenEditDialog(true);
     };
@@ -593,6 +606,26 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             fetchEquipment();
         } catch (error) {
             console.error("Error updating equipment:", error);
+
+            // Display validation errors to user
+            if (
+                error.response?.status === 400 &&
+                error.response?.data?.errors
+            ) {
+                const errorMessages = error.response.data.errors.join("\n\n");
+                showAlert(
+                    errorMessages,
+                    "error",
+                    "Section 179 Validation Error",
+                );
+            } else {
+                showAlert(
+                    error.response?.data?.message ||
+                        "Failed to update equipment. Please try again.",
+                    "error",
+                    "Error Updating Equipment",
+                );
+            }
         } finally {
             setLoading(false);
         }
@@ -890,6 +923,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         if (!equipment) return false;
         if (user?.admin) return true;
         if (user?.equipment_admin) return true;
+        if (user?.tax_admin) return true;
         if (
             user?.equipment_office_admin &&
             equipment.location === user.location
@@ -1083,40 +1117,42 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
                             {/* Equipment Info Grid */}
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Status
-                                    </Typography>
-                                    <Box
-                                        sx={{
-                                            display: "flex",
-                                            gap: 1,
-                                            alignItems: "center",
-                                            mt: 0.5,
-                                        }}
-                                    >
-                                        <Chip
-                                            label={getDisplayStatus()}
-                                            color={getStatusColor(
-                                                getDisplayStatus(),
-                                            )}
-                                            size="small"
-                                        />
-                                        {isCalibrationDueSoon(
-                                            calculateDueDate(),
-                                        ) && (
+                                {equipment?.can_book !== false && (
+                                    <Grid item xs={12} sm={6}>
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                        >
+                                            Status
+                                        </Typography>
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                gap: 1,
+                                                alignItems: "center",
+                                                mt: 0.5,
+                                            }}
+                                        >
                                             <Chip
-                                                icon={<Warning />}
-                                                label="Calibration Due Soon"
-                                                color="warning"
+                                                label={getDisplayStatus()}
+                                                color={getStatusColor(
+                                                    getDisplayStatus(),
+                                                )}
                                                 size="small"
                                             />
-                                        )}
-                                    </Box>
-                                </Grid>
+                                            {isCalibrationDueSoon(
+                                                calculateDueDate(),
+                                            ) && (
+                                                <Chip
+                                                    icon={<Warning />}
+                                                    label="Calibration Due Soon"
+                                                    color="warning"
+                                                    size="small"
+                                                />
+                                            )}
+                                        </Box>
+                                    </Grid>
+                                )}
 
                                 <Grid item xs={12} sm={6}>
                                     <Typography
@@ -1130,21 +1166,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                         sx={{ mt: 0.5 }}
                                     >
                                         {equipment.serial_number || "N/A"}
-                                    </Typography>
-                                </Grid>
-
-                                <Grid item xs={12} sm={6}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Barcode
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {equipment.barcode || "N/A"}
                                     </Typography>
                                 </Grid>
 
@@ -1296,13 +1317,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             name="serial_number"
                             label="Serial Number"
                             value={formData.serial_number}
-                            onChange={handleInputChange}
-                            fullWidth
-                        />
-                        <TextField
-                            name="barcode"
-                            label="Barcode"
-                            value={formData.barcode}
                             onChange={handleInputChange}
                             fullWidth
                         />
@@ -1691,6 +1705,57 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                     </TextField>
 
                                     <TextField
+                                        name="vehicle_class"
+                                        select
+                                        label="Vehicle Classification (if applicable)"
+                                        value={formData.vehicle_class}
+                                        onChange={handleInputChange}
+                                        fullWidth
+                                        helperText={
+                                            <span>
+                                                Required for vehicles with
+                                                Section 179 deduction. Passenger
+                                                autos have lower caps
+                                                ($12k-20k). SUVs 6,000-14,000
+                                                lbs GVWR have mid-range caps
+                                                (~$28k-32k). Heavy vehicles
+                                                &gt;14,000 lbs have no special
+                                                caps. See{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107484"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    IRS Pub 946 - Listed
+                                                    Property
+                                                </Link>{" "}
+                                                for vehicle definitions and{" "}
+                                                <Link
+                                                    href="https://www.irs.gov/pub/irs-drop/rp-23-34.pdf"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                >
+                                                    Rev. Proc. 2023-34
+                                                </Link>{" "}
+                                                for current year limits.
+                                            </span>
+                                        }
+                                    >
+                                        <MenuItem value="UNKNOWN">
+                                            Unknown / Not a Vehicle
+                                        </MenuItem>
+                                        <MenuItem value="PASSENGER_AUTO">
+                                            Passenger Automobile
+                                        </MenuItem>
+                                        <MenuItem value="SUV_LIMITED_179">
+                                            SUV/Truck/Van (6,000-14,000 lbs)
+                                        </MenuItem>
+                                        <MenuItem value="HEAVY_TRUCK_NOT_LIMITED_179">
+                                            Heavy Vehicle (&gt;14,000 lbs)
+                                        </MenuItem>
+                                    </TextField>
+
+                                    <TextField
                                         name="section179_elected"
                                         label="Section 179 Election Amount"
                                         type="number"
@@ -1737,6 +1802,233 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                             </span>
                                         }
                                     />
+
+                                    <TextField
+                                        name="convention"
+                                        select
+                                        label="Depreciation Convention"
+                                        value={formData.convention}
+                                        onChange={handleInputChange}
+                                        fullWidth
+                                        helperText="Determines first-year depreciation timing. Half-year (most common) assumes mid-year placement. Mid-quarter applies if >40% of year's assets placed in Q4."
+                                    >
+                                        <MenuItem value="half-year">
+                                            Half-Year Convention (default)
+                                        </MenuItem>
+                                        <MenuItem value="mid-quarter">
+                                            Mid-Quarter Convention
+                                        </MenuItem>
+                                        <MenuItem value="mid-month">
+                                            Mid-Month Convention (real property)
+                                        </MenuItem>
+                                    </TextField>
+
+                                    {formData.placed_in_service_date && (
+                                        <Box
+                                            sx={{
+                                                mt: 2,
+                                                p: 2,
+                                                bgcolor: "info.lighter",
+                                                borderRadius: 1,
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="body2"
+                                                color="info.dark"
+                                                gutterBottom
+                                            >
+                                                <strong>
+                                                    Tax Year{" "}
+                                                    {new Date(
+                                                        formData.placed_in_service_date,
+                                                    ).getFullYear()}{" "}
+                                                    IRS Limits:
+                                                </strong>
+                                            </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                            >
+                                                • Bonus Depreciation:{" "}
+                                                {new Date(
+                                                    formData.placed_in_service_date,
+                                                ).getFullYear() === 2024
+                                                    ? "60%"
+                                                    : new Date(
+                                                            formData.placed_in_service_date,
+                                                        ).getFullYear() === 2025
+                                                      ? "40%"
+                                                      : new Date(
+                                                              formData.placed_in_service_date,
+                                                          ).getFullYear() ===
+                                                          2026
+                                                        ? "20%"
+                                                        : new Date(
+                                                                formData.placed_in_service_date,
+                                                            ).getFullYear() >=
+                                                            2027
+                                                          ? "0%"
+                                                          : new Date(
+                                                                  formData.placed_in_service_date,
+                                                              ).getFullYear() <=
+                                                              2022
+                                                            ? "100%"
+                                                            : "80%"}
+                                            </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                            >
+                                                • Section 179 Overall Limit:
+                                                $1,220,000 (per company, 2024)
+                                            </Typography>
+                                            {formData.vehicle_class ===
+                                                "SUV_LIMITED_179" && (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                >
+                                                    • SUV Section 179 Cap:
+                                                    $30,500 (2024)
+                                                </Typography>
+                                            )}
+                                            {formData.vehicle_class ===
+                                                "PASSENGER_AUTO" && (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="warning.dark"
+                                                >
+                                                    • Passenger Auto Year 1 Cap:
+                                                    $20,400 (with bonus) or
+                                                    $12,400 (no bonus) - 2024
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    )}
+
+                                    {/* Disposal Tracking Section */}
+                                    {formData.placed_in_service_date && (
+                                        <Box
+                                            sx={{
+                                                mt: 3,
+                                                p: 2,
+                                                border: "1px solid",
+                                                borderColor: "divider",
+                                                borderRadius: 1,
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="subtitle2"
+                                                gutterBottom
+                                                sx={{ mb: 2 }}
+                                            >
+                                                Asset Disposal (if applicable)
+                                            </Typography>
+
+                                            <TextField
+                                                name="disposal_date"
+                                                label="Disposal Date"
+                                                type="date"
+                                                value={formData.disposal_date}
+                                                onChange={handleInputChange}
+                                                fullWidth
+                                                InputLabelProps={{
+                                                    shrink: true,
+                                                }}
+                                                helperText="Date asset was sold, traded, scrapped, or donated. Stops depreciation."
+                                                sx={{ mb: 2 }}
+                                            />
+
+                                            {formData.disposal_date && (
+                                                <>
+                                                    <TextField
+                                                        name="disposal_method"
+                                                        select
+                                                        label="Disposal Method"
+                                                        value={
+                                                            formData.disposal_method
+                                                        }
+                                                        onChange={
+                                                            handleInputChange
+                                                        }
+                                                        fullWidth
+                                                        sx={{ mb: 2 }}
+                                                    >
+                                                        <MenuItem value="sold">
+                                                            Sold
+                                                        </MenuItem>
+                                                        <MenuItem value="traded">
+                                                            Traded In
+                                                        </MenuItem>
+                                                        <MenuItem value="scrapped">
+                                                            Scrapped/Junked
+                                                        </MenuItem>
+                                                        <MenuItem value="donated">
+                                                            Donated
+                                                        </MenuItem>
+                                                        <MenuItem value="stolen">
+                                                            Stolen/Lost
+                                                        </MenuItem>
+                                                    </TextField>
+
+                                                    {(formData.disposal_method ===
+                                                        "sold" ||
+                                                        formData.disposal_method ===
+                                                            "traded") && (
+                                                        <TextField
+                                                            name="sale_proceeds"
+                                                            label="Sale/Trade-In Proceeds"
+                                                            type="number"
+                                                            value={
+                                                                formData.sale_proceeds
+                                                            }
+                                                            onChange={
+                                                                handleInputChange
+                                                            }
+                                                            fullWidth
+                                                            InputProps={{
+                                                                startAdornment:
+                                                                    "$",
+                                                            }}
+                                                            inputProps={{
+                                                                step: "0.01",
+                                                                min: "0",
+                                                            }}
+                                                            helperText="Amount received from sale or trade-in. Used to compute gain/loss and potential recapture. See IRS Form 4797."
+                                                        />
+                                                    )}
+
+                                                    <Box
+                                                        sx={{
+                                                            mt: 2,
+                                                            p: 1.5,
+                                                            bgcolor:
+                                                                "warning.lighter",
+                                                            borderRadius: 1,
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="warning.dark"
+                                                        >
+                                                            <strong>
+                                                                Note:
+                                                            </strong>{" "}
+                                                            Disposition of asset
+                                                            may trigger
+                                                            depreciation
+                                                            recapture (IRC
+                                                            §1245) and must be
+                                                            reported on IRS Form
+                                                            4797. Consult tax
+                                                            advisor for proper
+                                                            reporting.
+                                                        </Typography>
+                                                    </Box>
+                                                </>
+                                            )}
+                                        </Box>
+                                    )}
                                 </Box>
                             </AccordionDetails>
                         </Accordion>
@@ -1920,9 +2212,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                         option.name
                                             ?.toLowerCase()
                                             .includes(searchTerm) ||
-                                        option.barcode
-                                            ?.toLowerCase()
-                                            .includes(searchTerm) ||
                                         option.serial_number
                                             ?.toLowerCase()
                                             .includes(searchTerm) ||
@@ -1943,7 +2232,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                 <TextField
                                     {...params}
                                     label="Select Equipment"
-                                    placeholder="Search by name, barcode, serial, description, or location"
+                                    placeholder="Search by name, serial, description, or location"
                                 />
                             )}
                             renderOption={(props, option) => (

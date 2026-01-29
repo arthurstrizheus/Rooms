@@ -9,6 +9,12 @@ const path = require("path");
 const fs = require("fs");
 const { GetSubscribers } = require("./equipmentAlertController");
 const { sendEquipmentStatusChangeEmail } = require("./mailController");
+const {
+    validateSection179,
+} = require("../depreciation/validators/section179Validator");
+const {
+    validatePassengerAuto,
+} = require("../depreciation/validators/passengerAutoValidator");
 
 const GetAll = async (req, res, next) => {
     try {
@@ -118,6 +124,7 @@ const Post = async (req, res, next) => {
             method: equipmentData.method,
             bonus_eligible: equipmentData.bonus_eligible,
             section179_elected: equipmentData.section179_elected,
+            vehicle_class: equipmentData.vehicle_class || "UNKNOWN",
         };
 
         // Check if any tax meta fields are provided
@@ -126,9 +133,47 @@ const Post = async (req, res, next) => {
         );
 
         if (hasTaxMetaData) {
+            // Validate Section 179 before saving
+            const validationResult = validateSection179(
+                equipment,
+                taxMetaFields,
+            );
+
+            // Additionally validate passenger auto 280F limits
+            const passengerAutoResult = validatePassengerAuto(
+                equipment,
+                taxMetaFields,
+                1, // Year 1 depreciation
+            );
+
+            // Combine validation results
+            const allErrors = [
+                ...validationResult.errors,
+                ...passengerAutoResult.errors,
+            ];
+            const allWarnings = [
+                ...validationResult.warnings,
+                ...passengerAutoResult.warnings,
+            ];
+
+            if (allErrors.length > 0) {
+                // Delete the equipment we just created since validation failed
+                await equipment.destroy();
+                return res.status(400).json({
+                    message: "Tax depreciation validation failed",
+                    errors: allErrors,
+                    warnings: allWarnings,
+                });
+            }
+
+            // Save with validation results
             await AssetTaxMeta.create({
                 asset_id: equipment.id,
                 ...taxMetaFields,
+                requires_manual_confirmation:
+                    validationResult.requiresManualConfirmation,
+                validation_warnings_json:
+                    allWarnings.length > 0 ? allWarnings : null,
             });
         }
 
@@ -211,30 +256,116 @@ const Update = async (req, res, next) => {
 
         // Update or create AssetTaxMeta if depreciation fields provided
         const taxMetaFields = {
-            placed_in_service_date: updates.placed_in_service_date,
-            cost_basis: updates.cost_basis || updates.cost,
-            property_class: updates.property_class,
-            method: updates.method,
-            bonus_eligible: updates.bonus_eligible,
-            section179_elected: updates.section179_elected,
+            placed_in_service_date: updates.placed_in_service_date || null,
+            cost_basis: updates.cost_basis || updates.cost || null,
+            property_class: updates.property_class || null,
+            method: updates.method || null,
+            bonus_eligible: updates.bonus_eligible ?? null,
+            section179_elected: updates.section179_elected ?? null,
+            vehicle_class: updates.vehicle_class || "UNKNOWN",
         };
 
-        // Check if any tax meta fields are provided
-        const hasTaxMetaData = Object.values(taxMetaFields).some(
-            (val) => val !== undefined && val !== null && val !== "",
+        // Clean up empty strings - convert to null for all fields
+        if (taxMetaFields.placed_in_service_date === "") {
+            taxMetaFields.placed_in_service_date = null;
+        }
+        if (taxMetaFields.cost_basis === "") {
+            taxMetaFields.cost_basis = null;
+        }
+        if (taxMetaFields.section179_elected === "") {
+            taxMetaFields.section179_elected = null;
+        }
+        if (taxMetaFields.property_class === "") {
+            taxMetaFields.property_class = null;
+        }
+        if (taxMetaFields.method === "") {
+            taxMetaFields.method = null;
+        }
+
+        // Check if any tax meta fields are provided (excluding nulls and empty strings)
+        const hasTaxMetaData = Object.entries(taxMetaFields).some(
+            ([key, val]) =>
+                val !== undefined &&
+                val !== null &&
+                val !== "" &&
+                key !== "vehicle_class", // Don't count default vehicle_class
         );
 
         if (hasTaxMetaData) {
+            // Validate Section 179 before saving
+            const validationResult = validateSection179(
+                equipment,
+                taxMetaFields,
+            );
+
+            // Additionally validate passenger auto 280F limits
+            const passengerAutoResult = validatePassengerAuto(
+                equipment,
+                taxMetaFields,
+                1, // Year 1 depreciation
+            );
+
+            // Combine validation results
+            const allErrors = [
+                ...validationResult.errors,
+                ...passengerAutoResult.errors,
+            ];
+            const allWarnings = [
+                ...validationResult.warnings,
+                ...passengerAutoResult.warnings,
+            ];
+
+            if (allErrors.length > 0) {
+                return res.status(400).json({
+                    message: "Tax depreciation validation failed",
+                    errors: allErrors,
+                    warnings: allWarnings,
+                });
+            }
+
             const existingTaxMeta = await AssetTaxMeta.findOne({
                 where: { asset_id: id },
             });
 
+            const taxMetaWithValidation = {
+                ...taxMetaFields,
+                requires_manual_confirmation:
+                    validationResult.requiresManualConfirmation,
+                validation_warnings_json:
+                    allWarnings.length > 0 ? allWarnings : null,
+            };
+
             if (existingTaxMeta) {
-                await existingTaxMeta.update(taxMetaFields);
+                await existingTaxMeta.update(taxMetaWithValidation);
             } else {
                 await AssetTaxMeta.create({
                     asset_id: id,
-                    ...taxMetaFields,
+                    ...taxMetaWithValidation,
+                });
+            }
+        }
+
+        // Auto-trigger disposal if status changed to 'retired'
+        if (updates.status === "retired" && oldStatus !== "retired") {
+            const taxMeta = await AssetTaxMeta.findOne({
+                where: { asset_id: id },
+            });
+
+            if (taxMeta) {
+                // Only set disposal_date if not already set
+                if (!taxMeta.disposal_date) {
+                    await taxMeta.update({
+                        disposal_date: new Date(),
+                        disposal_method: taxMeta.disposal_method || "Retired",
+                    });
+                }
+            } else {
+                // Create AssetTaxMeta with disposal info if it doesn't exist
+                await AssetTaxMeta.create({
+                    asset_id: id,
+                    disposal_date: new Date(),
+                    disposal_method: "Retired",
+                    vehicle_class: "UNKNOWN",
                 });
             }
         }
@@ -286,6 +417,28 @@ const Delete = async (req, res, next) => {
 
         if (!equipment) {
             return res.status(404).json({ message: "Equipment not found" });
+        }
+
+        // Auto-trigger disposal before deletion
+        const taxMeta = await AssetTaxMeta.findOne({
+            where: { asset_id: id },
+        });
+
+        if (taxMeta && !taxMeta.disposal_date) {
+            // Set disposal date if not already set
+            await taxMeta.update({
+                disposal_date: new Date(),
+                disposal_method: taxMeta.disposal_method || "Deleted",
+            });
+        } else if (!taxMeta) {
+            // Create AssetTaxMeta with disposal info if it doesn't exist
+            // This ensures disposal is tracked even if no tax info was entered
+            await AssetTaxMeta.create({
+                asset_id: id,
+                disposal_date: new Date(),
+                disposal_method: "Deleted",
+                vehicle_class: "UNKNOWN",
+            });
         }
 
         // Delete equipment directory if exists

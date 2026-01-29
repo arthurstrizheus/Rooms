@@ -1,0 +1,51 @@
+{
+    "meta": {
+        "version": "2026-01-29",
+        "notes": "Federal vehicle-related limits for Section 179 validation. Update annually from IRS official publications. These are the IRC Section 179 deduction limits specific to certain vehicles, NOT general depreciation limits.",
+        "sources": [
+            "https://www.irs.gov/publications/p946",
+            "https://www.irs.gov/pub/irs-drop/rp-23-34.pdf",
+            "https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2024",
+            "https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2025"
+        ],
+        "disclaimer": "These limits apply to SUVs and certain trucks/vans with GVWR between 6,000-14,000 lbs. Passenger automobiles have different depreciation limits (not Section 179). Heavy vehicles over 14,000 lbs GVWR are not subject to Section 179 caps."
+    },
+    "byTaxYear": {
+        "2018": {
+            "suv179Cap": 25000,
+            "notes": "IRC Section 179 limit for SUVs placed in service in 2018"
+        },
+        "2019": {
+            "suv179Cap": 25500,
+            "notes": "Inflation adjustment for 2019"
+        },
+        "2020": {
+            "suv179Cap": 25900,
+            "notes": "Inflation adjustment for 2020"
+        },
+        "2021": {
+            "suv179Cap": 26200,
+            "notes": "Inflation adjustment for 2021"
+        },
+        "2022": {
+            "suv179Cap": 27000,
+            "notes": "Inflation adjustment for 2022"
+        },
+        "2023": {
+            "suv179Cap": 28900,
+            "notes": "Inflation adjustment for 2023"
+        },
+        "2024": {
+            "suv179Cap": 30500,
+            "notes": "Inflation adjustment for 2024 per Rev. Proc. 2023-34"
+        },
+        "2025": {
+            "suv179Cap": 31300,
+            "notes": "Inflation adjustment for 2025 per IRS announcement"
+        },
+        "2026": {
+            "suv179Cap": 32000,
+            "notes": "Projected inflation adjustment for 2026 (subject to IRS confirmation)"
+        }
+    }
+}

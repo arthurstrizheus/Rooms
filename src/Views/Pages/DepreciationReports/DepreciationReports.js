@@ -26,6 +26,9 @@ import {
     AccordionDetails,
     Link,
     CircularProgress,
+    Menu,
+    ListItemIcon,
+    ListItemText,
 } from "@mui/material";
 import {
     ExpandMore,
@@ -34,10 +37,19 @@ import {
     Info,
     Warning,
     Settings,
+    ArrowDropDown,
+    DirectionsCar,
+    Gavel,
+    TrendingDown,
+    AttachMoney,
 } from "@mui/icons-material";
 import axios from "axios";
 import { useAuth } from "../../../Utilites/AuthContext";
 import TaxRulesManagementDialog from "./TaxRulesManagementDialog";
+import FederalVehicleLimitsDialog from "./FederalVehicleLimitsDialog";
+import BonusRatesDialog from "./BonusRatesDialog";
+import Section179LimitsDialog from "./Section179LimitsDialog";
+import PassengerAutoLimitsDialog from "./PassengerAutoLimitsDialog";
 
 const DepreciationReports = ({ setLoading }) => {
     const { user } = useAuth();
@@ -65,7 +77,15 @@ const DepreciationReports = ({ setLoading }) => {
     });
 
     const [openTaxRulesDialog, setOpenTaxRulesDialog] = useState(false);
+    const [openFederalLimitsDialog, setOpenFederalLimitsDialog] =
+        useState(false);
+    const [openBonusRatesDialog, setOpenBonusRatesDialog] = useState(false);
+    const [openSection179LimitsDialog, setOpenSection179LimitsDialog] =
+        useState(false);
+    const [openPassengerAutoLimitsDialog, setOpenPassengerAutoLimitsDialog] =
+        useState(false);
     const [selectedOfficeForRules, setSelectedOfficeForRules] = useState(null);
+    const [settingsMenuAnchor, setSettingsMenuAnchor] = useState(null);
 
     useEffect(() => {
         fetchOffices();
@@ -77,9 +97,24 @@ const DepreciationReports = ({ setLoading }) => {
             const response = await axios.get("/api/locations", {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setOffices(response.data);
-            if (response.data.length > 0) {
-                setSelectedOffice(response.data[0].officeid);
+
+            // Filter out "All" office
+            const filteredOffices = response.data.filter(
+                (office) => office.Alias !== "All",
+            );
+
+            setOffices(filteredOffices);
+
+            // Set default to user's office if available, otherwise first office
+            if (filteredOffices.length > 0) {
+                const userOffice = filteredOffices.find(
+                    (office) => office.officeid === user?.location,
+                );
+                setSelectedOffice(
+                    userOffice
+                        ? userOffice.officeid
+                        : filteredOffices[0].officeid,
+                );
             }
         } catch (error) {
             console.error("Error fetching offices:", error);
@@ -257,30 +292,99 @@ const DepreciationReports = ({ setLoading }) => {
                             <Button
                                 variant="outlined"
                                 size="large"
-                                onClick={() => {
-                                    const office = offices.find(
-                                        (o) => o.officeid === selectedOffice,
-                                    );
-                                    setSelectedOfficeForRules(office);
-                                    setOpenTaxRulesDialog(true);
-                                }}
-                                disabled={!selectedOffice}
+                                onClick={(e) =>
+                                    setSettingsMenuAnchor(e.currentTarget)
+                                }
                                 fullWidth
                                 startIcon={<Settings />}
+                                endIcon={<ArrowDropDown />}
                             >
-                                Manage Tax Rules
+                                Manage Tax Settings
                             </Button>
+                            <Menu
+                                anchorEl={settingsMenuAnchor}
+                                open={Boolean(settingsMenuAnchor)}
+                                onClose={() => setSettingsMenuAnchor(null)}
+                                anchorOrigin={{
+                                    vertical: "bottom",
+                                    horizontal: "left",
+                                }}
+                                transformOrigin={{
+                                    vertical: "top",
+                                    horizontal: "left",
+                                }}
+                            >
+                                <MenuItem
+                                    onClick={() => {
+                                        const office = offices.find(
+                                            (o) =>
+                                                o.officeid === selectedOffice,
+                                        );
+                                        setSelectedOfficeForRules(office);
+                                        setOpenTaxRulesDialog(true);
+                                        setSettingsMenuAnchor(null);
+                                    }}
+                                    disabled={!selectedOffice}
+                                >
+                                    <ListItemIcon>
+                                        <Gavel fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Manage Tax Rules" />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
+                                        setOpenFederalLimitsDialog(true);
+                                        setSettingsMenuAnchor(null);
+                                    }}
+                                >
+                                    <ListItemIcon>
+                                        <DirectionsCar fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Vehicle Section 179 Limits" />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
+                                        setOpenBonusRatesDialog(true);
+                                        setSettingsMenuAnchor(null);
+                                    }}
+                                >
+                                    <ListItemIcon>
+                                        <TrendingDown fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Bonus Depreciation Rates" />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
+                                        setOpenSection179LimitsDialog(true);
+                                        setSettingsMenuAnchor(null);
+                                    }}
+                                >
+                                    <ListItemIcon>
+                                        <AttachMoney fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Section 179 Overall Limits" />
+                                </MenuItem>
+                                <MenuItem
+                                    onClick={() => {
+                                        setOpenPassengerAutoLimitsDialog(true);
+                                        setSettingsMenuAnchor(null);
+                                    }}
+                                >
+                                    <ListItemIcon>
+                                        <DirectionsCar fontSize="small" />
+                                    </ListItemIcon>
+                                    <ListItemText primary="Passenger Auto 280F Limits" />
+                                </MenuItem>
+                            </Menu>
                         </Grid>
                     )}
                 </Grid>
             </Paper>
-
             {error && (
                 <Alert severity="error" sx={{ mb: 3 }}>
                     {error}
                 </Alert>
             )}
-
             {/* No data message */}
             {report && report.assets && report.assets.length === 0 && (
                 <Alert severity="warning" sx={{ mb: 3 }}>
@@ -305,7 +409,6 @@ const DepreciationReports = ({ setLoading }) => {
                     </Typography>
                 </Alert>
             )}
-
             {/* Report Display */}
             {report && report.assets && report.assets.length > 0 && (
                 <>
@@ -578,7 +681,6 @@ const DepreciationReports = ({ setLoading }) => {
                     )}
                 </>
             )}
-
             {/* Tax Meta Edit Dialog */}
             <Dialog
                 open={openTaxMetaDialog}
@@ -713,7 +815,6 @@ const DepreciationReports = ({ setLoading }) => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
             {/* Tax Rules Management Dialog */}
             <TaxRulesManagementDialog
                 open={openTaxRulesDialog}
@@ -726,6 +827,26 @@ const DepreciationReports = ({ setLoading }) => {
                         generateReport();
                     }
                 }}
+            />
+            {/* Federal Vehicle Limits Dialog */}
+            <FederalVehicleLimitsDialog
+                open={openFederalLimitsDialog}
+                onClose={() => setOpenFederalLimitsDialog(false)}
+            />
+            {/* Bonus Rates Dialog */}
+            <BonusRatesDialog
+                open={openBonusRatesDialog}
+                onClose={() => setOpenBonusRatesDialog(false)}
+            />
+            {/* Section 179 Limits Dialog */}
+            <Section179LimitsDialog
+                open={openSection179LimitsDialog}
+                onClose={() => setOpenSection179LimitsDialog(false)}
+            />
+            {/* Passenger Auto Limits Dialog */}
+            <PassengerAutoLimitsDialog
+                open={openPassengerAutoLimitsDialog}
+                onClose={() => setOpenPassengerAutoLimitsDialog(false)}
             />
         </Box>
     );

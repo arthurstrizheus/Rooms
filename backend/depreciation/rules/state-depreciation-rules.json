@@ -1,6 +1,6 @@
 {
     "rulePackMeta": {
-        "name": "SEA_Limited_State_Depreciation_Rules",
+        "name": "State_Depreciation_Rules",
         "version": "2026-01-29",
         "notes": "State-specific depreciation adjustments for business income/franchise tax computations. URLs are official state government sources.",
         "defaultAssumption": "Compute Federal depreciation first (MACRS/179/168k), then apply state modifications from this pack."

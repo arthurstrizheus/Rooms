@@ -1,0 +1,59 @@
+{
+    "version": "2026.1",
+    "lastUpdated": "2026-01-29",
+    "description": "IRC Section 280F passenger automobile depreciation limits by tax year",
+    "sources": [
+        "https://www.irs.gov/publications/p946#en_US_2023_publink1000107484",
+        "https://www.irs.gov/pub/irs-drop/rp-23-34.pdf"
+    ],
+    "passengerAutoLimits": {
+        "2023": {
+            "year1_withBonus": 20200,
+            "year1_noBonus": 12200,
+            "year2": 19600,
+            "year3": 11800,
+            "year4Plus": 7160,
+            "notes": "80% bonus depreciation available in 2023"
+        },
+        "2024": {
+            "year1_withBonus": 20400,
+            "year1_noBonus": 12400,
+            "year2": 19800,
+            "year3": 11900,
+            "year4Plus": 7260,
+            "notes": "60% bonus depreciation available in 2024, Rev. Proc. 2023-34"
+        },
+        "2025": {
+            "year1_withBonus": 20800,
+            "year1_noBonus": 12600,
+            "year2": 20200,
+            "year3": 12100,
+            "year4Plus": 7400,
+            "notes": "40% bonus depreciation available in 2025 (projected)"
+        },
+        "2026": {
+            "year1_withBonus": 21200,
+            "year1_noBonus": 12800,
+            "year2": 20600,
+            "year3": 12300,
+            "year4Plus": 7540,
+            "notes": "20% bonus depreciation available in 2026 (projected, subject to IRS confirmation)"
+        }
+    },
+    "applicability": {
+        "definition": "Passenger automobiles are 4-wheeled vehicles manufactured primarily for use on public streets/roads, with unloaded gross vehicle weight of 6,000 lbs or less",
+        "exclusions": [
+            "Vehicles with GVWR > 6,000 lbs (may be subject to SUV Section 179 caps instead)",
+            "Vehicles not designed primarily for personal use (ambulances, hearses, taxis, delivery vehicles)",
+            "Trucks and vans rated at > 6,000 lbs GVWR"
+        ]
+    },
+    "notes": [
+        "These are annual depreciation caps including all methods (MACRS, bonus, §179)",
+        "Limits apply separately to each vehicle",
+        "Year 1 limit includes bonus depreciation if elected and available",
+        "If bonus not elected, use year1_noBonus limit",
+        "Limits are for 100% business use; prorate for mixed use",
+        "Used passenger autos acquired before 9/28/2017 may have different rules"
+    ]
+}

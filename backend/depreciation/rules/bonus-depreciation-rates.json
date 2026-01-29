@@ -1,0 +1,55 @@
+{
+    "bonusByYear": {
+        "2017": {
+            "bonusPercent": 0.5,
+            "notes": "Pre-TCJA rate"
+        },
+        "2018": {
+            "bonusPercent": 1,
+            "notes": "TCJA full expensing begins (placed in service 9/28/2017 - 12/31/2022)"
+        },
+        "2019": {
+            "bonusPercent": 1,
+            "notes": "TCJA full expensing"
+        },
+        "2020": {
+            "bonusPercent": 1,
+            "notes": "TCJA full expensing"
+        },
+        "2021": {
+            "bonusPercent": 1,
+            "notes": "TCJA full expensing"
+        },
+        "2022": {
+            "bonusPercent": 1,
+            "notes": "TCJA full expensing"
+        },
+        "2023": {
+            "bonusPercent": 0.8,
+            "notes": "TCJA phase-down begins"
+        },
+        "2024": {
+            "bonusPercent": 0.6,
+            "notes": "TCJA phase-down continues"
+        },
+        "2025": {
+            "bonusPercent": 0.4,
+            "notes": "TCJA phase-down continues"
+        },
+        "2026": {
+            "bonusPercent": 0.2,
+            "notes": "TCJA phase-down continues"
+        },
+        "2027": {
+            "bonusPercent": 0,
+            "notes": "TCJA bonus depreciation expires (reverts to 0% unless Congress extends)",
+            "source": "https://www.irs.gov/newsroom/bonus-depreciation"
+        }
+    },
+    "notes": [
+        "These rates apply to qualified property placed in service during the specified year",
+        "Some property types have different qualification rules",
+        "Used property may qualify under certain conditions (acquired after 9/27/2017, not from related party)",
+        "Real property improvements may have different rules"
+    ]
+}

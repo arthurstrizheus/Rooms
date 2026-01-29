@@ -39,7 +39,8 @@ const GetAll = async (req, res) => {
         if (
             req.user?.admin ||
             req.user?.equipment_office_admin ||
-            req.user?.equipment_admin
+            req.user?.equipment_admin ||
+            req.user?.tax_admin
         ) {
             data = await User.findAll();
         }
@@ -96,6 +97,7 @@ const Post = async (req, res) => {
             created_user_id,
             equipment_office_admin,
             equipment_admin,
+            tax_admin,
             active,
         } = req.body;
 
@@ -137,6 +139,7 @@ const Post = async (req, res) => {
             active,
             equipment_office_admin: equipment_office_admin || null,
             equipment_admin: equipment_admin || false,
+            tax_admin: tax_admin || false,
             location: location ? location : 0,
             last_login: created_user_id ? null : new Date().toISOString(),
             created_user_id: created_user_id ? created_user_id : null,
@@ -189,6 +192,7 @@ const Update = async (req, res) => {
             location,
             equipment_office_admin,
             equipment_admin,
+            tax_admin,
         } = req.body; // Extract data from the request body
 
         // Validate the incoming data (optional but recommended)
@@ -228,6 +232,7 @@ const Update = async (req, res) => {
             location: location ? location : 0,
             equipment_office_admin: equipment_office_admin || null,
             equipment_admin: equipment_admin || false,
+            tax_admin: tax_admin || false,
         });
 
         // Return the updated record as a JSON response
@@ -385,6 +390,7 @@ const Authenticate = async (req, res) => {
                 admin: user.admin,
                 equipment_office_admin: user.equipment_office_admin,
                 equipment_admin: user.equipment_admin,
+                tax_admin: user.tax_admin,
                 location: user.location,
             },
             process.env.JWT_SECRET,
@@ -530,6 +536,7 @@ const AuthenticateAD = async (req, res) => {
                     equipment_office_admin:
                         userWithoutPassword.equipment_office_admin,
                     equipment_admin: userWithoutPassword.equipment_admin,
+                    tax_admin: userWithoutPassword.tax_admin,
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
@@ -564,6 +571,7 @@ const AuthenticateAD = async (req, res) => {
                     equipment_office_admin:
                         userWithoutPassword.equipment_office_admin,
                     equipment_admin: userWithoutPassword.equipment_admin,
+                    tax_admin: userWithoutPassword.tax_admin,
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
@@ -817,6 +825,7 @@ const CreateFromAd = async (req, res) => {
             location: location,
             equipment_office_admin: null,
             equipment_admin: false,
+            tax_admin: false,
         });
 
         const userWithoutPassword = {

@@ -38,6 +38,11 @@ const User = sequelize.define(
             allowNull: true,
             defaultValue: false,
         },
+        tax_admin: {
+            type: DataTypes.BOOLEAN,
+            allowNull: true,
+            defaultValue: false,
+        },
         first_name: {
             type: DataTypes.STRING,
             allowNull: true,

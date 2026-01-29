@@ -52,6 +52,13 @@ const TaxRulesManagementDialog = ({
         spreadMethod: "straight_line",
         notes: "",
         sources: [""],
+        addbackFormula: "",
+        addbackBase: "",
+        computation: "",
+        implementation: "",
+        eligibility: "",
+        bonusAddbackPercent: "",
+        annualSubtractionPercent: "",
     });
 
     const [closeRangeForm, setCloseRangeForm] = useState({
@@ -147,6 +154,50 @@ const TaxRulesManagementDialog = ({
             setSuccess(null);
 
             const token = localStorage.getItem("authToken");
+
+            // Build parameters object with only non-empty values
+            const parameters = {
+                notes: newRule.notes,
+            };
+
+            // Add conditional parameters
+            if (newRule.section179Threshold) {
+                parameters.section179Threshold = parseInt(
+                    newRule.section179Threshold,
+                );
+            }
+            if (newRule.spreadYears) {
+                parameters.spreadYears = parseInt(newRule.spreadYears);
+            }
+            if (newRule.spreadMethod) {
+                parameters.spreadMethod = newRule.spreadMethod;
+            }
+            if (newRule.addbackFormula) {
+                parameters.addbackFormula = newRule.addbackFormula;
+            }
+            if (newRule.addbackBase) {
+                parameters.addbackBase = newRule.addbackBase;
+            }
+            if (newRule.computation) {
+                parameters.computation = newRule.computation;
+            }
+            if (newRule.implementation) {
+                parameters.implementation = newRule.implementation;
+            }
+            if (newRule.eligibility) {
+                parameters.eligibility = newRule.eligibility;
+            }
+            if (newRule.bonusAddbackPercent) {
+                parameters.bonusAddbackPercent = parseFloat(
+                    newRule.bonusAddbackPercent,
+                );
+            }
+            if (newRule.annualSubtractionPercent) {
+                parameters.annualSubtractionPercent = parseFloat(
+                    newRule.annualSubtractionPercent,
+                );
+            }
+
             await axios.post(
                 `/api/tax-rules/offices/${officeId}`,
                 {
@@ -160,12 +211,7 @@ const TaxRulesManagementDialog = ({
                             newRule.effectiveToTaxYear === ""
                                 ? null
                                 : parseInt(newRule.effectiveToTaxYear),
-                        parameters: {
-                            section179Threshold: newRule.section179Threshold,
-                            spreadYears: newRule.spreadYears,
-                            spreadMethod: newRule.spreadMethod,
-                            notes: newRule.notes,
-                        },
+                        parameters: parameters,
                         sources: newRule.sources.filter((s) => s.trim() !== ""),
                     },
                 },
@@ -578,6 +624,260 @@ const TaxRulesManagementDialog = ({
                     helperText="Additional information about this rule"
                 />
 
+                {/* Additional Parameter Fields */}
+                <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                    Additional Parameters
+                </Typography>
+
+                {(newRule.ruleType ===
+                    "addback_bonus_plus_179_over_threshold" ||
+                    newRule.ruleType === "addback_then_subtract_spread" ||
+                    newRule.ruleType ===
+                        "addback_percent_of_federal_bonus_then_spread") && (
+                    <TextField
+                        multiline
+                        rows={2}
+                        label="Add-back Formula"
+                        value={newRule.addbackFormula}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                addbackFormula: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        placeholder="e.g., stateAddback = federalBonus168k + max(0, federalSection179 - 25000)"
+                        helperText={
+                            <span>
+                                Mathematical formula for calculating state tax
+                                addback. See{" "}
+                                <Link
+                                    href="https://www.irs.gov/publications/p946"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Pub 946
+                                </Link>{" "}
+                                for federal depreciation rules.
+                            </span>
+                        }
+                    />
+                )}
+
+                {(newRule.ruleType === "addback_then_subtract_spread" ||
+                    newRule.ruleType ===
+                        "addback_federal_depreciation_compute_ga_separately") && (
+                    <TextField
+                        label="Add-back Base"
+                        value={newRule.addbackBase}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                addbackBase: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        placeholder="e.g., federalBonus168k or federalTotalDepreciation"
+                        helperText={
+                            <span>
+                                What federal amount gets added back to state
+                                income. See{" "}
+                                <Link
+                                    href="https://www.irs.gov/newsroom/bonus-depreciation"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Bonus Depreciation
+                                </Link>{" "}
+                                guidance.
+                            </span>
+                        }
+                    />
+                )}
+
+                {newRule.ruleType ===
+                    "addback_percent_of_federal_bonus_then_spread" && (
+                    <TextField
+                        type="number"
+                        label="Bonus Add-back Percent"
+                        value={newRule.bonusAddbackPercent}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                bonusAddbackPercent: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        InputProps={{ endAdornment: "%" }}
+                        placeholder="e.g., 85"
+                        helperText={
+                            <span>
+                                Percentage of federal bonus depreciation to add
+                                back (e.g., NC adds back 85%). See{" "}
+                                <Link
+                                    href="https://www.irs.gov/newsroom/bonus-depreciation"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Bonus Depreciation
+                                </Link>{" "}
+                                for federal rates.
+                            </span>
+                        }
+                    />
+                )}
+
+                {newRule.ruleType === "addback_then_subtract_spread" && (
+                    <TextField
+                        type="number"
+                        label="Annual Subtraction Percent"
+                        value={newRule.annualSubtractionPercent}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                annualSubtractionPercent: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        InputProps={{ endAdornment: "%" }}
+                        placeholder="e.g., 14.2857142857"
+                        helperText={
+                            <span>
+                                Percentage deducted each year during spread
+                                period (typically 100 / spreadYears). See{" "}
+                                <Link
+                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107449"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Depreciation Methods
+                                </Link>
+                                .
+                            </span>
+                        }
+                    />
+                )}
+
+                {newRule.ruleType === "addback_then_subtract_spread" && (
+                    <TextField
+                        label="Eligibility Criteria"
+                        value={newRule.eligibility}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                eligibility: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        placeholder="e.g., Assets placed in service before 2027-01-01"
+                        helperText={
+                            <span>
+                                Which assets qualify for this treatment. See{" "}
+                                <Link
+                                    href="https://www.irs.gov/businesses/small-businesses-self-employed/section-179-deduction"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Section 179
+                                </Link>{" "}
+                                and{" "}
+                                <Link
+                                    href="https://www.irs.gov/newsroom/bonus-depreciation"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    Bonus Depreciation
+                                </Link>{" "}
+                                eligibility rules.
+                            </span>
+                        }
+                    />
+                )}
+
+                {(newRule.ruleType ===
+                    "proforma_difference_federal_asfiled_vs_without_decoupled" ||
+                    newRule.ruleType ===
+                        "addback_federal_depreciation_compute_ga_separately") && (
+                    <TextField
+                        multiline
+                        rows={2}
+                        label="Computation Method"
+                        value={newRule.computation}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                computation: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        placeholder="e.g., stateModification = (federalAsFiledIncludingDecoupling - federalWithoutDecoupledProvisions)"
+                        helperText={
+                            <span>
+                                How to calculate the state adjustment. See{" "}
+                                <Link
+                                    href="https://www.irs.gov/publications/p946"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Publication 946
+                                </Link>{" "}
+                                for MACRS and federal depreciation computation.
+                            </span>
+                        }
+                    />
+                )}
+
+                {(newRule.ruleType ===
+                    "proforma_difference_federal_asfiled_vs_without_decoupled" ||
+                    newRule.ruleType ===
+                        "recompute_depreciation_as_if_no_168k") && (
+                    <TextField
+                        multiline
+                        rows={2}
+                        label="Implementation Details"
+                        value={newRule.implementation}
+                        onChange={(e) =>
+                            setNewRule({
+                                ...newRule,
+                                implementation: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        placeholder="e.g., Compute both depreciation totals for the tax year, then apply delta"
+                        helperText={
+                            <span>
+                                Additional guidance on implementing this
+                                calculation. See{" "}
+                                <Link
+                                    href="https://www.irs.gov/publications/p946"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    IRS Pub 946
+                                </Link>{" "}
+                                and{" "}
+                                <Link
+                                    href="https://www.irs.gov/forms-pubs/about-form-4562"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    color="error"
+                                >
+                                    Form 4562
+                                </Link>{" "}
+                                (Depreciation and Amortization).
+                            </span>
+                        }
+                    />
+                )}
+
                 <Box>
                     <Typography variant="subtitle2" gutterBottom>
                         Government Source URLs
@@ -757,6 +1057,7 @@ const TaxRulesManagementDialog = ({
                                 Math.min(steps.length - 1, activeStep + 1),
                             )
                         }
+                        disabled={activeStep === 1 && !newRule.ruleType}
                     >
                         Next
                     </Button>

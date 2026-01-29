@@ -4,6 +4,7 @@
  */
 
 const { computeMACRS } = require("./macrsCalculator");
+const { getBonusPercentForYear } = require("../rules/bonusRatesLoader");
 
 /**
  * Compute Section 179 expense for a tax year
@@ -58,20 +59,8 @@ function computeBonus(asset, taxYear) {
         return 0;
     }
 
-    // Bonus percentage depends on the year
-    // 2018-2022: 100%, 2023: 80%, 2024: 60%, 2025: 40%, 2026: 20%, 2027+: 0%
-    let bonusPercent = 0;
-    if (placedYear >= 2018 && placedYear <= 2022) {
-        bonusPercent = 1.0;
-    } else if (placedYear === 2023) {
-        bonusPercent = 0.8;
-    } else if (placedYear === 2024) {
-        bonusPercent = 0.6;
-    } else if (placedYear === 2025) {
-        bonusPercent = 0.4;
-    } else if (placedYear === 2026) {
-        bonusPercent = 0.2;
-    }
+    // Get bonus percentage from rules file based on placed-in-service year
+    const bonusPercent = getBonusPercentForYear(placedYear);
 
     return remainingBasis * bonusPercent;
 }

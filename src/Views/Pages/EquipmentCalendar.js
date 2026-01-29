@@ -509,8 +509,7 @@ const EquipmentCalendar = ({
                 <Box sx={{ mb: 2, px: isMobile ? 2 : 0 }}>
                     <Typography variant="body2" color="text.secondary">
                         Location: {equipment.location || "N/A"} | Serial:{" "}
-                        {equipment.serial_number || "N/A"} | Barcode:{" "}
-                        {equipment.barcode || "N/A"} | Contact:{" "}
+                        {equipment.serial_number || "N/A"} | Contact:{" "}
                         {equipment.contact_person || "N/A"}
                     </Typography>
                 </Box>

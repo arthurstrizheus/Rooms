@@ -259,27 +259,30 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                     />
                     {(user?.admin ||
                         user?.equipment_admin ||
-                        user?.equipment_office_admin) && (
+                        user?.equipment_office_admin ||
+                        user?.tax_admin) && (
                         <>
                             <Divider />
                             <MenuItem
                                 title="Admin"
                                 icon={<></>}
                                 items={[
-                                    {
+                                    (user?.admin ||
+                                        user?.equipment_admin ||
+                                        user?.equipment_office_admin) && {
                                         name: "Users",
                                         icon: <PeopleAltOutlinedIcon />,
                                         onClick: () => handleMenuClick("users"),
                                         selected: nav.page == "users",
                                     },
-                                    {
+                                    (user?.admin || user?.tax_admin) && {
                                         name: "Depreciation Reports",
                                         icon: <AccountBalanceIcon />,
                                         onClick: () =>
                                             handleMenuClick("depreciation"),
                                         selected: nav.page == "depreciation",
                                     },
-                                ]}
+                                ].filter(Boolean)}
                             />
                         </>
                     )}

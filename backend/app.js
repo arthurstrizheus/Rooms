@@ -36,8 +36,22 @@ const officeRouter = require("./routes/offices");
 const assetTaxMetaRouter = require("./routes/assetTaxMeta");
 const depreciationRouter = require("./routes/depreciation");
 const taxRulesRouter = require("./routes/taxRules");
+const federalVehicleLimitsRouter = require("./routes/federalVehicleLimits");
+const bonusRatesRouter = require("./routes/bonusRates");
+const section179LimitsRouter = require("./routes/section179Limits");
+const passengerAutoLimitsRouter = require("./routes/passengerAutoLimits");
 const errorHandler = require("./middleware/errorHandler");
 const { initCalibrationAlertsScheduler } = require("./jobs/calibrationAlerts");
+const {
+    loadFederalVehicleLimits,
+} = require("./depreciation/rules/federalLimitsLoader");
+const { loadBonusRates } = require("./depreciation/rules/bonusRatesLoader");
+const {
+    loadSection179Limits,
+} = require("./depreciation/rules/section179LimitsLoader");
+const {
+    loadPassengerAutoLimits,
+} = require("./depreciation/rules/passengerAutoLimitsLoader");
 
 const app = express();
 const server = http.createServer(app);
@@ -142,6 +156,10 @@ app.use("/api/locations", officeRouter);
 app.use("/api/asset-tax-meta", assetTaxMetaRouter);
 app.use("/api/depreciation", depreciationRouter);
 app.use("/api/tax-rules", taxRulesRouter);
+app.use("/api/federal-vehicle-limits", federalVehicleLimitsRouter);
+app.use("/api/bonus-rates", bonusRatesRouter);
+app.use("/api/section179-limits", section179LimitsRouter);
+app.use("/api/passenger-auto-limits", passengerAutoLimitsRouter);
 
 // Initialize WebSocket handlers
 handleSocketConnection(io);
@@ -270,6 +288,14 @@ const startServer = async () => {
 
         console.log("\n✅ Database migration complete!");
         console.log("All critical tables created successfully\n");
+
+        // Load tax depreciation rules
+        console.log("Loading tax depreciation rules...");
+        loadFederalVehicleLimits();
+        loadBonusRates();
+        loadSection179Limits();
+        loadPassengerAutoLimits();
+        console.log("✓ Tax rules loaded\n");
 
         // Initialize calibration alerts scheduler
         initCalibrationAlertsScheduler();

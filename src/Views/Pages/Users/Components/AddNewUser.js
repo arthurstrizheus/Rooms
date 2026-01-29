@@ -50,6 +50,7 @@ const AddNewUser = ({
     const [viewPassword, setViewPassword] = useState(false);
     const [equipmentOfficeAdmin, setEquipmentOfficeAdmin] = useState("");
     const [equipmentAdmin, setEquipmentAdmin] = useState(false);
+    const [taxAdmin, setTaxAdmin] = useState(false);
 
     const onClose = () => {
         setOpen(false);
@@ -62,6 +63,7 @@ const AddNewUser = ({
         setAdmin(false);
         setEquipmentOfficeAdmin("");
         setEquipmentAdmin(false);
+        setTaxAdmin(false);
         // }
     };
 
@@ -87,6 +89,7 @@ const AddNewUser = ({
                             ? equipmentOfficeAdmin
                             : null,
                     equipment_admin: equipmentAdmin || false,
+                    tax_admin: taxAdmin || false,
                 }).then((resp) => {
                     if (resp) {
                         showSuccess("User Created");
@@ -102,6 +105,7 @@ const AddNewUser = ({
                     admin: admin,
                     equipment_office_admin: equipmentOfficeAdmin,
                     equipment_admin: equipmentAdmin || false,
+                    tax_admin: taxAdmin || false,
                 }).then((resp) => {
                     if (resp) {
                         showSuccess("User Updated");
@@ -124,6 +128,7 @@ const AddNewUser = ({
             setAdmin(selectedUser?.admin);
             setEquipmentOfficeAdmin(selectedUser?.equipment_office_admin);
             setEquipmentAdmin(selectedUser?.equipment_admin || false);
+            setTaxAdmin(selectedUser?.tax_admin || false);
         }
     }, [selectedUser, userLocation]);
 
@@ -311,90 +316,117 @@ const AddNewUser = ({
                         />
                     )}
 
-                    {user?.admin ||
-                        (user?.equipment_admin && (
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={equipmentAdmin}
-                                        onChange={(e) =>
-                                            setEquipmentAdmin(e.target.checked)
-                                        }
-                                        sx={{
-                                            "& .MuiSwitch-switchBase": {
-                                                "&.Mui-checked": {
-                                                    color: "#fff",
-                                                    "& + .MuiSwitch-track": {
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .mode === "dark"
-                                                                ? "#2196f3"
-                                                                : "#64b5f6",
-                                                        opacity: 1,
-                                                        border: 0,
-                                                    },
+                    {(user?.admin || user?.equipment_admin) && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={equipmentAdmin}
+                                    onChange={(e) =>
+                                        setEquipmentAdmin(e.target.checked)
+                                    }
+                                    sx={{
+                                        "& .MuiSwitch-switchBase": {
+                                            "&.Mui-checked": {
+                                                color: "#fff",
+                                                "& + .MuiSwitch-track": {
+                                                    backgroundColor:
+                                                        theme.palette.mode ===
+                                                        "dark"
+                                                            ? "#2196f3"
+                                                            : "#64b5f6",
+                                                    opacity: 1,
+                                                    border: 0,
                                                 },
                                             },
-                                        }}
-                                    />
-                                }
-                                label="Equipment Administrator (All Offices)"
-                                sx={{
-                                    "& .MuiFormControlLabel-label": {
-                                        fontWeight: equipmentAdmin
-                                            ? "600"
-                                            : "400",
-                                        color: equipmentAdmin
-                                            ? "black"
-                                            : "grey",
-                                    },
-                                }}
-                            />
-                        ))}
-
-                    {user?.admin ||
-                        user?.equipment_admin ||
-                        (user?.equipment_office_admin && (
-                            <FormControl
-                                variant="outlined"
-                                size="small"
-                                fullWidth
-                            >
-                                <InputLabel id="equipment-admin-label">
-                                    Equipment Office Admin (Single Location)
-                                </InputLabel>
-                                <Select
-                                    labelId="equipment-admin-label"
-                                    value={equipmentOfficeAdmin || ""}
-                                    onChange={(e) => {
-                                        setEquipmentOfficeAdmin(e.target.value);
+                                        },
                                     }}
-                                    label="Equipment Admin"
-                                >
-                                    <MenuItem value="">
-                                        <em>None</em>
-                                    </MenuItem>
-                                    {locations
-                                        ?.filter((lc) => lc.Alias !== "All")
-                                        ?.map((itm, index) => (
-                                            <MenuItem
-                                                key={index}
-                                                value={itm.officeid}
-                                            >
-                                                {itm.Alias}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ mt: 0.5, ml: 1.5 }}
-                                >
-                                    Allows user to manage equipment for the
-                                    selected location
-                                </Typography>
-                            </FormControl>
-                        ))}
+                                />
+                            }
+                            label="Equipment Administrator (All Offices)"
+                            sx={{
+                                "& .MuiFormControlLabel-label": {
+                                    fontWeight: equipmentAdmin ? "600" : "400",
+                                    color: equipmentAdmin ? "black" : "grey",
+                                },
+                            }}
+                        />
+                    )}
+
+                    {(user?.admin || user?.tax_admin) && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={taxAdmin}
+                                    onChange={(e) =>
+                                        setTaxAdmin(e.target.checked)
+                                    }
+                                    sx={{
+                                        "& .MuiSwitch-switchBase": {
+                                            "&.Mui-checked": {
+                                                color: "#fff",
+                                                "& + .MuiSwitch-track": {
+                                                    backgroundColor:
+                                                        theme.palette.mode ===
+                                                        "dark"
+                                                            ? "#9c27b0"
+                                                            : "#ba68c8",
+                                                    opacity: 1,
+                                                    border: 0,
+                                                },
+                                            },
+                                        },
+                                    }}
+                                />
+                            }
+                            label="Tax Administrator"
+                            sx={{
+                                "& .MuiFormControlLabel-label": {
+                                    fontWeight: taxAdmin ? "600" : "400",
+                                    color: taxAdmin ? "black" : "grey",
+                                },
+                            }}
+                        />
+                    )}
+
+                    {(user?.admin ||
+                        user?.equipment_admin ||
+                        user?.equipment_office_admin) && (
+                        <FormControl variant="outlined" size="small" fullWidth>
+                            <InputLabel id="equipment-admin-label">
+                                Equipment Office Admin (Single Location)
+                            </InputLabel>
+                            <Select
+                                labelId="equipment-admin-label"
+                                value={equipmentOfficeAdmin || ""}
+                                onChange={(e) => {
+                                    setEquipmentOfficeAdmin(e.target.value);
+                                }}
+                                label="Equipment Admin"
+                            >
+                                <MenuItem value="">
+                                    <em>None</em>
+                                </MenuItem>
+                                {locations
+                                    ?.filter((lc) => lc.Alias !== "All")
+                                    ?.map((itm, index) => (
+                                        <MenuItem
+                                            key={index}
+                                            value={itm.officeid}
+                                        >
+                                            {itm.Alias}
+                                        </MenuItem>
+                                    ))}
+                            </Select>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ mt: 0.5, ml: 1.5 }}
+                            >
+                                Allows user to manage equipment for the selected
+                                location
+                            </Typography>
+                        </FormControl>
+                    )}
                 </Stack>
 
                 <Divider />

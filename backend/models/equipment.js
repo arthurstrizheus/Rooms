@@ -21,10 +21,6 @@ const Equipment = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
-        barcode: {
-            type: DataTypes.STRING,
-            allowNull: true,
-        },
         cost: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: true,

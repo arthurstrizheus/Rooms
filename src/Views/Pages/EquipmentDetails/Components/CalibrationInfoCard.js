@@ -14,6 +14,7 @@ import { Delete, Download, History } from "@mui/icons-material";
 import { format } from "date-fns";
 import AlertDialog from "../../../../Components/AlertDialog";
 import useAlertDialog from "../../../../hooks/useAlertDialog";
+import { useAuth } from "../../../../Utilites/AuthContext";
 
 const CalibrationInfoCard = ({
     equipment,
@@ -24,6 +25,7 @@ const CalibrationInfoCard = ({
     handleDeleteFile,
     onViewHistory,
 }) => {
+    const { user } = useAuth();
     const { showAlert, alertState, hideAlert } = useAlertDialog();
     const handleDownload = async (fileId, fileName) => {
         try {
@@ -61,7 +63,7 @@ const CalibrationInfoCard = ({
             !equipment.last_calibration_date ||
             !equipment.calibration_interval_value
         ) {
-            return "N/A";
+            return null;
         }
         const lastCal = new Date(equipment.last_calibration_date);
         const dueDate = new Date(lastCal);
@@ -84,10 +86,55 @@ const CalibrationInfoCard = ({
                 );
                 break;
         }
-        return format(dueDate, "PPP");
+        return dueDate;
     };
 
+    const getCalibrationStatus = () => {
+        const dueDate = calculateDueDate();
+        if (!dueDate) {
+            return {
+                status: "No Calibration Data",
+                color: "text.secondary",
+                backgroundColor: "#f5f5f5",
+            };
+        }
+
+        const now = new Date();
+        const twoMonthsFromNow = new Date();
+        twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+
+        if (now > dueDate) {
+            return {
+                status: "Out of Calibration",
+                color: "#d32f2f",
+                backgroundColor: "#ffebee",
+            };
+        } else if (dueDate <= twoMonthsFromNow) {
+            return {
+                status: "Calibration Due Soon",
+                color: "#ed6c02",
+                backgroundColor: "#fff3e0",
+            };
+        } else {
+            return {
+                status: "In Calibration",
+                color: "#2e7d32",
+                backgroundColor: "#e8f5e9",
+            };
+        }
+    };
+
+    const calibrationStatus = getCalibrationStatus();
+    const dueDate = calculateDueDate();
+
     const calibrationItems = [
+        {
+            label: "Calibration Status",
+            value: calibrationStatus.status,
+            color: calibrationStatus.color,
+            backgroundColor: calibrationStatus.backgroundColor,
+            isStatus: true,
+        },
         {
             label: "Last Calibration Date",
             value: equipment.last_calibration_date
@@ -96,7 +143,7 @@ const CalibrationInfoCard = ({
         },
         {
             label: "Calibration Due Date",
-            value: calculateDueDate(),
+            value: dueDate ? format(dueDate, "PPP") : "N/A",
         },
         {
             label: "Calibration Interval",
@@ -106,7 +153,13 @@ const CalibrationInfoCard = ({
         },
     ];
 
-    if (equipment?.UpdatedBy) {
+    if (
+        equipment?.UpdatedBy &&
+        (user?.equipment_admin ||
+            user?.admin ||
+            user?.tax_admin ||
+            user?.equipment_office_admin)
+    ) {
         calibrationItems.push({
             label: "Last Updated By",
             caption: equipment.UpdatedBy.email,
@@ -135,12 +188,36 @@ const CalibrationInfoCard = ({
                                     </Typography>
                                 </Grid>
                                 <Grid>
-                                    <Typography
-                                        variant={"body1"}
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {item.value}
-                                    </Typography>
+                                    {item.isStatus ? (
+                                        <Box
+                                            sx={{
+                                                mt: 0.5,
+                                                display: "inline-block",
+                                                px: 1.5,
+                                                py: 0.5,
+                                                borderRadius: 1,
+                                                backgroundColor:
+                                                    item.backgroundColor,
+                                            }}
+                                        >
+                                            <Typography
+                                                variant={"body1"}
+                                                sx={{
+                                                    color: item.color,
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                {item.value}
+                                            </Typography>
+                                        </Box>
+                                    ) : (
+                                        <Typography
+                                            variant={"body1"}
+                                            sx={{ mt: 0.5 }}
+                                        >
+                                            {item.value}
+                                        </Typography>
+                                    )}
                                 </Grid>
                                 {item.caption && (
                                     <Grid>

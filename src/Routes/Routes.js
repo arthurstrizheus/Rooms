@@ -69,7 +69,7 @@ const AppRoutes = ({
             newBannerText = `Admin Dashboard`;
         } else if (
             path.startsWith("/depreciation") &&
-            (user?.admin || user?.equipment_admin)
+            (user?.admin || user?.tax_admin)
         ) {
             newBannerText = `Depreciation Reports`;
         } else {
@@ -188,7 +188,7 @@ const AppRoutes = ({
             <Route
                 path="/depreciation"
                 element={
-                    user?.admin || user?.equipment_admin ? (
+                    user?.admin || user?.tax_admin ? (
                         <DepreciationReports
                             setLoading={setLoading}
                             loading={loading}

@@ -9,13 +9,6 @@ import {
     Button,
     Chip,
     IconButton,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    MenuItem,
-    Autocomplete,
     useMediaQuery,
     useTheme,
     Table,
@@ -27,10 +20,9 @@ import {
     TableSortLabel,
     Paper,
     InputAdornment,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     Link,
+    MenuItem,
+    TextField,
 } from "@mui/material";
 import {
     Add,
@@ -38,7 +30,6 @@ import {
     Warning,
     Search,
     Visibility,
-    ExpandMore,
 } from "@mui/icons-material";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -48,104 +39,10 @@ import { useAuth } from "../../../Utilites/AuthContext";
 import { useSocket } from "../../../Contexts/SocketContext";
 import ConfirmDialog from "../../../Components/ConfirmDialog";
 import useConfirmDialog from "../../../hooks/useConfirmDialog";
+import AlertDialog from "../../../Components/AlertDialog";
+import useAlertDialog from "../../../hooks/useAlertDialog";
+import EquipmentDialog from "./EquipmentDialog";
 import axios from "axios";
-
-// Helper functions to get state-specific tax resource links
-const getStateDepreciationLink = (state) => {
-    const links = {
-        OH: (
-            <Link
-                href="https://tax.ohio.gov/faq-IncomeDepreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                OH depreciation guidance
-            </Link>
-        ),
-        MO: (
-            <Link
-                href="https://dor.mo.gov/faq/taxation/business/corporation-income.html"
-                target="_blank"
-                rel="noopener"
-            >
-                MO tax guidance
-            </Link>
-        ),
-        TX: (
-            <Link
-                href="https://comptroller.texas.gov/taxes/franchise/"
-                target="_blank"
-                rel="noopener"
-            >
-                TX franchise tax info
-            </Link>
-        ),
-        IL: (
-            <Link
-                href="https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                IL Form 4562
-            </Link>
-        ),
-        FL: (
-            <Link
-                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                FL depreciation adjustments
-            </Link>
-        ),
-        MD: (
-            <Link
-                href="https://www.marylandtaxes.gov/forms/23_forms/500DM.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                MD Form 500DM
-            </Link>
-        ),
-        GA: (
-            <Link
-                href="https://dor.georgia.gov/irc-section-168k-special-depreciation-allowance-bonus-depreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                GA depreciation info
-            </Link>
-        ),
-        NC: (
-            <Link
-                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
-                target="_blank"
-                rel="noopener"
-            >
-                NC depreciation guidance
-            </Link>
-        ),
-        CO: (
-            <Link
-                href="https://tax.colorado.gov/depreciation-addback-subtraction"
-                target="_blank"
-                rel="noopener"
-            >
-                CO depreciation adjustment
-            </Link>
-        ),
-        MI: (
-            <Link
-                href="https://www.michigan.gov/taxes/business-taxes/cit/cit-faqs"
-                target="_blank"
-                rel="noopener"
-            >
-                MI CIT guidance
-            </Link>
-        ),
-    };
-    return links[state] || <span>state tax guidance</span>;
-};
 
 const getStateBonusDepreciationLink = (state) => {
     const links = {
@@ -275,7 +172,6 @@ const Equipment = ({ setLoading, loading }) => {
         name: "",
         description: "",
         serial_number: "",
-        barcode: "",
         cost: "",
         location: "",
         contact_person: "",
@@ -293,11 +189,14 @@ const Equipment = ({ setLoading, loading }) => {
         method: "MACRS",
         bonus_eligible: true,
         section179_elected: "",
+        vehicle_class: "UNKNOWN",
+        convention: "half-year",
     });
     const navigate = useNavigate();
     const { user } = useAuth();
     const { socket } = useSocket();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
+    const { showAlert, alertState, hideAlert } = useAlertDialog();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -460,7 +359,6 @@ const Equipment = ({ setLoading, loading }) => {
                 name: "",
                 description: "",
                 serial_number: "",
-                barcode: "",
                 cost: "",
                 location: "",
                 contact_person: "",
@@ -478,6 +376,7 @@ const Equipment = ({ setLoading, loading }) => {
                 method: "MACRS",
                 bonus_eligible: true,
                 section179_elected: "",
+                vehicle_class: "UNKNOWN",
             });
         }
         setOpenDialog(true);
@@ -511,6 +410,26 @@ const Equipment = ({ setLoading, loading }) => {
             handleCloseDialog();
         } catch (error) {
             console.error("Error saving equipment:", error);
+
+            // Display validation errors to user
+            if (
+                error.response?.status === 400 &&
+                error.response?.data?.errors
+            ) {
+                const errorMessages = error.response.data.errors.join("\n\n");
+                showAlert(
+                    errorMessages,
+                    "error",
+                    "Section 179 Validation Error",
+                );
+            } else {
+                showAlert(
+                    error.response?.data?.message ||
+                        "Failed to save equipment. Please try again.",
+                    "error",
+                    "Error Saving Equipment",
+                );
+            }
         } finally {
             setLoading(false);
         }
@@ -769,7 +688,8 @@ const Equipment = ({ setLoading, loading }) => {
                     </TextField>
                     {(user?.admin ||
                         user?.equipment_admin ||
-                        user?.equipment_office_admin) && (
+                        user?.equipment_office_admin ||
+                        user?.tax_admin) && (
                         <Button
                             variant="contained"
                             startIcon={<Add />}
@@ -1066,15 +986,19 @@ const Equipment = ({ setLoading, loading }) => {
                                                 </TableCell>
                                             )}
                                             <TableCell>
-                                                <Chip
-                                                    label={getDisplayStatus(
-                                                        item,
-                                                    )}
-                                                    color={getStatusColor(
-                                                        getDisplayStatus(item),
-                                                    )}
-                                                    size="small"
-                                                />
+                                                {item?.can_book !== false && (
+                                                    <Chip
+                                                        label={getDisplayStatus(
+                                                            item,
+                                                        )}
+                                                        color={getStatusColor(
+                                                            getDisplayStatus(
+                                                                item,
+                                                            ),
+                                                        )}
+                                                        size="small"
+                                                    />
+                                                )}
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Box
@@ -1124,556 +1048,16 @@ const Equipment = ({ setLoading, loading }) => {
                 </Paper>
             )}
 
-            <Dialog
+            <EquipmentDialog
                 open={openDialog}
                 onClose={handleCloseDialog}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>
-                    {selectedEquipment ? "Edit Equipment" : "Add Equipment"}
-                </DialogTitle>
-                <DialogContent>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                            mt: 1,
-                        }}
-                    >
-                        <TextField
-                            label="Name"
-                            value={formData.name}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    name: e.target.value,
-                                })
-                            }
-                            required
-                            fullWidth
-                        />
-                        <TextField
-                            label="Description"
-                            value={formData.description}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    description: e.target.value,
-                                })
-                            }
-                            multiline
-                            rows={3}
-                            fullWidth
-                        />
-                        <TextField
-                            label="Serial Number"
-                            value={formData.serial_number}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    serial_number: e.target.value,
-                                })
-                            }
-                            fullWidth
-                        />
-                        <TextField
-                            label="Barcode"
-                            value={formData.barcode}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    barcode: e.target.value,
-                                })
-                            }
-                            fullWidth
-                        />
-                        <TextField
-                            label="Purchase Cost"
-                            type="number"
-                            value={formData.cost}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    cost: e.target.value,
-                                })
-                            }
-                            fullWidth
-                            InputProps={{
-                                startAdornment: "$",
-                            }}
-                            inputProps={{
-                                step: "0.01",
-                                min: "0",
-                            }}
-                        />
-
-                        <TextField
-                            select
-                            label="Location"
-                            value={formData.location}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    location: e.target.value,
-                                })
-                            }
-                            fullWidth
-                        >
-                            <MenuItem value="">
-                                <em>None</em>
-                            </MenuItem>
-                            {locations.map((loc) => (
-                                <MenuItem key={loc.officeid} value={loc.Alias}>
-                                    {loc.Alias} - {loc.City}, {loc.state}
-                                </MenuItem>
-                            ))}
-                        </TextField>
-                        <Autocomplete
-                            options={users}
-                            getOptionLabel={(option) =>
-                                typeof option === "string"
-                                    ? option
-                                    : `${option.first_name} ${option.last_name}`
-                            }
-                            value={
-                                users.find(
-                                    (u) => u.id === formData.contact_person_id,
-                                ) || null
-                            }
-                            onChange={(event, newValue) => {
-                                setFormData({
-                                    ...formData,
-                                    contact_person: newValue
-                                        ? `${newValue.first_name} ${newValue.last_name}`
-                                        : "",
-                                    contact_person_id: newValue
-                                        ? newValue.id
-                                        : null,
-                                });
-                            }}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="Contact Person"
-                                    fullWidth
-                                />
-                            )}
-                            renderOption={(props, option) => (
-                                <li {...props} key={option.id}>
-                                    {option.first_name} {option.last_name} (
-                                    {option.email})
-                                </li>
-                            )}
-                            isOptionEqualToValue={(option, value) =>
-                                option.id === value?.id
-                            }
-                            ListboxProps={{
-                                style: { maxHeight: "250px" },
-                            }}
-                            fullWidth
-                        />
-                        <TextField
-                            select
-                            label="Status"
-                            value={formData.status}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    status: e.target.value,
-                                })
-                            }
-                            fullWidth
-                        >
-                            <MenuItem value="available">Available</MenuItem>
-                            <MenuItem value="reserved">Reserved</MenuItem>
-                            <MenuItem value="maintenance">Maintenance</MenuItem>
-                            <MenuItem value="retired">Retired</MenuItem>
-                        </TextField>
-                        <TextField
-                            select
-                            label="Can Be Booked"
-                            value={formData.can_book}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    can_book: e.target.value === "true",
-                                })
-                            }
-                            fullWidth
-                        >
-                            <MenuItem value={true}>Yes</MenuItem>
-                            <MenuItem value={false}>No</MenuItem>
-                        </TextField>
-                        {/* <TextField
-                            select
-                            label="Requires Approval"
-                            value={formData.requires_approval}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    requires_approval:
-                                        e.target.value === "true",
-                                })
-                            }
-                            fullWidth
-                        >
-                            <MenuItem value={false}>No</MenuItem>
-                            <MenuItem value={true}>Yes</MenuItem>
-                        </TextField> */}
-                        <TextField
-                            label="Last Calibration Date"
-                            type="date"
-                            value={formData.last_calibration_date}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    last_calibration_date: e.target.value,
-                                })
-                            }
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                        />
-                        <Box sx={{ display: "flex", gap: 2 }}>
-                            <TextField
-                                label="Calibration Interval"
-                                type="number"
-                                value={formData.calibration_interval_value}
-                                onChange={(e) =>
-                                    setFormData({
-                                        ...formData,
-                                        calibration_interval_value:
-                                            e.target.value,
-                                    })
-                                }
-                                fullWidth
-                                sx={{ flex: 2 }}
-                            />
-                            <TextField
-                                select
-                                label="Unit"
-                                value={formData.calibration_interval_unit}
-                                onChange={(e) =>
-                                    setFormData({
-                                        ...formData,
-                                        calibration_interval_unit:
-                                            e.target.value,
-                                    })
-                                }
-                                fullWidth
-                                sx={{ flex: 1 }}
-                            >
-                                <MenuItem value="days">Days</MenuItem>
-                                <MenuItem value="months">Months</MenuItem>
-                                <MenuItem value="years">Years</MenuItem>
-                            </TextField>
-                        </Box>
-
-                        {/* Optional Tax Depreciation Section */}
-                        <Accordion sx={{ mt: 3 }}>
-                            <AccordionSummary
-                                expandIcon={<ExpandMore />}
-                                aria-controls="tax-fields-content"
-                                id="tax-fields-header"
-                            >
-                                <Typography variant="subtitle1">
-                                    Optional Tax Depreciation Fields
-                                </Typography>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 2,
-                                    }}
-                                >
-                                    <TextField
-                                        label="Placed in Service Date"
-                                        type="date"
-                                        value={formData.placed_in_service_date}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                placed_in_service_date:
-                                                    e.target.value,
-                                            })
-                                        }
-                                        fullWidth
-                                        InputLabelProps={{ shrink: true }}
-                                        helperText={
-                                            <span>
-                                                Date asset was put into service
-                                                for tax purposes. See{" "}
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107485"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    IRS Pub 946
-                                                </Link>
-                                                {formData.location &&
-                                                    locations.find(
-                                                        (l) =>
-                                                            l.Alias ===
-                                                            formData.location,
-                                                    )?.state && (
-                                                        <>
-                                                            {" "}
-                                                            and{" "}
-                                                            {getStateDepreciationLink(
-                                                                locations.find(
-                                                                    (l) =>
-                                                                        l.Alias ===
-                                                                        formData.location,
-                                                                )?.state,
-                                                            )}
-                                                        </>
-                                                    )}
-                                            </span>
-                                        }
-                                    />
-
-                                    <TextField
-                                        label="Cost Basis for Depreciation"
-                                        type="number"
-                                        value={formData.cost_basis}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                cost_basis: e.target.value,
-                                            })
-                                        }
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: "$",
-                                        }}
-                                        inputProps={{
-                                            step: "0.01",
-                                            min: "0",
-                                        }}
-                                        helperText={
-                                            <span>
-                                                Leave blank to use Purchase
-                                                Cost. See{" "}
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107507"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    IRS Pub 946 - Basis
-                                                </Link>
-                                            </span>
-                                        }
-                                    />
-
-                                    <TextField
-                                        select
-                                        label="Property Class"
-                                        value={formData.property_class}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                property_class: e.target.value,
-                                            })
-                                        }
-                                        fullWidth
-                                        helperText={
-                                            <span>
-                                                IRS depreciation recovery
-                                                period. See{" "}
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107513"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    IRS Pub 946 - MACRS Recovery
-                                                    Periods
-                                                </Link>
-                                            </span>
-                                        }
-                                    >
-                                        <MenuItem value="3yr">
-                                            3-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="5yr">
-                                            5-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="7yr">
-                                            7-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="10yr">
-                                            10-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="15yr">
-                                            15-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="20yr">
-                                            20-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="27.5yr">
-                                            27.5-Year Property
-                                        </MenuItem>
-                                        <MenuItem value="39yr">
-                                            39-Year Property
-                                        </MenuItem>
-                                    </TextField>
-
-                                    <TextField
-                                        select
-                                        label="Depreciation Method"
-                                        value={formData.method}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                method: e.target.value,
-                                            })
-                                        }
-                                        fullWidth
-                                        helperText={
-                                            <span>
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107524"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    MACRS (Modified Accelerated
-                                                    Cost Recovery)
-                                                </Link>{" "}
-                                                vs{" "}
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107555"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    ADS (Alternative
-                                                    Depreciation System)
-                                                </Link>
-                                            </span>
-                                        }
-                                    >
-                                        <MenuItem value="MACRS">
-                                            MACRS (Modified Accelerated)
-                                        </MenuItem>
-                                        <MenuItem value="ADS">
-                                            ADS (Alternative Depreciation)
-                                        </MenuItem>
-                                    </TextField>
-
-                                    <TextField
-                                        select
-                                        label="Bonus Depreciation Eligible"
-                                        value={formData.bonus_eligible}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                bonus_eligible:
-                                                    e.target.value === "true",
-                                            })
-                                        }
-                                        fullWidth
-                                        helperText={
-                                            <span>
-                                                IRC Section 168(k) Bonus
-                                                Depreciation. See{" "}
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000293543"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    IRS Pub 946 - Special
-                                                    Depreciation Allowance
-                                                </Link>
-                                                {formData.location &&
-                                                    locations.find(
-                                                        (l) =>
-                                                            l.Alias ===
-                                                            formData.location,
-                                                    )?.state && (
-                                                        <>
-                                                            {" "}
-                                                            |{" "}
-                                                            {getStateBonusDepreciationLink(
-                                                                locations.find(
-                                                                    (l) =>
-                                                                        l.Alias ===
-                                                                        formData.location,
-                                                                )?.state,
-                                                            )}
-                                                        </>
-                                                    )}
-                                            </span>
-                                        }
-                                    >
-                                        <MenuItem value={true}>Yes</MenuItem>
-                                        <MenuItem value={false}>No</MenuItem>
-                                    </TextField>
-
-                                    <TextField
-                                        label="Section 179 Election Amount"
-                                        type="number"
-                                        value={formData.section179_elected}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                section179_elected:
-                                                    e.target.value,
-                                            })
-                                        }
-                                        fullWidth
-                                        InputProps={{
-                                            startAdornment: "$",
-                                        }}
-                                        inputProps={{
-                                            step: "1",
-                                            min: "0",
-                                        }}
-                                        helperText={
-                                            <span>
-                                                Amount elected for immediate
-                                                Section 179 expensing. See{" "}
-                                                <Link
-                                                    href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107488"
-                                                    target="_blank"
-                                                    rel="noopener"
-                                                >
-                                                    IRS Pub 946 - Section 179
-                                                    Deduction
-                                                </Link>
-                                                {formData.location &&
-                                                    locations.find(
-                                                        (l) =>
-                                                            l.Alias ===
-                                                            formData.location,
-                                                    )?.state && (
-                                                        <>
-                                                            {" "}
-                                                            |{" "}
-                                                            {getStateSection179Link(
-                                                                locations.find(
-                                                                    (l) =>
-                                                                        l.Alias ===
-                                                                        formData.location,
-                                                                )?.state,
-                                                            )}
-                                                        </>
-                                                    )}
-                                            </span>
-                                        }
-                                    />
-                                </Box>
-                            </AccordionDetails>
-                        </Accordion>
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDialog}>Cancel</Button>
-                    <Button onClick={handleSave} variant="contained">
-                        Save
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                selectedEquipment={selectedEquipment}
+                formData={formData}
+                setFormData={setFormData}
+                locations={locations}
+                users={users}
+                onSave={handleSave}
+            />
             <ConfirmDialog
                 open={confirmState.open}
                 onConfirm={confirmState.onConfirm}
@@ -1683,6 +1067,13 @@ const Equipment = ({ setLoading, loading }) => {
                 severity={confirmState.severity}
                 confirmText={confirmState.confirmText}
                 cancelText={confirmState.cancelText}
+            />
+            <AlertDialog
+                open={alertState.open}
+                onClose={hideAlert}
+                message={alertState.message}
+                severity={alertState.severity}
+                title={alertState.title}
             />
         </Box>
     );

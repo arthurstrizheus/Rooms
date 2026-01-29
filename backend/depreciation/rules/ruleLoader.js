@@ -3,13 +3,13 @@ const path = require("path");
 
 /**
  * Rule loader for state depreciation rules
- * Loads and validates Tax.json rule pack
+ * Loads and validates state-depreciation-rules.json rule pack
  */
 
 let rulesCache = null;
 
 /**
- * Load the state depreciation rules from Tax.json
+ * Load the state depreciation rules from state-depreciation-rules.json
  * @returns {Object} The rule pack with metadata and office rules
  */
 function loadRules() {
@@ -18,7 +18,7 @@ function loadRules() {
     }
 
     try {
-        const rulePath = path.join(__dirname, "../../Tax.json");
+        const rulePath = path.join(__dirname, "state-depreciation-rules.json");
         const rawData = fs.readFileSync(rulePath, "utf8");
         const rulePack = JSON.parse(rawData);
 

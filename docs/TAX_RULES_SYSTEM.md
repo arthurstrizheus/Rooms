@@ -2,7 +2,7 @@
 
 ## Overview
 
-This system allows administrators to manage state and federal tax depreciation rules through the UI instead of manually editing `Tax.json`. The system preserves historical accuracy by using year ranges, ensuring that reports for past years use the tax rules that were in effect at that time.
+This system allows administrators to manage state and federal tax depreciation rules through the UI instead of manually editing `state-depreciation-rules.json`. The system preserves historical accuracy by using year ranges, ensuring that reports for past years use the tax rules that were in effect at that time.
 
 ## How It Works
 
@@ -114,7 +114,7 @@ This ensures:
 
 Located in: `backend/controllers/taxRulesController.js`
 
-- `GetAllRules()`: Returns entire Tax.json
+- `GetAllRules()`: Returns entire state-depreciation-rules.json
 - `GetRuleTypes()`: Returns array of 7 available rule types
 - `GetRulesByOffice(officeid)`: Returns rules for specific office
 - `UpdateOfficeRules(officeid, newRule)`: Validates no overlap, adds new year range, updates version, clears cache
@@ -144,7 +144,7 @@ for (const params of parametersByYear) {
 
 **Version Tracking:**
 
-- Tax.json includes `version` field (YYYY-MM-DD format)
+- state-depreciation-rules.json includes `version` field (YYYY-MM-DD format)
 - Automatically updated when rules are modified
 - Helps track when changes were made
 
@@ -154,7 +154,7 @@ for (const params of parametersByYear) {
 delete require.cache[require.resolve("../depreciation/rules/ruleLoader")];
 ```
 
-- After modifying Tax.json, cache is cleared
+- After modifying state-depreciation-rules.json, cache is cleared
 - Ensures next request loads updated rules
 
 ## File Structure
@@ -167,8 +167,8 @@ backend/
     taxRules.js               # Route definitions for /api/tax-rules
   depreciation/
     rules/
-      ruleLoader.js           # Read-only loader, finds applicable rule by year
-  Tax.json                     # Source of truth for all tax rules
+      ruleLoader.js                      # Read-only loader, finds applicable rule by year
+      state-depreciation-rules.json      # Source of truth for state tax rules
 
 src/
   Views/
@@ -266,7 +266,7 @@ Each rule includes `sources` array with URLs to official documentation:
 
 ### Report showing wrong rules
 
-**Cause:** Cache not cleared after Tax.json modification.
+**Cause:** Cache not cleared after state-depreciation-rules.json modification.
 
 **Solution:** Restart the backend server or manually clear the cache.
 
@@ -305,6 +305,6 @@ Potential improvements:
 
 **Backup:**
 
-- `Tax.json` should be backed up regularly
-- Consider version control for Tax.json (git)
+- `state-depreciation-rules.json` should be backed up regularly
+- Consider version control for state-depreciation-rules.json (git)
 - Before making changes, export current rules for safety

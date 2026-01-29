@@ -106,6 +106,24 @@ const Post = async (req, res, next) => {
 
         const equipmentFile = await EquipmentFile.create(fileData);
 
+        // Update equipment's last_calibration_date if this is a calibration cert with a newer date
+        if (category === "calibration_cert" && calibration_date) {
+            const calibrationDateObj = new Date(calibration_date);
+            const currentLastCalibration = equipment.last_calibration_date
+                ? new Date(equipment.last_calibration_date)
+                : null;
+
+            // Update if last_calibration_date is null or the new date is newer
+            if (
+                !currentLastCalibration ||
+                calibrationDateObj > currentLastCalibration
+            ) {
+                await equipment.update({
+                    last_calibration_date: calibration_date,
+                });
+            }
+        }
+
         // Fetch complete file data with associations
         const completeFile = await EquipmentFile.findByPk(equipmentFile.id, {
             include: [
@@ -192,6 +210,31 @@ const Update = async (req, res, next) => {
         }
 
         await file.update(updates);
+
+        // Update equipment's last_calibration_date if this is a calibration cert with a newer date
+        if (
+            (updates.category === "calibration_cert" ||
+                file.category === "calibration_cert") &&
+            updates.calibration_date
+        ) {
+            const equipment = await Equipment.findByPk(file.equipment_id);
+            if (equipment) {
+                const calibrationDateObj = new Date(updates.calibration_date);
+                const currentLastCalibration = equipment.last_calibration_date
+                    ? new Date(equipment.last_calibration_date)
+                    : null;
+
+                // Update if last_calibration_date is null or the new date is newer
+                if (
+                    !currentLastCalibration ||
+                    calibrationDateObj > currentLastCalibration
+                ) {
+                    await equipment.update({
+                        last_calibration_date: updates.calibration_date,
+                    });
+                }
+            }
+        }
 
         // Fetch complete file data
         const completeFile = await EquipmentFile.findByPk(id, {
