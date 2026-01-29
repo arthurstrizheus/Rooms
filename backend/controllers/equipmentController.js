@@ -56,6 +56,17 @@ const Post = async (req, res, next) => {
             equipmentData.last_calibration_date = null;
         }
 
+        // Convert cost to float or null
+        if (
+            equipmentData.cost === "" ||
+            equipmentData.cost === null ||
+            equipmentData.cost === undefined
+        ) {
+            equipmentData.cost = null;
+        } else if (equipmentData.cost) {
+            equipmentData.cost = parseFloat(equipmentData.cost);
+        }
+
         // Convert calibration_interval_value to integer or null
         if (
             equipmentData.calibration_interval_value === "" ||
@@ -113,6 +124,17 @@ const Update = async (req, res, next) => {
         // Clean up empty string date fields (set to null)
         if (updates.last_calibration_date === "") {
             updates.last_calibration_date = null;
+        }
+
+        // Convert cost to float or null
+        if (
+            updates.cost === "" ||
+            updates.cost === null ||
+            updates.cost === undefined
+        ) {
+            updates.cost = null;
+        } else if (updates.cost) {
+            updates.cost = parseFloat(updates.cost);
         }
 
         // Convert calibration_interval_value to integer or null

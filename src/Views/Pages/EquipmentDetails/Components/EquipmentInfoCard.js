@@ -49,6 +49,12 @@ const EquipmentInfoCard = ({
         { label: "Status", value: equipment.status, isStatus: true },
         { label: "Description", value: equipment.description || "N/A" },
         { label: "Serial Number", value: equipment.serial_number || "N/A" },
+        {
+            label: "Purchase Cost",
+            value: equipment.cost
+                ? `$${parseFloat(equipment.cost).toFixed(2)}`
+                : "N/A",
+        },
         { label: "Location", value: equipment.location || "N/A" },
         { label: "Contact Person", value: equipment.contact_person || "N/A" },
         {

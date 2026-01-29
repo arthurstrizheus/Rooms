@@ -388,7 +388,7 @@ const Authenticate = async (req, res) => {
                 location: user.location,
             },
             process.env.JWT_SECRET,
-            { expiresIn: "24h" },
+            { expiresIn: "168h" }, // 7 days
         );
 
         // Authentication successful, return the user object and token
@@ -533,7 +533,7 @@ const AuthenticateAD = async (req, res) => {
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
-                { expiresIn: "24h" },
+                { expiresIn: "168h" }, // 7 days
             );
 
             return res.status(200).json({
@@ -567,7 +567,7 @@ const AuthenticateAD = async (req, res) => {
                     location: userWithoutPassword.location,
                 },
                 process.env.JWT_SECRET,
-                { expiresIn: "24h" },
+                { expiresIn: "168h" }, // 7 days
             );
 
             return res.status(200).json({

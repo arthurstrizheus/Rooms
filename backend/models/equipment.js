@@ -25,6 +25,10 @@ const Equipment = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        cost: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true,
+        },
         image: {
             type: DataTypes.STRING,
             allowNull: true,

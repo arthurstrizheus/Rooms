@@ -90,6 +90,7 @@ const Equipment = ({ setLoading, loading }) => {
         description: "",
         serial_number: "",
         barcode: "",
+        cost: "",
         location: "",
         contact_person: "",
         contact_person_id: null,
@@ -256,6 +257,7 @@ const Equipment = ({ setLoading, loading }) => {
                 description: "",
                 serial_number: "",
                 barcode: "",
+                cost: "",
                 location: "",
                 contact_person: "",
                 contact_person_id: null,
@@ -975,6 +977,25 @@ const Equipment = ({ setLoading, loading }) => {
                                 })
                             }
                             fullWidth
+                        />
+                        <TextField
+                            label="Purchase Cost"
+                            type="number"
+                            value={formData.cost}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    cost: e.target.value,
+                                })
+                            }
+                            fullWidth
+                            InputProps={{
+                                startAdornment: "$",
+                            }}
+                            inputProps={{
+                                step: "0.01",
+                                min: "0",
+                            }}
                         />
                         <TextField
                             select

@@ -101,6 +101,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         description: "",
         serial_number: "",
         barcode: "",
+        cost: "",
         location: "",
         contact_person: "",
         contact_person_id: null,
@@ -343,6 +344,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             description: equipment.description || "",
             serial_number: equipment.serial_number || "",
             barcode: equipment.barcode || "",
+            cost: equipment.cost || "",
             location: equipment.location || "",
             contact_person: equipment.contact_person || "",
             contact_person_id: equipment.contact_person_id || null,
@@ -1099,6 +1101,21 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             fullWidth
                         />
                         <TextField
+                            name="cost"
+                            label="Purchase Cost"
+                            type="number"
+                            value={formData.cost}
+                            onChange={handleInputChange}
+                            fullWidth
+                            InputProps={{
+                                startAdornment: "$",
+                            }}
+                            inputProps={{
+                                step: "0.01",
+                                min: "0",
+                            }}
+                        />
+                        <TextField
                             name="location"
                             label="Location"
                             value={formData.location}
@@ -1413,6 +1430,29 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             getOptionLabel={(option) =>
                                 `${option.name}${option.serial_number ? ` (${option.serial_number})` : ""}`
                             }
+                            filterOptions={(options, { inputValue }) => {
+                                if (!inputValue) return options;
+                                const searchTerm = inputValue.toLowerCase();
+                                return options.filter((option) => {
+                                    return (
+                                        option.name
+                                            ?.toLowerCase()
+                                            .includes(searchTerm) ||
+                                        option.barcode
+                                            ?.toLowerCase()
+                                            .includes(searchTerm) ||
+                                        option.serial_number
+                                            ?.toLowerCase()
+                                            .includes(searchTerm) ||
+                                        option.description
+                                            ?.toLowerCase()
+                                            .includes(searchTerm) ||
+                                        option.location
+                                            ?.toLowerCase()
+                                            .includes(searchTerm)
+                                    );
+                                });
+                            }}
                             value={selectedCompareEquipment}
                             onChange={(event, newValue) => {
                                 setSelectedCompareEquipment(newValue);
@@ -1421,7 +1461,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                 <TextField
                                     {...params}
                                     label="Select Equipment"
-                                    placeholder="Search by name or serial number"
+                                    placeholder="Search by name, barcode, serial, description, or location"
                                 />
                             )}
                             renderOption={(props, option) => (
