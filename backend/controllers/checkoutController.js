@@ -100,15 +100,22 @@ const recurringPatternsConflict = (
     }
 
     // Patterns do align - check if within valid date ranges
-    // If both have end dates, check if they overlap within those constraints
-    if (recurrence1.end_date && recurrence2.end_date) {
-        const end1Date = new Date(recurrence1.end_date);
-        const end2Date = new Date(recurrence2.end_date);
+    // Check if the date ranges of the two recurrences overlap
+    const end1Date = recurrence1.end_date
+        ? new Date(recurrence1.end_date)
+        : null;
+    const end2Date = recurrence2.end_date
+        ? new Date(recurrence2.end_date)
+        : null;
 
-        // If one starts after the other ends, no conflict
-        if (start1 > end2Date || start2 > end1Date) {
-            return false;
-        }
+    // If recurrence1 ends before recurrence2 starts, no conflict
+    if (end1Date && end1Date < start2) {
+        return false;
+    }
+
+    // If recurrence2 ends before recurrence1 starts, no conflict
+    if (end2Date && end2Date < start1) {
+        return false;
     }
 
     return true;
@@ -303,8 +310,17 @@ const GetByEquipmentId = async (req, res, next) => {
         const { equipmentId } = req.params;
         const { start, end } = req.query; // Optional date range for calendar view
 
+        const whereClause = { equipment_id: equipmentId };
+
+        // For calendar view, exclude cancelled and returned checkouts
+        if (start && end) {
+            whereClause.status = {
+                [Sequelize.Op.notIn]: ["cancelled", "returned"],
+            };
+        }
+
         const checkouts = await Checkout.findAll({
-            where: { equipment_id: equipmentId },
+            where: whereClause,
             include: [
                 {
                     model: User,

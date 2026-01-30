@@ -21,6 +21,22 @@ const Equipment = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        brand_name: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        date_of_purchase: {
+            type: DataTypes.DATE,
+            allowNull: true,
+        },
+        billing_rate: {
+            type: DataTypes.DECIMAL(10, 2),
+            allowNull: true,
+        },
+        billing_code: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
         cost: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: true,

@@ -19,9 +19,8 @@ import {
     useMediaQuery,
     useTheme,
 } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import { Fab } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -33,6 +32,7 @@ import DisplayCheckout from "../Components/DisplayCheckout/DisplayCheckout";
 import { ArrowBack } from "@mui/icons-material";
 import AlertDialog from "../../Components/AlertDialog";
 import useAlertDialog from "../../hooks/useAlertDialog";
+import ReservationDialog from "./EquipmentDetails/Components/ReservationDialog";
 
 const EquipmentCalendar = ({
     setLoading,
@@ -52,17 +52,7 @@ const EquipmentCalendar = ({
     const [update, setUpdate] = useState(0);
     const [dateRange, setDateRange] = useState({ start: null, end: null });
     const [updateMode, setUpdateMode] = useState(null);
-    const [formData, setFormData] = useState({
-        notes: "",
-        project_number: "",
-        scheduled_on_behalf_of: "",
-        isRecurring: false,
-        recurrencePattern: "daily",
-        recurrenceInterval: 1,
-        recurrenceEndDate: "",
-    });
     const { showAlert, alertState, hideAlert } = useAlertDialog();
-    const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [editFormData, setEditFormData] = useState({
         start_time: "",
         end_time: "",
@@ -223,20 +213,9 @@ const EquipmentCalendar = ({
     };
 
     const handleDateSelect = (selectInfo) => {
-        // Only handle when not on mobile - mobile users will use FAB
-        if (isMobile) return;
-
         setSelectedSlot({
             start: selectInfo.start,
             end: selectInfo.end,
-        });
-        setFormData({
-            notes: "",
-            scheduled_on_behalf_of: "",
-            isRecurring: false,
-            recurrencePattern: "daily",
-            recurrenceInterval: 1,
-            recurrenceEndDate: "",
         });
         setOpenDialog(true);
     };
@@ -285,74 +264,9 @@ const EquipmentCalendar = ({
         }
     };
 
-    const handleSaveCheckout = async () => {
-        if (!selectedSlot) return;
-
-        // Validate required fields
-        if (!formData.project_number || formData.project_number.trim() === "") {
-            showAlert("Project Number is required", "error");
-            return;
-        }
-
-        // Validate end time is after start time
-        if (selectedSlot.end <= selectedSlot.start) {
-            showAlert("End time must be after start time", "error");
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const token = localStorage.getItem("authToken");
-
-            // Create Reservation data (works for both single and recurring)
-            const checkoutData = {
-                equipment_id: parseInt(equipmentId),
-                user_id: user.id,
-                start_time: selectedSlot.start.toISOString(),
-                end_time: selectedSlot.end.toISOString(),
-                notes: formData.notes || null,
-                project_number: formData.project_number || null,
-                scheduled_on_behalf_of: formData.scheduled_on_behalf_of || null,
-            };
-
-            // Add recurrence fields if this is a recurring checkout
-            if (formData.isRecurring) {
-                checkoutData.recurrence_pattern = formData.recurrencePattern;
-                checkoutData.separation_count = formData.recurrenceInterval;
-                checkoutData.recurrence_end_date = formData.recurrenceEndDate
-                    ? new Date(formData.recurrenceEndDate).toISOString()
-                    : null;
-            }
-
-            await axios.post("/api/checkouts", checkoutData, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            fetchCheckouts(dateRange.start, dateRange.end);
-            handleCloseDialog();
-        } catch (error) {
-            console.error("Error creating reservation:", error);
-            showAlert(
-                "Error creating reservation: " +
-                    (error.response?.data?.message || error.message),
-                "error",
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleCloseDialog = () => {
         setOpenDialog(false);
         setSelectedSlot(null);
-        setFormData({
-            notes: "",
-            scheduled_on_behalf_of: "",
-            isRecurring: false,
-            recurrencePattern: "daily",
-            recurrenceInterval: 1,
-            recurrenceEndDate: "",
-        });
     };
 
     const handleCloseCheckoutDialog = () => {
@@ -585,280 +499,22 @@ const EquipmentCalendar = ({
                 />
             </Box>
 
-            <Dialog
+            {/* Create Reservation Dialog */}
+            <ReservationDialog
                 open={openDialog}
                 onClose={handleCloseDialog}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Create Reservation</DialogTitle>
-                <DialogContent>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                            mt: 1,
-                        }}
-                    >
-                        <TextField
-                            label="Start Time"
-                            type="datetime-local"
-                            value={
-                                selectedSlot?.start
-                                    ? new Date(
-                                          selectedSlot.start.getTime() -
-                                              selectedSlot.start.getTimezoneOffset() *
-                                                  60000,
-                                      )
-                                          .toISOString()
-                                          .slice(0, 16)
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                const newStart = new Date(e.target.value);
-                                setSelectedSlot({
-                                    ...selectedSlot,
-                                    start: newStart,
-                                });
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            fullWidth
-                        />
-                        <TextField
-                            label="End Time"
-                            type="datetime-local"
-                            value={
-                                selectedSlot?.end
-                                    ? new Date(
-                                          selectedSlot.end.getTime() -
-                                              selectedSlot.end.getTimezoneOffset() *
-                                                  60000,
-                                      )
-                                          .toISOString()
-                                          .slice(0, 16)
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                const newEnd = new Date(e.target.value);
-                                setSelectedSlot({
-                                    ...selectedSlot,
-                                    end: newEnd,
-                                });
-                            }}
-                            InputLabelProps={{
-                                shrink: true,
-                            }}
-                            fullWidth
-                        />
-                        <TextField
-                            label="Project Number"
-                            value={formData.project_number}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    project_number: e.target.value,
-                                })
-                            }
-                            required
-                            fullWidth
-                        />
-
-                        {/* Optional Fields Toggle */}
-                        <Button
-                            size="small"
-                            startIcon={
-                                showOptionalFields ? (
-                                    <RemoveIcon />
-                                ) : (
-                                    <AddIcon />
-                                )
-                            }
-                            onClick={() =>
-                                setShowOptionalFields(!showOptionalFields)
-                            }
-                        >
-                            Optional Fields
-                        </Button>
-
-                        {showOptionalFields && (
-                            <>
-                                <TextField
-                                    label="Notes"
-                                    value={formData.notes}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            notes: e.target.value,
-                                        })
-                                    }
-                                    multiline
-                                    rows={3}
-                                    fullWidth
-                                />
-                                <Autocomplete
-                                    options={users.filter(
-                                        (u) => u.id !== user?.id,
-                                    )}
-                                    getOptionLabel={(option) =>
-                                        typeof option === "string"
-                                            ? option
-                                            : `${option.first_name} ${option.last_name}`
-                                    }
-                                    value={
-                                        users.find(
-                                            (u) =>
-                                                `${u.first_name} ${u.last_name}` ===
-                                                formData.scheduled_on_behalf_of,
-                                        ) || null
-                                    }
-                                    onChange={(event, newValue) => {
-                                        setFormData({
-                                            ...formData,
-                                            scheduled_on_behalf_of: newValue
-                                                ? `${newValue.first_name} ${newValue.last_name}`
-                                                : "",
-                                        });
-                                    }}
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Scheduled On Behalf Of"
-                                            placeholder="Enter name if scheduling for someone else"
-                                            fullWidth
-                                        />
-                                    )}
-                                    renderOption={(props, option) => (
-                                        <li {...props} key={option.id}>
-                                            {option.first_name}{" "}
-                                            {option.last_name} ({option.email})
-                                        </li>
-                                    )}
-                                    isOptionEqualToValue={(option, value) =>
-                                        option.id === value?.id
-                                    }
-                                    ListboxProps={{
-                                        style: { maxHeight: "250px" },
-                                    }}
-                                    fullWidth
-                                />
-                            </>
-                        )}
-
-                        <FormControlLabel
-                            control={
-                                <Checkbox
-                                    checked={formData.isRecurring || false}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            isRecurring: e.target.checked,
-                                        })
-                                    }
-                                />
-                            }
-                            label="Repeat Reservation"
-                        />
-                        {formData.isRecurring && (
-                            <>
-                                <FormControl fullWidth>
-                                    <InputLabel>Repeat Pattern</InputLabel>
-                                    <Select
-                                        value={formData.recurrencePattern}
-                                        label="Repeat Pattern"
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                recurrencePattern:
-                                                    e.target.value,
-                                            })
-                                        }
-                                    >
-                                        <MenuItem value="daily">Daily</MenuItem>
-                                        <MenuItem value="weekly">
-                                            Weekly
-                                        </MenuItem>
-                                        <MenuItem value="monthly">
-                                            Monthly
-                                        </MenuItem>
-                                    </Select>
-                                </FormControl>
-                                <TextField
-                                    label="Repeat Every"
-                                    type="number"
-                                    value={formData.recurrenceInterval || 1}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            recurrenceInterval:
-                                                parseInt(e.target.value) || 1,
-                                        })
-                                    }
-                                    InputLabelProps={{
-                                        shrink: true,
-                                    }}
-                                    inputProps={{ min: 1 }}
-                                    helperText={`Repeat every ${
-                                        formData.recurrenceInterval || 1
-                                    } ${
-                                        formData.recurrencePattern === "daily"
-                                            ? "day(s)"
-                                            : formData.recurrencePattern ===
-                                                "weekly"
-                                              ? "week(s)"
-                                              : formData.recurrencePattern ===
-                                                  "monthly"
-                                                ? "month(s)"
-                                                : "day(s)"
-                                    }`}
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="End Date (Optional)"
-                                    type="date"
-                                    value={formData.recurrenceEndDate}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            recurrenceEndDate: e.target.value,
-                                        })
-                                    }
-                                    InputLabelProps={{
-                                        shrink: true,
-                                    }}
-                                    helperText="Leave empty for indefinite repeat"
-                                    fullWidth
-                                />
-                            </>
-                        )}
-                        {equipment?.requires_approval && (
-                            <Typography variant="caption" color="warning.main">
-                                Note: This equipment requires approval before
-                                checkout.
-                            </Typography>
-                        )}
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDialog}>Cancel</Button>
-                    <Button
-                        onClick={handleSaveCheckout}
-                        variant="contained"
-                        sx={{
-                            backgroundColor: "lightgreen",
-                            color: "black",
-                            ":hover": {
-                                backgroundColor: "green",
-                                color: "white",
-                            },
-                        }}
-                    >
-                        Create Reservation
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                equipmentId={equipmentId}
+                equipmentName={equipment?.name}
+                equipment={equipment}
+                users={users}
+                currentUserId={user?.id}
+                selectedSlot={selectedSlot}
+                onSuccess={() => {
+                    fetchCheckouts(dateRange.start, dateRange.end);
+                }}
+                setLoading={setLoading}
+                showAlert={showAlert}
+            />
 
             {/* Checkout Details Dialog */}
             <Dialog
@@ -938,91 +594,67 @@ const EquipmentCalendar = ({
                             required
                             fullWidth
                         />
-
-                        {/* Optional Fields Toggle */}
-                        <Button
-                            size="small"
-                            startIcon={
-                                showOptionalFields ? (
-                                    <RemoveIcon />
-                                ) : (
-                                    <AddIcon />
-                                )
+                        <TextField
+                            label="Notes"
+                            value={editFormData.notes}
+                            onChange={(e) =>
+                                setEditFormData({
+                                    ...editFormData,
+                                    notes: e.target.value,
+                                })
                             }
-                            onClick={() =>
-                                setShowOptionalFields(!showOptionalFields)
+                            multiline
+                            rows={3}
+                            fullWidth
+                        />
+                        <Autocomplete
+                            options={users.filter((u) => u.id !== user?.id)}
+                            getOptionLabel={(option) =>
+                                typeof option === "string"
+                                    ? option
+                                    : `${option.first_name} ${option.last_name}`
                             }
-                        >
-                            Optional Fields
-                        </Button>
-
-                        {showOptionalFields && (
-                            <>
+                            value={
+                                users.find(
+                                    (u) =>
+                                        `${u.first_name} ${u.last_name}` ===
+                                        editFormData.scheduled_on_behalf_of,
+                                ) ||
+                                editFormData.scheduled_on_behalf_of ||
+                                null
+                            }
+                            onChange={(event, newValue) => {
+                                setEditFormData({
+                                    ...editFormData,
+                                    scheduled_on_behalf_of: newValue
+                                        ? typeof newValue === "string"
+                                            ? newValue
+                                            : `${newValue.first_name} ${newValue.last_name}`
+                                        : "",
+                                });
+                            }}
+                            freeSolo
+                            renderInput={(params) => (
                                 <TextField
-                                    label="Notes"
-                                    value={editFormData.notes}
-                                    onChange={(e) =>
-                                        setEditFormData({
-                                            ...editFormData,
-                                            notes: e.target.value,
-                                        })
-                                    }
-                                    multiline
-                                    rows={3}
-                                    fullWidth
+                                    {...params}
+                                    label="Scheduled On Behalf Of"
+                                    placeholder="Select or type a name"
                                 />
-                                <Autocomplete
-                                    options={users.filter(
-                                        (u) => u.id !== user?.id,
-                                    )}
-                                    getOptionLabel={(option) =>
-                                        typeof option === "string"
-                                            ? option
-                                            : `${option.first_name} ${option.last_name}`
-                                    }
-                                    value={
-                                        users.find(
-                                            (u) =>
-                                                `${u.first_name} ${u.last_name}` ===
-                                                editFormData.scheduled_on_behalf_of,
-                                        ) ||
-                                        editFormData.scheduled_on_behalf_of ||
-                                        null
-                                    }
-                                    onChange={(event, newValue) => {
-                                        setEditFormData({
-                                            ...editFormData,
-                                            scheduled_on_behalf_of: newValue
-                                                ? typeof newValue === "string"
-                                                    ? newValue
-                                                    : `${newValue.first_name} ${newValue.last_name}`
-                                                : "",
-                                        });
-                                    }}
-                                    freeSolo
-                                    renderInput={(params) => (
-                                        <TextField
-                                            {...params}
-                                            label="Scheduled On Behalf Of"
-                                            placeholder="Select or type a name"
-                                        />
-                                    )}
-                                    renderOption={(props, option) => (
-                                        <li {...props} key={option.id}>
-                                            {option.first_name}{" "}
-                                            {option.last_name} ({option.email})
-                                        </li>
-                                    )}
-                                    isOptionEqualToValue={(option, value) =>
-                                        option.id === value?.id
-                                    }
-                                    ListboxProps={{
-                                        style: { maxHeight: "250px" },
-                                    }}
-                                    fullWidth
-                                />
-                            </>
-                        )}
+                            )}
+                            renderOption={(props, option) => (
+                                <li {...props} key={option.id}>
+                                    {option.first_name} {option.last_name} (
+                                    {option.email})
+                                </li>
+                            )}
+                            isOptionEqualToValue={(option, value) =>
+                                option.id === value?.id
+                            }
+                            ListboxProps={{
+                                style: { maxHeight: "250px" },
+                            }}
+                            fullWidth
+                        />
 
                         {/* Show update mode selector for recurring checkouts */}
                         {selectedCheckout?.extendedProps?.isRecurring && (
@@ -1069,26 +701,7 @@ const EquipmentCalendar = ({
                 <Fab
                     color="primary"
                     aria-label="add reservation"
-                    onClick={() => {
-                        // Set default times: start now, end 1 hour from now
-                        const now = new Date();
-                        const oneHourLater = new Date(
-                            now.getTime() + 60 * 60 * 1000,
-                        );
-                        setSelectedSlot({
-                            start: now,
-                            end: oneHourLater,
-                        });
-                        setFormData({
-                            notes: "",
-                            scheduled_on_behalf_of: "",
-                            isRecurring: false,
-                            recurrencePattern: "daily",
-                            recurrenceInterval: 1,
-                            recurrenceEndDate: "",
-                        });
-                        setOpenDialog(true);
-                    }}
+                    onClick={() => setOpenDialog(true)}
                     sx={{
                         position: "fixed",
                         bottom: 16,

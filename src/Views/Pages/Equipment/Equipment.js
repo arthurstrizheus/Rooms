@@ -179,6 +179,10 @@ const Equipment = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        billing_rate: "",
+        billing_code: "",
+        date_of_purchase: "",
+        brand_name: "",
         can_book: true,
         last_calibration_date: "",
         calibration_interval_value: "",
@@ -353,6 +357,14 @@ const Equipment = ({ setLoading, loading }) => {
                 method: item.AssetTaxMeta?.method || "MACRS",
                 bonus_eligible: item.AssetTaxMeta?.bonus_eligible ?? true,
                 section179_elected: item.AssetTaxMeta?.section179_elected || "",
+                billing_rate: item.billing_rate || "",
+                billing_code: item.billing_code || "",
+                date_of_purchase: item?.date_of_purchase
+                    ? new Date(item?.date_of_purchase)
+                          .toISOString()
+                          .split("T")[0]
+                    : "",
+                brand_name: item?.brand_name || "",
             });
         } else {
             setSelectedEquipment(null);
@@ -366,6 +378,10 @@ const Equipment = ({ setLoading, loading }) => {
                 contact_person_id: null,
                 status: "available",
                 requires_approval: false,
+                billing_rate: "",
+                billing_code: "",
+                date_of_purchase: "",
+                brand_name: "",
                 can_book: true,
                 last_calibration_date: "",
                 calibration_interval_value: "",
@@ -807,13 +823,17 @@ const Equipment = ({ setLoading, loading }) => {
                                                     fontSize="small"
                                                 />
                                             )}
-                                            <Chip
-                                                label={getDisplayStatus(item)}
-                                                color={getStatusColor(
-                                                    getDisplayStatus(item),
-                                                )}
-                                                size="small"
-                                            />
+                                            {item?.can_book !== false && (
+                                                <Chip
+                                                    label={getDisplayStatus(
+                                                        item,
+                                                    )}
+                                                    color={getStatusColor(
+                                                        getDisplayStatus(item),
+                                                    )}
+                                                    size="small"
+                                                />
+                                            )}
                                         </Box>
                                     </Box>
                                     <Box

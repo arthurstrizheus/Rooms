@@ -1,6 +1,5 @@
-
 *{
-    user-select: none;
+    user-select: auto;
 }
 
 .sidebar-button {
@@ -55,4 +54,8 @@
 
 .logout-button {
     cursor: pointer;
+}
+
+.sidebar-button, .sidebar-button-sub-button, .logout-button {
+    user-select: none;
 }

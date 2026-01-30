@@ -77,6 +77,9 @@ const Post = async (req, res, next) => {
         if (equipmentData.last_calibration_date === "") {
             equipmentData.last_calibration_date = null;
         }
+        if (equipmentData.date_of_purchase === "") {
+            equipmentData.date_of_purchase = null;
+        }
 
         // Convert cost to float or null
         if (
@@ -87,6 +90,17 @@ const Post = async (req, res, next) => {
             equipmentData.cost = null;
         } else if (equipmentData.cost) {
             equipmentData.cost = parseFloat(equipmentData.cost);
+        }
+
+        // Convert billing_rate to float or null
+        if (
+            equipmentData.billing_rate === "" ||
+            equipmentData.billing_rate === null ||
+            equipmentData.billing_rate === undefined
+        ) {
+            equipmentData.billing_rate = null;
+        } else if (equipmentData.billing_rate) {
+            equipmentData.billing_rate = parseFloat(equipmentData.billing_rate);
         }
 
         // Convert calibration_interval_value to integer or null
@@ -208,9 +222,12 @@ const Update = async (req, res, next) => {
         const stringFieldsToClean = [
             "description",
             "serial_number",
+            "brand_name",
+            "billing_code",
             "location",
             "contact_person",
             "last_calibration_date",
+            "date_of_purchase",
             "calibration_interval_unit",
             "image",
         ];
@@ -239,6 +256,17 @@ const Update = async (req, res, next) => {
             updates.cost = null;
         } else if (updates.cost) {
             updates.cost = parseFloat(updates.cost);
+        }
+
+        // Convert billing_rate to float or null
+        if (
+            updates.billing_rate === "" ||
+            updates.billing_rate === null ||
+            updates.billing_rate === undefined
+        ) {
+            updates.billing_rate = null;
+        } else if (updates.billing_rate) {
+            updates.billing_rate = parseFloat(updates.billing_rate);
         }
 
         // Convert calibration_interval_value to integer or null
@@ -538,7 +566,11 @@ const ExportToExcel = async (req, res, next) => {
             { header: "Name", key: "name", width: 30 },
             { header: "Description", key: "description", width: 40 },
             { header: "Serial Number", key: "serial_number", width: 20 },
+            { header: "Brand Name", key: "brand_name", width: 20 },
+            { header: "Date of Purchase", key: "date_of_purchase", width: 18 },
             { header: "Cost", key: "cost", width: 15 },
+            { header: "Billing Rate", key: "billing_rate", width: 15 },
+            { header: "Billing Code", key: "billing_code", width: 15 },
             { header: "Location", key: "location", width: 20 },
             { header: "Contact Person", key: "contact_person", width: 25 },
             { header: "Status", key: "status", width: 15 },
@@ -612,7 +644,15 @@ const ExportToExcel = async (req, res, next) => {
                 name: item.name,
                 description: item.description || "",
                 serial_number: item.serial_number || "",
+                brand_name: item.brand_name || "",
+                date_of_purchase: item.date_of_purchase
+                    ? new Date(item.date_of_purchase).toLocaleDateString()
+                    : "",
                 cost: item.cost ? `$${parseFloat(item.cost).toFixed(2)}` : "",
+                billing_rate: item.billing_rate
+                    ? `$${parseFloat(item.billing_rate).toFixed(2)}`
+                    : "",
+                billing_code: item.billing_code || "",
                 location: item.location || "",
                 contact_person: item.contact_person || "",
                 status: item.status,

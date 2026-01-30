@@ -134,7 +134,7 @@ function App() {
                 height: "100vh",
                 display: "flex",
                 flexDirection: "column",
-                overflow: isMobile ? "auto" : "hidden",
+                overflow: isMobile ? "auto" : "visible",
                 WebkitOverflowScrolling: isMobile ? "touch" : "auto",
             }}
         >

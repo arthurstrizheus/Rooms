@@ -14,6 +14,7 @@ import {
     AccordionDetails,
     Typography,
     Link,
+    Grid,
 } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 
@@ -139,31 +140,40 @@ const EquipmentDialog = ({
                         mt: 1,
                     }}
                 >
-                    <TextField
-                        label="Name"
-                        value={formData.name}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                name: e.target.value,
-                            })
-                        }
-                        required
-                        fullWidth
-                    />
-                    <TextField
-                        label="Description"
-                        value={formData.description}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                description: e.target.value,
-                            })
-                        }
-                        multiline
-                        rows={3}
-                        fullWidth
-                    />
+                    <Grid container spacing={1}>
+                        <Grid item xs={9}>
+                            <TextField
+                                label="Name"
+                                value={formData.name}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        name: e.target.value,
+                                    })
+                                }
+                                required
+                                fullWidth
+                            />
+                        </Grid>
+                        <Grid item xs={3}>
+                            <TextField
+                                select
+                                label="Can Be Booked"
+                                value={formData.can_book}
+                                required
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        can_book: e.target.value === "true",
+                                    })
+                                }
+                                fullWidth
+                            >
+                                <MenuItem value={true}>Yes</MenuItem>
+                                <MenuItem value={false}>No</MenuItem>
+                            </TextField>
+                        </Grid>
+                    </Grid>
                     <TextField
                         label="Serial Number"
                         value={formData.serial_number}
@@ -175,26 +185,6 @@ const EquipmentDialog = ({
                         }
                         fullWidth
                     />
-                    <TextField
-                        label="Purchase Cost"
-                        type="number"
-                        value={formData.cost}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                cost: e.target.value,
-                            })
-                        }
-                        fullWidth
-                        InputProps={{
-                            startAdornment: "$",
-                        }}
-                        inputProps={{
-                            step: "0.01",
-                            min: "0",
-                        }}
-                    />
-
                     <TextField
                         select
                         label="Location"
@@ -261,49 +251,62 @@ const EquipmentDialog = ({
                         fullWidth
                     />
                     <TextField
-                        select
-                        label="Status"
-                        value={formData.status}
+                        label="Brand Name"
+                        value={formData.brand_name}
                         onChange={(e) =>
                             setFormData({
                                 ...formData,
-                                status: e.target.value,
+                                brand_name: e.target.value,
                             })
                         }
                         fullWidth
-                    >
-                        <MenuItem value="available">Available</MenuItem>
-                        <MenuItem value="reserved">Reserved</MenuItem>
-                        <MenuItem value="maintenance">Maintenance</MenuItem>
-                        <MenuItem value="retired">Retired</MenuItem>
-                    </TextField>
+                    />
                     <TextField
-                        select
-                        label="Can Be Booked"
-                        value={formData.can_book}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                can_book: e.target.value === "true",
-                            })
-                        }
-                        fullWidth
-                    >
-                        <MenuItem value={true}>Yes</MenuItem>
-                        <MenuItem value={false}>No</MenuItem>
-                    </TextField>
-                    <TextField
-                        label="Last Calibration Date"
+                        label="Date of Purchase"
                         type="date"
-                        value={formData.last_calibration_date}
+                        value={formData.date_of_purchase}
                         onChange={(e) =>
                             setFormData({
                                 ...formData,
-                                last_calibration_date: e.target.value,
+                                date_of_purchase: e.target.value,
                             })
                         }
                         fullWidth
-                        InputLabelProps={{ shrink: true }}
+                        InputLabelProps={{
+                            shrink: true,
+                        }}
+                    />
+                    <TextField
+                        label="Purchase Cost"
+                        type="number"
+                        value={formData.cost}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                cost: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        InputProps={{
+                            startAdornment: "$",
+                        }}
+                        inputProps={{
+                            step: "0.01",
+                            min: "0",
+                        }}
+                    />
+                    <TextField
+                        label="Description"
+                        value={formData.description}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                description: e.target.value,
+                            })
+                        }
+                        multiline
+                        rows={1}
+                        fullWidth
                     />
                     <Box sx={{ display: "flex", gap: 2 }}>
                         <TextField
@@ -337,6 +340,72 @@ const EquipmentDialog = ({
                             <MenuItem value="years">Years</MenuItem>
                         </TextField>
                     </Box>
+                    <TextField
+                        label="Last Calibration Date"
+                        type="date"
+                        value={formData.last_calibration_date}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                last_calibration_date: e.target.value,
+                            })
+                        }
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                    />
+                    <Grid container spacing={1}>
+                        <Grid item xs={6}>
+                            <TextField
+                                label="Billing Rate"
+                                type="number"
+                                value={formData.billing_rate}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        billing_rate: e.target.value,
+                                    })
+                                }
+                                fullWidth
+                                InputProps={{
+                                    startAdornment: "$",
+                                }}
+                                inputProps={{
+                                    step: "0.01",
+                                    min: "0",
+                                }}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                label="Billing Code"
+                                value={formData.billing_code}
+                                onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        billing_code: e.target.value,
+                                    })
+                                }
+                                fullWidth
+                            />
+                        </Grid>
+                    </Grid>
+                    <TextField
+                        select
+                        label="Status"
+                        value={formData.status}
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                status: e.target.value,
+                            })
+                        }
+                        fullWidth
+                    >
+                        <MenuItem value="available">Available</MenuItem>
+                        <MenuItem value="reserved">Reserved</MenuItem>
+                        <MenuItem value="maintenance">Maintenance</MenuItem>
+                        <MenuItem value="retired">Retired</MenuItem>
+                    </TextField>
 
                     {/* Optional Tax Depreciation Section */}
                     <Accordion sx={{ mt: 3 }}>

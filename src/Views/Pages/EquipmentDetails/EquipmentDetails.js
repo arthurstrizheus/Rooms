@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
     Box,
     Typography,
@@ -17,11 +17,6 @@ import {
     Card,
     CardContent,
     Divider,
-    Chip,
-    IconButton,
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     Link,
 } from "@mui/material";
 import {
@@ -29,11 +24,9 @@ import {
     Delete,
     CalendarMonth,
     UploadFile,
-    Warning,
     NotificationsActive,
     CompareArrows,
     MoreVert,
-    ExpandMore,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
@@ -41,8 +34,6 @@ import { useSocket } from "../../../Contexts/SocketContext";
 import axios from "axios";
 import ImageCarousel from "./Components/ImageCarousel";
 import CalibrationInfoCard from "./Components/CalibrationInfoCard";
-import FileListCard from "./Components/FileListCard";
-import CalibrationHistoryCard from "./Components/CalibrationHistoryCard";
 import CheckoutHistoryCard from "./Components/CheckoutHistoryCard";
 import AlertsCard from "./Components/AlertsCard";
 import EnlargedImageDialog from "./Components/EnlargedImageDialog";
@@ -52,223 +43,14 @@ import useAlertDialog from "../../../hooks/useAlertDialog";
 import ConfirmDialog from "../../../Components/ConfirmDialog";
 import useConfirmDialog from "../../../hooks/useConfirmDialog";
 import EquipmentDialog from "../Equipment/EquipmentDialog";
-
-// Helper functions to get state-specific tax resource links
-const getStateDepreciationLink = (state) => {
-    const links = {
-        OH: (
-            <Link
-                href="https://tax.ohio.gov/faq-IncomeDepreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                OH depreciation guidance
-            </Link>
-        ),
-        MO: (
-            <Link
-                href="https://dor.mo.gov/faq/taxation/business/corporation-income.html"
-                target="_blank"
-                rel="noopener"
-            >
-                MO tax guidance
-            </Link>
-        ),
-        TX: (
-            <Link
-                href="https://comptroller.texas.gov/taxes/franchise/"
-                target="_blank"
-                rel="noopener"
-            >
-                TX franchise tax info
-            </Link>
-        ),
-        IL: (
-            <Link
-                href="https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                IL Form 4562
-            </Link>
-        ),
-        FL: (
-            <Link
-                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                FL depreciation adjustments
-            </Link>
-        ),
-        MD: (
-            <Link
-                href="https://www.marylandtaxes.gov/forms/23_forms/500DM.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                MD Form 500DM
-            </Link>
-        ),
-        GA: (
-            <Link
-                href="https://dor.georgia.gov/irc-section-168k-special-depreciation-allowance-bonus-depreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                GA depreciation info
-            </Link>
-        ),
-        NC: (
-            <Link
-                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
-                target="_blank"
-                rel="noopener"
-            >
-                NC depreciation guidance
-            </Link>
-        ),
-        CO: (
-            <Link
-                href="https://tax.colorado.gov/depreciation-addback-subtraction"
-                target="_blank"
-                rel="noopener"
-            >
-                CO depreciation adjustment
-            </Link>
-        ),
-        MI: (
-            <Link
-                href="https://www.michigan.gov/taxes/business-taxes/cit/cit-faqs"
-                target="_blank"
-                rel="noopener"
-            >
-                MI CIT guidance
-            </Link>
-        ),
-    };
-    return links[state] || <span>state tax guidance</span>;
-};
-
-const getStateBonusDepreciationLink = (state) => {
-    const links = {
-        OH: (
-            <Link
-                href="https://tax.ohio.gov/business/pass-through-entity-and-fiduciary-income-tax"
-                target="_blank"
-                rel="noopener"
-            >
-                OH bonus add-back
-            </Link>
-        ),
-        FL: (
-            <Link
-                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                FL bonus treatment
-            </Link>
-        ),
-        IL: (
-            <Link
-                href="https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                IL bonus reversal
-            </Link>
-        ),
-        GA: (
-            <Link
-                href="https://dor.georgia.gov/irc-section-168k-special-depreciation-allowance-bonus-depreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                GA bonus info
-            </Link>
-        ),
-        NC: (
-            <Link
-                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
-                target="_blank"
-                rel="noopener"
-            >
-                NC bonus treatment
-            </Link>
-        ),
-    };
-    return links[state] || <span>state bonus info</span>;
-};
-
-const getStateSection179Link = (state) => {
-    const links = {
-        OH: (
-            <Link
-                href="https://tax.ohio.gov/faq-IncomeDepreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                OH Section 179 threshold
-            </Link>
-        ),
-        FL: (
-            <Link
-                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                FL Section 179 treatment
-            </Link>
-        ),
-        NC: (
-            <Link
-                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
-                target="_blank"
-                rel="noopener"
-            >
-                NC Section 179 guidance
-            </Link>
-        ),
-    };
-    return links[state] || <span>state Section 179 info</span>;
-};
+import ReservationDialog from "./Components/ReservationDialog";
+import EquipmentInfoCard from "./Components/EquipmentInfoCard";
+import EquipmentDetailsCard from "./Components/EquipmentDetailsCard";
 
 const EquipmentDetails = ({ setLoading, loading }) => {
     const { equipmentId } = useParams();
     const { user } = useAuth();
     const { socket } = useSocket();
-
-    const calculateDueDate = () => {
-        if (
-            !equipment?.last_calibration_date ||
-            !equipment?.calibration_interval_value
-        ) {
-            return null;
-        }
-        const lastCal = new Date(equipment.last_calibration_date);
-        const dueDate = new Date(lastCal);
-
-        switch (equipment.calibration_interval_unit) {
-            case "days":
-                dueDate.setDate(
-                    dueDate.getDate() + equipment.calibration_interval_value,
-                );
-                break;
-            case "months":
-                dueDate.setMonth(
-                    dueDate.getMonth() + equipment.calibration_interval_value,
-                );
-                break;
-            case "years":
-                dueDate.setFullYear(
-                    dueDate.getFullYear() +
-                        equipment.calibration_interval_value,
-                );
-                break;
-        }
-        return dueDate;
-    };
     const navigate = useNavigate();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -293,6 +75,10 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        brand_name: "",
+        billing_rate: "",
+        billing_code: "",
+        date_of_purchase: "",
         can_book: true,
         calibration_interval_value: "",
         calibration_interval_unit: "days",
@@ -334,13 +120,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         [],
     );
     const [openReserveDialog, setOpenReserveDialog] = useState(false);
-    const [reserveFormData, setReserveFormData] = useState({
-        start_time: "",
-        end_time: "",
-        notes: "",
-        project_number: "",
-        scheduled_on_behalf_of: "",
-    });
 
     useEffect(() => {
         fetchEquipment();
@@ -547,6 +326,14 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             contact_person: equipment.contact_person || "",
             contact_person_id: equipment.contact_person_id || null,
             status: equipment.status,
+            billing_rate: equipment.billing_rate || "",
+            billing_code: equipment.billing_code || "",
+            brand_name: equipment.brand_name || "",
+            date_of_purchase: equipment.date_of_purchase
+                ? new Date(equipment.date_of_purchase)
+                      .toISOString()
+                      .split("T")[0]
+                : "",
             requires_approval: equipment.requires_approval,
             can_book: equipment.can_book !== false,
             calibration_interval_value:
@@ -586,14 +373,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const handleCloseEditDialog = () => {
         setOpenEditDialog(false);
-    };
-
-    const handleInputChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData({
-            ...formData,
-            [name]: type === "checkbox" ? checked : value,
-        });
     };
 
     const handleSubmit = async () => {
@@ -774,127 +553,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         }
     };
 
-    const isEquipmentCurrentlyCheckedOut = (equipmentId) => {
-        const now = new Date();
-        return activeCheckouts.some((checkout) => {
-            if (checkout.equipment_id !== equipmentId) return false;
-            if (checkout.status === "cancelled") return false;
-
-            const start = new Date(checkout.start_time);
-            const end = new Date(checkout.end_time);
-            return now >= start && now <= end;
-        });
-    };
-
-    const getDisplayStatus = () => {
-        if (!equipment) return "available";
-        // If equipment is currently checked out, override status
-        if (isEquipmentCurrentlyCheckedOut(equipment.id)) {
-            return "unavailable";
-        }
-        return equipment.status;
-    };
-
-    const handleOpenReserveDialog = () => {
-        const now = new Date();
-        const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
-        now.setMinutes(roundedMinutes, 0, 0);
-
-        const endTime = new Date(now);
-        endTime.setHours(endTime.getHours() + 1);
-
-        const formatDateTime = (date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, "0");
-            const day = String(date.getDate()).padStart(2, "0");
-            const hours = String(date.getHours()).padStart(2, "0");
-            const minutes = String(date.getMinutes()).padStart(2, "0");
-            return `${year}-${month}-${day}T${hours}:${minutes}`;
-        };
-
-        setReserveFormData({
-            start_time: formatDateTime(now),
-            end_time: formatDateTime(endTime),
-            notes: "",
-            project_number: "",
-            scheduled_on_behalf_of: "",
-        });
-        setOpenReserveDialog(true);
-    };
-
-    const handleCloseReserveDialog = () => {
-        setOpenReserveDialog(false);
-    };
-
-    const handleReserveSubmit = async () => {
-        if (
-            !reserveFormData.project_number ||
-            reserveFormData.project_number.trim() === ""
-        ) {
-            showAlert("Project Number is required", "error");
-            return;
-        }
-
-        const startTime = new Date(reserveFormData.start_time);
-        const endTime = new Date(reserveFormData.end_time);
-
-        if (endTime <= startTime) {
-            showAlert("End time must be after start time", "error");
-            return;
-        }
-
-        try {
-            setLoading(true);
-            const token = localStorage.getItem("authToken");
-
-            const checkoutData = {
-                equipment_id: parseInt(equipmentId),
-                user_id: user.id,
-                start_time: new Date(reserveFormData.start_time).toISOString(),
-                end_time: new Date(reserveFormData.end_time).toISOString(),
-                notes: reserveFormData.notes || null,
-                project_number: reserveFormData.project_number || null,
-                scheduled_on_behalf_of:
-                    reserveFormData.scheduled_on_behalf_of || null,
-            };
-
-            await axios.post("/api/checkouts", checkoutData, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            showAlert("Reservation created successfully", "success");
-            fetchCheckoutHistory();
-            fetchActiveCheckouts();
-            handleCloseReserveDialog();
-        } catch (error) {
-            console.error("Error creating reservation:", error);
-            showAlert(
-                "Error creating reservation: " +
-                    (error.response?.data?.message || error.message),
-                "error",
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getStatusColor = (status) => {
-        switch (status) {
-            case "available":
-                return "success";
-            case "unavailable":
-                return "error";
-            case "reserved":
-                return "info";
-            case "maintenance":
-                return "warning";
-            case "retired":
-                return "default";
-            default:
-                return "default";
-        }
-    };
-
     const getCheckoutStatusColor = (status) => {
         switch (status) {
             case "pending":
@@ -1035,7 +693,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                     },
                                 }}
                                 startIcon={<CalendarMonth />}
-                                onClick={handleOpenReserveDialog}
+                                onClick={() => setOpenReserveDialog(true)}
                             >
                                 Reserve
                             </Button>
@@ -1117,123 +775,18 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             />
 
                             {/* Equipment Info Grid */}
-                            <Grid container spacing={2}>
-                                {equipment?.can_book !== false && (
-                                    <Grid item xs={12} sm={6}>
-                                        <Typography
-                                            variant="body2"
-                                            color="text.secondary"
-                                        >
-                                            Status
-                                        </Typography>
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                gap: 1,
-                                                alignItems: "center",
-                                                mt: 0.5,
-                                            }}
-                                        >
-                                            <Chip
-                                                label={getDisplayStatus()}
-                                                color={getStatusColor(
-                                                    getDisplayStatus(),
-                                                )}
-                                                size="small"
-                                            />
-                                            {isCalibrationDueSoon(
-                                                calculateDueDate(),
-                                            ) && (
-                                                <Chip
-                                                    icon={<Warning />}
-                                                    label="Calibration Due Soon"
-                                                    color="warning"
-                                                    size="small"
-                                                />
-                                            )}
-                                        </Box>
-                                    </Grid>
-                                )}
-
-                                <Grid item xs={12} sm={6}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Serial Number
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {equipment.serial_number || "N/A"}
-                                    </Typography>
-                                </Grid>
-
-                                <Grid item xs={12}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Description
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {equipment.description || "N/A"}
-                                    </Typography>
-                                </Grid>
-
-                                <Grid item xs={12} sm={6}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Location
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {equipment.location || "N/A"}
-                                    </Typography>
-                                </Grid>
-
-                                <Grid item xs={12} sm={6}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Contact Person
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {equipment.contact_person || "N/A"}
-                                    </Typography>
-                                </Grid>
-
-                                {/* <Grid item xs={12} sm={6}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Requires Approval
-                                    </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ mt: 0.5 }}
-                                    >
-                                        {equipment.requires_approval
-                                            ? "Yes"
-                                            : "No"}
-                                    </Typography>
-                                </Grid> */}
-                            </Grid>
+                            <EquipmentInfoCard
+                                equipment={equipment}
+                                isCalibrationDueSoon={isCalibrationDueSoon}
+                                activeCheckouts={activeCheckouts}
+                                user={user}
+                            />
                         </CardContent>
                     </Card>
+                    {/* Equipment Details Grid */}
+                    <Grid item sx={{ mt: 3 }}>
+                        <EquipmentDetailsCard equipment={equipment} />
+                    </Grid>
                 </Grid>
 
                 {/* Calibration Info */}
@@ -1253,17 +806,68 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             })
                         }
                     />
+                    {(equipment.billing_rate || equipment.billing_code) && (
+                        <Grid mt={3}>
+                            <Card width={"100%"}>
+                                <CardContent width={"100%"}>
+                                    <Typography
+                                        variant="h6"
+                                        gutterBottom
+                                        width={"100%"}
+                                    >
+                                        Billing
+                                    </Typography>
+                                    <Divider sx={{ mb: 2 }} />
+                                    <Box
+                                        sx={{
+                                            mt: 0,
+                                            width: "100%",
+                                        }}
+                                    >
+                                        <Grid container spacing={2}>
+                                            {equipment?.billing_rate && (
+                                                <Grid item xs={6}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        Billing Rate
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{ mt: 0.5 }}
+                                                    >
+                                                        {
+                                                            equipment?.billing_rate
+                                                        }
+                                                    </Typography>
+                                                </Grid>
+                                            )}
+                                            {equipment?.billing_code && (
+                                                <Grid item xs={6}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        Billing Code
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{ mt: 0.5 }}
+                                                    >
+                                                        {
+                                                            equipment?.billing_code
+                                                        }
+                                                    </Typography>
+                                                </Grid>
+                                            )}
+                                        </Grid>
+                                    </Box>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    )}
                 </Grid>
-
-                {/* Checkout History - Only show if equipment can be booked */}
-                {equipment?.can_book && (
-                    <Grid item xs={12}>
-                        <CheckoutHistoryCard
-                            checkoutHistory={checkoutHistory}
-                            getCheckoutStatusColor={getCheckoutStatusColor}
-                        />
-                    </Grid>
-                )}
 
                 {/* Alert Subscriptions */}
                 <Grid item xs={12}>
@@ -1277,6 +881,16 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                         }
                     />
                 </Grid>
+
+                {/* Checkout History - Only show if equipment can be booked */}
+                {equipment?.can_book && (
+                    <Grid item xs={12}>
+                        <CheckoutHistoryCard
+                            checkoutHistory={checkoutHistory}
+                            getCheckoutStatusColor={getCheckoutStatusColor}
+                        />
+                    </Grid>
+                )}
             </Grid>
 
             {/* Edit Dialog */}
@@ -1543,104 +1157,21 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             </Dialog>
 
             {/* Reserve Dialog */}
-            <Dialog
+            <ReservationDialog
                 open={openReserveDialog}
-                onClose={handleCloseReserveDialog}
-                maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Reserve {equipment?.name}</DialogTitle>
-                <DialogContent>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                            mt: 1,
-                        }}
-                    >
-                        <TextField
-                            label="Start Time"
-                            type="datetime-local"
-                            value={reserveFormData.start_time}
-                            onChange={(e) =>
-                                setReserveFormData({
-                                    ...reserveFormData,
-                                    start_time: e.target.value,
-                                })
-                            }
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                        />
-                        <TextField
-                            label="End Time"
-                            type="datetime-local"
-                            value={reserveFormData.end_time}
-                            onChange={(e) =>
-                                setReserveFormData({
-                                    ...reserveFormData,
-                                    end_time: e.target.value,
-                                })
-                            }
-                            fullWidth
-                            InputLabelProps={{ shrink: true }}
-                        />
-                        <TextField
-                            label="Project Number"
-                            value={reserveFormData.project_number}
-                            onChange={(e) =>
-                                setReserveFormData({
-                                    ...reserveFormData,
-                                    project_number: e.target.value,
-                                })
-                            }
-                            fullWidth
-                            required
-                        />
-                        <TextField
-                            label="Scheduled On Behalf Of (optional)"
-                            value={reserveFormData.scheduled_on_behalf_of}
-                            onChange={(e) =>
-                                setReserveFormData({
-                                    ...reserveFormData,
-                                    scheduled_on_behalf_of: e.target.value,
-                                })
-                            }
-                            fullWidth
-                        />
-                        <TextField
-                            label="Notes (optional)"
-                            value={reserveFormData.notes}
-                            onChange={(e) =>
-                                setReserveFormData({
-                                    ...reserveFormData,
-                                    notes: e.target.value,
-                                })
-                            }
-                            fullWidth
-                            multiline
-                            rows={3}
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseReserveDialog}>Cancel</Button>
-                    <Button
-                        onClick={handleReserveSubmit}
-                        variant="contained"
-                        sx={{
-                            backgroundColor: "lightgreen",
-                            color: "black",
-                            ":hover": {
-                                backgroundColor: "green",
-                                color: "white",
-                            },
-                        }}
-                    >
-                        Create Reservation
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                onClose={() => setOpenReserveDialog(false)}
+                equipmentId={equipmentId}
+                equipmentName={equipment?.name}
+                equipment={equipment}
+                users={users}
+                currentUserId={user?.id}
+                onSuccess={() => {
+                    showAlert("Reservation created successfully", "success");
+                    fetchCheckoutHistory();
+                }}
+                setLoading={setLoading}
+                showAlert={showAlert}
+            />
         </Box>
     );
 };
