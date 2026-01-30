@@ -30,6 +30,7 @@ import {
     Warning,
     Search,
     Visibility,
+    Download,
 } from "@mui/icons-material";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -461,6 +462,40 @@ const Equipment = ({ setLoading, loading }) => {
         }
     };
 
+    const handleExportToExcel = async () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const response = await axios.get("/api/equipment/export/excel", {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: "blob",
+            });
+
+            // Create a blob from the response
+            const blob = new Blob([response.data], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            });
+
+            // Create a temporary URL for the blob
+            const url = window.URL.createObjectURL(blob);
+
+            // Create a temporary anchor element and trigger download
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `Equipment_List_${new Date().toISOString().split("T")[0]}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            showAlert("Equipment list exported successfully!", "success");
+        } catch (error) {
+            console.error("Error exporting equipment:", error);
+            showAlert("Failed to export equipment list", "error");
+        }
+    };
+
     const getStatusColor = (status) => {
         switch (status) {
             case "available":
@@ -686,6 +721,14 @@ const Equipment = ({ setLoading, loading }) => {
                         <MenuItem value="maintenance">Maintenance</MenuItem>
                         <MenuItem value="retired">Retired</MenuItem>
                     </TextField>
+                    <Button
+                        variant="outlined"
+                        startIcon={<Download />}
+                        onClick={handleExportToExcel}
+                        sx={{ minWidth: isMobile ? "100%" : "auto" }}
+                    >
+                        Export to Excel
+                    </Button>
                     {(user?.admin ||
                         user?.equipment_admin ||
                         user?.equipment_office_admin ||

@@ -465,10 +465,185 @@ const Delete = async (req, res, next) => {
     }
 };
 
+const ExportToExcel = async (req, res, next) => {
+    try {
+        const ExcelJS = require("exceljs");
+
+        // Fetch all equipment with related data
+        const equipment = await Equipment.findAll({
+            order: [["name", "ASC"]],
+            include: [
+                {
+                    model: User,
+                    as: "CreatedBy",
+                    attributes: ["first_name", "last_name"],
+                },
+                {
+                    model: User,
+                    as: "UpdatedBy",
+                    attributes: ["first_name", "last_name"],
+                },
+                {
+                    model: AssetTaxMeta,
+                    as: "AssetTaxMeta",
+                },
+            ],
+        });
+
+        // Create a new workbook and worksheet
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Equipment List");
+
+        // Define columns
+        worksheet.columns = [
+            { header: "ID", key: "id", width: 10 },
+            { header: "Name", key: "name", width: 30 },
+            { header: "Description", key: "description", width: 40 },
+            { header: "Serial Number", key: "serial_number", width: 20 },
+            { header: "Cost", key: "cost", width: 15 },
+            { header: "Location", key: "location", width: 20 },
+            { header: "Contact Person", key: "contact_person", width: 25 },
+            { header: "Status", key: "status", width: 15 },
+            {
+                header: "Requires Approval",
+                key: "requires_approval",
+                width: 18,
+            },
+            { header: "Can Book", key: "can_book", width: 12 },
+            {
+                header: "Last Calibration Date",
+                key: "last_calibration_date",
+                width: 20,
+            },
+            {
+                header: "Calibration Interval",
+                key: "calibration_interval",
+                width: 20,
+            },
+            {
+                header: "Calibration Due Date",
+                key: "calibration_due_date",
+                width: 20,
+            },
+            { header: "Created By", key: "created_by", width: 25 },
+            { header: "Updated By", key: "updated_by", width: 25 },
+            { header: "Created At", key: "createdAt", width: 20 },
+            { header: "Updated At", key: "updatedAt", width: 20 },
+        ];
+
+        // Style the header row
+        worksheet.getRow(1).font = { bold: true, size: 12 };
+        worksheet.getRow(1).fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "FF4472C4" },
+        };
+        worksheet.getRow(1).alignment = {
+            vertical: "middle",
+            horizontal: "center",
+        };
+
+        // Helper function to calculate calibration due date
+        const calculateDueDate = (lastCalDate, intervalValue, intervalUnit) => {
+            if (!lastCalDate || !intervalValue || !intervalUnit) return null;
+            const date = new Date(lastCalDate);
+            switch (intervalUnit) {
+                case "days":
+                    date.setDate(date.getDate() + intervalValue);
+                    break;
+                case "months":
+                    date.setMonth(date.getMonth() + intervalValue);
+                    break;
+                case "years":
+                    date.setFullYear(date.getFullYear() + intervalValue);
+                    break;
+            }
+            return date;
+        };
+
+        // Add data rows
+        equipment.forEach((item) => {
+            const dueDate = calculateDueDate(
+                item.last_calibration_date,
+                item.calibration_interval_value,
+                item.calibration_interval_unit,
+            );
+
+            worksheet.addRow({
+                id: item.id,
+                name: item.name,
+                description: item.description || "",
+                serial_number: item.serial_number || "",
+                cost: item.cost ? `$${parseFloat(item.cost).toFixed(2)}` : "",
+                location: item.location || "",
+                contact_person: item.contact_person || "",
+                status: item.status,
+                requires_approval:
+                    item.requires_approval === true
+                        ? "Yes"
+                        : item.requires_approval === false
+                          ? "No"
+                          : "No",
+                can_book:
+                    item.can_book === true
+                        ? "Yes"
+                        : item.can_book === false
+                          ? "No"
+                          : "Yes",
+                last_calibration_date: item.last_calibration_date
+                    ? new Date(item.last_calibration_date).toLocaleDateString()
+                    : "",
+                calibration_interval: item.calibration_interval_value
+                    ? `${item.calibration_interval_value} ${item.calibration_interval_unit}`
+                    : "",
+                calibration_due_date: dueDate
+                    ? dueDate.toLocaleDateString()
+                    : "",
+                created_by: item.CreatedBy
+                    ? `${item.CreatedBy.first_name} ${item.CreatedBy.last_name}`
+                    : "",
+                updated_by: item.UpdatedBy
+                    ? `${item.UpdatedBy.first_name} ${item.UpdatedBy.last_name}`
+                    : "",
+                createdAt: item.createdAt
+                    ? new Date(item.createdAt).toLocaleDateString()
+                    : "",
+                updatedAt: item.updatedAt
+                    ? new Date(item.updatedAt).toLocaleDateString()
+                    : "",
+            });
+        });
+
+        // Auto-fit columns (optional enhancement)
+        worksheet.columns.forEach((column) => {
+            column.alignment = { vertical: "middle", wrapText: true };
+        });
+
+        // Set response headers for file download
+        const filename = `Equipment_List_${new Date().toISOString().split("T")[0]}.xlsx`;
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        );
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${filename}"`,
+        );
+
+        // Write to response
+        await workbook.xlsx.write(res);
+        res.end();
+    } catch (err) {
+        console.error("Error exporting equipment to Excel:", err);
+        next(err);
+    }
+};
+
 module.exports = {
     GetAll,
     GetById,
     Post,
     Update,
     Delete,
+    ExportToExcel,
 };

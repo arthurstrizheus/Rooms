@@ -46,7 +46,7 @@ const upload = multer({
         console.log("Multer receiving file:", file.originalname);
         const allowedTypes = /jpeg|jpg|png|gif|webp/;
         const extname = allowedTypes.test(
-            path.extname(file.originalname).toLowerCase()
+            path.extname(file.originalname).toLowerCase(),
         );
         const mimetype = allowedTypes.test(file.mimetype);
 
@@ -55,8 +55,8 @@ const upload = multer({
         } else {
             cb(
                 new Error(
-                    "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed."
-                )
+                    "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+                ),
             );
         }
     },
@@ -68,10 +68,11 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 router.get("/", asyncHandler(equipmentController.GetAll));
+router.get("/export/excel", asyncHandler(equipmentController.ExportToExcel));
 router.get("/:id", asyncHandler(equipmentController.GetById));
 router.get(
     "/:equipmentId/files",
-    asyncHandler(equipmentFileController.GetByEquipmentId)
+    asyncHandler(equipmentFileController.GetByEquipmentId),
 );
 router.post(
     "/",
@@ -86,7 +87,7 @@ router.post(
         }
         next();
     },
-    asyncHandler(equipmentController.Post)
+    asyncHandler(equipmentController.Post),
 );
 router.put(
     "/:id",
@@ -101,7 +102,7 @@ router.put(
         }
         next();
     },
-    asyncHandler(equipmentController.Update)
+    asyncHandler(equipmentController.Update),
 );
 router.delete("/:id", asyncHandler(equipmentController.Delete));
 

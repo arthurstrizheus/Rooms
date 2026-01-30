@@ -72,6 +72,19 @@ async function generateOfficeReport(
             continue;
         }
 
+        // Skip if equipment was placed in service AFTER the selected tax year
+        if (taxMeta.placed_in_service_date) {
+            const placedInServiceYear = new Date(
+                taxMeta.placed_in_service_date,
+            ).getFullYear();
+            if (placedInServiceYear > taxYear) {
+                console.log(
+                    `[Depreciation Report] Skipping ${asset.name} - placed in service in ${placedInServiceYear}, after tax year ${taxYear}`,
+                );
+                continue;
+            }
+        }
+
         // Combine asset and tax meta
         const assetWithMeta = {
             id: asset.id,
@@ -94,6 +107,14 @@ async function generateOfficeReport(
             assetWithMeta,
             taxYear,
         );
+
+        // Skip if both federal and state depreciation are 0 (cannot be written off)
+        if (federalResult.total === 0 && stateResult.stateDepreciation === 0) {
+            console.log(
+                `[Depreciation Report] Skipping ${asset.name} - both federal and state depreciation are $0`,
+            );
+            continue;
+        }
 
         // Check for carryforwards if needed
         if (stateResult.needsCarryforwardCheck) {
@@ -234,6 +255,19 @@ async function generateFederalReport(taxYear) {
     for (const asset of equipment) {
         const taxMeta = asset.AssetTaxMeta;
 
+        // Skip if equipment was placed in service AFTER the selected tax year
+        if (taxMeta.placed_in_service_date) {
+            const placedInServiceYear = new Date(
+                taxMeta.placed_in_service_date,
+            ).getFullYear();
+            if (placedInServiceYear > taxYear) {
+                console.log(
+                    `[Federal Report] Skipping ${asset.name} - placed in service in ${placedInServiceYear}, after tax year ${taxYear}`,
+                );
+                continue;
+            }
+        }
+
         const assetWithMeta = {
             id: asset.id,
             name: asset.name,
@@ -246,6 +280,15 @@ async function generateFederalReport(taxYear) {
             assetWithMeta,
             taxYear,
         );
+
+        // Skip if federal depreciation is 0 (cannot be written off)
+        if (federalResult.total === 0) {
+            console.log(
+                `[Federal Report] Skipping ${asset.name} - federal depreciation is $0`,
+            );
+            continue;
+        }
+
         federalTotal += federalResult.total;
 
         assetReports.push({

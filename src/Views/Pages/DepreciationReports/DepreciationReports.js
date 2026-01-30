@@ -64,6 +64,7 @@ const DepreciationReports = ({ setLoading }) => {
     const [report, setReport] = useState(null);
     const [loadingReport, setLoadingReport] = useState(false);
     const [error, setError] = useState(null);
+    const [warning, setWarning] = useState(null);
 
     const [openTaxMetaDialog, setOpenTaxMetaDialog] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
@@ -131,6 +132,7 @@ const DepreciationReports = ({ setLoading }) => {
         try {
             setLoadingReport(true);
             setError(null);
+            setWarning(null);
             const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/depreciation/offices/${selectedOffice}/report`,
@@ -139,7 +141,35 @@ const DepreciationReports = ({ setLoading }) => {
                     params: { taxYear, taxType },
                 },
             );
-            setReport(response.data);
+            const reportData = response.data;
+
+            const currentYear = new Date().getFullYear();
+            const isFutureYear = taxYear > currentYear;
+
+            // Check if there's any data for this year
+            if (reportData.assets && reportData.assets.length === 0) {
+                // No data - show error with appropriate message
+                if (isFutureYear) {
+                    setError(
+                        `No depreciation data available for future tax year ${taxYear}. ` +
+                            `Equipment must be placed in service to appear in reports.`,
+                    );
+                } else {
+                    setError(
+                        `No depreciation data found for tax year ${taxYear}. ` +
+                            `This could mean: (1) No equipment has been placed in service as of ${taxYear}, ` +
+                            `or (2) No equipment is assigned to this office location.`,
+                    );
+                }
+            } else if (isFutureYear) {
+                // Has data but future year - show warning
+                setWarning(
+                    `Note: ${taxYear} is a future tax year. The depreciation calculations ` +
+                        `shown are projections based on current tax rules, which may change before ${taxYear}.`,
+                );
+            }
+
+            setReport(reportData);
         } catch (error) {
             console.error("Error generating report:", error);
             setError(
@@ -231,7 +261,12 @@ const DepreciationReports = ({ setLoading }) => {
                             select
                             label="Office"
                             value={selectedOffice}
-                            onChange={(e) => setSelectedOffice(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedOffice(e.target.value);
+                                setReport(null);
+                                setError(null);
+                                setWarning(null);
+                            }}
                             fullWidth
                         >
                             {offices.map((office) => (
@@ -249,9 +284,12 @@ const DepreciationReports = ({ setLoading }) => {
                             type="number"
                             label="Tax Year"
                             value={taxYear}
-                            onChange={(e) =>
-                                setTaxYear(parseInt(e.target.value))
-                            }
+                            onChange={(e) => {
+                                setTaxYear(parseInt(e.target.value));
+                                setReport(null);
+                                setError(null);
+                                setWarning(null);
+                            }}
                             fullWidth
                         />
                     </Grid>
@@ -260,7 +298,12 @@ const DepreciationReports = ({ setLoading }) => {
                             select
                             label="Tax Type"
                             value={taxType}
-                            onChange={(e) => setTaxType(e.target.value)}
+                            onChange={(e) => {
+                                setTaxType(e.target.value);
+                                setReport(null);
+                                setError(null);
+                                setWarning(null);
+                            }}
                             fullWidth
                         >
                             <MenuItem value="FEDERAL_INCOME">
@@ -385,30 +428,47 @@ const DepreciationReports = ({ setLoading }) => {
                     {error}
                 </Alert>
             )}
-            {/* No data message */}
-            {report && report.assets && report.assets.length === 0 && (
-                <Alert severity="warning" sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                        No Equipment with Tax Data Found
-                    </Typography>
-                    <Typography variant="body2">
-                        This office has no equipment with depreciation tax data
-                        configured. To generate a report, you need to:
-                    </Typography>
-                    <ul>
-                        <li>Add equipment assigned to this office location</li>
-                        <li>
-                            Configure tax depreciation fields (placed in service
-                            date, cost basis, property class, etc.)
-                        </li>
-                    </ul>
-                    <Typography variant="body2">
-                        You can add tax data when creating equipment or by
-                        editing existing equipment and filling in the "Optional
-                        Tax Depreciation Fields" section.
-                    </Typography>
+            {warning && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                    {warning}
                 </Alert>
             )}
+            {/* No data message - only show if no error already displayed */}
+            {report &&
+                report.assets &&
+                report.assets.length === 0 &&
+                !error && (
+                    <Alert severity="warning" sx={{ mb: 3 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                            No Applicable Equipment for Tax Year {taxYear}
+                        </Typography>
+                        <Typography variant="body2">
+                            No equipment qualifies for depreciation reporting in
+                            tax year {taxYear}. This could be because:
+                        </Typography>
+                        <ul>
+                            <li>
+                                No equipment was placed in service during or
+                                after {taxYear}
+                            </li>
+                            <li>
+                                All equipment has $0 depreciation for this year
+                                (fully depreciated)
+                            </li>
+                            <li>
+                                No equipment is assigned to this office location
+                            </li>
+                            <li>
+                                Equipment exists but lacks tax depreciation data
+                                (placed in service date, cost basis, etc.)
+                            </li>
+                        </ul>
+                        <Typography variant="body2">
+                            Try selecting a different tax year, or add/edit
+                            equipment with tax data for {taxYear}.
+                        </Typography>
+                    </Alert>
+                )}
             {/* Report Display */}
             {report && report.assets && report.assets.length > 0 && (
                 <>
