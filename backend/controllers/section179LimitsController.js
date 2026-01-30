@@ -144,7 +144,10 @@ const Update = async (req, res, next) => {
             taxYear: parseInt(year),
             maxDeduction: parseInt(maxDeduction),
             phaseoutThreshold: parseInt(phaseoutThreshold),
-            source: req.body.source || data.limits[limitIndex].source || "",
+            source:
+                req.body.source !== undefined
+                    ? req.body.source || ""
+                    : data.limits[limitIndex].source || "",
         };
 
         writeSection179File(data);

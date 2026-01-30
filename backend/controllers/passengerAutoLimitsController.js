@@ -180,7 +180,10 @@ const Update = async (req, res, next) => {
             year2: parseInt(year2),
             year3: parseInt(year3),
             year4Plus: parseInt(year4Plus),
-            source: req.body.source || data.limits[limitIndex].source || "",
+            source:
+                req.body.source !== undefined
+                    ? req.body.source || ""
+                    : data.limits[limitIndex].source || "",
         };
 
         writePassengerAutoFile(data);

@@ -173,8 +173,8 @@ const UpdateLimit = async (req, res, next) => {
         data.limits[limitIndex] = {
             taxYear: year,
             suv179Cap: cap,
-            ...(source && { source }),
-            ...(notes && { notes }),
+            ...(source !== undefined && { source: source || "" }),
+            ...(notes !== undefined && { notes: notes || "" }),
         };
 
         data.lastUpdated = new Date().toISOString().split("T")[0];

@@ -138,8 +138,12 @@ const Update = async (req, res, next) => {
         data.rates[rateIndex] = {
             taxYear: parseInt(year),
             bonusPercent: parseFloat(bonusPercent),
-            notes: notes || data.rates[rateIndex].notes,
-            source: req.body.source || data.rates[rateIndex].source || "",
+            notes:
+                notes !== undefined ? notes || "" : data.rates[rateIndex].notes,
+            source:
+                req.body.source !== undefined
+                    ? req.body.source || ""
+                    : data.rates[rateIndex].source || "",
         };
 
         writeBonusRatesFile(data);

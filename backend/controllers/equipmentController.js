@@ -204,9 +204,30 @@ const Update = async (req, res, next) => {
         const { id } = req.params;
         const updates = req.body;
 
-        // Clean up empty string date fields (set to null)
-        if (updates.last_calibration_date === "") {
-            updates.last_calibration_date = null;
+        // Clean up empty string fields (set to null)
+        const stringFieldsToClean = [
+            "description",
+            "serial_number",
+            "location",
+            "contact_person",
+            "last_calibration_date",
+            "calibration_interval_unit",
+            "image",
+        ];
+
+        stringFieldsToClean.forEach((field) => {
+            if (updates[field] === "") {
+                updates[field] = null;
+            }
+        });
+
+        // Clean up numeric fields
+        if (
+            updates.contact_person_id === "" ||
+            updates.contact_person_id === null ||
+            updates.contact_person_id === undefined
+        ) {
+            updates.contact_person_id = null;
         }
 
         // Convert cost to float or null
@@ -256,12 +277,12 @@ const Update = async (req, res, next) => {
 
         // Update or create AssetTaxMeta if depreciation fields provided
         const taxMetaFields = {
-            placed_in_service_date: updates.placed_in_service_date || null,
-            cost_basis: updates.cost_basis || updates.cost || null,
-            property_class: updates.property_class || null,
-            method: updates.method || null,
-            bonus_eligible: updates.bonus_eligible ?? null,
-            section179_elected: updates.section179_elected ?? null,
+            placed_in_service_date: updates.placed_in_service_date,
+            cost_basis: updates.cost_basis || updates.cost,
+            property_class: updates.property_class,
+            method: updates.method,
+            bonus_eligible: updates.bonus_eligible,
+            section179_elected: updates.section179_elected,
             vehicle_class: updates.vehicle_class || "UNKNOWN",
         };
 
@@ -269,10 +290,16 @@ const Update = async (req, res, next) => {
         if (taxMetaFields.placed_in_service_date === "") {
             taxMetaFields.placed_in_service_date = null;
         }
-        if (taxMetaFields.cost_basis === "") {
+        if (
+            taxMetaFields.cost_basis === "" ||
+            taxMetaFields.cost_basis === undefined
+        ) {
             taxMetaFields.cost_basis = null;
         }
-        if (taxMetaFields.section179_elected === "") {
+        if (
+            taxMetaFields.section179_elected === "" ||
+            taxMetaFields.section179_elected === undefined
+        ) {
             taxMetaFields.section179_elected = null;
         }
         if (taxMetaFields.property_class === "") {
@@ -280,6 +307,17 @@ const Update = async (req, res, next) => {
         }
         if (taxMetaFields.method === "") {
             taxMetaFields.method = null;
+        }
+
+        // Handle boolean field - convert empty string or undefined to null/false
+        if (
+            taxMetaFields.bonus_eligible === "" ||
+            taxMetaFields.bonus_eligible === undefined
+        ) {
+            taxMetaFields.bonus_eligible = false;
+        } else if (typeof taxMetaFields.bonus_eligible === "string") {
+            taxMetaFields.bonus_eligible =
+                taxMetaFields.bonus_eligible === "true";
         }
 
         // Check if any tax meta fields are provided (excluding nulls and empty strings)

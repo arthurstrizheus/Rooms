@@ -203,7 +203,7 @@ const FederalVehicleLimitsDialog = ({ open, onClose }) => {
                         and trucks with GVWR between 6,000 and 14,000 lbs.
                         Update annually based on{" "}
                         <Link
-                            href="https://www.irs.gov/publications/p946"
+                            href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107384"
                             target="_blank"
                             rel="noopener"
                         >

@@ -375,7 +375,7 @@ const EquipmentDialog = ({
                                             Date asset was put into service for
                                             tax purposes. See{" "}
                                             <Link
-                                                href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107485"
+                                                href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107604"
                                                 target="_blank"
                                                 rel="noopener"
                                             >
@@ -426,7 +426,7 @@ const EquipmentDialog = ({
                                             Leave blank to use Purchase Cost.
                                             See{" "}
                                             <Link
-                                                href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107507"
+                                                href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107366"
                                                 target="_blank"
                                                 rel="noopener"
                                             >
@@ -452,7 +452,7 @@ const EquipmentDialog = ({
                                             IRS depreciation recovery period.
                                             See{" "}
                                             <Link
-                                                href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107513"
+                                                href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107524"
                                                 target="_blank"
                                                 rel="noopener"
                                             >
@@ -502,16 +502,16 @@ const EquipmentDialog = ({
                                     helperText={
                                         <span>
                                             <Link
-                                                href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107524"
+                                                href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107510"
                                                 target="_blank"
                                                 rel="noopener"
                                             >
-                                                MACRS (Modified Accelerated Cost
-                                                Recovery)
+                                                MACRS GDS(Modified Accelerated
+                                                Cost Recovery)
                                             </Link>{" "}
                                             vs{" "}
                                             <Link
-                                                href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107555"
+                                                href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107510"
                                                 target="_blank"
                                                 rel="noopener"
                                             >
@@ -522,7 +522,7 @@ const EquipmentDialog = ({
                                     }
                                 >
                                     <MenuItem value="MACRS">
-                                        MACRS (Modified Accelerated)
+                                        MACRS GDS (Modified Accelerated)
                                     </MenuItem>
                                     <MenuItem value="ADS">
                                         ADS (Alternative Depreciation)
@@ -654,7 +654,7 @@ const EquipmentDialog = ({
                                             Amount elected for immediate Section
                                             179 expensing. See{" "}
                                             <Link
-                                                href="https://www.irs.gov/publications/p946#en_US_2023_publink1000107488"
+                                                href="https://www.irs.gov/publications/p946#idm140530190808640"
                                                 target="_blank"
                                                 rel="noopener"
                                             >
@@ -694,7 +694,23 @@ const EquipmentDialog = ({
                                         })
                                     }
                                     fullWidth
-                                    helperText="Determines first-year depreciation timing. Half-year (most common) assumes mid-year placement. Mid-quarter applies if >40% of year's assets placed in Q4."
+                                    helperText={
+                                        <span>
+                                            Determines first-year depreciation
+                                            timing. Half-year (most common)
+                                            assumes mid-year placement.
+                                            Mid-quarter applies if {">"}40% of
+                                            year's assets placed in Q4. See{" "}
+                                            <Link
+                                                href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107596"
+                                                target="_blank"
+                                                rel="noopener"
+                                            >
+                                                IRS Pub 946 - Using the
+                                                Applicable Convention
+                                            </Link>
+                                        </span>
+                                    }
                                 >
                                     <MenuItem value="half-year">
                                         Half-Year Convention (default)

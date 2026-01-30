@@ -259,7 +259,7 @@ const Section179LimitsDialog = ({ open, onClose }) => {
                         dollar-for-dollar when total equipment placed in service
                         exceeds the threshold. See{" "}
                         <Link
-                            href="https://www.irs.gov/publications/p946"
+                            href="https://www.irs.gov/publications/p946#en_US_2024_publink1000299547"
                             target="_blank"
                             rel="noopener"
                         >
