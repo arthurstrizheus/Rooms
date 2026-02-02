@@ -55,7 +55,7 @@ const EquipmentCalendarEmbed = () => {
                     start: checkout.start_time,
                     end: checkout.end_time,
                     backgroundColor:
-                        checkout.status === "approved"
+                        checkout.status === "auto-approved"
                             ? "#4caf50"
                             : checkout.status === "pending"
                               ? "#ff9800"
@@ -65,7 +65,7 @@ const EquipmentCalendarEmbed = () => {
                                   ? "#9e9e9e"
                                   : "#f44336",
                     borderColor:
-                        checkout.status === "approved"
+                        checkout.status === "auto-approved"
                             ? "#388e3c"
                             : checkout.status === "pending"
                               ? "#f57c00"

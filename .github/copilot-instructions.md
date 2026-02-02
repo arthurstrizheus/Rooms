@@ -28,7 +28,7 @@ Track equipment checkout/scheduling with:
 - Basic info: name, description, image, serial_number
 - Location: physical location (building/room)
 - Contact: contact_person (user_id or text)
-- Status: available, checked_out, maintenance, retired
+- Status: available, checked_out, out for calibration, retired
 - Approval: requires_approval flag
 - Calibration: calibration_due_date, calibration_interval_days, last_calibration_date
 

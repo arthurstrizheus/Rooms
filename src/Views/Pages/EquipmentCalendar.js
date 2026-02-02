@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Warning, Check } from "@mui/icons-material";
 import {
     Box,
     Typography,
@@ -53,6 +54,9 @@ const EquipmentCalendar = ({
     const [dateRange, setDateRange] = useState({ start: null, end: null });
     const [updateMode, setUpdateMode] = useState(null);
     const { showAlert, alertState, hideAlert } = useAlertDialog();
+    const [calibrationStatus, setCalibrationStatus] = useState(null);
+    const [calibrationDueDate, setCalibrationDueDate] = useState(null);
+
     const [editFormData, setEditFormData] = useState({
         start_time: "",
         end_time: "",
@@ -67,6 +71,69 @@ const EquipmentCalendar = ({
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const navigate = useNavigate();
 
+    const calculateCalibrationDueDate = () => {
+        if (
+            !equipment?.last_calibration_date ||
+            !equipment?.calibration_interval_value
+        ) {
+            return null;
+        }
+        const lastCal = new Date(equipment.last_calibration_date);
+        const dueDate = new Date(lastCal);
+
+        switch (equipment.calibration_interval_unit) {
+            case "days":
+                dueDate.setDate(
+                    dueDate.getDate() + equipment.calibration_interval_value,
+                );
+                break;
+            case "months":
+                dueDate.setMonth(
+                    dueDate.getMonth() + equipment.calibration_interval_value,
+                );
+                break;
+            case "years":
+                dueDate.setFullYear(
+                    dueDate.getFullYear() +
+                        equipment.calibration_interval_value,
+                );
+                break;
+        }
+        return dueDate;
+    };
+
+    const getCalibrationStatus = () => {
+        const dueDate = calculateCalibrationDueDate();
+        if (!dueDate) {
+            return null;
+        }
+
+        const now = new Date();
+        const twoMonthsFromNow = new Date();
+        twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+
+        if (now > dueDate) {
+            return {
+                status: "Out of Calibration",
+                color: "#d32f2f",
+                backgroundColor: "#ffebee",
+            };
+        } else if (dueDate <= twoMonthsFromNow) {
+            return {
+                status: "Calibration Due Soon",
+                color: "#ed6c02",
+                backgroundColor: "#fff3e0",
+            };
+        } else if (dueDate >= twoMonthsFromNow) {
+            return {
+                status: "Calibrated",
+                color: "#2e7d32",
+                backgroundColor: "#e8f5e9",
+            };
+        }
+        return null;
+    };
+
     useEffect(() => {
         fetchEquipment();
         fetchUsers();
@@ -78,6 +145,8 @@ const EquipmentCalendar = ({
         if (equipment && equipment.can_book === false) {
             navigate(`/equipment/${equipmentId}`);
         }
+        setCalibrationStatus(getCalibrationStatus());
+        setCalibrationDueDate(calculateCalibrationDueDate());
     }, [equipment, equipmentId, navigate]);
 
     // Socket listener for real-time updates
@@ -199,7 +268,7 @@ const EquipmentCalendar = ({
 
     const getStatusColor = (status) => {
         switch (status) {
-            case "approved":
+            case "auto-approved":
                 return "#4caf50";
             case "pending":
                 return "#ff9800";
@@ -240,28 +309,6 @@ const EquipmentCalendar = ({
 
         setSelectedCheckout(checkout);
         setOpenCheckoutDialog(true);
-    };
-
-    const handleCancelCheckout = async (checkoutId) => {
-        try {
-            setLoading(true);
-            const token = localStorage.getItem("authToken");
-            await axios.put(
-                `/api/checkouts/${checkoutId}`,
-                { status: "cancelled" },
-                { headers: { Authorization: `Bearer ${token}` } },
-            );
-            fetchCheckouts(dateRange.start, dateRange.end);
-        } catch (error) {
-            console.error("Error canceling checkout:", error);
-            showAlert(
-                "Error canceling checkout: " +
-                    (error.response?.data?.message || error.message),
-                "error",
-            );
-        } finally {
-            setLoading(false);
-        }
     };
 
     const handleCloseDialog = () => {
@@ -415,27 +462,242 @@ const EquipmentCalendar = ({
 
     return (
         <Box sx={{ p: isMobile ? 0 : 3 }}>
-            <Typography variant="h4" sx={{ mb: 3, px: isMobile ? 2 : 0 }}>
+            <Typography variant="h4" sx={{ mb: 1, px: isMobile ? 2 : 0 }}>
                 {equipment?.name || "Equipment"} Calendar
             </Typography>
 
-            {equipment && (
-                <Box sx={{ mb: 2, px: isMobile ? 2 : 0 }}>
+            {equipment && !isMobile ? (
+                <Box
+                    sx={{
+                        mb: 1,
+                        px: isMobile ? 2 : 0,
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: 1,
+                    }}
+                >
                     <Typography variant="body2" color="text.secondary">
-                        Location: {equipment.location || "N/A"} | Serial:{" "}
-                        {equipment.serial_number || "N/A"} | Contact:{" "}
-                        {equipment.contact_person || "N/A"}
+                        <Box component="span" sx={{ fontWeight: 600 }}>
+                            Location:
+                        </Box>{" "}
+                        {equipment?.location || ""}
+                        {equipment?.contact_person && (
+                            <>
+                                {" | "}
+                                <Box component="span" sx={{ fontWeight: 600 }}>
+                                    Contact:
+                                </Box>{" "}
+                                {equipment?.contact_person}
+                            </>
+                        )}
+                        {equipment?.serial_number && (
+                            <>
+                                {" | "}
+                                <Box component="span" sx={{ fontWeight: 600 }}>
+                                    Serial:
+                                </Box>{" "}
+                                {equipment?.serial_number}
+                            </>
+                        )}
                     </Typography>
+
+                    {calibrationStatus && (
+                        <Box
+                            sx={{
+                                px: 0.75,
+                                py: 0.25,
+                                borderRadius: 1,
+                                backgroundColor:
+                                    calibrationStatus.backgroundColor,
+                                border: `1px solid ${calibrationStatus.color}`,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 0.5,
+                                lineHeight: 1, // keeps it tight
+                                whiteSpace: "nowrap", // optional: keep badge on one line
+                            }}
+                        >
+                            {calibrationStatus.status === "Calibrated" ? (
+                                <Check
+                                    sx={{
+                                        color: calibrationStatus.color,
+                                        fontSize: "1em", // match Typography font size
+                                        verticalAlign: "middle",
+                                    }}
+                                />
+                            ) : (
+                                <Warning
+                                    sx={{
+                                        color: calibrationStatus.color,
+                                        fontSize: "1em", // match Typography font size
+                                        verticalAlign: "middle",
+                                    }}
+                                />
+                            )}
+
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: calibrationStatus.color,
+                                    fontWeight: 600,
+                                    lineHeight: 1, // match badge tightness
+                                }}
+                            >
+                                {calibrationStatus.status}
+                                {calibrationDueDate &&
+                                    calibrationStatus.status !=
+                                        "Calibrated" && (
+                                        <>
+                                            {" - Due: "}
+                                            {calibrationDueDate.toLocaleDateString()}
+                                        </>
+                                    )}
+                            </Typography>
+                        </Box>
+                    )}
+                </Box>
+            ) : (
+                <Box
+                    sx={{
+                        mb: 1,
+                        px: isMobile ? 2 : 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.5,
+                    }}
+                >
+                    {!!equipment?.location && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                gap: 0.75,
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600 }}
+                                color="text.secondary"
+                            >
+                                Location:
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {equipment?.location}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {!!equipment?.contact_person && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                gap: 0.75,
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600 }}
+                                color="text.secondary"
+                            >
+                                Contact:
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {equipment?.contact_person}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {!!equipment?.serial_number && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                gap: 0.75,
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600 }}
+                                color="text.secondary"
+                            >
+                                Serial:
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {equipment?.serial_number}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {calibrationStatus && (
+                        <Box
+                            sx={{
+                                px: 0.75,
+                                py: 0.25,
+                                borderRadius: 1,
+                                backgroundColor:
+                                    calibrationStatus.backgroundColor,
+                                border: `1px solid ${calibrationStatus.color}`,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 0.5,
+                                lineHeight: 1, // keeps it tight
+                                whiteSpace: "nowrap", // optional: keep badge on one line
+                            }}
+                        >
+                            {calibrationStatus.status === "Calibrated" ? (
+                                <Check
+                                    sx={{
+                                        color: calibrationStatus.color,
+                                        fontSize: "1em", // match Typography font size
+                                        verticalAlign: "middle",
+                                    }}
+                                />
+                            ) : (
+                                <Warning
+                                    sx={{
+                                        color: calibrationStatus.color,
+                                        fontSize: "1em", // match Typography font size
+                                        verticalAlign: "middle",
+                                    }}
+                                />
+                            )}
+
+                            <Typography
+                                variant="body2"
+                                sx={{
+                                    color: calibrationStatus.color,
+                                    fontWeight: 600,
+                                    lineHeight: 1, // match badge tightness
+                                }}
+                            >
+                                {calibrationStatus.status}
+                                {calibrationDueDate &&
+                                    calibrationStatus.status !=
+                                        "Calibrated" && (
+                                        <>
+                                            {" - Due: "}
+                                            {calibrationDueDate.toLocaleDateString()}
+                                        </>
+                                    )}
+                            </Typography>
+                        </Box>
+                    )}
                 </Box>
             )}
             <Button
                 variant="contained"
+                size="small"
                 startIcon={<ArrowBack />}
                 sx={{
                     fontWeight: "bold",
-                    ":hover": { backgroundColor: "primary.light" },
+                    ":hover": {
+                        backgroundColor: "primary.light",
+                        color: "black",
+                    },
                     mx: isMobile ? 2 : 0,
-                    mb: 2,
+                    mb: 1,
                 }}
                 href={`/equipment/${equipmentId}`}
             >
@@ -447,6 +709,7 @@ const EquipmentCalendar = ({
                     backgroundColor: "white",
                     p: isMobile ? 0 : 2,
                     borderRadius: isMobile ? 0 : 1,
+                    mt: -1,
                 }}
             >
                 <FullCalendar

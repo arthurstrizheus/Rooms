@@ -92,17 +92,6 @@ const Post = async (req, res, next) => {
             equipmentData.cost = parseFloat(equipmentData.cost);
         }
 
-        // Convert billing_rate to float or null
-        if (
-            equipmentData.billing_rate === "" ||
-            equipmentData.billing_rate === null ||
-            equipmentData.billing_rate === undefined
-        ) {
-            equipmentData.billing_rate = null;
-        } else if (equipmentData.billing_rate) {
-            equipmentData.billing_rate = parseFloat(equipmentData.billing_rate);
-        }
-
         // Convert calibration_interval_value to integer or null
         if (
             equipmentData.calibration_interval_value === "" ||
@@ -132,7 +121,14 @@ const Post = async (req, res, next) => {
 
         // Create AssetTaxMeta if depreciation fields provided
         const taxMetaFields = {
-            placed_in_service_date: equipmentData.placed_in_service_date,
+            placed_in_service_date: equipmentData.placed_in_service_date
+                ? equipmentData.placed_in_service_date <
+                  equipmentData.date_of_purchase
+                    ? equipmentData.date_of_purchase
+                    : equipmentData.placed_in_service_date
+                : equipmentData.date_of_purchase
+                  ? equipmentData.date_of_purchase
+                  : null,
             cost_basis: equipmentData.cost_basis || equipmentData.cost,
             property_class: equipmentData.property_class,
             method: equipmentData.method,
@@ -258,17 +254,6 @@ const Update = async (req, res, next) => {
             updates.cost = parseFloat(updates.cost);
         }
 
-        // Convert billing_rate to float or null
-        if (
-            updates.billing_rate === "" ||
-            updates.billing_rate === null ||
-            updates.billing_rate === undefined
-        ) {
-            updates.billing_rate = null;
-        } else if (updates.billing_rate) {
-            updates.billing_rate = parseFloat(updates.billing_rate);
-        }
-
         // Convert calibration_interval_value to integer or null
         if (
             updates.calibration_interval_value === "" ||
@@ -305,7 +290,13 @@ const Update = async (req, res, next) => {
 
         // Update or create AssetTaxMeta if depreciation fields provided
         const taxMetaFields = {
-            placed_in_service_date: updates.placed_in_service_date,
+            placed_in_service_date: updates.placed_in_service_date
+                ? updates.placed_in_service_date < updates.date_of_purchase
+                    ? updates.date_of_purchase
+                    : updates.placed_in_service_date
+                : updates.date_of_purchase
+                  ? updates.date_of_purchase
+                  : null,
             cost_basis: updates.cost_basis || updates.cost,
             property_class: updates.property_class,
             method: updates.method,
@@ -649,9 +640,7 @@ const ExportToExcel = async (req, res, next) => {
                     ? new Date(item.date_of_purchase).toLocaleDateString()
                     : "",
                 cost: item.cost ? `$${parseFloat(item.cost).toFixed(2)}` : "",
-                billing_rate: item.billing_rate
-                    ? `$${parseFloat(item.billing_rate).toFixed(2)}`
-                    : "",
+                billing_rate: item.billing_rate ? item.billing_rate : "",
                 billing_code: item.billing_code || "",
                 location: item.location || "",
                 contact_person: item.contact_person || "",

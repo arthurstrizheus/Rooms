@@ -23,7 +23,7 @@ async function logErrorToFile(error, logFilePath = "error.log") {
 [${timestamp}] ERROR:
   Message: ${error.message}
   Stack: ${error.stack}
-  Code: ${error.code || "N/A"}
+  Code: ${error.code || ""}
 ----------------------------------------`;
         } else {
             // If it's a string or other type, log it directly
@@ -103,8 +103,8 @@ async function logEmailToFile(
 
         if (status === "SUCCESS" && info) {
             logMessage += `
-  MessageId: ${info.messageId || "N/A"}
-  Response: ${info.response || "N/A"}`;
+  MessageId: ${info.messageId || ""}
+  Response: ${info.response || ""}`;
         } else if (status === "FAILED" && error) {
             logMessage += `
   Error: ${error}`;

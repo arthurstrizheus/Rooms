@@ -23,6 +23,7 @@ import {
     Link,
     MenuItem,
     TextField,
+    capitalize,
 } from "@mui/material";
 import {
     Add,
@@ -320,7 +321,7 @@ const Equipment = ({ setLoading, loading }) => {
     const getDisplayStatus = (item) => {
         // If equipment is currently checked out, override status
         if (isEquipmentCurrentlyCheckedOut(item.id)) {
-            return "unavailable";
+            return "reserved";
         }
         return item.status;
     };
@@ -452,32 +453,6 @@ const Equipment = ({ setLoading, loading }) => {
         }
     };
 
-    const handleDelete = async (id) => {
-        showConfirm(
-            "Are you sure you want to delete this equipment?",
-            async () => {
-                await deleteEquipment(id);
-            },
-            "warning",
-            "Delete Equipment",
-        );
-    };
-
-    const deleteEquipment = async (id) => {
-        try {
-            setLoading(true);
-            const token = localStorage.getItem("authToken");
-            await axios.delete(`/api/equipment/${id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            fetchEquipment();
-        } catch (error) {
-            console.error("Error deleting equipment:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleExportToExcel = async () => {
         try {
             const token = localStorage.getItem("authToken");
@@ -517,12 +492,12 @@ const Equipment = ({ setLoading, loading }) => {
             case "available":
                 return "success";
             case "unavailable":
-                return "error";
+                return "default";
             case "reserved":
+                return "info";
+            case "out for calibration":
                 return "warning";
             case "checked_out":
-                return "warning";
-            case "maintenance":
                 return "error";
             case "retired":
                 return "default";
@@ -734,7 +709,9 @@ const Equipment = ({ setLoading, loading }) => {
                         <MenuItem value="all">All Status</MenuItem>
                         <MenuItem value="available">Available</MenuItem>
                         <MenuItem value="reserved">Reserved</MenuItem>
-                        <MenuItem value="maintenance">Maintenance</MenuItem>
+                        <MenuItem value="out for calibration">
+                            Out For Calibration
+                        </MenuItem>
                         <MenuItem value="retired">Retired</MenuItem>
                     </TextField>
                     <Button
@@ -844,7 +821,7 @@ const Equipment = ({ setLoading, loading }) => {
                                             color="text.secondary"
                                             sx={{ flex: 1 }}
                                         >
-                                            📍 {item.location || "N/A"}
+                                            📍 {item.location || ""}
                                         </Typography>
                                         {item.contact_person && (
                                             <Typography
@@ -1035,17 +1012,15 @@ const Equipment = ({ setLoading, loading }) => {
                                             </TableCell>
                                             {!isMobile && (
                                                 <TableCell>
-                                                    {item.serial_number ||
-                                                        "N/A"}
+                                                    {item.serial_number || ""}
                                                 </TableCell>
                                             )}
                                             <TableCell>
-                                                {item.location || "N/A"}
+                                                {item.location || ""}
                                             </TableCell>
                                             {!isMobile && (
                                                 <TableCell>
-                                                    {item.contact_person ||
-                                                        "N/A"}
+                                                    {item.contact_person || ""}
                                                 </TableCell>
                                             )}
                                             <TableCell>
@@ -1120,6 +1095,7 @@ const Equipment = ({ setLoading, loading }) => {
                 locations={locations}
                 users={users}
                 onSave={handleSave}
+                showAlert={showAlert}
             />
             <ConfirmDialog
                 open={confirmState.open}

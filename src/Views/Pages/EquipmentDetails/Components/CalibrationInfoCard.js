@@ -160,7 +160,7 @@ const CalibrationInfoCard = ({
     return (
         <>
             <Grid container mt={0} mr={0} ml={0} spacing={3} width={"100%"}>
-                <Grid xs={12}>
+                <Grid width={"100%"}>
                     <Card>
                         <CardContent>
                             <Typography variant="h6" gutterBottom>
@@ -238,484 +238,502 @@ const CalibrationInfoCard = ({
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid mt={3} width={"100%"}>
-                    <Card width={"100%"}>
-                        <CardContent width={"100%"}>
-                            <Typography
-                                variant="h6"
-                                gutterBottom
-                                width={"100%"}
-                            >
-                                Files & Documents
-                            </Typography>
-                            <Divider sx={{ mb: 2 }} />
-                            {/* Files & Documents */}
-                            {(manualFiles.length > 0 ||
-                                certFiles.length > 0 ||
-                                otherFiles.length > 0) && (
-                                <Box
-                                    sx={{
-                                        mt: 3,
-                                        width: "100%",
-                                    }}
+                {(manualFiles.length > 0 ||
+                    certFiles.length > 0 ||
+                    otherFiles.length > 0) && (
+                    <Grid mt={3} width={"100%"}>
+                        <Card width={"100%"}>
+                            <CardContent width={"100%"}>
+                                <Typography
+                                    variant="h6"
+                                    gutterBottom
+                                    width={"100%"}
                                 >
-                                    {manualFiles.length > 0 && (
-                                        <Box sx={{ mb: 2 }}>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    mb: 1,
-                                                }}
-                                            >
-                                                <Typography
-                                                    variant="subtitle2"
-                                                    color="primary"
-                                                    sx={{ fontWeight: 600 }}
-                                                >
-                                                    Manuals
-                                                </Typography>
-                                                {manualFiles.length > 1 && (
-                                                    <Button
-                                                        size="small"
-                                                        startIcon={<History />}
-                                                        onClick={() =>
-                                                            onViewHistory(
-                                                                "Manuals",
-                                                                manualFiles,
-                                                            )
-                                                        }
-                                                        variant="outlined"
-                                                    >
-                                                        View All (
-                                                        {manualFiles.length})
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    py: 1,
-                                                    borderBottom: "1px solid",
-                                                    borderColor: "divider",
-                                                }}
-                                            >
+                                    Files & Documents
+                                </Typography>
+                                <Divider sx={{ mb: 2 }} />
+                                {/* Files & Documents */}
+                                {(manualFiles.length > 0 ||
+                                    certFiles.length > 0 ||
+                                    otherFiles.length > 0) && (
+                                    <Box
+                                        sx={{
+                                            mt: 3,
+                                            width: "100%",
+                                        }}
+                                    >
+                                        {manualFiles.length > 0 && (
+                                            <Box sx={{ mb: 2 }}>
                                                 <Box
                                                     sx={{
-                                                        flex: 1,
-                                                        minWidth: 0,
+                                                        display: "flex",
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems: "center",
+                                                        mb: 1,
                                                     }}
                                                 >
                                                     <Typography
-                                                        variant="body2"
-                                                        noWrap
+                                                        variant="subtitle2"
+                                                        color="primary"
+                                                        sx={{ fontWeight: 600 }}
                                                     >
-                                                        {
-                                                            manualFiles[0]
-                                                                .file_name
-                                                        }
+                                                        Manuals
                                                     </Typography>
-                                                    {manualFiles[0]
-                                                        .description && (
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            sx={{
-                                                                fontStyle:
-                                                                    "italic",
-                                                            }}
-                                                        >
-                                                            {
-                                                                manualFiles[0]
-                                                                    .description
+                                                    {manualFiles.length > 1 && (
+                                                        <Button
+                                                            size="small"
+                                                            startIcon={
+                                                                <History />
                                                             }
-                                                        </Typography>
+                                                            onClick={() =>
+                                                                onViewHistory(
+                                                                    "Manuals",
+                                                                    manualFiles,
+                                                                )
+                                                            }
+                                                            variant="outlined"
+                                                        >
+                                                            View All (
+                                                            {manualFiles.length}
+                                                            )
+                                                        </Button>
                                                     )}
-                                                    <Typography
-                                                        variant="caption"
-                                                        color="text.secondary"
-                                                        display="block"
-                                                    >
-                                                        Uploaded:{" "}
-                                                        {new Date(
-                                                            manualFiles[0]
-                                                                .upload_date,
-                                                        ).toLocaleDateString()}
-                                                    </Typography>
                                                 </Box>
                                                 <Box
                                                     sx={{
                                                         display: "flex",
-                                                        gap: 1,
-                                                        ml: 1,
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems: "center",
+                                                        py: 1,
+                                                        borderBottom:
+                                                            "1px solid",
+                                                        borderColor: "divider",
                                                     }}
                                                 >
-                                                    <Tooltip title="Download">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() =>
-                                                                handleDownload(
-                                                                    manualFiles[0]
-                                                                        .id,
-                                                                    manualFiles[0]
-                                                                        .file_name,
-                                                                )
-                                                            }
-                                                            sx={{
-                                                                bgcolor:
-                                                                    "primary.main",
-                                                                color: "white",
-                                                                "&:hover": {
-                                                                    bgcolor:
-                                                                        "primary.dark",
-                                                                },
-                                                            }}
-                                                        >
-                                                            <Download fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    {canEditDelete &&
-                                                        canEditDelete() && (
-                                                            <Tooltip title="Delete">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() =>
-                                                                        handleDeleteFile(
-                                                                            manualFiles[0]
-                                                                                .id,
-                                                                        )
-                                                                    }
-                                                                    sx={{
-                                                                        bgcolor:
-                                                                            "error.main",
-                                                                        color: "white",
-                                                                        "&:hover":
-                                                                            {
-                                                                                bgcolor:
-                                                                                    "error.dark",
-                                                                            },
-                                                                    }}
-                                                                >
-                                                                    <Delete fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        )}
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                    )}
-
-                                    {certFiles.length > 0 && (
-                                        <Box sx={{ mb: 2 }}>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    mb: 1,
-                                                }}
-                                            >
-                                                <Typography
-                                                    variant="subtitle2"
-                                                    color="primary"
-                                                    sx={{ fontWeight: 600 }}
-                                                >
-                                                    Calibration Certificates
-                                                </Typography>
-                                                {certFiles.length > 1 && (
-                                                    <Button
-                                                        size="small"
-                                                        startIcon={<History />}
-                                                        onClick={() =>
-                                                            onViewHistory(
-                                                                "Calibration Certificates",
-                                                                certFiles,
-                                                            )
-                                                        }
-                                                        variant="outlined"
+                                                    <Box
+                                                        sx={{
+                                                            flex: 1,
+                                                            minWidth: 0,
+                                                        }}
                                                     >
-                                                        View All (
-                                                        {certFiles.length})
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    py: 1,
-                                                    borderBottom: "1px solid",
-                                                    borderColor: "divider",
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        flex: 1,
-                                                        minWidth: 0,
-                                                    }}
-                                                >
-                                                    <Typography
-                                                        variant="body2"
-                                                        noWrap
-                                                    >
-                                                        {certFiles[0].file_name}
-                                                    </Typography>
-                                                    {certFiles[0]
-                                                        .description && (
                                                         <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            sx={{
-                                                                fontStyle:
-                                                                    "italic",
-                                                            }}
+                                                            variant="body2"
+                                                            noWrap
                                                         >
                                                             {
-                                                                certFiles[0]
-                                                                    .description
+                                                                manualFiles[0]
+                                                                    .file_name
                                                             }
                                                         </Typography>
-                                                    )}
-                                                    {certFiles[0]
-                                                        .calibration_date && (
+                                                        {manualFiles[0]
+                                                            .description && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                                sx={{
+                                                                    fontStyle:
+                                                                        "italic",
+                                                                }}
+                                                            >
+                                                                {
+                                                                    manualFiles[0]
+                                                                        .description
+                                                                }
+                                                            </Typography>
+                                                        )}
                                                         <Typography
                                                             variant="caption"
                                                             color="text.secondary"
                                                             display="block"
                                                         >
-                                                            Calibration Date:{" "}
+                                                            Uploaded:{" "}
                                                             {new Date(
-                                                                certFiles[0]
-                                                                    .calibration_date,
+                                                                manualFiles[0]
+                                                                    .upload_date,
                                                             ).toLocaleDateString()}
                                                         </Typography>
+                                                    </Box>
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            gap: 1,
+                                                            ml: 1,
+                                                        }}
+                                                    >
+                                                        <Tooltip title="Download">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() =>
+                                                                    handleDownload(
+                                                                        manualFiles[0]
+                                                                            .id,
+                                                                        manualFiles[0]
+                                                                            .file_name,
+                                                                    )
+                                                                }
+                                                                sx={{
+                                                                    bgcolor:
+                                                                        "primary.main",
+                                                                    color: "white",
+                                                                    "&:hover": {
+                                                                        bgcolor:
+                                                                            "primary.dark",
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <Download fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        {canEditDelete &&
+                                                            canEditDelete() && (
+                                                                <Tooltip title="Delete">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            handleDeleteFile(
+                                                                                manualFiles[0]
+                                                                                    .id,
+                                                                            )
+                                                                        }
+                                                                        sx={{
+                                                                            bgcolor:
+                                                                                "error.main",
+                                                                            color: "white",
+                                                                            "&:hover":
+                                                                                {
+                                                                                    bgcolor:
+                                                                                        "error.dark",
+                                                                                },
+                                                                        }}
+                                                                    >
+                                                                        <Delete fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        )}
+
+                                        {certFiles.length > 0 && (
+                                            <Box sx={{ mb: 2 }}>
+                                                <Box
+                                                    sx={{
+                                                        display: "flex",
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems: "center",
+                                                        mb: 1,
+                                                    }}
+                                                >
+                                                    <Typography
+                                                        variant="subtitle2"
+                                                        color="primary"
+                                                        sx={{ fontWeight: 600 }}
+                                                    >
+                                                        Calibration Certificates
+                                                    </Typography>
+                                                    {certFiles.length > 1 && (
+                                                        <Button
+                                                            size="small"
+                                                            startIcon={
+                                                                <History />
+                                                            }
+                                                            onClick={() =>
+                                                                onViewHistory(
+                                                                    "Calibration Certificates",
+                                                                    certFiles,
+                                                                )
+                                                            }
+                                                            variant="outlined"
+                                                        >
+                                                            View All (
+                                                            {certFiles.length})
+                                                        </Button>
                                                     )}
                                                 </Box>
                                                 <Box
                                                     sx={{
                                                         display: "flex",
-                                                        gap: 1,
-                                                        ml: 1,
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems: "center",
+                                                        py: 1,
+                                                        borderBottom:
+                                                            "1px solid",
+                                                        borderColor: "divider",
                                                     }}
                                                 >
-                                                    <Tooltip title="Download">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() =>
-                                                                handleDownload(
-                                                                    certFiles[0]
-                                                                        .id,
-                                                                    certFiles[0]
-                                                                        .file_name,
-                                                                )
-                                                            }
-                                                            sx={{
-                                                                bgcolor:
-                                                                    "primary.main",
-                                                                color: "white",
-                                                                "&:hover": {
-                                                                    bgcolor:
-                                                                        "primary.dark",
-                                                                },
-                                                            }}
+                                                    <Box
+                                                        sx={{
+                                                            flex: 1,
+                                                            minWidth: 0,
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            variant="body2"
+                                                            noWrap
                                                         >
-                                                            <Download fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    {canEditDelete &&
-                                                        canEditDelete() && (
-                                                            <Tooltip title="Delete">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() =>
-                                                                        handleDeleteFile(
-                                                                            certFiles[0]
-                                                                                .id,
-                                                                        )
-                                                                    }
-                                                                    sx={{
-                                                                        bgcolor:
-                                                                            "error.main",
-                                                                        color: "white",
-                                                                        "&:hover":
-                                                                            {
-                                                                                bgcolor:
-                                                                                    "error.dark",
-                                                                            },
-                                                                    }}
-                                                                >
-                                                                    <Delete fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
+                                                            {
+                                                                certFiles[0]
+                                                                    .file_name
+                                                            }
+                                                        </Typography>
+                                                        {certFiles[0]
+                                                            .description && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                                sx={{
+                                                                    fontStyle:
+                                                                        "italic",
+                                                                }}
+                                                            >
+                                                                {
+                                                                    certFiles[0]
+                                                                        .description
+                                                                }
+                                                            </Typography>
                                                         )}
+                                                        {certFiles[0]
+                                                            .calibration_date && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                                display="block"
+                                                            >
+                                                                Calibration
+                                                                Date:{" "}
+                                                                {new Date(
+                                                                    certFiles[0]
+                                                                        .calibration_date,
+                                                                ).toLocaleDateString()}
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            gap: 1,
+                                                            ml: 1,
+                                                        }}
+                                                    >
+                                                        <Tooltip title="Download">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() =>
+                                                                    handleDownload(
+                                                                        certFiles[0]
+                                                                            .id,
+                                                                        certFiles[0]
+                                                                            .file_name,
+                                                                    )
+                                                                }
+                                                                sx={{
+                                                                    bgcolor:
+                                                                        "primary.main",
+                                                                    color: "white",
+                                                                    "&:hover": {
+                                                                        bgcolor:
+                                                                            "primary.dark",
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <Download fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        {canEditDelete &&
+                                                            canEditDelete() && (
+                                                                <Tooltip title="Delete">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            handleDeleteFile(
+                                                                                certFiles[0]
+                                                                                    .id,
+                                                                            )
+                                                                        }
+                                                                        sx={{
+                                                                            bgcolor:
+                                                                                "error.main",
+                                                                            color: "white",
+                                                                            "&:hover":
+                                                                                {
+                                                                                    bgcolor:
+                                                                                        "error.dark",
+                                                                                },
+                                                                        }}
+                                                                    >
+                                                                        <Delete fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                    </Box>
                                                 </Box>
                                             </Box>
-                                        </Box>
-                                    )}
+                                        )}
 
-                                    {otherFiles.length > 0 && (
-                                        <Box>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    mb: 1,
-                                                }}
-                                            >
-                                                <Typography
-                                                    variant="subtitle2"
-                                                    color="primary"
-                                                    sx={{ fontWeight: 600 }}
-                                                >
-                                                    Other Files
-                                                </Typography>
-                                                {otherFiles.length > 1 && (
-                                                    <Button
-                                                        size="small"
-                                                        startIcon={<History />}
-                                                        onClick={() =>
-                                                            onViewHistory(
-                                                                "Other Files",
-                                                                otherFiles,
-                                                            )
-                                                        }
-                                                        variant="outlined"
-                                                    >
-                                                        View All (
-                                                        {otherFiles.length})
-                                                    </Button>
-                                                )}
-                                            </Box>
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    py: 1,
-                                                    borderBottom: "1px solid",
-                                                    borderColor: "divider",
-                                                }}
-                                            >
+                                        {otherFiles.length > 0 && (
+                                            <Box>
                                                 <Box
                                                     sx={{
-                                                        flex: 1,
-                                                        minWidth: 0,
+                                                        display: "flex",
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems: "center",
+                                                        mb: 1,
                                                     }}
                                                 >
                                                     <Typography
-                                                        variant="body2"
-                                                        noWrap
+                                                        variant="subtitle2"
+                                                        color="primary"
+                                                        sx={{ fontWeight: 600 }}
                                                     >
-                                                        {
-                                                            otherFiles[0]
-                                                                .file_name
-                                                        }
+                                                        Other Files
                                                     </Typography>
-                                                    {otherFiles[0]
-                                                        .description && (
+                                                    {otherFiles.length > 1 && (
+                                                        <Button
+                                                            size="small"
+                                                            startIcon={
+                                                                <History />
+                                                            }
+                                                            onClick={() =>
+                                                                onViewHistory(
+                                                                    "Other Files",
+                                                                    otherFiles,
+                                                                )
+                                                            }
+                                                            variant="outlined"
+                                                        >
+                                                            View All (
+                                                            {otherFiles.length})
+                                                        </Button>
+                                                    )}
+                                                </Box>
+                                                <Box
+                                                    sx={{
+                                                        display: "flex",
+                                                        justifyContent:
+                                                            "space-between",
+                                                        alignItems: "center",
+                                                        py: 1,
+                                                        borderBottom:
+                                                            "1px solid",
+                                                        borderColor: "divider",
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            flex: 1,
+                                                            minWidth: 0,
+                                                        }}
+                                                    >
                                                         <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            sx={{
-                                                                fontStyle:
-                                                                    "italic",
-                                                            }}
+                                                            variant="body2"
+                                                            noWrap
                                                         >
                                                             {
                                                                 otherFiles[0]
-                                                                    .description
+                                                                    .file_name
                                                             }
                                                         </Typography>
-                                                    )}
-                                                    <Typography
-                                                        variant="caption"
-                                                        color="text.secondary"
-                                                        display="block"
-                                                    >
-                                                        Uploaded:{" "}
-                                                        {new Date(
-                                                            otherFiles[0]
-                                                                .upload_date,
-                                                        ).toLocaleDateString()}
-                                                    </Typography>
-                                                </Box>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        gap: 1,
-                                                        ml: 1,
-                                                    }}
-                                                >
-                                                    <Tooltip title="Download">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() =>
-                                                                handleDownload(
+                                                        {otherFiles[0]
+                                                            .description && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="text.secondary"
+                                                                sx={{
+                                                                    fontStyle:
+                                                                        "italic",
+                                                                }}
+                                                            >
+                                                                {
                                                                     otherFiles[0]
-                                                                        .id,
-                                                                    otherFiles[0]
-                                                                        .file_name,
-                                                                )
-                                                            }
-                                                            sx={{
-                                                                bgcolor:
-                                                                    "primary.main",
-                                                                color: "white",
-                                                                "&:hover": {
-                                                                    bgcolor:
-                                                                        "primary.dark",
-                                                                },
-                                                            }}
-                                                        >
-                                                            <Download fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    {canEditDelete &&
-                                                        canEditDelete() && (
-                                                            <Tooltip title="Delete">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={() =>
-                                                                        handleDeleteFile(
-                                                                            otherFiles[0]
-                                                                                .id,
-                                                                        )
-                                                                    }
-                                                                    sx={{
-                                                                        bgcolor:
-                                                                            "error.main",
-                                                                        color: "white",
-                                                                        "&:hover":
-                                                                            {
-                                                                                bgcolor:
-                                                                                    "error.dark",
-                                                                            },
-                                                                    }}
-                                                                >
-                                                                    <Delete fontSize="small" />
-                                                                </IconButton>
-                                                            </Tooltip>
+                                                                        .description
+                                                                }
+                                                            </Typography>
                                                         )}
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            display="block"
+                                                        >
+                                                            Uploaded:{" "}
+                                                            {new Date(
+                                                                otherFiles[0]
+                                                                    .upload_date,
+                                                            ).toLocaleDateString()}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box
+                                                        sx={{
+                                                            display: "flex",
+                                                            gap: 1,
+                                                            ml: 1,
+                                                        }}
+                                                    >
+                                                        <Tooltip title="Download">
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() =>
+                                                                    handleDownload(
+                                                                        otherFiles[0]
+                                                                            .id,
+                                                                        otherFiles[0]
+                                                                            .file_name,
+                                                                    )
+                                                                }
+                                                                sx={{
+                                                                    bgcolor:
+                                                                        "primary.main",
+                                                                    color: "white",
+                                                                    "&:hover": {
+                                                                        bgcolor:
+                                                                            "primary.dark",
+                                                                    },
+                                                                }}
+                                                            >
+                                                                <Download fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        {canEditDelete &&
+                                                            canEditDelete() && (
+                                                                <Tooltip title="Delete">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            handleDeleteFile(
+                                                                                otherFiles[0]
+                                                                                    .id,
+                                                                            )
+                                                                        }
+                                                                        sx={{
+                                                                            bgcolor:
+                                                                                "error.main",
+                                                                            color: "white",
+                                                                            "&:hover":
+                                                                                {
+                                                                                    bgcolor:
+                                                                                        "error.dark",
+                                                                                },
+                                                                        }}
+                                                                    >
+                                                                        <Delete fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                    </Box>
                                                 </Box>
                                             </Box>
-                                        </Box>
-                                    )}
-                                </Box>
-                            )}
-                        </CardContent>
-                    </Card>
-                </Grid>
+                                        )}
+                                    </Box>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                )}
             </Grid>
             <AlertDialog
                 open={alertState.open}

@@ -201,7 +201,7 @@
 **Implementation Needed:**
 
 1. Add `accounting_treatment` field to AssetTaxMeta
-    - Values: 'capitalize', 'expense', 'repair', 'maintenance'
+    - Values: 'capitalize', 'expense', 'repair', 'out for calibration'
 2. If 'expense' or 'repair' → don't include in depreciation report
 
 **Database:**

@@ -36,11 +36,12 @@ const Checkout = sequelize.define(
         status: {
             type: DataTypes.ENUM(
                 "pending",
-                "approved",
+                "auto-approved",
                 "reserved",
                 "cancelled",
+                "approved",
             ),
-            defaultValue: "approved",
+            defaultValue: "auto-approved",
             allowNull: false,
         },
         approved_by_user_id: {

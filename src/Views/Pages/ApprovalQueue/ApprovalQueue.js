@@ -114,7 +114,7 @@ export default function ApprovalQueue({ setLoading }) {
             setLoading(true);
             const promises = selected.map((checkoutId) =>
                 axios.put(`/api/checkouts/${checkoutId}`, {
-                    status: "approved",
+                    status: "auto-approved",
                     approved_by_user_id: user.id,
                 }),
             );
@@ -463,7 +463,7 @@ export default function ApprovalQueue({ setLoading }) {
                                                 />
                                             </StyledTableCell>
                                             <StyledTableCell align="left">
-                                                {checkout.notes || "N/A"}
+                                                {checkout.notes || ""}
                                             </StyledTableCell>
                                         </StyledTableRow>
                                     );

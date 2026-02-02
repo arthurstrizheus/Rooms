@@ -30,7 +30,7 @@ const Equipment = sequelize.define(
             allowNull: true,
         },
         billing_rate: {
-            type: DataTypes.DECIMAL(10, 2),
+            type: DataTypes.STRING,
             allowNull: true,
         },
         billing_code: {
@@ -61,7 +61,7 @@ const Equipment = sequelize.define(
             type: DataTypes.ENUM(
                 "available",
                 "reserved",
-                "maintenance",
+                "out for calibration",
                 "retired",
             ),
             defaultValue: "available",
@@ -87,6 +87,7 @@ const Equipment = sequelize.define(
             type: DataTypes.DATE,
             allowNull: true,
         },
+
         created_by: {
             type: DataTypes.INTEGER,
             allowNull: true,

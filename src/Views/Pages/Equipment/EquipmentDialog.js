@@ -107,12 +107,10 @@ const getStateDepreciationLink = (state) => {
 };
 
 const getStateBonusDepreciationLink = (state) => {
-    // Same links as above for bonus depreciation guidance
     return getStateDepreciationLink(state);
 };
 
 const getStateSection179Link = (state) => {
-    // Same links as above for Section 179 guidance
     return getStateDepreciationLink(state);
 };
 
@@ -125,14 +123,135 @@ const EquipmentDialog = ({
     locations,
     users,
     onSave,
+    showAlert,
 }) => {
+    const formRef = React.useRef(null);
+    const [fieldErrors, setFieldErrors] = React.useState({});
+
+    const clearFieldError = React.useCallback((key) => {
+        setFieldErrors((prev) => {
+            if (!prev[key]) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    }, []);
+
+    // UPDATED: validation (placed_in_service_date defaults to date_of_purchase if blank)
+    const validateRequiredFields = React.useCallback(() => {
+        const root = formRef.current;
+        if (!root) return { valid: true, missingLabels: [] };
+
+        const requiredEls = root.querySelectorAll(
+            "input[required], textarea[required], select[required]",
+        );
+
+        const nextErrors = {};
+        const missingLabels = [];
+
+        requiredEls.forEach((el) => {
+            const rawValue = el.value;
+
+            const isMissing =
+                rawValue == null ||
+                (typeof rawValue === "string" && rawValue.trim() === "");
+
+            if (!isMissing) return;
+
+            const formControl = el.closest(".MuiFormControl-root");
+
+            // Try to grab the visible label text rendered by MUI
+            const labelText =
+                formControl?.querySelector("label")?.textContent?.trim() ||
+                el.getAttribute("aria-label") ||
+                el.getAttribute("placeholder") ||
+                el.dataset.label ||
+                "A required field";
+
+            // Key (only exists if you set it yourself via name or data-field)
+            const key =
+                el.getAttribute("name") ||
+                el.dataset.field ||
+                el.getAttribute("id") ||
+                labelText ||
+                "";
+
+            const label =
+                el.dataset.label ||
+                (key ? key.replaceAll("_", " ") : "A required field");
+
+            if (key) nextErrors[key] = true;
+            missingLabels.push(label);
+        });
+
+        // Default placed-in-service to purchase date when blank
+        const purchaseRaw = formData.date_of_purchase || "";
+        const placedRaw = formData.placed_in_service_date || purchaseRaw;
+
+        // Cross-field date rule:
+        // purchase date cannot be AFTER placed-in-service date
+        const purchase = purchaseRaw ? new Date(purchaseRaw) : null;
+        const placed = placedRaw ? new Date(placedRaw) : null;
+
+        if (
+            purchase &&
+            placed &&
+            !Number.isNaN(purchase.getTime()) &&
+            !Number.isNaN(placed.getTime()) &&
+            purchase > placed
+        ) {
+            missingLabels.push(
+                "Placed in Service Date must be on or after Date of Purchase",
+            );
+            nextErrors.placed_in_service_date = true;
+            nextErrors.date_of_purchase = true;
+        }
+
+        const uniqueMissing = Array.from(new Set(missingLabels));
+
+        setFieldErrors(nextErrors);
+
+        return {
+            valid: uniqueMissing.length === 0,
+            missingLabels: uniqueMissing,
+        };
+    }, [formData.date_of_purchase, formData.placed_in_service_date]);
+
+    const handleSave = React.useCallback(async () => {
+        const { valid, missingLabels } = validateRequiredFields();
+
+        if (!valid) {
+            showAlert(
+                `Please fill out the required field(s): ${missingLabels.join(", ")}.`,
+                "error",
+                "Error Saving Equipment",
+            );
+            return;
+        }
+
+        try {
+            await onSave();
+        } catch (error) {
+            showAlert(
+                error?.response?.data?.message ||
+                    "Failed to save equipment. Please try again.",
+                "error",
+                "Error Saving Equipment",
+            );
+        }
+    }, [onSave, showAlert, validateRequiredFields]);
+
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>
                 {selectedEquipment ? "Edit Equipment" : "Add Equipment"}
             </DialogTitle>
+
             <DialogContent>
                 <Box
+                    ref={formRef}
+                    component="form"
+                    noValidate
                     sx={{
                         display: "flex",
                         flexDirection: "column",
@@ -145,35 +264,59 @@ const EquipmentDialog = ({
                             <TextField
                                 label="Name"
                                 value={formData.name}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                    clearFieldError("name");
                                     setFormData({
                                         ...formData,
                                         name: e.target.value,
-                                    })
-                                }
+                                    });
+                                }}
                                 required
                                 fullWidth
+                                error={!!fieldErrors.name}
+                                helperText={
+                                    fieldErrors.name ? "Name is required." : ""
+                                }
+                                inputProps={{
+                                    name: "name",
+                                    "data-label": "Name",
+                                }}
                             />
                         </Grid>
+
                         <Grid item xs={3}>
                             <TextField
                                 select
                                 label="Can Be Booked"
                                 value={formData.can_book}
                                 required
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                    clearFieldError("can_book");
                                     setFormData({
                                         ...formData,
-                                        can_book: e.target.value === "true",
-                                    })
-                                }
+                                        can_book: e.target.value,
+                                    });
+                                }}
                                 fullWidth
+                                error={!!fieldErrors.can_book}
+                                helperText={
+                                    fieldErrors.can_book
+                                        ? "Can Be Booked is required."
+                                        : ""
+                                }
+                                SelectProps={{
+                                    inputProps: {
+                                        name: "can_book",
+                                        "data-label": "Can Be Booked",
+                                    },
+                                }}
                             >
                                 <MenuItem value={true}>Yes</MenuItem>
                                 <MenuItem value={false}>No</MenuItem>
                             </TextField>
                         </Grid>
                     </Grid>
+
                     <TextField
                         label="Serial Number"
                         value={formData.serial_number}
@@ -185,10 +328,12 @@ const EquipmentDialog = ({
                         }
                         fullWidth
                     />
+
                     <TextField
                         select
                         label="Location"
                         value={formData.location}
+                        required
                         onChange={(e) =>
                             setFormData({
                                 ...formData,
@@ -206,6 +351,7 @@ const EquipmentDialog = ({
                             </MenuItem>
                         ))}
                     </TextField>
+
                     <Autocomplete
                         options={users}
                         getOptionLabel={(option) =>
@@ -250,6 +396,7 @@ const EquipmentDialog = ({
                         }}
                         fullWidth
                     />
+
                     <TextField
                         label="Brand Name"
                         value={formData.brand_name}
@@ -261,6 +408,7 @@ const EquipmentDialog = ({
                         }
                         fullWidth
                     />
+
                     <TextField
                         label="Date of Purchase"
                         type="date"
@@ -276,6 +424,7 @@ const EquipmentDialog = ({
                             shrink: true,
                         }}
                     />
+
                     <TextField
                         label="Purchase Cost"
                         type="number"
@@ -295,8 +444,9 @@ const EquipmentDialog = ({
                             min: "0",
                         }}
                     />
+
                     <TextField
-                        label="Description"
+                        label="Notes"
                         value={formData.description}
                         onChange={(e) =>
                             setFormData({
@@ -308,6 +458,13 @@ const EquipmentDialog = ({
                         rows={1}
                         fullWidth
                     />
+                    <Typography
+                        variant="caption"
+                        color={"text.secondary"}
+                        mb={-2}
+                    >
+                        Leave Calibration data blank if not applicable
+                    </Typography>
                     <Box sx={{ display: "flex", gap: 2 }}>
                         <TextField
                             label="Calibration Interval"
@@ -340,6 +497,7 @@ const EquipmentDialog = ({
                             <MenuItem value="years">Years</MenuItem>
                         </TextField>
                     </Box>
+
                     <TextField
                         label="Last Calibration Date"
                         type="date"
@@ -353,11 +511,11 @@ const EquipmentDialog = ({
                         fullWidth
                         InputLabelProps={{ shrink: true }}
                     />
+
                     <Grid container spacing={1}>
                         <Grid item xs={6}>
                             <TextField
                                 label="Billing Rate"
-                                type="number"
                                 value={formData.billing_rate}
                                 onChange={(e) =>
                                     setFormData({
@@ -389,6 +547,7 @@ const EquipmentDialog = ({
                             />
                         </Grid>
                     </Grid>
+
                     <TextField
                         select
                         label="Status"
@@ -403,7 +562,9 @@ const EquipmentDialog = ({
                     >
                         <MenuItem value="available">Available</MenuItem>
                         <MenuItem value="reserved">Reserved</MenuItem>
-                        <MenuItem value="maintenance">Maintenance</MenuItem>
+                        <MenuItem value="out for calibration">
+                            Out For Calibration
+                        </MenuItem>
                         <MenuItem value="retired">Retired</MenuItem>
                     </TextField>
 
@@ -418,6 +579,7 @@ const EquipmentDialog = ({
                                 Optional Tax Depreciation Fields
                             </Typography>
                         </AccordionSummary>
+
                         <AccordionDetails>
                             <Box
                                 sx={{
@@ -442,7 +604,8 @@ const EquipmentDialog = ({
                                     helperText={
                                         <span>
                                             Date asset was put into service for
-                                            tax purposes. See{" "}
+                                            tax purposes {"("}Defaults to date
+                                            of purchase{")"}. See{" "}
                                             <Link
                                                 href="https://www.irs.gov/publications/p946#en_US_2024_publink1000107604"
                                                 target="_blank"
@@ -814,6 +977,7 @@ const EquipmentDialog = ({
                                                 IRS Limits:
                                             </strong>
                                         </Typography>
+
                                         <Typography
                                             variant="body2"
                                             color="text.secondary"
@@ -842,6 +1006,7 @@ const EquipmentDialog = ({
                                                         ? "100%"
                                                         : "80%"}
                                         </Typography>
+
                                         <Typography
                                             variant="body2"
                                             color="text.secondary"
@@ -849,6 +1014,7 @@ const EquipmentDialog = ({
                                             • Section 179 Overall Limit:
                                             $1,220,000 (per company, 2024)
                                         </Typography>
+
                                         {formData.vehicle_class ===
                                             "SUV_LIMITED_179" && (
                                             <Typography
@@ -859,6 +1025,7 @@ const EquipmentDialog = ({
                                                 (2024)
                                             </Typography>
                                         )}
+
                                         {formData.vehicle_class ===
                                             "PASSENGER_AUTO" && (
                                             <Typography
@@ -877,9 +1044,10 @@ const EquipmentDialog = ({
                     </Accordion>
                 </Box>
             </DialogContent>
+
             <DialogActions>
                 <Button onClick={onClose}>Cancel</Button>
-                <Button onClick={onSave} variant="contained">
+                <Button onClick={handleSave} variant="contained">
                     Save
                 </Button>
             </DialogActions>

@@ -1696,7 +1696,7 @@ const sendEquipmentStatusChangeEmail = async (
         {
             available: "#28a745",
             reserved: "#17a2b8",
-            maintenance: "#fd7e14",
+            "out for calibration": "#fd7e14",
             retired: "#dc3545",
         }[newStatus] || "#6c757d";
 
@@ -1704,7 +1704,7 @@ const sendEquipmentStatusChangeEmail = async (
         {
             available: "#d4edda",
             reserved: "#d1ecf1",
-            maintenance: "#fff3cd",
+            "out for calibration": "#fff3cd",
             retired: "#f8d7da",
         }[newStatus] || "#e9ecef";
 
@@ -1712,7 +1712,7 @@ const sendEquipmentStatusChangeEmail = async (
         {
             available: "✅",
             reserved: "📤",
-            maintenance: "🔧",
+            "out for calibration": "🔧",
             retired: "🚫",
         }[newStatus] || "ℹ️";
 
@@ -1788,10 +1788,10 @@ const sendEquipmentStatusChangeEmail = async (
                     </div>
 
                     ${
-                        newStatus === "maintenance"
+                        newStatus === "out for calibration"
                             ? `
                     <div style="background-color: #fff3cd; border-left: 4px solid #fd7e14; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                        <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">⚠️ This equipment is currently under maintenance and unavailable for reservation.</p>
+                        <p style="color: #856404; font-size: 13px; line-height: 1.6; margin: 0;">⚠️ This equipment is currently under out for calibration and unavailable for reservation.</p>
                     </div>`
                             : ""
                     }

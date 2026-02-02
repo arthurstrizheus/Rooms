@@ -588,7 +588,7 @@ const Post = async (req, res, next) => {
             project_number,
             notes,
             scheduled_on_behalf_of,
-            status: equipment.requires_approval ? "pending" : "approved",
+            status: equipment.requires_approval ? "pending" : "auto-approved",
             repeats: recurrence_pattern || null,
         };
 
@@ -1478,7 +1478,7 @@ const Approve = async (req, res, next) => {
         }
 
         await checkout.update({
-            status: "approved",
+            status: "auto-approved",
             approved_by_user_id,
             approval_notes,
             approved_at: new Date(),

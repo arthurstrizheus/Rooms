@@ -16,7 +16,7 @@ import {
     MenuItem,
     Autocomplete,
 } from "@mui/material";
-import { Warning } from "@mui/icons-material";
+import { Warning, Check } from "@mui/icons-material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import axios from "axios";
@@ -101,6 +101,12 @@ const ReservationDialog = ({
                 color: "#ed6c02",
                 backgroundColor: "#fff3e0",
             };
+        } else if (dueDate >= twoMonthsFromNow) {
+            return {
+                status: "Calibrated",
+                color: "#2e7d32",
+                backgroundColor: "#e8f5e9",
+            };
         }
         return null;
     };
@@ -109,6 +115,31 @@ const ReservationDialog = ({
         // Validate required fields
         if (!formData.project_number || formData.project_number.trim() === "") {
             showAlert("Project Number is required", "error");
+            return;
+        }
+        if (equipment?.status === "retired") {
+            showAlert("Cannot reserve retired equipment", "error");
+            return;
+        }
+        if (equipment?.status === "out for calibration") {
+            showAlert(
+                "Cannot reserve equipment that is out for calibration",
+                "error",
+            );
+            return;
+        }
+        if (equipment?.status === "maintenance") {
+            showAlert(
+                "Cannot reserve equipment that is under maintenance",
+                "error",
+            );
+            return;
+        }
+        if (equipment?.status === "maintenance") {
+            showAlert(
+                "Cannot reserve equipment that is under maintenance",
+                "error",
+            );
             return;
         }
 
@@ -145,7 +176,6 @@ const ReservationDialog = ({
                     ? new Date(formData.recurrenceEndDate).toISOString()
                     : null;
             }
-            console.log(checkoutData);
 
             await axios.post("/api/checkouts", checkoutData, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -249,11 +279,20 @@ const ReservationDialog = ({
                                 gap: 1,
                             }}
                         >
-                            <Warning
-                                sx={{
-                                    color: calibrationStatus.color,
-                                }}
-                            />
+                            {calibrationStatus.status === "Calibrated" ? (
+                                <Check
+                                    sx={{
+                                        color: calibrationStatus.color,
+                                    }}
+                                />
+                            ) : (
+                                <Warning
+                                    sx={{
+                                        color: calibrationStatus.color,
+                                    }}
+                                />
+                            )}
+
                             <Typography
                                 variant="body2"
                                 sx={{
@@ -262,12 +301,14 @@ const ReservationDialog = ({
                                 }}
                             >
                                 {calibrationStatus.status}
-                                {calibrationDueDate && (
-                                    <>
-                                        {" - Due: "}
-                                        {calibrationDueDate.toLocaleDateString()}
-                                    </>
-                                )}
+                                {calibrationDueDate &&
+                                    calibrationStatus.status !==
+                                        "Calibrated" && (
+                                        <>
+                                            {" - Due: "}
+                                            {calibrationDueDate.toLocaleDateString()}
+                                        </>
+                                    )}
                             </Typography>
                         </Box>
                     )}

@@ -126,7 +126,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case "approved":
+            case "auto-approved":
                 return "success";
             case "pending":
                 return "warning";
@@ -147,7 +147,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                 return "success";
             case "reserved":
                 return "info";
-            case "maintenance":
+            case "out for calibration":
                 return "warning";
             case "retired":
                 return "error";
@@ -668,27 +668,6 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <TableSortLabel
                                                             active={
                                                                 orderBy ===
-                                                                "notes"
-                                                            }
-                                                            direction={
-                                                                orderBy ===
-                                                                "notes"
-                                                                    ? order
-                                                                    : "asc"
-                                                            }
-                                                            onClick={() =>
-                                                                handleSort(
-                                                                    "notes",
-                                                                )
-                                                            }
-                                                        >
-                                                            Purpose
-                                                        </TableSortLabel>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TableSortLabel
-                                                            active={
-                                                                orderBy ===
                                                                 "status"
                                                             }
                                                             direction={
@@ -763,10 +742,6 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 </Typography>
                                                             </TableCell>
                                                             <TableCell>
-                                                                {checkout.notes ||
-                                                                    "N/A"}
-                                                            </TableCell>
-                                                            <TableCell>
                                                                 <Chip
                                                                     label={
                                                                         checkout.status
@@ -781,7 +756,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 {(checkout.status ===
                                                                     "pending" ||
                                                                     checkout.status ===
-                                                                        "approved") && (
+                                                                        "auto-approved") && (
                                                                     <IconButton
                                                                         size="small"
                                                                         onClick={(
@@ -828,7 +803,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                 >
                                     <CalendarMonth fontSize="small" />
                                     <Typography variant="subtitle1">
-                                        Non-Recurring Reservations (
+                                        One-time Reservations (
                                         {nonRecurringCheckouts.length})
                                     </Typography>
                                 </Box>
@@ -993,27 +968,6 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                         <TableSortLabel
                                                             active={
                                                                 orderBy ===
-                                                                "notes"
-                                                            }
-                                                            direction={
-                                                                orderBy ===
-                                                                "notes"
-                                                                    ? order
-                                                                    : "asc"
-                                                            }
-                                                            onClick={() =>
-                                                                handleSort(
-                                                                    "notes",
-                                                                )
-                                                            }
-                                                        >
-                                                            Purpose
-                                                        </TableSortLabel>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TableSortLabel
-                                                            active={
-                                                                orderBy ===
                                                                 "status"
                                                             }
                                                             direction={
@@ -1083,10 +1037,6 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>
-                                                                {checkout.notes ||
-                                                                    "N/A"}
-                                                            </TableCell>
-                                                            <TableCell>
                                                                 <Chip
                                                                     label={
                                                                         checkout.status
@@ -1101,7 +1051,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                 {(checkout.status ===
                                                                     "pending" ||
                                                                     checkout.status ===
-                                                                        "approved") && (
+                                                                        "auto-approved") && (
                                                                     <IconButton
                                                                         size="small"
                                                                         onClick={(
@@ -1188,7 +1138,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                             </Typography>
                                             <Typography variant="body1">
                                                 {selectedCheckout.Equipment
-                                                    ?.name || "N/A"}
+                                                    ?.name || ""}
                                             </Typography>
                                         </Box>
                                         <Box>
@@ -1200,7 +1150,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                             </Typography>
                                             <Typography variant="body1">
                                                 {selectedCheckout.Equipment
-                                                    ?.serial_number || "N/A"}
+                                                    ?.serial_number || ""}
                                             </Typography>
                                         </Box>
                                         <Box>
@@ -1212,7 +1162,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                             </Typography>
                                             <Typography variant="body1">
                                                 {selectedCheckout.Equipment
-                                                    ?.location || "N/A"}
+                                                    ?.location || ""}
                                             </Typography>
                                         </Box>
                                         <Box>
@@ -1804,7 +1754,8 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                 )}
                             {selectedCheckout &&
                                 (selectedCheckout.status === "pending" ||
-                                    selectedCheckout.status === "approved") && (
+                                    selectedCheckout.status ===
+                                        "auto-approved") && (
                                     <Button
                                         onClick={() => {
                                             handleCancel(selectedCheckout.id);

@@ -7,6 +7,7 @@ import {
     Box,
     Chip,
     Grid,
+    capitalize,
 } from "@mui/material";
 import { Warning } from "@mui/icons-material";
 import { format } from "date-fns";
@@ -25,7 +26,7 @@ const EquipmentInfoCard = ({
                 return "error";
             case "reserved":
                 return "info";
-            case "maintenance":
+            case "out for calibration":
                 return "warning";
             case "retired":
                 return "default";
@@ -67,7 +68,7 @@ const EquipmentInfoCard = ({
         if (!equipment) return "available";
         // If equipment is currently checked out, override status
         if (isEquipmentCurrentlyCheckedOut(equipment.id)) {
-            return "unavailable";
+            return "reserved";
         }
         return equipment.status;
     };
@@ -100,7 +101,7 @@ const EquipmentInfoCard = ({
                         }}
                     >
                         <Chip
-                            label={getDisplayStatus()}
+                            label={capitalize(getDisplayStatus())}
                             color={getStatusColor(getDisplayStatus())}
                             size="small"
                         />
@@ -116,21 +117,23 @@ const EquipmentInfoCard = ({
                 </Grid>
             )}
 
-            <Grid item xs={12} sm={6}>
-                <Typography variant="body2" color="text.secondary">
-                    Serial Number
-                </Typography>
-                <Typography variant="body1" sx={{ mt: 0.5 }}>
-                    {equipment.serial_number || "N/A"}
-                </Typography>
-            </Grid>
+            {equipment.serial_number && (
+                <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">
+                        Serial Number
+                    </Typography>
+                    <Typography variant="body1" sx={{ mt: 0.5 }}>
+                        {equipment.serial_number || ""}
+                    </Typography>
+                </Grid>
+            )}
 
             <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary">
                     Location
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 0.5 }}>
-                    {equipment.location || "N/A"}
+                    {equipment.location || ""}
                 </Typography>
             </Grid>
 
@@ -139,7 +142,7 @@ const EquipmentInfoCard = ({
                     Contact Person
                 </Typography>
                 <Typography variant="body1" sx={{ mt: 0.5 }}>
-                    {equipment.contact_person || "N/A"}
+                    {equipment.contact_person || ""}
                 </Typography>
             </Grid>
             {equipment?.UpdatedBy &&

@@ -557,7 +557,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         switch (status) {
             case "pending":
                 return "warning";
-            case "approved":
+            case "auto-approved":
                 return "success";
             case "checked_out":
                 return "info";
@@ -903,6 +903,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 locations={locations}
                 users={users}
                 onSave={handleSubmit}
+                showAlert={showAlert}
             />
 
             {/* Upload Dialog */}

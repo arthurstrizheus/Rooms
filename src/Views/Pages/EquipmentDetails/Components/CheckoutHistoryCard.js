@@ -421,7 +421,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                     Purpose
                                 </Typography>
                                 <Typography variant="body1">
-                                    {selectedCheckout.notes || "N/A"}
+                                    {selectedCheckout.notes || ""}
                                 </Typography>
                             </Box>
 
@@ -433,7 +433,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                     Project Number
                                 </Typography>
                                 <Typography variant="body1">
-                                    {selectedCheckout.project_number || "N/A"}
+                                    {selectedCheckout.project_number || ""}
                                 </Typography>
                             </Box>
 
@@ -502,7 +502,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                         >
                             <MenuItem value="all">All Status</MenuItem>
                             <MenuItem value="pending">Pending</MenuItem>
-                            <MenuItem value="approved">Approved</MenuItem>
+                            <MenuItem value="auto-approved">Approved</MenuItem>
                             <MenuItem value="reserved">In Use</MenuItem>
                             <MenuItem value="returned">Returned</MenuItem>
                             <MenuItem value="cancelled">Cancelled</MenuItem>
@@ -651,7 +651,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                                         expandIcon={<ExpandMoreIcon />}
                                     >
                                         <Typography variant="subtitle1">
-                                            Single Reservations (
+                                            One-time Reservations (
                                             {filteredNonRecurring.length})
                                         </Typography>
                                     </AccordionSummary>
