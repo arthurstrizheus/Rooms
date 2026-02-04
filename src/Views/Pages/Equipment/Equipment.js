@@ -46,90 +46,6 @@ import useAlertDialog from "../../../hooks/useAlertDialog";
 import EquipmentDialog from "./EquipmentDialog";
 import axios from "axios";
 
-const getStateBonusDepreciationLink = (state) => {
-    const links = {
-        OH: (
-            <Link
-                href="https://tax.ohio.gov/business/pass-through-entity-and-fiduciary-income-tax"
-                target="_blank"
-                rel="noopener"
-            >
-                OH bonus add-back
-            </Link>
-        ),
-        FL: (
-            <Link
-                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                FL bonus treatment
-            </Link>
-        ),
-        IL: (
-            <Link
-                href="https://tax.illinois.gov/content/dam/soi/en/web/tax/forms/incometax/documents/currentyear/miscellaneous/il-4562-instr.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                IL bonus reversal
-            </Link>
-        ),
-        GA: (
-            <Link
-                href="https://dor.georgia.gov/irc-section-168k-special-depreciation-allowance-bonus-depreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                GA bonus info
-            </Link>
-        ),
-        NC: (
-            <Link
-                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
-                target="_blank"
-                rel="noopener"
-            >
-                NC bonus treatment
-            </Link>
-        ),
-    };
-    return links[state] || <span>state bonus info</span>;
-};
-
-const getStateSection179Link = (state) => {
-    const links = {
-        OH: (
-            <Link
-                href="https://tax.ohio.gov/faq-IncomeDepreciation"
-                target="_blank"
-                rel="noopener"
-            >
-                OH Section 179 threshold
-            </Link>
-        ),
-        FL: (
-            <Link
-                href="https://floridarevenue.com/taxes/tips/Documents/TIP_24C01-02.pdf"
-                target="_blank"
-                rel="noopener"
-            >
-                FL Section 179 treatment
-            </Link>
-        ),
-        NC: (
-            <Link
-                href="https://www.ncdor.gov/documents/guidance-depreciation-adjustment-corporate-and-franchise-taxes"
-                target="_blank"
-                rel="noopener"
-            >
-                NC Section 179 guidance
-            </Link>
-        ),
-    };
-    return links[state] || <span>state Section 179 info</span>;
-};
-
 const Equipment = ({ setLoading, loading }) => {
     const [equipment, setEquipment] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
@@ -174,6 +90,7 @@ const Equipment = ({ setLoading, loading }) => {
         name: "",
         description: "",
         serial_number: "",
+        asset_number: "",
         cost: "",
         location: "",
         contact_person: "",
@@ -372,6 +289,7 @@ const Equipment = ({ setLoading, loading }) => {
             setFormData({
                 name: "",
                 description: "",
+                asset_number: "",
                 serial_number: "",
                 cost: "",
                 location: "",
@@ -521,6 +439,7 @@ const Equipment = ({ setLoading, loading }) => {
             const matchesSearch =
                 item.name?.toLowerCase().includes(search) ||
                 item.serial_number?.toLowerCase().includes(search) ||
+                item.asset_number?.toLowerCase().includes(search) ||
                 item.location?.toLowerCase().includes(search) ||
                 displayStatus?.toLowerCase().includes(search) ||
                 item.contact_person?.toLowerCase().includes(search) ||
@@ -546,6 +465,10 @@ const Equipment = ({ setLoading, loading }) => {
                 case "serial_number":
                     aValue = a.serial_number?.toLowerCase() || "";
                     bValue = b.serial_number?.toLowerCase() || "";
+                    break;
+                case "asset_number":
+                    aValue = a.asset_number?.toLowerCase() || "";
+                    bValue = b.asset_number?.toLowerCase() || "";
                     break;
                 case "location":
                     aValue = a.location?.toLowerCase() || "";

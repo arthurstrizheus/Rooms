@@ -69,6 +69,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         name: "",
         description: "",
         serial_number: "",
+        asset_number: "",
         cost: "",
         location: "",
         contact_person: "",
@@ -321,6 +322,8 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             name: equipment.name,
             description: equipment.description || "",
             serial_number: equipment.serial_number || "",
+            asset_number: equipment.asset_number || "",
+            asset_number: equipment.asset_number || "",
             cost: equipment.cost || "",
             location: equipment.location || "",
             contact_person: equipment.contact_person || "",
@@ -861,6 +864,24 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                                     </Typography>
                                                 </Grid>
                                             )}
+                                            {equipment?.asset_number && (
+                                                <Grid item xs={6}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        Asset Number
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{ mt: 0.5 }}
+                                                    >
+                                                        {
+                                                            equipment?.asset_number
+                                                        }
+                                                    </Typography>
+                                                </Grid>
+                                            )}
                                         </Grid>
                                     </Box>
                                 </CardContent>
@@ -1078,6 +1099,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                         option.serial_number
                                             ?.toLowerCase()
                                             .includes(searchTerm) ||
+                                        option.asset_number
+                                            ?.toLowerCase()
+                                            .includes(searchTerm) ||
                                         option.description
                                             ?.toLowerCase()
                                             .includes(searchTerm) ||
@@ -1095,7 +1119,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                 <TextField
                                     {...params}
                                     label="Select Equipment"
-                                    placeholder="Search by name, serial, description, or location"
+                                    placeholder="Search by name, serial, asset number, description, or location"
                                 />
                             )}
                             renderOption={(props, option) => (

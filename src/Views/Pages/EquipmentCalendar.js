@@ -499,6 +499,15 @@ const EquipmentCalendar = ({
                                 {equipment?.serial_number}
                             </>
                         )}
+                        {equipment?.asset_number && (
+                            <>
+                                {" | "}
+                                <Box component="span" sx={{ fontWeight: 600 }}>
+                                    Asset Number:
+                                </Box>{" "}
+                                {equipment?.asset_number}
+                            </>
+                        )}
                     </Typography>
 
                     {calibrationStatus && (
@@ -625,6 +634,27 @@ const EquipmentCalendar = ({
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 {equipment?.serial_number}
+                            </Typography>
+                        </Box>
+                    )}
+
+                    {!!equipment?.asset_number && (
+                        <Box
+                            sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                gap: 0.75,
+                            }}
+                        >
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600 }}
+                                color="text.secondary"
+                            >
+                                Asset Number:
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {equipment?.asset_number}
                             </Typography>
                         </Box>
                     )}

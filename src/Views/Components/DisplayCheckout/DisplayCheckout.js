@@ -868,6 +868,24 @@ const DisplayCheckout = ({
                                         }}
                                     />
                                 )}
+                                {/* Asset Number */}
+                                {equipment.asset_number && (
+                                    <Chip
+                                        icon={<CategoryIcon />}
+                                        label={`AN: ${equipment.asset_number}`}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{
+                                            height: 22,
+                                            "& .MuiChip-label": {
+                                                fontSize: "0.7rem",
+                                            },
+                                            "& .MuiChip-icon": {
+                                                fontSize: "0.8rem",
+                                            },
+                                        }}
+                                    />
+                                )}
                             </Stack>
                         </Box>
                     )}

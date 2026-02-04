@@ -328,6 +328,18 @@ const EquipmentDialog = ({
                         }
                         fullWidth
                     />
+                    <TextField
+                        label="Asset Number"
+                        value={formData.asset_number}
+                        required
+                        onChange={(e) =>
+                            setFormData({
+                                ...formData,
+                                asset_number: e.target.value,
+                            })
+                        }
+                        fullWidth
+                    />
 
                     <TextField
                         select

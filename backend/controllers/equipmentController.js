@@ -218,6 +218,7 @@ const Update = async (req, res, next) => {
         const stringFieldsToClean = [
             "description",
             "serial_number",
+            "asset_number",
             "brand_name",
             "billing_code",
             "location",
@@ -557,6 +558,7 @@ const ExportToExcel = async (req, res, next) => {
             { header: "Name", key: "name", width: 30 },
             { header: "Description", key: "description", width: 40 },
             { header: "Serial Number", key: "serial_number", width: 20 },
+            { header: "Asset Number", key: "asset_number", width: 20 },
             { header: "Brand Name", key: "brand_name", width: 20 },
             { header: "Date of Purchase", key: "date_of_purchase", width: 18 },
             { header: "Cost", key: "cost", width: 15 },
@@ -635,6 +637,7 @@ const ExportToExcel = async (req, res, next) => {
                 name: item.name,
                 description: item.description || "",
                 serial_number: item.serial_number || "",
+                asset_number: item.asset_number || "",
                 brand_name: item.brand_name || "",
                 date_of_purchase: item.date_of_purchase
                     ? new Date(item.date_of_purchase).toLocaleDateString()

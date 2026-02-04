@@ -657,6 +657,20 @@ const DepreciationReports = ({ setLoading }) => {
                                             )}
                                         </TableCell>
                                         <TableCell>
+                                            <Typography variant="body2">
+                                                {item.asset.name}
+                                            </Typography>
+                                            {item.asset.asset_number && (
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    Asset Number:
+                                                    {item.asset.asset_number}
+                                                </Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
                                             {formatCurrency(
                                                 item.asset.cost_basis,
                                             )}

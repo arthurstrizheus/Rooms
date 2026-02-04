@@ -50,7 +50,13 @@ const GetAlertsByUser = async (req, res, next) => {
             include: [
                 {
                     model: Equipment,
-                    attributes: ["id", "name", "serial_number", "location"],
+                    attributes: [
+                        "id",
+                        "name",
+                        "serial_number",
+                        "location",
+                        "asset_number",
+                    ],
                 },
                 {
                     model: User,
@@ -89,6 +95,7 @@ const GetMyAlerts = async (req, res, next) => {
                         "id",
                         "name",
                         "serial_number",
+                        "asset_number",
                         "location",
                         "status",
                     ],

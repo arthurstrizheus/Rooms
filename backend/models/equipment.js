@@ -21,6 +21,10 @@ const Equipment = sequelize.define(
             type: DataTypes.STRING,
             allowNull: true,
         },
+        asset_number: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
         brand_name: {
             type: DataTypes.STRING,
             allowNull: true,

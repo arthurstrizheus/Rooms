@@ -177,6 +177,9 @@ const sendCheckoutApprovalRequestEmail = async (
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
             e.serial_number || "N/A"
         }</td></tr>
+        <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Asset Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+            e.asset_number || "N/A"
+        }</td></tr>
         <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
             e.location || "N/A"
         }</td></tr>
@@ -322,6 +325,9 @@ const sendCheckoutApprovedEmail = async (
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.asset_number || "N/A"
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.location || "N/A"
@@ -474,6 +480,9 @@ const sendCheckoutCancelledEmail = async (
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.asset_number || "N/A"
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.location || "N/A"
@@ -679,6 +688,9 @@ const sendCheckoutDeclinedEmail = async (
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.serial_number || "N/A"
                             }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.asset_number || "N/A"
+                            }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.location || "N/A"
                             }</td></tr>
@@ -842,6 +854,12 @@ const sendEquipmentReturnedEmail = async (
                                 }</td>
                             </tr>
                             <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.asset_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                     e.location || "N/A"
@@ -978,6 +996,9 @@ const sendEquipmentAvailableEmail = async (equipment, subscriberEmails) => {
             }</td></tr>
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Serial Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
                 e.serial_number || "N/A"
+            }</td></tr>
+            <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Asset Number</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
+                e.asset_number || "N/A"
             }</td></tr>
             <tr><td style="padding:4px 8px;border:1px solid #ddd;"><strong>Location</strong></td><td style="padding:4px 8px;border:1px solid #ddd;">${
                 e.location || "N/A"
@@ -1128,6 +1149,12 @@ const sendCalibrationDueEmail = async (
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                     e.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    e.asset_number || "N/A"
                                 }</td>
                             </tr>
                             <tr>
@@ -1396,6 +1423,12 @@ const sendCheckoutCreatedEmail = async (
                                 }</td>
                             </tr>
                             <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.asset_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                     equipmentData.location || "N/A"
@@ -1563,6 +1596,12 @@ const sendEquipmentCheckedOutEmail = async (
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                     equipmentData.serial_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.asset_number || "N/A"
                                 }</td>
                             </tr>
                             <tr>
@@ -1753,6 +1792,12 @@ const sendEquipmentStatusChangeEmail = async (
                                 }</td>
                             </tr>
                             <tr>
+                                <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td>
+                                <td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                    equipmentData.asset_number || "N/A"
+                                }</td>
+                            </tr>
+                            <tr>
                                 <td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td>
                                 <td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                     equipmentData.location || "N/A"
@@ -1927,6 +1972,9 @@ const sendScheduledOnBehalfEmail = async (
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Serial Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.serial_number || "N/A"
+                            }</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Asset Number:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
+                                e.asset_number || "N/A"
                             }</td></tr>
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Location:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${
                                 e.location || "N/A"

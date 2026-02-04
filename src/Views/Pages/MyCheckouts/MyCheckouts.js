@@ -329,6 +329,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
         const matchesSearch =
             checkout.Equipment?.name?.toLowerCase().includes(search) ||
             checkout.Equipment?.serial_number?.toLowerCase().includes(search) ||
+            checkout.Equipment?.asset_number?.toLowerCase().includes(search) ||
             checkout.Equipment?.location?.toLowerCase().includes(search) ||
             checkout.Equipment?.description?.toLowerCase().includes(search) ||
             checkout.notes?.toLowerCase().includes(search) ||
@@ -558,6 +559,15 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                         .Equipment
                                                                         ?.serial_number
                                                                 }
+                                                                {checkout
+                                                                    .Equipment
+                                                                    ?.asset_number &&
+                                                                    " • "}
+                                                                {
+                                                                    checkout
+                                                                        .Equipment
+                                                                        ?.asset_number
+                                                                }
                                                             </Typography>
                                                         </Box>
                                                         <Chip
@@ -724,6 +734,15 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                             .Equipment
                                                                             ?.serial_number
                                                                     }
+                                                                    {checkout
+                                                                        .Equipment
+                                                                        ?.asset_number &&
+                                                                        " • "}
+                                                                    {
+                                                                        checkout
+                                                                            .Equipment
+                                                                            ?.asset_number
+                                                                    }
                                                                 </Typography>
                                                             </TableCell>
                                                             <TableCell>
@@ -850,6 +869,15 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                         checkout
                                                                             .Equipment
                                                                             ?.serial_number
+                                                                    }
+                                                                    {checkout
+                                                                        .Equipment
+                                                                        ?.asset_number &&
+                                                                        " • "}
+                                                                    {
+                                                                        checkout
+                                                                            .Equipment
+                                                                            ?.asset_number
                                                                     }
                                                                 </Typography>
                                                             </Box>
@@ -1024,6 +1052,15 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                                             .Equipment
                                                                             ?.serial_number
                                                                     }
+                                                                    {checkout
+                                                                        .Equipment
+                                                                        ?.asset_number &&
+                                                                        " • "}
+                                                                    {
+                                                                        checkout
+                                                                            .Equipment
+                                                                            ?.asset_number
+                                                                    }
                                                                 </Typography>
                                                             </TableCell>
                                                             <TableCell>
@@ -1141,18 +1178,37 @@ const MyCheckouts = ({ setLoading, loading }) => {
                                                     ?.name || ""}
                                             </Typography>
                                         </Box>
-                                        <Box>
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                            >
-                                                Serial Number:
-                                            </Typography>
-                                            <Typography variant="body1">
-                                                {selectedCheckout.Equipment
-                                                    ?.serial_number || ""}
-                                            </Typography>
-                                        </Box>
+                                        {selectedCheckout.Equipment
+                                            ?.serial_number && (
+                                            <Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    Serial Number:
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {selectedCheckout.Equipment
+                                                        ?.serial_number || ""}
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                        {selectedCheckout.Equipment
+                                            ?.asset_number && (
+                                            <Box>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    Asset Number:
+                                                </Typography>
+                                                <Typography variant="body1">
+                                                    {selectedCheckout.Equipment
+                                                        ?.asset_number || ""}
+                                                </Typography>
+                                            </Box>
+                                        )}
+
                                         <Box>
                                             <Typography
                                                 variant="caption"
@@ -1447,32 +1503,38 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
                                         {showOptionalFields && editMode && (
                                             <>
-                                                <Box>
-                                                    <Typography
-                                                        variant="caption"
-                                                        color="text.secondary"
-                                                    >
-                                                        Notes:
-                                                    </Typography>
-                                                    <TextField
-                                                        fullWidth
-                                                        multiline
-                                                        rows={2}
-                                                        value={
-                                                            editedCheckout.notes ||
-                                                            ""
-                                                        }
-                                                        onChange={(e) =>
-                                                            setEditedCheckout({
-                                                                ...editedCheckout,
-                                                                notes: e.target
-                                                                    .value,
-                                                            })
-                                                        }
-                                                        size="small"
-                                                        sx={{ mt: 1 }}
-                                                    />
-                                                </Box>
+                                                {editedCheckout?.notes && (
+                                                    <Box>
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                        >
+                                                            Notes:
+                                                        </Typography>
+                                                        <TextField
+                                                            fullWidth
+                                                            multiline
+                                                            rows={2}
+                                                            value={
+                                                                editedCheckout.notes ||
+                                                                ""
+                                                            }
+                                                            onChange={(e) =>
+                                                                setEditedCheckout(
+                                                                    {
+                                                                        ...editedCheckout,
+                                                                        notes: e
+                                                                            .target
+                                                                            .value,
+                                                                    },
+                                                                )
+                                                            }
+                                                            size="small"
+                                                            sx={{ mt: 1 }}
+                                                        />
+                                                    </Box>
+                                                )}
+
                                                 <Box>
                                                     <Typography
                                                         variant="caption"

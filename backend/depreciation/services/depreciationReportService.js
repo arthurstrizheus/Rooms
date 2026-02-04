@@ -90,6 +90,7 @@ async function generateOfficeReport(
             id: asset.id,
             name: asset.name,
             serial_number: asset.serial_number,
+            asset_number: asset.asset_number,
             cost: parseFloat(asset.cost || 0),
             ...taxMeta.toJSON(),
         };
@@ -195,6 +196,8 @@ async function generateOfficeReport(
                 id: asset.id,
                 name: asset.name,
                 serial_number: asset.serial_number,
+                asset_number: asset.asset_number,
+                asset_number: asset.asset_number,
                 cost: assetWithMeta.cost,
                 cost_basis: assetWithMeta.cost_basis,
                 placed_in_service_date: assetWithMeta.placed_in_service_date,
@@ -272,6 +275,7 @@ async function generateFederalReport(taxYear) {
             id: asset.id,
             name: asset.name,
             serial_number: asset.serial_number,
+            asset_number: asset.asset_number,
             cost: parseFloat(asset.cost || 0),
             ...taxMeta.toJSON(),
         };
@@ -296,6 +300,7 @@ async function generateFederalReport(taxYear) {
                 id: asset.id,
                 name: asset.name,
                 serial_number: asset.serial_number,
+                asset_number: asset.asset_number,
                 location: asset.location,
             },
             depreciation: federalResult,

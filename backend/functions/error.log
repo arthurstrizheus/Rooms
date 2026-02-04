@@ -1,0 +1,12 @@
+
+[2026-02-02T20:00:38.837Z] ERROR:
+  Message: Timeout: Request failed to complete in 15000ms
+  Stack: Error
+    at Query.run (C:\Code\Rooms\backend\node_modules\sequelize\lib\dialects\mssql\query.js:107:25)
+    at C:\Code\Rooms\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async MSSqlQueryInterface.select (C:\Code\Rooms\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:407:12)
+    at async EquipmentAlert.findAll (C:\Code\Rooms\backend\node_modules\sequelize\lib\model.js:1140:21)
+    at async GetMyAlerts (C:\Code\Rooms\backend\controllers\equipmentAlertController.js:89:24)
+  Code: 
+----------------------------------------

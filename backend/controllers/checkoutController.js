@@ -278,7 +278,7 @@ const GetAll = async (req, res, next) => {
             include: [
                 {
                     model: Equipment,
-                    attributes: ["id", "name", "serial_number"],
+                    attributes: ["id", "name", "serial_number", "asset_number"],
                 },
                 {
                     model: User,
@@ -399,6 +399,7 @@ const GetPendingApprovals = async (req, res, next) => {
                         "id",
                         "name",
                         "serial_number",
+                        "asset_number",
                         "requires_approval",
                     ],
                 },
@@ -616,7 +617,7 @@ const Post = async (req, res, next) => {
             include: [
                 {
                     model: Equipment,
-                    attributes: ["id", "name", "serial_number"],
+                    attributes: ["id", "name", "serial_number", "asset_number"],
                 },
                 {
                     model: User,
@@ -1266,7 +1267,12 @@ const Update = async (req, res, next) => {
                     include: [
                         {
                             model: Equipment,
-                            attributes: ["id", "name", "serial_number"],
+                            attributes: [
+                                "id",
+                                "name",
+                                "serial_number",
+                                "asset_number",
+                            ],
                         },
                         {
                             model: User,
@@ -1353,7 +1359,7 @@ const Update = async (req, res, next) => {
             include: [
                 {
                     model: Equipment,
-                    attributes: ["id", "name", "serial_number"],
+                    attributes: ["id", "name", "serial_number", "asset_number"],
                 },
                 {
                     model: User,
@@ -1489,7 +1495,7 @@ const Approve = async (req, res, next) => {
             include: [
                 {
                     model: Equipment,
-                    attributes: ["id", "name", "serial_number"],
+                    attributes: ["id", "name", "serial_number", "asset_number"],
                 },
                 {
                     model: User,
