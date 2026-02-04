@@ -27,6 +27,9 @@ import {
     DialogActions,
     Button,
 } from "@mui/material";
+import useEasterEggs from "../../../../hooks/useEasterEggs";
+import MeatRain from "../../../../Components/EasterEggs/MeatRain";
+import HiggyRain from "../../../../Components/EasterEggs/HiggyRain";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import SearchIcon from "@mui/icons-material/Search";
@@ -34,6 +37,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import { format } from "date-fns";
 
 const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
+    const { meatRain, higgyRain, handleSearchChange } = useEasterEggs();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const [searchTerm, setSearchTerm] = useState("");
@@ -267,6 +271,9 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
 
     return (
         <>
+            {/* Easter Eggs */}
+            {meatRain && <MeatRain />}
+            {higgyRain && <HiggyRain />}
             <Dialog
                 open={dialogOpen}
                 onClose={handleCloseDialog}
@@ -479,7 +486,12 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                         <TextField
                             placeholder="Search by user, notes, project #..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) =>
+                                handleSearchChange(
+                                    e.target.value,
+                                    setSearchTerm,
+                                )
+                            }
                             size="small"
                             fullWidth={isMobile}
                             sx={{ flex: isMobile ? 1 : "0 0 300px" }}

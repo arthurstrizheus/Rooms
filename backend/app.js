@@ -40,6 +40,7 @@ const federalVehicleLimitsRouter = require("./routes/federalVehicleLimits");
 const bonusRatesRouter = require("./routes/bonusRates");
 const section179LimitsRouter = require("./routes/section179Limits");
 const passengerAutoLimitsRouter = require("./routes/passengerAutoLimits");
+const usageReportsRouter = require("./routes/usageReports");
 const errorHandler = require("./middleware/errorHandler");
 const { initCalibrationAlertsScheduler } = require("./jobs/calibrationAlerts");
 const {
@@ -160,6 +161,7 @@ app.use("/api/federal-vehicle-limits", federalVehicleLimitsRouter);
 app.use("/api/bonus-rates", bonusRatesRouter);
 app.use("/api/section179-limits", section179LimitsRouter);
 app.use("/api/passenger-auto-limits", passengerAutoLimitsRouter);
+app.use("/api/usage-reports", usageReportsRouter);
 
 // Initialize WebSocket handlers
 handleSocketConnection(io);

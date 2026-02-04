@@ -19,6 +19,7 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import DeveloperModeIcon from "@mui/icons-material/DeveloperMode";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
+import AssessmentIcon from "@mui/icons-material/AssessmentOutlined";
 import { isMobile } from "react-device-detect";
 import "./SideBar.css";
 import { useAuth } from "../../../Utilites/AuthContext";
@@ -111,6 +112,10 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
             case "depreciation":
                 setNav({ page: "depreciation" });
                 navigate("/depreciation");
+                break;
+            case "usage-report":
+                setNav({ page: "usage-report" });
+                navigate("/usage-report");
                 break;
             default:
                 setContent(<></>);
@@ -281,6 +286,16 @@ const SideBar = ({ setBannerText, setContent, bannderText }) => {
                                         onClick: () =>
                                             handleMenuClick("depreciation"),
                                         selected: nav.page == "depreciation",
+                                    },
+                                    (user?.admin ||
+                                        user?.equipment_admin ||
+                                        user?.equipment_office_admin ||
+                                        user?.tax_admin) && {
+                                        name: "Usage Report",
+                                        icon: <AssessmentIcon />,
+                                        onClick: () =>
+                                            handleMenuClick("usage-report"),
+                                        selected: nav.page == "usage-report",
                                     },
                                 ].filter(Boolean)}
                             />

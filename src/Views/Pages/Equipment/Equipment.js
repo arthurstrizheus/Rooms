@@ -25,6 +25,9 @@ import {
     TextField,
     capitalize,
 } from "@mui/material";
+import useEasterEggs from "../../../hooks/useEasterEggs";
+import MeatRain from "../../../Components/EasterEggs/MeatRain";
+import HiggyRain from "../../../Components/EasterEggs/HiggyRain";
 import {
     Add,
     CalendarMonth,
@@ -83,7 +86,7 @@ const Equipment = ({ setLoading, loading }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [filterLocation, setFilterLocation] = useState(null);
-    const [meatRain, setMeatRain] = useState(false);
+    const { meatRain, higgyRain, handleSearchChange } = useEasterEggs();
     const [sortBy, setSortBy] = useState(null);
     const [sortOrder, setSortOrder] = useState("asc");
     const [formData, setFormData] = useState({
@@ -499,54 +502,9 @@ const Equipment = ({ setLoading, loading }) => {
                 flexDirection: "column",
             }}
         >
-            {/* Meat Rain Easter Egg */}
-            {meatRain && (
-                <Box
-                    sx={{
-                        position: "fixed",
-                        top: 0,
-                        left: 0,
-                        width: "100vw",
-                        height: "100vh",
-                        pointerEvents: "none",
-                        zIndex: 9999,
-                        overflow: "hidden",
-                    }}
-                >
-                    {[...Array(50)].map((_, i) => (
-                        <Box
-                            key={i}
-                            sx={{
-                                position: "absolute",
-                                top: -50,
-                                left: `${Math.random() * 100}%`,
-                                fontSize: `${20 + Math.random() * 30}px`,
-                                animation: `meatFall ${2 + Math.random() * 3}s linear infinite`,
-                                animationDelay: `${Math.random() * 5}s`,
-                                opacity: 0.8,
-                                "@keyframes meatFall": {
-                                    "0%": {
-                                        transform: `translateY(0) rotate(0deg)`,
-                                        opacity: 0,
-                                    },
-                                    "10%": {
-                                        opacity: 0.8,
-                                    },
-                                    "90%": {
-                                        opacity: 0.8,
-                                    },
-                                    "100%": {
-                                        transform: `translateY(100vh) rotate(${360 + Math.random() * 360}deg)`,
-                                        opacity: 0,
-                                    },
-                                },
-                            }}
-                        >
-                            {["🥩", "🍖", "🥓"][Math.floor(Math.random() * 3)]}
-                        </Box>
-                    ))}
-                </Box>
-            )}
+            {/* Easter Eggs */}
+            {meatRain && <MeatRain />}
+            {higgyRain && <HiggyRain />}
             <Box
                 sx={{
                     display: "flex",
@@ -602,15 +560,9 @@ const Equipment = ({ setLoading, loading }) => {
                     <TextField
                         placeholder="Search equipment..."
                         value={searchTerm}
-                        onChange={(e) => {
-                            const value = e.target.value;
-                            setSearchTerm(value);
-                            // Easter egg: trigger meat rain when "meat" is typed
-                            if (value.toLowerCase() === "meat") {
-                                setMeatRain(true);
-                                setTimeout(() => setMeatRain(false), 5000);
-                            }
-                        }}
+                        onChange={(e) =>
+                            handleSearchChange(e.target.value, setSearchTerm)
+                        }
                         size="small"
                         sx={{ flex: isMobile ? "1" : "0 0 300px" }}
                         InputProps={{
