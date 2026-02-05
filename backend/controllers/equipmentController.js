@@ -81,6 +81,14 @@ const Post = async (req, res, next) => {
             equipmentData.date_of_purchase = null;
         }
 
+        // Clean up empty string fields
+        if (equipmentData.asset_number === "") {
+            equipmentData.asset_number = null;
+        }
+        if (equipmentData.serial_number === "") {
+            equipmentData.serial_number = null;
+        }
+
         // Convert cost to float or null
         if (
             equipmentData.cost === "" ||

@@ -148,6 +148,7 @@ const GetUsageReport = async (req, res, next) => {
                         "id",
                         "name",
                         "serial_number",
+                        "asset_number",
                         "image",
                         "location",
                     ],
@@ -205,6 +206,8 @@ const GetUsageReport = async (req, res, next) => {
                             equipment_id: eqId,
                             equipment_name: checkout.Equipment?.name,
                             equipment_serial: checkout.Equipment?.serial_number,
+                            equipment_asset_number:
+                                checkout.Equipment?.asset_number,
                             equipment_image: checkout.Equipment?.image,
                             checkout_count: 0,
                             total_hours: 0,

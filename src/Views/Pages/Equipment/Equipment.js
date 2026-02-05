@@ -178,6 +178,7 @@ const Equipment = ({ setLoading, loading }) => {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setLocations(response.data);
+            setFilterLocation(response?.data[0] || null);
         } catch (error) {
             console.error("Error fetching locations:", error);
         }
@@ -446,7 +447,9 @@ const Equipment = ({ setLoading, loading }) => {
                 item.location?.toLowerCase().includes(search) ||
                 displayStatus?.toLowerCase().includes(search) ||
                 item.contact_person?.toLowerCase().includes(search) ||
-                item.description?.toLowerCase().includes(search);
+                item.description?.toLowerCase().includes(search) ||
+                item.billing_code?.toLowerCase().includes(search) ||
+                item.brand_name?.toLowerCase().includes(search);
             const matchesStatus =
                 statusFilter === "all" || displayStatus === statusFilter;
             const matchesLocation =

@@ -200,8 +200,13 @@ const UsageReport = ({ setLoading }) => {
             const search = searchTerm.toLowerCase();
             return (
                 item.name?.toLowerCase().includes(search) ||
+                item.asset_number?.toLowerCase().includes(search) ||
                 item.serial_number?.toLowerCase().includes(search) ||
-                item.location?.toLowerCase().includes(search)
+                item.location?.toLowerCase().includes(search) ||
+                item.contact_person?.toLowerCase().includes(search) ||
+                item.description?.toLowerCase().includes(search) ||
+                item.billing_code?.toLowerCase().includes(search) ||
+                item.brand_name?.toLowerCase().includes(search)
             );
         })
         .sort((a, b) => {
@@ -235,6 +240,7 @@ const UsageReport = ({ setLoading }) => {
             // Create CSV content (Excel will open CSV files)
             const headers = [
                 "Equipment Name",
+                "Asset Number",
                 "Serial Number",
                 "Location",
                 "Contact Person",
@@ -245,6 +251,7 @@ const UsageReport = ({ setLoading }) => {
 
             const rows = filteredAndSortedEquipment.map((item) => [
                 `"${item.name || ""}"`,
+                `"${item.asset_number || ""}"`,
                 `"${item.serial_number || ""}"`,
                 `"${item.location || ""}"`,
                 `"${item.contact_person || ""}"`,
@@ -669,6 +676,12 @@ const UsageReport = ({ setLoading }) => {
                                     <MenuItem value="location_desc">
                                         Location (Z-A)
                                     </MenuItem>
+                                    <MenuItem value="asset_number_asc">
+                                        Asset # (A-Z)
+                                    </MenuItem>
+                                    <MenuItem value="asset_number_desc">
+                                        Asset # (Z-A)
+                                    </MenuItem>
                                     <MenuItem value="serial_number_asc">
                                         Serial (A-Z)
                                     </MenuItem>
@@ -763,7 +776,7 @@ const UsageReport = ({ setLoading }) => {
                                                                 {item.name}
                                                             </Typography>
 
-                                                            {/* Serial & Location Row */}
+                                                            {/* Asset, Serial & Location Row */}
                                                             <Box
                                                                 sx={{
                                                                     display:
@@ -774,6 +787,17 @@ const UsageReport = ({ setLoading }) => {
                                                                         "wrap",
                                                                 }}
                                                             >
+                                                                {item.asset_number && (
+                                                                    <Typography
+                                                                        variant="caption"
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        Asset:{" "}
+                                                                        {
+                                                                            item.asset_number
+                                                                        }
+                                                                    </Typography>
+                                                                )}
                                                                 {item.serial_number && (
                                                                     <Typography
                                                                         variant="caption"
@@ -908,8 +932,11 @@ const UsageReport = ({ setLoading }) => {
                                 </>
                             ) : (
                                 // Desktop Table View
-                                <TableContainer component={Paper}>
-                                    <Table>
+                                <TableContainer
+                                    component={Paper}
+                                    sx={{ maxHeight: "calc(100vh - 400px)" }}
+                                >
+                                    <Table stickyHeader>
                                         <TableHead>
                                             <TableRow>
                                                 <TableCell>
@@ -948,6 +975,27 @@ const UsageReport = ({ setLoading }) => {
                                                         }
                                                     >
                                                         Location
+                                                    </TableSortLabel>
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    <TableSortLabel
+                                                        active={
+                                                            orderBy ===
+                                                            "asset_number"
+                                                        }
+                                                        direction={
+                                                            orderBy ===
+                                                            "asset_number"
+                                                                ? order
+                                                                : "asc"
+                                                        }
+                                                        onClick={() =>
+                                                            handleSort(
+                                                                "asset_number",
+                                                            )
+                                                        }
+                                                    >
+                                                        Asset Number
                                                     </TableSortLabel>
                                                 </TableCell>
                                                 <TableCell align="right">
@@ -1059,43 +1107,25 @@ const UsageReport = ({ setLoading }) => {
                                                         }
                                                     >
                                                         <TableCell>
-                                                            <Box
-                                                                sx={{
-                                                                    display:
-                                                                        "flex",
-                                                                    alignItems:
-                                                                        "center",
-                                                                    gap: 2,
-                                                                }}
+                                                            <Typography
+                                                                variant="body2"
+                                                                fontWeight={500}
                                                             >
-                                                                <Avatar
-                                                                    src={
-                                                                        item.image
-                                                                    }
-                                                                    alt={
-                                                                        item.name
-                                                                    }
-                                                                    variant="rounded"
-                                                                    sx={{
-                                                                        width: 56,
-                                                                        height: 56,
-                                                                    }}
-                                                                >
-                                                                    <Build />
-                                                                </Avatar>
-                                                                <Typography
-                                                                    variant="body2"
-                                                                    fontWeight={
-                                                                        500
-                                                                    }
-                                                                >
-                                                                    {item.name}
-                                                                </Typography>
-                                                            </Box>
+                                                                {item.name}
+                                                            </Typography>
                                                         </TableCell>
                                                         <TableCell>
                                                             <Typography variant="body2">
                                                                 {item.location ||
+                                                                    "—"}
+                                                            </Typography>
+                                                        </TableCell>
+                                                        <TableCell align="right">
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                {item.asset_number ||
                                                                     "—"}
                                                             </Typography>
                                                         </TableCell>
