@@ -21,6 +21,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import PeopleIcon from "@mui/icons-material/People";
 import DevicesIcon from "@mui/icons-material/Devices";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import { useAuth } from "../../../Utilites/AuthContext";
 import {
     CancelAllMeetingsInRecurrence,
@@ -959,6 +960,39 @@ const DisplayMeeting = ({
                                 </Typography>
                             </Stack>
                         )}
+                    {meeting?.it_support && (
+                        <>
+                            <Divider sx={{ paddingTop: "5px" }} />
+                            <Stack
+                                direction={"column"}
+                                sx={{ paddingLeft: "5px", paddingTop: "5px" }}
+                            >
+                                <Stack
+                                    direction="row"
+                                    alignItems="center"
+                                    spacing={0.5}
+                                >
+                                    <SupportAgentIcon
+                                        sx={{
+                                            fontSize: 18,
+                                            color: theme.palette.secondary.main,
+                                        }}
+                                    />
+                                    <Typography
+                                        variant="body1"
+                                        color={theme.palette.primary.text.dark}
+                                    >
+                                        IT support requested
+                                    </Typography>
+                                </Stack>
+                                {meeting?.it_support_details && (
+                                    <Typography paddingTop={"6px"}>
+                                        {meeting.it_support_details}
+                                    </Typography>
+                                )}
+                            </Stack>
+                        </>
+                    )}
                 </Grid>
                 <Grid padding={"5px"}></Grid>
                 <Stack

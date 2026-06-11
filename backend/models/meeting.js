@@ -65,6 +65,14 @@ const Meeting = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    it_support: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    it_support_details: {
+      type: DataTypes.STRING(2000),
+      allowNull: true,
+    },
     created_user_id: {
       type: DataTypes.INTEGER,
       allowNull: true,

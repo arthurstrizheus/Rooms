@@ -10,6 +10,7 @@ const {
     Room,
 } = require("../models");
 const { Sequelize } = require("sequelize");
+const axios = require("axios");
 const {
     startOfDay,
     endOfDay,
@@ -95,7 +96,7 @@ async function GetNextParentMeeting(userId, meeting) {
     const fakeMeets = await CreateRepeatingMeetings(
         meeting.start_time,
         "Month",
-        userId
+        userId,
     );
     let nextDate = new Date(meeting.start_time);
 
@@ -117,7 +118,7 @@ async function GetNextParentMeeting(userId, meeting) {
     }
 
     let nextParentMeet = fakeMeets?.find(
-        (fm) => fm.start_time === nextDate.toISOString()
+        (fm) => fm.start_time === nextDate.toISOString(),
     );
 
     if (meetings?.length) {
@@ -125,7 +126,7 @@ async function GetNextParentMeeting(userId, meeting) {
             (mt) =>
                 mt.toJSON()?.start_time == nextParentMeet.start_time &&
                 mt.toJSON()?.end_time == nextParentMeet.end_time &&
-                mt.toJSON()?.recurrence_id == nextParentMeet.recurrence_id
+                mt.toJSON()?.recurrence_id == nextParentMeet.recurrence_id,
         );
         if (MeetingExists) {
             return MeetingExists;
@@ -301,7 +302,7 @@ async function CreateRepeatingMeetings(
     currentDate,
     range,
     userId,
-    userOnly = false
+    userOnly = false,
 ) {
     const user = await User.findByPk(userId);
 
@@ -425,7 +426,7 @@ async function CreateRepeatingMeetings(
             latest_start_time: meet.getDataValue("latest_start_time"),
         }))
         .filter(
-            (m) => m.recurrence_id !== null && m.latest_start_time !== null
+            (m) => m.recurrence_id !== null && m.latest_start_time !== null,
         );
 
     if (recurrenceData.length === 0) {
@@ -487,7 +488,7 @@ async function CreateRepeatingMeetings(
         if (meeting.status === "Canceled") continue;
 
         const recurrence = await MeetingRecurrence.findByPk(
-            meeting.recurrence_id
+            meeting.recurrence_id,
         );
         if (!recurrence || !recurrence?.active) continue; // Skip if no recurrence exists…
 
@@ -555,10 +556,10 @@ async function CreateRepeatingMeetings(
                         return `${dt.getFullYear()}`; // “YYYY”
                     default:
                         throw new Error(
-                            "Unknown frequency in occupied‑set builder"
+                            "Unknown frequency in occupied‑set builder",
                         );
                 }
-            })
+            }),
         );
         let currentStartTime = new Date(meeting.start_time);
         let currentEndTime = new Date(meeting.end_time);
@@ -576,7 +577,7 @@ async function CreateRepeatingMeetings(
                 currentEndTime.setMonth(currentEndTime.getMonth() + 1);
             } else if (recurrence.frequency === "Yearly") {
                 currentStartTime.setFullYear(
-                    currentStartTime.getFullYear() + 1
+                    currentStartTime.getFullYear() + 1,
                 );
                 currentEndTime.setFullYear(currentEndTime.getFullYear() + 1);
             }
@@ -590,7 +591,7 @@ async function CreateRepeatingMeetings(
 
             currentStartTime.setHours(new Date(meeting.start_time).getHours());
             currentStartTime.setMinutes(
-                new Date(meeting.start_time).getMinutes()
+                new Date(meeting.start_time).getMinutes(),
             );
             currentEndTime.setHours(new Date(meeting.end_time).getHours());
             currentEndTime.setMinutes(new Date(meeting.end_time).getMinutes());
@@ -625,7 +626,7 @@ async function CreateRepeatingMeetings(
             let updatedUser = null;
             if (meeting.dataValues.updated_user_id) {
                 updatedUser = await User.findByPk(
-                    meeting.dataValues.updated_user_id
+                    meeting.dataValues.updated_user_id,
                 );
             }
 
@@ -700,7 +701,7 @@ async function evaluateStatusAndNotify({
 }) {
     const meetingStatus = await GetMeetingStatus(
         meetingData.room,
-        created_user_id || user?.id
+        created_user_id || user?.id,
     );
     // Determine resulting status respecting admin/office_admin shortcuts
     const desiredStatus = meetingData.status;
@@ -727,7 +728,7 @@ async function evaluateStatusAndNotify({
 // Helper to send approval / re-approval notifications once a meeting has a persisted id
 async function sendApprovalNotifications(
     meetingRecord,
-    { operation, existingMeeting }
+    { operation, existingMeeting },
 ) {
     try {
         if (
@@ -741,7 +742,7 @@ async function sendApprovalNotifications(
         const isUpdateReapproval = wasApproved && operation === "update";
         // If email override active, send only ONE email (first) to reduce noise
         const emailOverrideActive = ["1", "true", "yes", "on"].includes(
-            (process.env.EMAIL_OVERRIDE || "0").toString().trim().toLowerCase()
+            (process.env.EMAIL_OVERRIDE || "0").toString().trim().toLowerCase(),
         );
         if (emailOverrideActive && emails.length) {
             const first = emails[0];
@@ -749,13 +750,13 @@ async function sendApprovalNotifications(
                 sendMeetingReapprovalRequestEmail(
                     existingMeeting,
                     meetingRecord,
-                    first
+                    first,
                 ).catch((e) =>
-                    console.error("Failed re-approval email", first, e)
+                    console.error("Failed re-approval email", first, e),
                 );
             } else {
                 sendMeetingApprovalRequestEmail(meetingRecord, first).catch(
-                    (e) => console.error("Failed approval email", first, e)
+                    (e) => console.error("Failed approval email", first, e),
                 );
             }
         } else {
@@ -764,13 +765,13 @@ async function sendApprovalNotifications(
                     sendMeetingReapprovalRequestEmail(
                         existingMeeting,
                         meetingRecord,
-                        email
+                        email,
                     ).catch((e) =>
-                        console.error("Failed re-approval email", email, e)
+                        console.error("Failed re-approval email", email, e),
                     );
                 } else {
                     sendMeetingApprovalRequestEmail(meetingRecord, email).catch(
-                        (e) => console.error("Failed approval email", email, e)
+                        (e) => console.error("Failed approval email", email, e),
                     );
                 }
             }
@@ -789,7 +790,7 @@ async function sendApprovalNotifications(
                         operation,
                     },
                 },
-                { userIds: approvers.map((a) => a.id) }
+                { userIds: approvers.map((a) => a.id) },
             );
         } catch (sockErr) {
             console.warn("Socket notify failed (approvers)", sockErr);
@@ -811,7 +812,7 @@ const SetStatus = async (req, res) => {
         }
         if (Number(id) === -1) {
             const recurrence = await MeetingRecurrence.findByPk(
-                meeting.recurrence_id
+                meeting.recurrence_id,
             );
             const parentMeeting = await Meeting.findByPk(recurrence.meeting_id);
 
@@ -898,12 +899,12 @@ const SetStatus = async (req, res) => {
                                 created_user_id: resource.created_user_id,
                             },
                         },
-                        { userId: resource.created_user_id }
+                        { userId: resource.created_user_id },
                     );
                     // Send approval confirmation email to creator
                     try {
                         const creator = await User.findByPk(
-                            resource.created_user_id
+                            resource.created_user_id,
                         );
                         if (creator?.email) {
                             const {
@@ -914,19 +915,19 @@ const SetStatus = async (req, res) => {
                             ) {
                                 sendMeetingApprovedEmail(
                                     resource,
-                                    creator.email
+                                    creator.email,
                                 ).catch((e) =>
                                     console.error(
                                         "Failed to send meeting approved email",
-                                        e
-                                    )
+                                        e,
+                                    ),
                                 );
                             }
                         }
                     } catch (e) {
                         console.warn(
                             "Could not send meeting approved email",
-                            e
+                            e,
                         );
                     }
                 } else if (status === "Declined") {
@@ -939,11 +940,11 @@ const SetStatus = async (req, res) => {
                                 created_user_id: resource.created_user_id,
                             },
                         },
-                        { userId: resource.created_user_id }
+                        { userId: resource.created_user_id },
                     );
                     try {
                         const creator = await User.findByPk(
-                            resource.created_user_id
+                            resource.created_user_id,
                         );
                         if (creator?.email) {
                             const {
@@ -951,18 +952,18 @@ const SetStatus = async (req, res) => {
                             } = require("./mailController");
                             sendMeetingDeclinedEmail(
                                 resource,
-                                creator.email
+                                creator.email,
                             ).catch((e) =>
                                 console.error(
                                     "Failed to send declined email",
-                                    e
-                                )
+                                    e,
+                                ),
                             );
                         }
                     } catch (e) {
                         console.warn(
                             "Could not send meeting declined email",
-                            e
+                            e,
                         );
                     }
                 }
@@ -1107,7 +1108,7 @@ const GetAllUserCanSee = async (req, res) => {
             case "Week":
                 dateStart = subWeeks(
                     startOfWeek(baseDate, { weekStartsOn: 1 }),
-                    1
+                    1,
                 );
                 dateEnd = addWeeks(endOfWeek(baseDate, { weekStartsOn: 1 }), 1);
                 break;
@@ -1190,8 +1191,8 @@ const GetAllUserCanSee = async (req, res) => {
                     meets?.filter(
                         (mt) =>
                             mt.location == user?.office_admin ||
-                            roomsWithAll.includes(mt.room)
-                    )
+                            roomsWithAll.includes(mt.room),
+                    ),
                 );
         }
 
@@ -1279,7 +1280,7 @@ const GetAllUserCanSee = async (req, res) => {
     } catch (err) {
         console.error(
             "Error fetching Meetings that user can see between a date range:",
-            err
+            err,
         );
         res.status(500).send("Server error");
     }
@@ -1463,7 +1464,7 @@ const CanBook = async (req, res) => {
         const fakeMeets = await CreateRepeatingMeetings(
             start_time,
             "Month",
-            created_user_id
+            created_user_id,
         );
         const allMeetsWithRecurrance = [];
         meetings?.map((mt) => allMeetsWithRecurrance.push(mt));
@@ -1520,9 +1521,8 @@ const CanBook = async (req, res) => {
             };
             // Since this meeting is being updated with repeats and it was not before there is no
             // recurrence in the recurrence table and we need a separate funtion to determain if it will overlap anything
-            const fakeMeets2 = await CreateRepeatingMeetingsOfThisMeeting(
-                meeting
-            );
+            const fakeMeets2 =
+                await CreateRepeatingMeetingsOfThisMeeting(meeting);
             isOverlapping = fakeMeets2.some((meeting) => {
                 const meetingStart = new Date(meeting.start_time);
                 const meetingEnd = new Date(meeting.end_time);
@@ -1647,6 +1647,93 @@ const CanBook = async (req, res) => {
     }
 };
 
+// Create a FreshService IT support ticket for a meeting whose booker requested
+// help during the meeting. Fire-and-forget: never blocks/breaks meeting creation.
+async function createITSupportTicket(meeting, user) {
+    try {
+        if (!meeting?.it_support) return;
+        if (
+            !process.env.FRESHSERVICE_DOMAIN ||
+            !process.env.FRESHSERVICE_API_KEY
+        ) {
+            console.warn(
+                "FreshService not configured; skipping IT support ticket",
+            );
+            return;
+        }
+
+        // Resolve a friendly room name when possible
+        let roomName = meeting.room;
+        try {
+            const room = await Room.findByPk(meeting.room);
+            if (room?.value) roomName = room.value;
+        } catch (e) {
+            /* fall back to room id */
+        }
+
+        const fmt = (d) => {
+            const date = new Date(d);
+            return isNaN(date)
+                ? String(d)
+                : date.toLocaleString("en-US", {
+                      dateStyle: "full",
+                      timeStyle: "short",
+                  });
+        };
+        const organizer =
+            meeting.organizer ||
+            (user ? `${user.first_name} ${user.last_name}` : "");
+        const details = (meeting.it_support_details || "").replace(
+            /\n/g,
+            "<br/>",
+        );
+
+        const description =
+            `<p>IT support has been requested for the following meeting booked in Rooms:</p>` +
+            `<ul>` +
+            `<li><strong>Meeting:</strong> ${meeting.name || ""}</li>` +
+            `<li><strong>Organizer:</strong> ${organizer}</li>` +
+            `<li><strong>Room:</strong> ${roomName}</li>` +
+            `<li><strong>Start:</strong> ${fmt(meeting.start_time)}</li>` +
+            `<li><strong>End:</strong> ${fmt(meeting.end_time)}</li>` +
+            `</ul>` +
+            `<p><strong>What they need help with:</strong></p>` +
+            `<p>${details}</p>`;
+
+        const ticket = {
+            email: user?.email,
+            subject: `IT support requested for meeting: ${meeting.name || ""}`,
+            description,
+            priority: 2, // Medium
+            status: 2, // Open
+            source: 2, // Portal
+        };
+
+        await axios.post(
+            `https://${process.env.FRESHSERVICE_DOMAIN}/api/v2/tickets`,
+            ticket,
+            {
+                headers: {
+                    Authorization:
+                        "Basic " +
+                        Buffer.from(
+                            process.env.FRESHSERVICE_API_KEY + ":x",
+                        ).toString("base64"),
+                    "Content-Type": "application/json",
+                },
+            },
+        );
+        console.log(
+            `Created IT support ticket for meeting ${meeting.id} (${meeting.name})`,
+        );
+    } catch (err) {
+        console.error(
+            "Failed to create IT support ticket",
+            err?.response?.data || err.message,
+        );
+    }
+}
+
 const Post = async (req, res) => {
     try {
         // Extract data from the request body
@@ -1663,6 +1750,8 @@ const Post = async (req, res) => {
             retired,
             created_user_id,
             allDay,
+            it_support,
+            it_support_details,
         } = req.body;
 
         // Validate the incoming data (optional but recommended)
@@ -1694,6 +1783,8 @@ const Post = async (req, res) => {
             status: "Waiting on Approval",
             created_user_id,
             all_day: allDay,
+            it_support: !!it_support,
+            it_support_details: it_support ? it_support_details || "" : null,
         };
         const finalStatus = await evaluateStatusAndNotify({
             operation: "create",
@@ -1718,6 +1809,10 @@ const Post = async (req, res) => {
             });
             await newResource.update({ recurrence_id: recurrence.id });
         }
+
+        // If the booker requested IT support, open a FreshService ticket.
+        // Fire-and-forget so it never delays or breaks the booking response.
+        createITSupportTicket(newResource, user);
 
         // Return the created record as a JSON response
         res.status(201).json(newResource);
@@ -1746,6 +1841,8 @@ const Update = async (req, res) => {
             created_user_id,
             allDay,
             recurrence_id,
+            it_support,
+            it_support_details,
         } = req.body; // Extract data from the request body
         // Validate the incoming data (optional but recommended)
         if (
@@ -1833,6 +1930,8 @@ const Update = async (req, res) => {
             status,
             created_user_id,
             all_day: allDay,
+            it_support: !!it_support,
+            it_support_details: it_support ? it_support_details || "" : null,
         };
         const finalStatus = await evaluateStatusAndNotify({
             operation: "update",
@@ -1932,7 +2031,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
         console.log("Updating Parent MeetingId", id);
         const resource = await Meeting.findByPk(id);
         const recurance = await MeetingRecurrence.findByPk(
-            resource.recurrence_id
+            resource.recurrence_id,
         );
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
@@ -1951,7 +2050,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
         const fakeMeets = await CreateRepeatingMeetings(
             start_time,
             "Month",
-            userId
+            userId,
         );
         let nextDate = new Date(resource.start_time);
         switch (recurance.frequency) {
@@ -1971,7 +2070,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
                 throw new Error("Invalid range");
         }
         const nextParentMeet = fakeMeets?.find(
-            (fm) => fm.start_time == nextDate.toISOString()
+            (fm) => fm.start_time == nextDate.toISOString(),
         );
         if (!nextParentMeet) {
             res.status(500).json({
@@ -2009,7 +2108,7 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
         console.log(
             "Updated meeting",
             new Date(start_time),
-            new Date(end_time)
+            new Date(end_time),
         );
         // Return the updated record as a JSON response
         res.status(200).json(resource);
@@ -2115,10 +2214,10 @@ const UpdateAllRecurrence = async (req, res) => {
 
         // Now apply those deltas
         const newStart = new Date(
-            new Date(resource.start_time).getTime() + startDeltaMs
+            new Date(resource.start_time).getTime() + startDeltaMs,
         );
         const newEnd = new Date(
-            new Date(resource.end_time).getTime() + endDeltaMs
+            new Date(resource.end_time).getTime() + endDeltaMs,
         );
         //Update the resource record in the database
         await resource.update({

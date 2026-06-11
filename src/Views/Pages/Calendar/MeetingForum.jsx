@@ -96,29 +96,6 @@ function isMultipleDayMeeting(meeting) {
     }
 }
 
-const isLateMeeting = (meeting) => {
-    if (!meeting?.start || !meeting?.end) {
-        // There is no meeting, we can all go home. Or just pretend this is fine.
-        return false;
-    }
-    const start = new Date(meeting.start); // Creating Date objects because who doesn't love reinventing time?
-    const end = new Date(meeting.end); // Time is a flat circle... or just an object now.
-
-    return (
-        // A meeting can start at 11pm and end at 12AM (which is the next day technically). We dont like 2 day meetings... AVOID!
-        // Because meetings that span different years are what nightmares are made of.
-        getYear(start) != getYear(end) ||
-        // Apparently, a month-long meeting is a thing. Live the dream.
-        getMonth(start) != getMonth(end) ||
-        // For when your meeting can't even stay in its own day.
-        (getDate(start) != getDate(end) &&
-            // But if it ends at exactly midnight, thats late? Sure, let's go with that.
-            getHours(end) == 0 &&
-            getMinutes(end) == 0 &&
-            getSeconds(end) == 0)
-    );
-};
-
 function getPreviousDay(d) {
     // Coerce input into a Date object
     const date = d instanceof Date ? new Date(d) : new Date(d);
@@ -126,6 +103,17 @@ function getPreviousDay(d) {
     // Subtract one day—setDate handles rollovers (e.g., 1 → last day of previous month)
     date.setDate(date.getDate() - 1);
 
+    return date;
+}
+
+// Round a date UP to the next 15-minute mark (e.g. 10:07 → 10:15, 10:15 → 10:15).
+function roundUpToQuarterHour(d) {
+    const date = new Date(d);
+    date.setSeconds(0, 0);
+    const remainder = date.getMinutes() % 15;
+    if (remainder !== 0) {
+        date.setMinutes(date.getMinutes() + (15 - remainder));
+    }
     return date;
 }
 
@@ -157,6 +145,8 @@ const MeetingFourm = ({
     const [users, setUsers] = useState([]);
     const [special, setSpecial] = useState([]);
     const [meetingName, setMeetingName] = useState("");
+    const [itSupport, setItSupport] = useState(false);
+    const [itSupportDetails, setItSupportDetails] = useState("");
     const [showDesc, setShowDesc] = useState(false);
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
     const [showEquipment, setShowEquipment] = useState(false);
@@ -215,31 +205,40 @@ const MeetingFourm = ({
                 setEndTime("12:15 AM"); // It's always midnight somewhere, right?
                 setAllDay(true);
             } else {
-                // Finally, a meeting that dares to have an actual start and end time.
-                setStartTime(
-                    `${String(getHours(meeting.start)).padStart(
-                        2,
-                        "0"
-                    )}:${String(getMinutes(meeting.start)).padStart(
-                        2,
-                        "0"
-                    )} ${getAmPm(meeting.start).toUpperCase()}`
+                // Single-day meeting: auto-fill the next available 15-minute slot.
+                const clicked = new Date(meeting.start);
+                const clickedEnd = meeting.end ? new Date(meeting.end) : null;
+
+                // Month-view clicks arrive at midnight (no time was actually
+                // chosen) — start from "now" in that case; otherwise honor the
+                // time the user clicked in the day/week grid.
+                const noTimeChosen =
+                    meeting.view === "dayGridMonth" ||
+                    (clicked.getHours() === 0 && clicked.getMinutes() === 0);
+
+                const startDate = roundUpToQuarterHour(
+                    noTimeChosen ? new Date() : clicked
                 );
-                if (isLateMeeting(meeting)) {
-                    // For those meetings that creep past your bedtime.
-                    setEndTime("12:00 AM"); // The official time for "why am I still here?"
+
+                // Honor an explicit range dragged out in the day/week grid;
+                // otherwise the end is simply the next 15-minute mark.
+                let endDate;
+                if (
+                    !noTimeChosen &&
+                    clickedEnd &&
+                    clickedEnd.getTime() - clicked.getTime() >= 15 * 60 * 1000
+                ) {
+                    endDate = clickedEnd;
                 } else {
-                    // The fabled normal meeting, as rare as a polite reply-all.
-                    setEndTime(
-                        `${String(getHours(meeting.end) ?? 12).padStart(
-                            2,
-                            "0"
-                        )}:${String(getMinutes(meeting.end)).padStart(
-                            2,
-                            "0"
-                        )} ${getAmPm(meeting.end).toUpperCase()}`
-                    );
+                    endDate = new Date(startDate.getTime() + 15 * 60 * 1000);
                 }
+
+                setStartTime(
+                    formatTime(startDate.getHours(), startDate.getMinutes())
+                );
+                setEndTime(
+                    formatTime(endDate.getHours(), endDate.getMinutes())
+                );
             }
             // Seek the Holy Grail of meeting types! It's always "meeting," because what else would it be?
             setType(
@@ -283,6 +282,8 @@ const MeetingFourm = ({
             }
             // Endings are important. Like, actually leaving on time.
             setDescription(meeting.description); // Let your meeting description do what your calendar cannot: make sense.
+            setItSupport(!!meeting.it_support);
+            setItSupportDetails(meeting.it_support_details || "");
 
             if (meeting.description != "" && meeting.description != null) {
                 // Show the description if it exists. Otherwise, pretend everything is fine.
@@ -342,6 +343,8 @@ const MeetingFourm = ({
         setSelectedRoom("");
         setRepeats("");
         setDescription("");
+        setItSupport(false);
+        setItSupportDetails("");
         setShowEquipment(false);
         setUpdate(!update);
         console.log("update");
@@ -383,6 +386,15 @@ const MeetingFourm = ({
                     alertProps: { variant: "filled" },
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
+            } else if (itSupport && !itSupportDetails.trim()) {
+                openSnackbar("Please describe what you need IT help with", {
+                    severity: "error",
+                    autoHideDuration: 4000,
+                    anchorOrigin: { vertical: "top", horizontal: "center" },
+                    alertProps: { variant: "filled" },
+                    transition: "grow",
+                });
+                setLoading(false);
             } else {
                 // console.log(`Original: Start: ${formatDate(updateMeeting.start_time)} End: ${formatDate(updateMeeting.end_time)}`);
                 // Parse the start_time to a Date object
@@ -404,6 +416,8 @@ const MeetingFourm = ({
                 meeting.description = description ? description : "";
                 meeting.repeats = repeats ? repeats : "";
                 meeting.allDay = allDay;
+                meeting.it_support = itSupport;
+                meeting.it_support_details = itSupport ? itSupportDetails : "";
 
                 switch (updateMode) {
                     case "next":
@@ -584,6 +598,15 @@ const MeetingFourm = ({
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
                 setLoading(false);
+            } else if (itSupport && !itSupportDetails.trim()) {
+                openSnackbar("Please describe what you need IT help with", {
+                    severity: "error",
+                    autoHideDuration: 4000,
+                    anchorOrigin: { vertical: "top", horizontal: "center" },
+                    alertProps: { variant: "filled" },
+                    transition: "grow",
+                });
+                setLoading(false);
             } else {
                 const newMeeting = {
                     name: meetingName,
@@ -600,6 +623,8 @@ const MeetingFourm = ({
                     created_user_id: user?.id,
                     repeats: repeats,
                     allDay,
+                    it_support: itSupport,
+                    it_support_details: itSupport ? itSupportDetails : "",
                 };
                 CheckPostMeeting(user?.id, newMeeting).then((resp) => {
                     if (resp?.book) {
@@ -651,25 +676,27 @@ const MeetingFourm = ({
             sx={{
                 width:
                     showDesc && !downMD ? "600px" : downMD ? "330px" : "350px",
-                height: showDesc
-                    ? downMD
-                        ? "620px"
-                        : multiDayMeet
-                        ? "420px"
-                        : "390px"
-                    : multiDayMeet && !allDay
-                    ? downMD
-                        ? "600px"
-                        : "390px"
-                    : allDay && multiDayMeet
-                    ? downMD
-                        ? "600px"
-                        : "335px"
-                    : allDay && !multiDayMeet
-                    ? downMD
-                        ? "600px"
-                        : "320px"
-                    : "360px",
+                height: `calc(${
+                    showDesc
+                        ? downMD
+                            ? "620px"
+                            : multiDayMeet
+                            ? "420px"
+                            : "390px"
+                        : multiDayMeet && !allDay
+                        ? downMD
+                            ? "600px"
+                            : "390px"
+                        : allDay && multiDayMeet
+                        ? downMD
+                            ? "600px"
+                            : "335px"
+                        : allDay && !multiDayMeet
+                        ? downMD
+                            ? "600px"
+                            : "320px"
+                        : "360px"
+                } + ${itSupport ? 110 : 40}px)`,
                 transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
                 overflow: downMD ? "auto" : "hidden",
             }}
@@ -850,6 +877,57 @@ const MeetingFourm = ({
                                     />
                                 </Stack>
                             )}
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    width: "100%",
+                                }}
+                            >
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        alignItems: "flex-start",
+                                        justifyContent: "flex-start",
+                                    }}
+                                >
+                                    <Checkbox
+                                        checked={itSupport}
+                                        onChange={(e) =>
+                                            setItSupport(e.target.checked)
+                                        }
+                                        size="small"
+                                        sx={{
+                                            padding: 0,
+                                            "&:hover": {
+                                                backgroundColor: "transparent",
+                                            },
+                                        }}
+                                        disabled={loading}
+                                    />
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ ml: 0.5 }}
+                                    >
+                                        I would like IT support during this
+                                        meeting
+                                    </Typography>
+                                </Box>
+                                {itSupport && (
+                                    <TextField
+                                        label="What do you need help with?"
+                                        value={itSupportDetails}
+                                        multiline
+                                        rows={2}
+                                        size="small"
+                                        onChange={(e) =>
+                                            setItSupportDetails(e.target.value)
+                                        }
+                                        disabled={loading}
+                                        sx={{ mt: 1 }}
+                                    />
+                                )}
+                            </Box>
                             {showDesc && (
                                 <Box
                                     sx={{
