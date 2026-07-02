@@ -19,7 +19,6 @@ const {
 const GetAll = async (req, res, next) => {
     try {
         const equipment = await Equipment.findAll({
-            order: [["name", "ASC"]],
             include: [
                 {
                     model: AssetTaxMeta,
@@ -27,6 +26,9 @@ const GetAll = async (req, res, next) => {
                 },
             ],
         });
+        // Sort in JS: an unfiltered ORDER BY forces a SQL Sort operator that
+        // needs a workspace memory grant and queues on a memory-starved server
+        equipment.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         res.json(equipment);
     } catch (err) {
         next(err);

@@ -13,16 +13,6 @@ const GetByEquipmentId = async (req, res, next) => {
                     as: "UploadedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
                 },
-                {
-                    model: User,
-                    as: "FileCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "FileUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
             ],
             order: [["upload_date", "DESC"]],
         });
@@ -132,16 +122,6 @@ const Post = async (req, res, next) => {
                     as: "UploadedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
                 },
-                {
-                    model: User,
-                    as: "FileCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "FileUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
             ],
         });
 
@@ -243,16 +223,6 @@ const Update = async (req, res, next) => {
                     model: User,
                     as: "UploadedBy",
                     attributes: ["id", "username", "first_name", "last_name"],
-                },
-                {
-                    model: User,
-                    as: "FileCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "FileUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
         });

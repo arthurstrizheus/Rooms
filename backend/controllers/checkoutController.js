@@ -297,8 +297,12 @@ const GetAll = async (req, res, next) => {
                     attributes: ["id", "username", "first_name", "last_name"],
                 },
             ],
-            order: [["start_time", "DESC"]],
         });
+        // Sort in JS: an unfiltered ORDER BY forces a SQL Sort operator that
+        // needs a workspace memory grant and queues on a memory-starved server
+        checkouts.sort(
+            (a, b) => new Date(b.start_time) - new Date(a.start_time),
+        );
         res.json(checkouts);
     } catch (err) {
         next(err);

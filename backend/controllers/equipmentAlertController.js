@@ -17,16 +17,6 @@ const GetAlertsByEquipment = async (req, res, next) => {
                     model: User,
                     attributes: ["id", "first_name", "last_name", "email"],
                 },
-                {
-                    model: User,
-                    as: "AlertCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
             ],
             order: [["createdAt", "DESC"]],
         });
@@ -57,16 +47,6 @@ const GetAlertsByUser = async (req, res, next) => {
                         "location",
                         "asset_number",
                     ],
-                },
-                {
-                    model: User,
-                    as: "AlertCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
             order: [["createdAt", "DESC"]],
@@ -99,16 +79,6 @@ const GetMyAlerts = async (req, res, next) => {
                         "location",
                         "status",
                     ],
-                },
-                {
-                    model: User,
-                    as: "AlertCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
             order: [["createdAt", "DESC"]],
@@ -165,16 +135,6 @@ const Subscribe = async (req, res, next) => {
             include: [
                 {
                     model: User,
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertUpdatedBy",
                     attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],
@@ -296,16 +256,6 @@ const UpdateAlert = async (req, res, next) => {
             include: [
                 {
                     model: User,
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "AlertUpdatedBy",
                     attributes: ["id", "first_name", "last_name", "email"],
                 },
             ],

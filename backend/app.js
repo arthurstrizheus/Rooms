@@ -42,6 +42,7 @@ const section179LimitsRouter = require("./routes/section179Limits");
 const passengerAutoLimitsRouter = require("./routes/passengerAutoLimits");
 const usageReportsRouter = require("./routes/usageReports");
 const errorHandler = require("./middleware/errorHandler");
+const { ensureIndexes } = require("./migrations/ensureIndexes");
 const { initCalibrationAlertsScheduler } = require("./jobs/calibrationAlerts");
 const {
     loadFederalVehicleLimits,
@@ -166,9 +167,26 @@ app.use("/api/usage-reports", usageReportsRouter);
 // Initialize WebSocket handlers
 handleSocketConnection(io);
 
+// Retry until the database is reachable — without this, a DB restart while
+// the API is starting leaves the process alive but never listening (502s)
+const authenticateWithRetry = async () => {
+    const retryDelayMs = 10000;
+    for (let attempt = 1; ; attempt++) {
+        try {
+            await sequelize.authenticate();
+            return;
+        } catch (err) {
+            console.error(
+                `Database connection attempt ${attempt} failed: ${err.message}. Retrying in ${retryDelayMs / 1000}s...`,
+            );
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
+    }
+};
+
 const startServer = async () => {
     try {
-        await sequelize.authenticate();
+        await authenticateWithRetry();
         console.log("Database connecting...");
         app.use(express.json());
 
@@ -290,6 +308,13 @@ const startServer = async () => {
 
         console.log("\n✅ Database migration complete!");
         console.log("All critical tables created successfully\n");
+
+        // Ensure ordering indexes exist so list queries avoid Sort operators
+        // (each first-time CREATE INDEX may briefly queue for memory on a
+        // starved server — one-time cost at startup)
+        console.log("Ensuring query indexes...");
+        await ensureIndexes();
+        console.log("✓ Indexes ensured\n");
 
         // Load tax depreciation rules
         console.log("Loading tax depreciation rules...");
