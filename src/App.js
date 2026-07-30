@@ -5,28 +5,29 @@ import { useEffect, useState } from "react";
 import { useAuth } from "./Utilites/AuthContext";
 import { ThemeProvider } from "@emotion/react";
 import { SnackbarProvider } from "./Utilites/SnackbarContext";
-import { Box, Divider, IconButton, Stack } from "@mui/material";
+import { Box, Stack, useMediaQuery } from "@mui/material";
+import GlobalStyles from "@mui/material/GlobalStyles";
 import SideBar from "./Views/Components/SideBar/SideBar";
 import Banner from "./Views/Components/Banner/Banner";
 import AppRoutes from "./Routes/Routes";
-import { styled } from "@mui/material/styles";
 import Drawer from "@mui/material/Drawer";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import logo from "./Assets/Images/sea-logo.png";
 import { isMobile } from "react-device-detect";
 import { SocketProvider } from "./Contexts/SocketContext";
+import {
+    bp,
+    concourseGlobalStyles,
+    layout,
+    motion as ccMotion,
+} from "./Utilites/concourse";
 
-const drawerWidth = 240;
+// Concourse side-menu width (ARBITER §14 #8: 240 -> 246, from the token).
+const drawerWidth = layout.sideWidth;
 
-const DrawerHeader = styled("div")(({ theme }) => ({
-    display: "flex",
-    alignItems: "center",
-    padding: theme.spacing(0, 1),
-    minHeight: "102px",
-    paddingBottom: "5px",
-    paddingTop: "5px",
-    justifyContent: "flex-end",
-}));
+// The side menu leaves the flow and becomes an overlay below this width
+// (ARBITER §9). Same number MUI's breakpoints.down(980) would emit.
+const OVERLAY_QUERY = `(max-width:${bp.rail - 0.05}px)`;
+
+const SHELL_EASE = `${ccMotion.dur.side}ms var(--cc-sp)`;
 
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,12 +39,22 @@ function App() {
     const [loading, setLoading] = useState(false);
     const [update, setUpdate] = useState(0);
     const [selectedDate, setSelectedDate] = useState(new Date());
+    // Banner "Book a room" CTA -> Calendar. A counter rather than a boolean so
+    // repeat clicks re-open the dialog; the Calendar owns the dialog, App only
+    // carries the signal. The Banner renders the CTA only when it is handed an
+    // `onBookRoom`, so this is what makes the button exist at all.
+    const [bookIntent, setBookIntent] = useState(0);
     const { isAuthenticated, setUser, login, user } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const [open, setOpen] = useState(
         isMobile ? false : isAuthenticated ? true : false
     );
+    const isOverlay = useMediaQuery(OVERLAY_QUERY);
+    // Both depend only on `mode`. Memoised so App's other state changes do not
+    // rebuild the theme or re-serialise the :root token block every render.
+    const appTheme = React.useMemo(() => theme(mode), [mode]);
+    const tokenStyles = React.useMemo(() => concourseGlobalStyles(mode), [mode]);
 
     const handleDrawerOpen = () => setOpen(true);
     const handleDrawerClose = () => setOpen(false);
@@ -119,7 +130,11 @@ function App() {
                 overflow: "hidden",
             }}
         >
-            <ThemeProvider theme={theme(mode)}>
+            <ThemeProvider theme={appTheme}>
+                {/* SEAM 1: emits --cc-* on :root (so portalled dialogs inherit
+                    them), the Concourse keyframes, and the global
+                    prefers-reduced-motion rule. See ARBITER §2 / §3-I2. */}
+                <GlobalStyles styles={tokenStyles} />
                 <SnackbarProvider>
                     <SocketProvider>
                         <Box
@@ -128,78 +143,79 @@ function App() {
                                 display: "flex",
                                 flexDirection: "column",
                                 overflow: "hidden",
-                                transition: (theme) =>
-                                    theme.transitions.create("margin", {
-                                        easing: theme.transitions.easing.sharp,
-                                        duration:
-                                            theme.transitions.duration.standard,
-                                    }),
-                                marginLeft: open ? `${drawerWidth}px` : 0, // key line
+                                transition: `margin-left ${SHELL_EASE}`,
+                                // Content is only pushed while the menu is
+                                // in-flow; as an overlay it floats over it.
+                                marginLeft:
+                                    open && !isOverlay
+                                        ? `${drawerWidth}px`
+                                        : 0, // key line
                             }}
                         >
-                            {/* Drawer */}
+                            {/* Side menu. >=980px it is in-flow (persistent);
+                                below that it overlays with a scrim
+                                (ARBITER §9). Collapsed is width 0 — there is
+                                no icon rail (§13-G2). */}
                             {isAuthenticated && (
                                 <Drawer
-                                    variant="persistent"
+                                    variant={
+                                        isOverlay ? "temporary" : "persistent"
+                                    }
                                     anchor="left"
                                     open={open}
+                                    onClose={handleDrawerClose}
+                                    transitionDuration={{
+                                        enter: ccMotion.dur.side,
+                                        exit: ccMotion.dur.side,
+                                    }}
+                                    SlideProps={{
+                                        easing: {
+                                            enter: ccMotion.spring,
+                                            exit: ccMotion.spring,
+                                        },
+                                    }}
+                                    BackdropProps={{
+                                        sx: {
+                                            backgroundColor: "var(--cc-scrim)",
+                                            backdropFilter: "blur(3px)",
+                                        },
+                                    }}
+                                    // keepMounted: in overlay mode the Drawer
+                                    // is a Modal, which would otherwise unmount
+                                    // SideBar while closed and silence its
+                                    // socket-driven approval badge/toasts.
+                                    ModalProps={{ keepMounted: true }}
                                     sx={{
-                                        width: drawerWidth,
-                                        flexShrink: 0,
+                                        // No width on the root in overlay mode:
+                                        // there the root IS the modal and must
+                                        // stay full-bleed for the scrim.
+                                        ...(isOverlay
+                                            ? null
+                                            : {
+                                                  width: drawerWidth,
+                                                  flexShrink: 0,
+                                              }),
                                         "& .MuiDrawer-paper": {
                                             width: drawerWidth,
                                             boxSizing: "border-box",
                                             display: "flex",
                                             flexDirection: "column", // required to divide header/body
+                                            overflow: "hidden", // only the menu body scrolls
+                                            backgroundColor: "var(--cc-srf)",
+                                            backgroundImage: "none",
+                                            color: "var(--cc-ink)",
+                                            borderRight:
+                                                "1px solid var(--cc-line)",
+                                            boxShadow: isOverlay
+                                                ? "var(--cc-sh2)"
+                                                : "none",
                                         },
                                     }}
                                 >
-                                    {/* Static header: logo + close button */}
-                                    <Box sx={{ flexShrink: 0 }}>
-                                        <DrawerHeader>
-                                            <Stack
-                                                direction="row"
-                                                justifyContent="space-between"
-                                                sx={{ width: "100%" }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        flexGrow: 1,
-                                                        justifyContent:
-                                                            "center",
-                                                        alignItems: "center",
-                                                        padding: 1,
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={logo}
-                                                        alt="Logo"
-                                                        style={{
-                                                            height: "64px",
-                                                            width: "auto",
-                                                        }}
-                                                    />
-                                                </Box>
-                                                <IconButton
-                                                    onClick={handleDrawerClose}
-                                                >
-                                                    <ChevronLeftIcon />
-                                                </IconButton>
-                                            </Stack>
-                                        </DrawerHeader>
-                                        <Divider />
-                                    </Box>
-
-                                    {/* Scrollable content: SideBar */}
-                                    <Box
-                                        sx={{ flexGrow: 1, overflowY: "auto" }}
-                                    >
-                                        <SideBar
-                                            setBannerText={setBannerText}
-                                            bannerText={bannerText}
-                                        />
-                                    </Box>
+                                    <SideBar
+                                        bannerText={bannerText}
+                                        onCollapse={handleDrawerClose}
+                                    />
                                 </Drawer>
                             )}
 
@@ -221,6 +237,9 @@ function App() {
                                         setSelectedDate={setSelectedDate}
                                         onOpenDrawer={handleDrawerOpen}
                                         drawerOpen={open}
+                                        onBookRoom={() =>
+                                            setBookIntent((n) => n + 1)
+                                        }
                                     />
                                 )}
 
@@ -251,6 +270,7 @@ function App() {
                                                     setSelectedDate
                                                 }
                                                 loading={loading}
+                                                bookIntent={bookIntent}
                                             />
                                         </Box>
                                     ) : (

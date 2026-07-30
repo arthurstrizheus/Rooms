@@ -159,15 +159,226 @@ Verified **not** at fault along the way:
       now honest, so opening a meeting shows its true state; re-saving with
       All Day ticked moves it to the all-day row. Consider a one-off data fix
       for meetings stored as `00:00 → 23:45`.
-- [ ] `Update`'s `id === -1` branch also drops `it_support` and
+- [x] `Update`'s `id === -1` branch also drops `it_support` and
       `it_support_details`, so "Edit Current" on a recurring meeting loses an
       IT support request. Same class of bug as root cause 3; left unchanged to
       keep the fix scoped.
-- [ ] The injected day-cell click handler still fires on plain clicks and
+      **Fixed 2026-07-30 (Concourse build) — both fields added to the created payload.**
+- [x] The injected day-cell click handler still fires on plain clicks and
       overwrites FullCalendar's own `select` result, so dragging out a time
       range in week/day view collapses to the whole day and the form falls back
       to "now". Removing the listener in favour of FullCalendar's `select` /
       `dateClick` would fix it, but needs a browser check that single clicks
       still open the booking dialog.
-- [ ] The day-cell listeners are never removed — `dayCellDidMount` adds one per
+      **Fixed 2026-07-30 (Concourse build) — listener removed, `select` / `dateClick`
+      now drive booking. The browser check it asks for has still NOT been done.**
+- [x] The day-cell listeners are never removed — `dayCellDidMount` adds one per
       cell mount with no matching `dayCellWillUnmount`.
+      **Fixed 2026-07-30 (Concourse build) — moot: `dayCellDidMount` is gone entirely,
+      so there is nothing left to unmount.**
+
+---
+
+## 2026-07-30 — Concourse redesign, increment 1: Calendar page, side menu and banner
+
+Increment 1 of a whole-site redesign, direction **Concourse**, approved from a
+mockup. The site is being redesigned strictly **one page at a time**: only the
+Calendar page, the side menu and the banner change here. Every other page must
+look exactly as it did before this commit, which is why `theme.js` gains only a
+`concourse` token bag and no palette or `components` overrides.
+
+### How the design is wired
+
+- `src/Utilites/concourse.js` (new) is the single source of design tokens —
+  colours, type scale, motion, layout constants, dialog widths.
+- `App.js` mounts `<GlobalStyles styles={concourseGlobalStyles(mode)} />`, which
+  emits every `--cc-*` custom property on **`:root`**. This is deliberate and
+  load-bearing: MUI `Dialog` / `Menu` / `Select` / `Autocomplete` / `Snackbar`
+  portal to `document.body`, so tokens scoped to a page wrapper would not be
+  inherited. A page-scoped token block is exactly what made dialogs render
+  transparent and overlapping in an earlier attempt.
+- Every portalled `Paper` sets `backgroundImage: "none"`, or MUI's elevation
+  gradient muddies `--cc-srf`.
+- Dark mode is handled once, centrally, by the token layer. No component
+  branches on `mode` and nothing reads `prefers-color-scheme`. There is
+  deliberately **no dark-mode toggle** in this increment: `setMode` stays
+  uncalled.
+
+### What changed
+
+| File | Change |
+| --- | --- |
+| `src/Utilites/concourse.js` | New. Concourse token source: palette per mode, type scale, motion, layout, dialog widths, `concourseGlobalStyles(mode)` emitting `:root` vars. |
+| `src/Utilites/theme.js` | Adds `concourse: concourse(mode)` to the MUI theme. No palette or `components` changes. |
+| `src/App.js` | Shell rebuilt: token `<GlobalStyles>`, new Drawer treatment, overlay drawer below 980px with `ModalProps={{ keepMounted: true }}`, `bookIntent` state for the banner CTA. Fixes the `bannderText` / `bannerText` prop-name mismatch and passes `setContent`. |
+| `src/Views/Components/SideBar/SideBar.js` | Rebuilt to the Concourse menu spec (header, sections, items, approval badge, footer). |
+| `src/Views/Components/Banner/**` | Banner rebuilt; date switcher split into `DateSelector` plus new `PickerPanel`, `DayGrid`, `atoms`, `period`. Adds the "Book a room" CTA. |
+| `src/Views/Pages/Calendar/index.jsx` | Calendar page rebuilt: month/week/day grid, hand-rolled agenda, skeleton / error / empty states, and all three dialog **frames**. |
+| `src/Views/Pages/Calendar/CalendarStyled.jsx` | FullCalendar styling rewritten against tokens. |
+| `src/Views/Pages/Calendar/RenderEventContent.jsx` | Bubble rewritten: type colour is now a wash plus a 3px bar, not a saturated fill. |
+| `src/Views/Components/Concourse/ConcourseDialogKit.jsx` | New. Shared dialog-content primitives (header, body, fields, footers, scope options, facts, chips). Intended for reuse by every later page, which is why it sits in its own `Concourse` directory rather than under `DisplayMeeting`. |
+| `src/Views/Pages/Calendar/MeetingForum.jsx`, `MeetingUpdateWarning.js`, `src/Views/Components/DisplayMeeting/DisplayMeeting.js` | Dialog **content** rebuilt on the kit. |
+| `src/Utilites/SnackbarContext.js` | Snackbar `Alert` restyled from tokens. API, transport, timing and severities unchanged. |
+| `src/Routes/Routes.js` | Threads `bookIntent` to the three Calendar routes. |
+| `backend/controllers/meetingControler.js` | Bug fix, below. |
+
+**The bubble concept is preserved**: line 1 is the meeting name, line 2 is the
+room. This is the one thing that was explicitly required to stay.
+
+Two elements were explicitly **rejected** and must not come back: a "free right
+now" availability strip, and a meeting-type colour legend.
+
+### Bug fix 1 — drag-select collapsed to the whole day (frontend)
+
+**Root cause.** `Calendar/index.jsx` injected a click listener onto every day
+cell via `dayCellDidMount`. In timeGrid views the whole day column *is* a day
+cell, so that listener fired on every drag-release and overwrote FullCalendar's
+own `select` result — every drag collapsed to the whole day and the form fell
+back to "now". The listeners were also never removed (no `dayCellWillUnmount`),
+leaking one per cell mount.
+
+**Fix.** The injected listener is gone. Booking now runs off FullCalendar's own
+`select` and `dateClick`. Because FullCalendar fires `dateClick` *before*
+`select`, and `select` only fires when the pointer actually moved, the click
+path is deferred by a tick and cancelled if a real selection follows — so both
+paths are deterministic instead of order-dependent. A click, or a drag of one
+slot or less, normalises to a 30-minute booking, so a jittery drag and a still
+click behave identically.
+
+### Bug fix 2 — `it_support` lost when editing one occurrence (backend)
+
+**Root cause.** In `backend/controllers/meetingControler.js`, `Update`'s
+`id === -1` branch materialises a single occurrence of a recurring meeting into
+a real row. The payload it built omitted `it_support` and `it_support_details`,
+so "Edit Current" on a recurring meeting silently dropped an IT-support request.
+Same class of bug as root cause 3 above (`all_day`).
+
+**Fix.** Both fields added to the created payload. Nothing else in the
+controller was touched, and no API payload field was added, removed or renamed.
+
+### Approved deviations from previous behaviour
+
+These were decided deliberately; they are not regressions.
+
+- Month view shows **2** event bubbles then a `+N more` link, was 3. Implemented
+  as `dayMaxEvents={2}`, not `dayMaxEventRows={2}` — FullCalendar counts the
+  `+N more` link as a row, so `dayMaxEventRows={2}` would render only one bubble.
+- **The week starts Sunday everywhere.** This resolves a real inconsistency:
+  `WeekPicker` was Sunday-first while `DayComponent` and `MonthSelector` were
+  Monday-first, so the two disagreed.
+- **Date arrows step by whole units** (a month, a week, a day), replacing
+  `DateSelector.js`'s old `addDays(weekEnd, 2)`.
+- `textColor: "black"` dropped from events; type colour is now a wash and a bar.
+- The `+N more` MutationObserver is gone; the popover is a real dialog styled
+  from tokens.
+- Dialogs keep `scroll="paper"`. `scroll="body"` was considered and rejected:
+  it makes the Paper `inline-block`, which defeats the `margin: auto` centring —
+  the exact mechanism behind the original overlapping-dialog bug.
+- The agenda is hand-rolled rather than FullCalendar's `listPlugin` view, which
+  cannot express the specified date ring, meeting count and free-time line.
+  `timelinePlugin` is no longer used.
+- **Capacity copy loses its `Capacity: ` prefix.** The three values are the
+  app's own and unchanged (`0` → `No limit`, `>= 1000` → `Large`, else
+  `N people`), but the design puts capacity in a `·`-joined meta slot on the
+  room row and room card, where the prefix would be noise. Note this leaves the
+  redesigned surfaces saying `12 people` while the not-yet-redesigned
+  `ShortSelectObjectRoom.js` still says `Capacity: 12 people` and
+  `Large capacity`. That inconsistency resolves when those pages are done.
+- The Repeats "none" option is relabelled `— None —` from `-- None --`. A
+  typographic change only; the option **value** is unchanged, as are `Daily`,
+  `Weekly`, `Monthly` and `Yearly`.
+
+### Deviations from the design spec, decided during integration
+
+- **The 7am-7pm day window was dropped.** The spec called for a `07:00-19:00`
+  window, first implemented as FullCalendar `slotMinTime` / `slotMaxTime`. That
+  clamp makes any meeting starting before 7am or after 7pm **invisible** in week
+  and day view — a booking system hiding bookings is a data-visibility bug, not
+  a style choice. All 24 hours are now reachable and the design intent is
+  expressed as an opening scroll position instead.
+  Note that FullCalendar's own `scrollTime` cannot do this on its own here:
+  `height="auto"` makes its ScrollGrid non-liquid, so FullCalendar owns no
+  scroller — the page container does. `scrollTime` is set for correctness and a
+  small effect scrolls the page container to the 7am slat on view change. It is
+  written so that if the slat is not found the container is left untouched.
+- **The side-menu logo is the real image, not a text mark.** The mockup used a
+  text wordmark only because a published artifact cannot load external images;
+  it was a stand-in, never an approved design decision.
+  `src/Assets/Images/sea-logo.png` is referenced again, sized to fit the new
+  ~58px header rather than the old 102px shell header.
+- **The error state no longer claims a cache.** The spec's copy said the agenda
+  is "cached from your last visit". There is no cache — the agenda renders
+  whatever the last successful fetch left in state. Reworded.
+
+### Verification status — read this before trusting anything above
+
+- `npm run build` (CRA production build) **passes**. Compiled with warnings only.
+- Project eslint (`react-app` config) across every changed file: **0 errors**,
+  51 warnings, overwhelmingly pre-existing `eqeqeq` and
+  `react-hooks/exhaustive-deps`.
+- `node --check backend/controllers/meetingControler.js` **passes**.
+- **NOT browser-tested.** Nothing in this build was exercised in a running
+  browser, and the database was not queried. Everything about runtime behaviour —
+  drag-to-book, the arrow-key guard, the 7am scroll landing, dialog centring,
+  dark mode, the phone bottom sheets — is reasoned from reading the code and
+  from library source, not observed. Specifically unverified:
+  - that arrow-key date stepping works below 980px with the menu closed, and
+    stands down while a dialog is open (see below);
+  - that the page container actually lands on 7am on first paint;
+  - that no dialog renders transparent.
+
+#### The arrow-key / `keepMounted` collision, and how it was resolved
+
+The overlay drawer mounts with `ModalProps={{ keepMounted: true }}` so the
+socket-driven approval badge keeps running while the menu is closed on phones.
+Below 980px that drawer is a `temporary` Drawer — i.e. a MUI Modal — so its
+`.MuiModal-root` is in the DOM permanently. The banner's arrow-key date stepping
+stood down whenever it saw *any* `.MuiModal-root`, to avoid stealing arrow keys
+from an open dialog. Composed, that made arrow-key stepping permanently dead
+below 980px. Both parts were individually correct.
+
+`keepMounted` is kept, and the guard now tests for a **visible** modal rather
+than a mounted one. Verified against the installed MUI source
+(`@mui/material@5.16.7`, `Modal/Modal.js`): a closed and fully-exited Modal root
+is marked two ways — the `MuiModal-hidden` utility class, and
+`visibility: hidden` on the styled root. The guard requires both to be clear.
+During an exit transition `exited` is still false, so a closing dialog still
+counts as open, which is the desired behaviour. **This reasoning is from library
+source, not from a browser.**
+
+### Known gaps
+
+- **No data source** for three things the design asks for. They are rendered as
+  static text or omitted, and closing them needs backend work:
+  - room **Free / Booked** status,
+  - **"Visible to"** on a meeting,
+  - the **recurrence occurrence count**.
+- **Edit's "Applies to" is read-only.** The design wants it interactive, which
+  needs `setUpdateMode` threaded from `Calendar/index.jsx` into `MeetingForum`.
+  Left read-only deliberately: silently changing which occurrences an edit
+  applies to is a data-correctness risk, and this build could not test it.
+- `MeetingForum.jsx` destructures an `equipment` prop that `index.jsx` has never
+  passed, so it is always `undefined`. **Pre-existing at HEAD**, not introduced
+  here, and not fixed here.
+- The two nested recurrence-confirm dialogs inside `DisplayMeeting.js` are
+  styled by `scopeDialogProps` rather than by the page's dialog frames, because
+  they are not reachable from `Calendar/index.jsx`. They match on radius, scrim,
+  centring and phone sheet treatment, but still differ from the outer frames on
+  a few points: no `alignItems: "flex-start"` / `overflowY: auto` on the
+  container (so the top-clamp behaviour does not apply), no `maxHeight: "none"`
+  on the desktop Paper (a very tall scope dialog could clip its footer), MUI's
+  default transition duration, and no phone grab handle.
+- The `+N more` popover dialog renders no phone grab handle, unlike the other
+  three dialogs.
+- `--cc-c` (the accent colour) is set both by the frame and again by the content
+  root inside it. The inner value wins, which is what makes live re-tinting work
+  when the user changes meeting type in the form; the frame's value is then
+  unused for those dialogs. Not a rendering fault, but the ownership is
+  duplicated and should be collapsed to one side.
+- `SideBar.css` is still imported. Its 11 legacy class rules are all dead, but
+  it also carries a genuinely global `* { user-select: none }` which is the only
+  such rule in the project. Removing the import would make text selectable
+  app-wide — a change to pages that have not been redesigned yet — so it stays
+  until those pages are done.
+- The autocomplete paper uses MUI's deprecated `componentsProps`. Fine on
+  5.16.x, will need `slotProps` before a v6/v7 upgrade.

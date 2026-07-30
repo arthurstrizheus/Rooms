@@ -1,231 +1,127 @@
-import { useTheme } from "@emotion/react";
-import { getAmPm } from "../../../Utilites/Functions/CommonFunctions";
-import CloseIcon from "@mui/icons-material/Close";
-import EditIcon from "@mui/icons-material/Edit";
-import EditNoteIcon from "@mui/icons-material/EditNote";
-import EditRoadIcon from "@mui/icons-material/EditRoad";
 import {
-  Grid,
-  Stack,
-  Typography,
-  Tooltip,
-  Button,
-  Divider,
-} from "@mui/material";
+    cc,
+    CcButton,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Fact,
+    Facts,
+    fmt12,
+    ScopeList,
+    ScopeOption,
+    Spacer,
+    TYPE_FALLBACK,
+} from "../../Components/Concourse/ConcourseDialogKit";
+import { Box } from "@mui/material";
+
+const LONG_DATE = {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+};
+const SHORT_DATE = { weekday: "short", month: "short", day: "numeric" };
 
 const MeetingUpdateWarning = ({
-  selectedEvent,
-  room,
-  location,
-  color,
-  handleExit,
+    selectedEvent,
+    room,
+    location,
+    color,
+    handleExit,
 }) => {
-  const theme = useTheme();
-  if (!selectedEvent) {
-    return <></>;
-  }
+    if (!selectedEvent) {
+        return <></>;
+    }
 
-  const handleUpdate = (mode) => {
-    handleExit(true, mode);
-  };
+    const handleUpdate = (mode) => {
+        handleExit(true, mode);
+    };
 
-  console.log(selectedEvent.extendedProps);
+    const props = selectedEvent.extendedProps || {};
+    const repeats = props.repeats;
+    const newStart = selectedEvent.start;
+    const newEnd = selectedEvent.end;
+    // extendedProps carries the meeting exactly as the API returned it, so it
+    // still holds the times the meeting had before it was dragged.
+    const oldStart = props.start_time ? new Date(props.start_time) : null;
+    const oldEnd = props.end_time ? new Date(props.end_time) : null;
 
-  return (
-    <Grid
-      container
-      height={"100%"}
-      sx={{
-        minWidth: "320px",
-        minHeight: "320px",
-        width: "400px",
-        overflow: "hidden",
-      }}
-    >
-      <CloseIcon
-        sx={{
-          position: "absolute",
-          top: 1,
-          right: 1,
-          borderRadius: "50%",
-          width: "25px",
-          height: "25px",
-          color: "black",
-          background: "#f5f5f5",
-          ":hover": {
-            background: "#e8e8e8",
-            cursor: "pointer",
-            transform: "scale(1.1)",
-          },
-        }}
-        onClick={() => handleExit(false)}
-      />
-      <Grid
-        item
-        sx={{
-          width: "100%",
-          height: "100%",
-          borderBottom: `5px solid ${color}`,
-          padding: "15px 20px 10px 20px",
-          background: "#f2eeed",
-        }}
-      >
-        <Stack
-          direction={"column"}
-          spacing={"-5px"}
-          sx={{ paddingLeft: "5px" }}
-        >
-          <Typography variant="h5">
-            {selectedEvent.extendedProps.name}
-          </Typography>
-          <Typography variant="caption" fontSize={14} paddingLeft={"3px"}>
-            {new Date(selectedEvent.start).toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </Typography>
-        </Stack>
-        <Divider sx={{ paddingTop: "5px" }} />
-        <Stack
-          direction={"column"}
-          sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-          spacing={"-8px"}
-        >
-          <Typography
-            variant="h6"
-            fontSize={18}
-            letterSpacing={1}
-            color={theme.palette.secondary.main}
-          >
-            {selectedEvent.start.getHours()}:
-            {String(selectedEvent.start.getMinutes()).padStart(2, "0")}
-            {getAmPm(selectedEvent.start)} -{" "}
-            {selectedEvent.end.getHours() > 12
-              ? selectedEvent.end.getHours() - 12
-              : selectedEvent.end.getHours()}
-            :{String(selectedEvent.end.getMinutes()).padStart(2, "0")}
-            {getAmPm(selectedEvent.end)}
-          </Typography>
-          <Typography
-            variant="body1"
-            color={theme.palette.primary.text.dark}
-            fontSize={14}
-            paddingLeft={"3px"}
-          >
-            SEA {location} / {room}
-          </Typography>
-        </Stack>
-      </Grid>
-      <Grid
-        item
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          width: "100%",
-          height: "100%",
-          padding: "15px 20px 10px 20px",
-          justifyContent: "center",
-        }}
-      >
-        <Typography paddingTop={"10px"}>
-          This meeting is recurring {selectedEvent.extendedProps.repeats}.
-        </Typography>
-        <Typography paddingTop={"10px"}>What would you like to do?</Typography>
-      </Grid>
-      <Grid padding={"5px"}></Grid>
-      <Stack
-        position={"relative"}
-        bottom={selectedEvent.extendedProps.description ? 0 : -5}
-        direction={"row"}
-        width={"100%"}
-        sx={{
-          marginBottom: "-5px",
-          paddingRight: "5px",
-          paddingTop: "5px",
-          paddingLeft: "5px",
-          height: "35px",
-          borderTop: "1px solid #dedede",
-        }}
-        spacing={1}
-      >
-        <Tooltip
-          title={"Update all meetings in this recurrence"}
-          componentsProps={{
-            tooltip: {
-              sx: {
-                fontSize: ".8rem", // Larger text
-              },
-            },
-          }}
-        >
-          <Button
-            variant={"outlined"}
-            style={{ fontSize: "12px" }}
-            sx={{
-              width: "100%",
-              color: "black",
-            }}
-            onClick={() => handleUpdate("all")}
-            startIcon={<EditNoteIcon sx={{ color: "error" }} />}
-          >
-            Edit All
-          </Button>
-        </Tooltip>
-        <Tooltip
-          title={"Update all the following mettings including this one"}
-          componentsProps={{
-            tooltip: {
-              sx: {
-                fontSize: ".8rem", // Larger text
-              },
-            },
-          }}
-        >
-          <Button
-            variant={"outlined"}
-            style={{ fontSize: "12px" }}
-            sx={{
-              width: "100%",
-              color: "black",
-            }}
-            onClick={() => handleUpdate("next")}
-            startIcon={
-              <EditRoadIcon sx={{ color: theme.palette.secondary.light }} />
-            }
-          >
-            Edit Next
-          </Button>
-        </Tooltip>
-        <Tooltip
-          title={"Update this meeting"}
-          componentsProps={{
-            tooltip: {
-              sx: {
-                fontSize: ".8rem", // Larger text
-              },
-            },
-          }}
-        >
-          <Button
-            variant={"outlined"}
-            style={{ fontSize: "12px" }}
-            sx={{
-              width: "100%",
-              color: "black",
-            }}
-            onClick={() => handleUpdate("current")}
-            startIcon={
-              <EditIcon sx={{ color: theme.palette.secondary.light }} />
-            }
-          >
-            Edit Current
-          </Button>
-        </Tooltip>
-      </Stack>
-    </Grid>
-  );
+    const span = (start, end) => {
+        if (!start) return "—";
+        const day = new Date(start).toLocaleDateString("en-US", SHORT_DATE);
+        if (!end) return `${day} · ${fmt12(start)}`;
+        return `${day} · ${fmt12(start)} – ${fmt12(end)}`;
+    };
+
+    const movedDay = newStart
+        ? new Date(newStart).toLocaleDateString("en-US", SHORT_DATE)
+        : "this day";
+
+    return (
+        <DialogSurface accent={color || TYPE_FALLBACK}>
+            <DialogHeader
+                badge={
+                    repeats
+                        ? `Dragged · repeats ${String(repeats).toLowerCase()}`
+                        : "Dragged"
+                }
+                title="Move which meetings?"
+                sub={[
+                    props.name,
+                    newStart
+                        ? new Date(newStart).toLocaleDateString(
+                              "en-US",
+                              LONG_DATE
+                          )
+                        : null,
+                    location && room ? `SEA ${location} / ${room}` : null,
+                ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                onClose={() => handleExit(false)}
+            />
+            <DialogBody>
+                <Facts>
+                    <Fact label="Was" mono>
+                        {span(oldStart, oldEnd)}
+                    </Fact>
+                    <Fact label="Moves to" mono strong>
+                        {span(newStart, newEnd)}
+                    </Fact>
+                </Facts>
+                <ScopeList>
+                    <ScopeOption
+                        glyph="1"
+                        title="Move this one"
+                        desc={`Only ${movedDay} moves. The rest of the series stays where it is.`}
+                        onClick={() => handleUpdate("current")}
+                    />
+                    <ScopeOption
+                        glyph="→"
+                        title="Move this and all following"
+                        desc={`${movedDay} and every later meeting in the series move.`}
+                        onClick={() => handleUpdate("next")}
+                    />
+                    <ScopeOption
+                        glyph="↻"
+                        title="Move the whole series"
+                        desc="Every meeting in the series moves, including the ones already past."
+                        onClick={() => handleUpdate("all")}
+                    />
+                </ScopeList>
+                <Box sx={{ fontSize: "11.5px", color: cc.mute }}>
+                    Closing this puts the meeting back where it was.
+                </Box>
+            </DialogBody>
+            <DialogFooter>
+                <Spacer />
+                <CcButton onClick={() => handleExit(false)}>
+                    Put it back
+                </CcButton>
+            </DialogFooter>
+        </DialogSurface>
+    );
 };
 
 export default MeetingUpdateWarning;

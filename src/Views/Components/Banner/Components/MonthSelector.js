@@ -1,105 +1,79 @@
-import { useState } from "react";
-import { styled } from "@mui/material/styles";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { PickersDay } from "@mui/x-date-pickers/PickersDay";
-import { isSameMonth, startOfMonth } from "date-fns";
-import { enGB } from "date-fns/locale";
-import { DateCalendar, LocalizationProvider } from "@mui/x-date-pickers";
 import { Box } from "@mui/material";
+import { format, isSameMonth, startOfMonth } from "date-fns";
+import { motion, type as ccType } from "../../../../Utilites/concourse";
+import { btnReset } from "./atoms";
+import { toDate } from "./period";
 
-// Custom styling for PickersDay to highlight the selected month
-const CustomPickersDay = styled(PickersDay, {
-  shouldForwardProp: (prop) => prop !== "isSelected" && prop !== "isHovered",
-})(({ theme, isSelected, isHovered, day }) => ({
-  borderRadius: 0,
-  ...(isSelected && {
-    backgroundColor: theme.palette.primary.main,
-    color: theme.palette.primary.contrastText,
-    "&:hover, &:focus": {
-      backgroundColor: theme.palette.primary.dark,
-    },
-  }),
-  ...(isHovered && {
-    backgroundColor: theme.palette.primary.light,
-    "&:hover, &:focus": {
-      backgroundColor: theme.palette.primary.light,
-    },
-  }),
-}));
+/**
+ * Month view's picker body — ARBITER §10.8: a 3-column month grid. The panel
+ * header steps the year; this grid picks the month inside that year.
+ *
+ * Replaces the MUI <DateCalendar views={["month"]}> implementation (which was
+ * enGB/Monday-first and rendered a day grid's chrome for a month choice).
+ */
 
-// Helper function to check if two dates are in the same month
-const isInSameMonth = (dayA, dayB) => {
-  if (dayB == null) {
-    return false;
-  }
-  return isSameMonth(dayA, dayB);
+const CELL = "cc-month";
+
+const gridSx = {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: "6px",
+    [`& .${CELL}`]: {
+        ...btnReset,
+        display: "block",
+        width: "100%",
+        padding: "9px 0",
+        borderRadius: "99px",
+        background: "var(--cc-srf2)",
+        color: "var(--cc-ink)",
+        ...ccType.pickerMonth,
+        transition: [
+            `background ${motion.dur.colour}ms`,
+            `color ${motion.dur.colour}ms`,
+            `transform ${motion.dur.arrow}ms ${motion.spring}`,
+        ].join(", "),
+        '&[aria-current="true"]': {
+            background: "var(--cc-red)",
+            color: "var(--cc-on-red)",
+            boxShadow: "var(--cc-glow-pill)",
+        },
+    },
+    "@media (hover: hover)": {
+        [`& .${CELL}:hover`]: {
+            background: "var(--cc-wash)",
+            transform: "translateY(-2px)",
+        },
+        [`& .${CELL}[aria-current="true"]:hover`]: {
+            background: "var(--cc-red)",
+        },
+    },
 };
 
-// Day component used in the calendar
-function Day(props) {
-  const { day, selectedDay, hoveredDay, ...other } = props;
+const MonthSelector = ({ cursor, selectedDate, onSelect }) => {
+    const year = toDate(cursor).getFullYear();
+    const selected = toDate(selectedDate);
+    const months = [];
+    for (let m = 0; m < 12; m += 1) months.push(new Date(year, m, 1));
 
-  return (
-    <CustomPickersDay
-      {...other}
-      day={day}
-      sx={{ px: 2.5 }}
-      disableMargin
-      selected={false}
-      isSelected={isInSameMonth(day, selectedDay)}
-      isHovered={isInSameMonth(day, hoveredDay)}
-    />
-  );
-}
+    return (
+        <Box sx={gridSx}>
+            {months.map((monthDate) => {
+                const isSelected = isSameMonth(monthDate, selected);
+                return (
+                    <button
+                        type="button"
+                        key={monthDate.getTime()}
+                        className={CELL}
+                        aria-label={format(monthDate, "MMMM yyyy")}
+                        aria-current={isSelected ? "true" : undefined}
+                        onClick={() => onSelect(startOfMonth(monthDate))}
+                    >
+                        {format(monthDate, "MMM")}
+                    </button>
+                );
+            })}
+        </Box>
+    );
+};
 
-// Main MonthPicker component
-export default function MonthSelector({ selectedDate, setSelectedDate }) {
-  const [hoveredDay, setHoveredDay] = useState(null);
-
-  // Handle month selection
-  const handleMonthChange = (newValue) => {
-    setSelectedDate(startOfMonth(newValue));
-  };
-
-  return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-      <Box
-        sx={{
-          width: "100%",
-          overflowX: "hidden",
-          display: "flex",
-          justifyContent: "center",
-          padding: 1,
-          boxSizing: "border-box",
-          "& .MuiPickersCalendarHeader-root": {
-            flexWrap: "wrap", // make the header wrap on small screens
-          },
-          "& .MuiPickersSlideTransition-root": {
-            width: "100%", // force calendar body to scale
-          },
-          "& .MuiDayCalendar-weekContainer": {
-            justifyContent: "space-between", // spread days evenly
-          },
-        }}
-      >
-        <DateCalendar
-          views={["month"]}
-          openTo="month"
-          value={selectedDate}
-          onChange={handleMonthChange}
-          showDaysOutsideCurrentMonth
-          displayWeekNumber={false} // Hide week numbers
-          slots={{ day: Day }}
-          slotProps={{
-            day: (ownerState) => ({
-              selectedDay: selectedDate,
-              hoveredDay,
-              onPointerEnter: () => setHoveredDay(ownerState.day),
-              onPointerLeave: () => setHoveredDay(null),
-            }),
-          }}
-        />
-      </Box>
-    </LocalizationProvider>
-  );
-}
+export default MonthSelector;

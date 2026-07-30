@@ -26,6 +26,10 @@ const AppRoutes = ({
     loading,
     drawerOpen,
     setDrawerOpen,
+    // Banner's "Book a room" CTA. A monotonically increasing counter, not a
+    // boolean: the Calendar opens the booking dialog on every change, so the
+    // CTA still works when the user closes the dialog and clicks again.
+    bookIntent,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -130,6 +134,7 @@ const AppRoutes = ({
                         defaultView={"timeGridDay"}
                         range={"Day"}
                         drawerOpen={drawerOpen}
+                        bookIntent={bookIntent}
                     />
                 }
             />
@@ -143,6 +148,7 @@ const AppRoutes = ({
                         loading={loading}
                         defaultView={matchSm ? "listWeek" : "timeGridWeek"}
                         range={"Week"}
+                        bookIntent={bookIntent}
                     />
                 }
             />
@@ -156,6 +162,7 @@ const AppRoutes = ({
                         loading={loading}
                         defaultView={"dayGridMonth"}
                         range={"Month"}
+                        bookIntent={bookIntent}
                     />
                     // <MonthSchedulePage
                     //   setLoading={setLoading}

@@ -3,6 +3,53 @@ import { Slide, Grow, Fade, Zoom, Snackbar, Alert, Grid } from '@mui/material';
 
 const SnackbarContext = createContext();
 
+/**
+ * ARBITER §10.29 — the snackbar Alert, restyled from Concourse tokens so a
+ * conflict raised through `openSnackbar` reads as the same event as the alert
+ * block inside a dialog. API and transport are untouched.
+ *
+ * The Snackbar portals to `document.body`, so the tokens can only reach it via
+ * `:root` (App.js mounts `concourseGlobalStyles` there). Nothing here may read
+ * a theme object or a page-scoped class. `backgroundImage: none` because MUI's
+ * Alert is a Paper and its elevation gradient would muddy `--cc-srf`.
+ */
+const alertSxFor = (severity) => {
+    const base = {
+        width: "100%",
+        borderRadius: "18px",
+        padding: "12px 14px",
+        fontSize: "13.5px",
+        fontFamily: "var(--cc-sans)",
+        boxShadow: "var(--cc-sh2)",
+        alignItems: "flex-start",
+        backgroundImage: "none",
+    };
+    if (severity === "success") {
+        return {
+            ...base,
+            backgroundColor: "var(--cc-srf)",
+            color: "var(--cc-ink)",
+            border: "1px solid var(--cc-line)",
+            "& .MuiAlert-icon": { color: "var(--cc-ok)" },
+        };
+    }
+    if (severity === "info") {
+        return {
+            ...base,
+            backgroundColor: "var(--cc-srf)",
+            color: "var(--cc-ink)",
+            "& .MuiAlert-icon": { color: "var(--cc-mute)" },
+        };
+    }
+    // error / warning
+    return {
+        ...base,
+        backgroundColor: "var(--cc-wash)",
+        color: "var(--cc-red)",
+        "& .MuiAlert-icon": { color: "var(--cc-red)" },
+    };
+};
+
 let showSnackbarExternal;
 
 const transitionComponents = {
@@ -73,7 +120,7 @@ export const SnackbarProvider = ({ children }) => {
                 <Alert
                     onClose={closeSnackbar}
                     severity={snackbar.severity}
-                    sx={{ width: '100%' }}
+                    sx={alertSxFor(snackbar.severity)}
                     {...snackbar.alertProps}
                 >
                     {snackbar.message}

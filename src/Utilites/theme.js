@@ -1,4 +1,5 @@
 import { createTheme } from "@mui/material/styles";
+import { concourse } from "./concourse";
 
 // No one expects the S-E-A Inquisition!
 // Your colors have been updated with the noble S-E-A palette,
@@ -135,6 +136,9 @@ const theme = (mode) =>
         },
       },
     },
+    // Concourse design tokens (additive — see src/Utilites/concourse.js).
+    // Nothing above this line changed; read as theme.concourse.* in sx.
+    concourse: concourse(mode),
   });
 
 export default theme;

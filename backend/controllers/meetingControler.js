@@ -1894,6 +1894,8 @@ const Update = async (req, res) => {
                 status,
                 created_user_id,
                 all_day: allDay,
+                it_support: !!it_support,
+                it_support_details: it_support ? it_support_details || "" : null,
             };
             const finalStatus = await evaluateStatusAndNotify({
                 operation: "create",

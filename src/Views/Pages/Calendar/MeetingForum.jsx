@@ -1,4 +1,3 @@
-import { useTheme } from "@emotion/react";
 import { useEffect, useState } from "react";
 import {
     getHours,
@@ -9,21 +8,10 @@ import { useAuth } from "../../../Utilites/AuthContext";
 import ImageViewer from "../../../Components/ImageViewer";
 import { openSnackbar } from "../../../Utilites/SnackbarContext";
 import {
-    Grid,
-    Stack,
-    Typography,
-    Button,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Box,
-    Chip,
-    FormHelperText,
+    MenuItem,
     Autocomplete,
     TextField,
-    Checkbox,
-    useMediaQuery,
     CircularProgress,
 } from "@mui/material";
 import {
@@ -34,11 +22,6 @@ import {
     UpdateParentOnlyMeeting,
     UpdateMeeting,
 } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
-import ShortTextField from "../../../Components/ShortTextField";
-import ShortSelect from "../../../Components/ShortSelect";
-import ShortSelectObject from "../../../Components/ShortSelectObject";
-import TuneIcon from "@mui/icons-material/Tune";
-import CheckIcon from "@mui/icons-material/Check";
 import { GetUsers } from "../../../Utilites/Functions/ApiFunctions";
 import { filterTimesAfterCutoff } from "../../../Utilites/Functions/TimeUtilities";
 import {
@@ -48,7 +31,35 @@ import {
 } from "../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
 import { getDate, getMonth, getSeconds, getYear } from "date-fns";
 import { GetRoomImage } from "../../../Utilites/Functions/ApiFunctions/RoomFunctions";
-import ShortSelectRoom from "../../../Components/ShortSelectObjectRoom";
+import {
+    cc,
+    CcButton,
+    CcInput,
+    CcSelect,
+    CcSwitch,
+    CcTextarea,
+    controlBox,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Disclosure,
+    Fact,
+    Facts,
+    Field,
+    focusRing,
+    formatCapacity,
+    menuPaperSx,
+    OptionList,
+    RoomCard,
+    RoomOption,
+    Spacer,
+    Tag,
+    TagRow,
+    TwoUp,
+    TypeChip,
+    TYPE_FALLBACK,
+} from "../../Components/Concourse/ConcourseDialogKit";
 
 // Welcome to Date Sanity™! All passengers please keep your arms inside the function at all times.
 function isMultipleDayMeeting(meeting) {
@@ -116,6 +127,20 @@ function roundUpToQuarterHour(d) {
     return date;
 }
 
+const LONG_DATE = {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+};
+
+/** The scope words the recurrence handlers use, rendered for a human. */
+const SCOPE_LABEL = {
+    current: "This meeting only",
+    next: "This and all following",
+    all: "All in the series",
+};
+
 const MeetingFourm = ({
     date,
     meeting,
@@ -131,8 +156,6 @@ const MeetingFourm = ({
     updateMode,
     onClose,
 }) => {
-    const theme = useTheme();
-    const downMD = useMediaQuery((theme) => theme.breakpoints.down("md"));
     const { user } = useAuth();
     const [color, setColor] = useState(null);
     const [type, setType] = useState("");
@@ -150,6 +173,9 @@ const MeetingFourm = ({
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
     const [showEquipment, setShowEquipment] = useState(false);
     const [loading, setLoading] = useState(false);
+    // Errors only surface once the user has actually tried to submit — the copy
+    // is the same copy the snackbars use, so there is one message per rule.
+    const [submitted, setSubmitted] = useState(false);
     const [allDay, setAllDay] = useState(
         meeting?.all_day || meeting?.allDay
             ? meeting?.view == "dayGridMonth"
@@ -279,10 +305,9 @@ const MeetingFourm = ({
             setItSupport(!!meeting.it_support);
             setItSupportDetails(meeting.it_support_details || "");
 
-            if (meeting.description != "" && meeting.description != null) {
-                // Show the description if it exists. Otherwise, pretend everything is fine.
-                setShowDesc(true);
-            }
+            // Editing shows the advanced section open — repeats, visibility and
+            // all-day are all things you came here to change.
+            setShowDesc(true);
             // The else saga ends. Nobody claps, but you feel a vague sense of accomplishment.
         }
     }, []);
@@ -297,7 +322,7 @@ const MeetingFourm = ({
                     console.error("Error fetching room image:", error);
                 }
             } else {
-                console.warn("No image URL provided for the room.");
+                setRoomImage(null);
             }
         }
         fetchRoomImage();
@@ -349,6 +374,7 @@ const MeetingFourm = ({
     const isSelected = (id) => special.indexOf(id) !== -1;
 
     const onSubbmit = () => {
+        setSubmitted(true);
         setLoading(true);
         if (update) {
             const start = setTime(date, startTime);
@@ -364,6 +390,7 @@ const MeetingFourm = ({
                         transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                     }
                 );
+                setLoading(false);
             } else if (!selectedRoom?.id) {
                 openSnackbar("No selected room", {
                     severity: "error",
@@ -372,6 +399,7 @@ const MeetingFourm = ({
                     alertProps: { variant: "filled" },
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
+                setLoading(false);
             } else if (meetingName == "") {
                 openSnackbar("No meeting name", {
                     severity: "error",
@@ -380,6 +408,7 @@ const MeetingFourm = ({
                     alertProps: { variant: "filled" },
                     transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
                 });
+                setLoading(false);
             } else if (itSupport && !itSupportDetails.trim()) {
                 openSnackbar("Please describe what you need IT help with", {
                     severity: "error",
@@ -664,472 +693,487 @@ const MeetingFourm = ({
         setEndTime("12:00 AM"); // See above, but with more existential dread.
     };
 
+    /* --------------------------------------------------------- presentation --- */
+
+    const nameLocked = type?.value?.toLowerCase() === "equipment";
+    const accent = color || type?.color || TYPE_FALLBACK;
+
+    const officeAlias = (locationId) =>
+        locations?.find((lc) => lc?.officeid == locationId)?.Alias;
+
+    const resourcesForRoom = (roomId) =>
+        (roomResources?.filter((rr) => rr.room_id === roomId) || [])
+            .map((link) => resources?.find((r) => r.id === link.resource_id))
+            .filter(Boolean);
+
+    const roomMeta = (room) => {
+        const parts = [formatCapacity(room.capacity)];
+        const alias = officeAlias(room.location);
+        if (alias) parts.push(alias);
+        const res = resourcesForRoom(room.id);
+        if (res.length) {
+            const shown = res
+                .slice(0, 3)
+                .map((r) => r.name)
+                .join(", ");
+            parts.push(res.length > 3 ? `${shown} +${res.length - 3}` : shown);
+        }
+        return parts.join(" · ");
+    };
+
+    const selectedResources = selectedRoom?.id
+        ? resourcesForRoom(selectedRoom.id)
+        : [];
+
+    // A dragged range is only real when the grid actually handed us one. The
+    // sub-line must not claim a drag that never happened.
+    const draggedRange = (() => {
+        if (update || multiDayMeet || !meeting?.start || !meeting?.end)
+            return null;
+        const s = new Date(meeting.start);
+        const e = new Date(meeting.end);
+        if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
+        if (
+            meeting.view === "dayGridMonth" ||
+            (s.getHours() === 0 && s.getMinutes() === 0)
+        )
+            return null;
+        if (e.getTime() - s.getTime() < 15 * 60 * 1000) return null;
+        const strip = (t) => t.replace(/^0/, "");
+        return `${strip(
+            formatTime(s.getHours(), s.getMinutes())
+        )} – ${strip(formatTime(e.getHours(), e.getMinutes()))}`;
+    })();
+
+    const headerSub = (() => {
+        if (update) {
+            const when = new Date(meeting?.start_time);
+            const stamp = isNaN(when.getTime())
+                ? null
+                : when.toLocaleDateString("en-US", LONG_DATE);
+            return [meeting?.name, stamp].filter(Boolean).join(" · ");
+        }
+        if (multiDayMeet) {
+            return `${new Date(meeting?.start).toLocaleDateString(
+                "en-US",
+                LONG_DATE
+            )} → ${getPreviousDay(meeting?.end).toLocaleDateString(
+                "en-US",
+                LONG_DATE
+            )}`;
+        }
+        const when = new Date(meeting?.start);
+        const stamp = isNaN(when.getTime())
+            ? null
+            : when.toLocaleDateString("en-US", LONG_DATE);
+        return [stamp, draggedRange ? `you dragged ${draggedRange}` : null]
+            .filter(Boolean)
+            .join(" · ");
+    })();
+
+    // The same rule the submit path applies, shown next to the field it belongs
+    // to. Multi-day bookings compare two different dates, so they are left to
+    // the submit path alone rather than guessed at here.
+    const timeInvalid =
+        !allDay &&
+        !multiDayMeet &&
+        !!startTime &&
+        !!endTime &&
+        setTime(new Date(), startTime) >= setTime(new Date(), endTime);
+
+    const errors = submitted
+        ? {
+              time: timeInvalid
+                  ? "End time cannot be less than or equal to the start time"
+                  : null,
+              room: !selectedRoom?.id ? "No selected room" : null,
+              name: meetingName === "" ? "No meeting name" : null,
+              itDetails:
+                  itSupport && !itSupportDetails.trim()
+                      ? "Please describe what you need IT help with"
+                      : null,
+          }
+        : {};
+
+    const autocompletePaperSx = {
+        ...menuPaperSx(300),
+        "& .MuiAutocomplete-option": { fontSize: "14px" },
+        "& .MuiAutocomplete-option[aria-selected='true']": {
+            background: cc.wash,
+            color: cc.red,
+        },
+        "& .MuiAutocomplete-noOptions": {
+            fontSize: "14px",
+            color: cc.mute,
+        },
+    };
+
     return (
-        <Grid
-            container
-            sx={{
-                width:
-                    showDesc && !downMD ? "600px" : downMD ? "330px" : "350px",
-                height: `calc(${
-                    showDesc
-                        ? downMD
-                            ? "620px"
-                            : multiDayMeet
-                            ? "420px"
-                            : "390px"
-                        : multiDayMeet && !allDay
-                        ? downMD
-                            ? "600px"
-                            : "390px"
-                        : allDay && multiDayMeet
-                        ? downMD
-                            ? "600px"
-                            : "335px"
-                        : allDay && !multiDayMeet
-                        ? downMD
-                            ? "600px"
-                            : "320px"
-                        : "360px"
-                } + ${itSupport ? 110 : 40}px)`,
-                transition: "width 0.5s ease-in-out, height 0.5s ease-in-out",
-                overflow: downMD ? "auto" : "hidden",
-            }}
-        >
-            <Stack direction={"column"} sx={{ width: "100%", height: "100%" }}>
-                <Grid
-                    container
-                    direction={"column"}
-                    sx={{
-                        paddingTop: downMD ? "0px" : "20px",
-                        paddingLeft: "20px",
-                        paddingBottom: "20px",
-                        borderBottom: `4px solid ${color ? color : "#91E041"}`,
-                    }}
+        <DialogSurface accent={accent}>
+            <DialogHeader
+                title={update ? "Edit this meeting" : "Book a room"}
+                sub={headerSub}
+                onClose={onClose}
+            />
+            <DialogBody>
+                <Field
+                    label="Meeting name"
+                    required
+                    htmlFor="cc-meeting-name"
+                    error={errors.name}
+                    hint={
+                        nameLocked
+                            ? "Equipment bookings take their name from the equipment."
+                            : null
+                    }
                 >
-                    <Grid
-                        item
-                        sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            paddingRight: 2,
-                        }}
-                    >
-                        <Typography fontSize={28}>Book Room</Typography>
-                        {selectedRoom?.image_url && (
-                            <ImageViewer
-                                src={roomImage}
-                                alt={`${selectedRoom?.value} room image`}
-                                clickable={true}
-                                style={{
-                                    maxWidth: "100px",
-                                    maxHeight: "60px",
-                                    objectFit: "cover",
-                                    borderRadius: "4px",
-                                    border: "1px solid #ddd",
-                                }}
-                            />
-                        )}
-                    </Grid>
+                    <CcInput
+                        id="cc-meeting-name"
+                        value={meetingName}
+                        invalid={!!errors.name}
+                        disabled={nameLocked || loading}
+                        autoFocus
+                        placeholder="What is this for?"
+                        onChange={(e) => setMeetingName(e.target.value)}
+                    />
+                </Field>
 
-                    <Typography
-                        component="div"
-                        fontSize={16}
-                        color={theme.palette.secondary.light}
-                        marginTop={"-5px"}
-                        fontFamily={"comic sans ms"}
-                    >
-                        {update ? (
-                            new Date(meeting?.start_time)?.toLocaleDateString(
-                                "en-US",
-                                {
-                                    weekday: "long",
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                }
-                            )
-                        ) : multiDayMeet ? (
-                            <>
-                                <Typography>
-                                    {meeting?.start?.toLocaleDateString(
-                                        "en-US",
-                                        {
-                                            weekday: "long",
-                                            day: "numeric",
-                                            month: "long",
-                                            year: "numeric",
-                                        }
-                                    )}{" "}
-                                </Typography>
-                                <Typography>
-                                    {getPreviousDay(
-                                        meeting?.end
-                                    )?.toLocaleDateString("en-US", {
-                                        weekday: "long",
-                                        day: "numeric",
-                                        month: "long",
-                                        year: "numeric",
-                                    })}
-                                </Typography>
-                            </>
-                        ) : (
-                            new Date(meeting?.start)?.toLocaleDateString(
-                                "en-US",
-                                {
-                                    weekday: "long",
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                }
-                            )
-                        )}
-                    </Typography>
-                </Grid>
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        paddingLeft: downMD ? 1 : "10px",
-                        paddingRight: downMD ? 1 : "10px",
-                    }}
+                <Field
+                    label="Meeting Type"
+                    hint="The type sets the colour this meeting gets on the calendar."
                 >
-                    <Stack
-                        direction={showDesc && !downMD ? "row" : "column"}
-                        sx={{
-                            paddingTop: "20px",
-                            display: "flex",
-                            flexGrow: 1,
-                            width: "100%",
-                        }}
-                        spacing={2}
-                    >
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 1,
-                                maxWidth:
-                                    !showDesc && !downMD ? "350px" : "600px",
-                                flexGrow: 1,
-                            }}
-                        >
-                            <ShortTextField
-                                value={meetingName}
-                                label={"Meeting name"}
-                                variant={"outlined"}
-                                disabled={
-                                    type?.value?.toLowerCase() ===
-                                        "equipment" || loading
-                                }
-                                autoFocus={true}
-                                onChange={(e) => setMeetingName(e)}
-                            />
-                            <ShortSelectObject
-                                items={meetingTypes}
-                                label={"Meeting Type"}
-                                value={type}
-                                onChange={onChangeMeetingType}
-                                disabled={loading}
-                            />
-                            <ShortSelectRoom
-                                items={rooms}
-                                label={"Room"}
-                                secondary={"capacity"}
-                                value={selectedRoom}
-                                onChange={setSelectedRoom}
-                                info={locations}
-                                showInfo={true}
-                                roomResources={roomResources}
-                                resources={resources}
-                                disabled={loading}
-                            />
-                            {!allDay && (
-                                <Stack
-                                    direction={"row"}
-                                    sx={{ width: "100%" }}
-                                    spacing={1}
-                                >
-                                    <ShortSelect
-                                        items={times}
-                                        label={"Start Time"}
-                                        value={startTime}
-                                        onChange={onChangeStartTime}
-                                        disabled={loading}
-                                    />
-                                    <ShortSelect
-                                        items={filterTimesAfterCutoff(
-                                            times,
-                                            startTime
-                                        )}
-                                        label={"End Time"}
-                                        value={endTime}
-                                        onChange={onChangeEndTime}
-                                        disabled={loading}
-                                    />
-                                </Stack>
-                            )}
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    width: "100%",
-                                }}
-                            >
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "flex-start",
-                                        justifyContent: "flex-start",
-                                    }}
-                                >
-                                    <Checkbox
-                                        checked={itSupport}
-                                        onChange={(e) =>
-                                            setItSupport(e.target.checked)
-                                        }
-                                        size="small"
-                                        sx={{
-                                            padding: 0,
-                                            "&:hover": {
-                                                backgroundColor: "transparent",
-                                            },
-                                        }}
-                                        disabled={loading}
-                                    />
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ ml: 0.5 }}
-                                    >
-                                        I would like IT support during this
-                                        meeting
-                                    </Typography>
-                                </Box>
-                                {itSupport && (
-                                    <TextField
-                                        label="What do you need help with?"
-                                        value={itSupportDetails}
-                                        multiline
-                                        rows={2}
-                                        size="small"
-                                        onChange={(e) =>
-                                            setItSupportDetails(e.target.value)
-                                        }
-                                        disabled={loading}
-                                        sx={{ mt: 1 }}
-                                    />
-                                )}
-                            </Box>
-                            {showDesc && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "flex-start",
-                                        marginBottom: downMD ? -1.5 : 0,
-                                    }}
-                                >
-                                    <Checkbox
-                                        checked={allDay}
-                                        value={allDay}
-                                        onChange={(e) =>
-                                            handleAllDayChange(e.target.checked)
-                                        }
-                                        size="small"
-                                        sx={{
-                                            padding: 0,
-                                            "&:hover": {
-                                                backgroundColor: "transparent",
-                                            },
-                                        }}
-                                        disabled={loading}
-                                    />
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ ml: 0.5 }}
-                                    >
-                                        All Day
-                                    </Typography>
-                                </Box>
-                            )}
-                        </Box>
-
-                        {showDesc && (
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    flexGrow: 1,
-                                    flexDirection: "column",
-                                    gap: 1,
-                                }}
-                            >
-                                <TextField
-                                    id="outlined-multiline-static"
-                                    label="Description"
-                                    value={description}
-                                    multiline
-                                    rows={2}
-                                    onChange={(e) =>
-                                        setDescription(e.target.value)
-                                    }
-                                    disabled={loading}
-                                />
-                                <FormControl
-                                    variant="outlined"
-                                    sx={{ minWidth: 160, width: "100%" }}
-                                    size={"small"}
-                                >
-                                    <InputLabel id="repeats-simple-select-standard-label">
-                                        Repeats
-                                    </InputLabel>
-                                    <Select
-                                        sx={{ width: "100%" }}
-                                        labelId="repeats-simple-select-standard-label"
-                                        id="repeats-simple-select-standard"
-                                        label="Repeats"
-                                        value={repeats}
-                                        onChange={(e) =>
-                                            setRepeats(e.target.value)
-                                        }
-                                        disabled={loading}
-                                    >
-                                        <MenuItem key={0} value={""}>
-                                            {"-- None --"}
-                                        </MenuItem>
-                                        <MenuItem key={1} value={"Daily"}>
-                                            {"Daily"}
-                                        </MenuItem>
-                                        <MenuItem key={2} value={"Weekly"}>
-                                            {"Weekly"}
-                                        </MenuItem>
-                                        <MenuItem key={3} value={"Monthly"}>
-                                            {"Monthly"}
-                                        </MenuItem>
-                                        <MenuItem key={4} value={"Yearly"}>
-                                            {"Yearly"}
-                                        </MenuItem>
-                                    </Select>
-                                </FormControl>
-                                <FormControl
-                                    sx={{ width: "100%" }}
-                                    size="small"
-                                >
-                                    <Autocomplete
-                                        multiple
-                                        options={users.filter(
-                                            (gp) =>
-                                                gp.access !== "Read" &&
-                                                gp.id !== user?.id
-                                        )}
-                                        value={users.filter((u) =>
-                                            special.includes(u.id)
-                                        )}
-                                        disabled={loading}
-                                        onChange={(event, newValue) => {
-                                            handleSpecialChange({
-                                                target: {
-                                                    value: newValue.map(
-                                                        (user) => user.id
-                                                    ),
-                                                },
-                                            });
-                                        }}
-                                        getOptionLabel={(option) =>
-                                            `${option.first_name} ${option.last_name}`
-                                        }
-                                        isOptionEqualToValue={(option, value) =>
-                                            option.id === value.id
-                                        }
-                                        renderTags={(value, getTagProps) =>
-                                            value.map((option, index) => (
-                                                <Chip
-                                                    key={option.id}
-                                                    label={`${option.first_name} ${option.last_name}`}
-                                                    {...getTagProps({ index })}
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))
-                                        }
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Special Permissions"
-                                            />
-                                        )}
-                                        sx={{ maxWidth: 365 }}
-                                    />
-                                    <FormHelperText
-                                        sx={{ whiteSpace: "nowrap" }}
-                                    >
-                                        Allow users to see meeting
-                                    </FormHelperText>
-                                </FormControl>
-                            </Box>
-                        )}
-                    </Stack>
                     <Box
+                        role="group"
+                        aria-label="Meeting Type"
+                        sx={{ display: "flex", gap: "6px", flexWrap: "wrap" }}
+                    >
+                        {(meetingTypes || []).map((tp) => (
+                            <TypeChip
+                                key={tp.id}
+                                color={tp.color}
+                                selected={type?.id === tp.id}
+                                disabled={loading}
+                                onClick={() => onChangeMeetingType(tp)}
+                            >
+                                {tp.value}
+                            </TypeChip>
+                        ))}
+                    </Box>
+                </Field>
+
+                <Field label="Room" required error={errors.room}>
+                    <OptionList
+                        role="group"
+                        aria-label="Room"
                         sx={{
-                            display: "flex",
-                            flexDirection: "row",
-                            gap: 1,
-                            flexGrow: 1,
-                            width: downMD ? "90%" : "100%",
-                            justifyContent: "center",
-                            textAlign: "center",
-                            justifyItems: "center",
-                            alignItems: "center",
-                            justifySelf: "center",
-                            paddingTop: "10px",
+                            maxHeight: "252px",
+                            overflowY: "auto",
+                            scrollbarWidth: "thin",
+                            paddingRight: "2px",
                         }}
                     >
-                        <Button
-                            variant={"outlined"}
-                            onClick={() => setShowDesc(!showDesc)}
-                            sx={{
-                                width: "100%",
-                                color: "black",
-                                ":hover": {
-                                    background:
-                                        theme.palette.background.fill.alert
-                                            .warningLight,
-                                },
-                                fontWeight: "bold",
-                            }}
-                            disabled={loading}
-                            startIcon={<TuneIcon />}
+                        {(rooms || []).map((rm) => (
+                            <RoomOption
+                                key={rm.id}
+                                color={rm.color}
+                                selected={selectedRoom?.id === rm.id}
+                                disabled={loading}
+                                name={rm.value}
+                                meta={roomMeta(rm)}
+                                onClick={() => setSelectedRoom(rm)}
+                            />
+                        ))}
+                    </OptionList>
+                </Field>
+
+                {selectedRoom?.id ? (
+                    <RoomCard
+                        name={
+                            officeAlias(selectedRoom.location)
+                                ? `SEA ${officeAlias(
+                                      selectedRoom.location
+                                  )} / ${selectedRoom.value}`
+                                : selectedRoom.value
+                        }
+                        meta={formatCapacity(selectedRoom.capacity)}
+                        thumb={
+                            selectedRoom.image_url && roomImage ? (
+                                <ImageViewer
+                                    src={roomImage}
+                                    alt={`${selectedRoom.value} room image`}
+                                    clickable={true}
+                                    style={{
+                                        width: "64px",
+                                        height: "48px",
+                                        objectFit: "cover",
+                                        display: "block",
+                                    }}
+                                />
+                            ) : null
+                        }
+                    >
+                        {selectedResources.length ? (
+                            <TagRow>
+                                {selectedResources.map((r) => (
+                                    <Tag key={r.id}>{r.name}</Tag>
+                                ))}
+                            </TagRow>
+                        ) : null}
+                    </RoomCard>
+                ) : null}
+
+                {!allDay ? (
+                    <TwoUp>
+                        <Field label="Start Time" error={errors.time}>
+                            <CcSelect
+                                mono
+                                ariaLabel="Start Time"
+                                invalid={!!errors.time}
+                                value={startTime}
+                                disabled={loading}
+                                onChange={(e) =>
+                                    onChangeStartTime(e.target.value)
+                                }
+                            >
+                                {times.map((t) => (
+                                    <MenuItem key={t} value={t}>
+                                        {t}
+                                    </MenuItem>
+                                ))}
+                            </CcSelect>
+                        </Field>
+                        <Field label="End Time">
+                            <CcSelect
+                                mono
+                                ariaLabel="End Time"
+                                invalid={!!errors.time}
+                                value={endTime}
+                                disabled={loading}
+                                onChange={(e) =>
+                                    onChangeEndTime(e.target.value)
+                                }
+                            >
+                                {filterTimesAfterCutoff(
+                                    times,
+                                    startTime || "12:00 AM"
+                                ).map((t) => (
+                                    <MenuItem key={t} value={t}>
+                                        {t}
+                                    </MenuItem>
+                                ))}
+                            </CcSelect>
+                        </Field>
+                    </TwoUp>
+                ) : null}
+
+                <Box sx={{ display: "grid", gap: "9px" }}>
+                    <CcSwitch
+                        id="cc-it-support"
+                        checked={itSupport}
+                        disabled={loading}
+                        onChange={(checked) => setItSupport(checked)}
+                        label="I would like IT support during this meeting"
+                    />
+                    {itSupport ? (
+                        <Field
+                            label="What do you need help with?"
+                            required
+                            htmlFor="cc-it-support-details"
+                            error={errors.itDetails}
                         >
-                            {showDesc ? "Basic" : "Advanced"}
-                        </Button>
-                        <Button
-                            variant={"outlined"}
-                            sx={{
-                                width: "100%",
-                                color: "black",
-                                ":hover": {
-                                    background:
-                                        theme.palette.background.fill.alert
-                                            .successLight,
-                                },
-                                fontWeight: "bold",
-                            }}
-                            disabled={loading}
-                            onClick={onSubbmit}
-                            startIcon={
-                                loading ? (
-                                    <CircularProgress size={16} />
-                                ) : (
-                                    <CheckIcon />
-                                )
-                            }
-                        >
-                            {update ? "Update" : "Book"}
-                        </Button>
-                    </Box>
+                            <CcTextarea
+                                id="cc-it-support-details"
+                                rows={2}
+                                value={itSupportDetails}
+                                invalid={!!errors.itDetails}
+                                disabled={loading}
+                                onChange={(e) =>
+                                    setItSupportDetails(e.target.value)
+                                }
+                            />
+                        </Field>
+                    ) : null}
                 </Box>
-            </Stack>
-        </Grid>
+
+                {update && updateMode && SCOPE_LABEL[updateMode] ? (
+                    <Facts>
+                        <Fact label="Applies to">
+                            {SCOPE_LABEL[updateMode]}
+                        </Fact>
+                    </Facts>
+                ) : null}
+
+                <Disclosure
+                    open={showDesc}
+                    onToggle={() => setShowDesc(!showDesc)}
+                    summary="Advanced"
+                    count="description · repeats · who can see it"
+                >
+                    <Field label="Description" htmlFor="cc-description">
+                        <CcTextarea
+                            id="cc-description"
+                            rows={2}
+                            value={description || ""}
+                            disabled={loading}
+                            onChange={(e) => setDescription(e.target.value)}
+                        />
+                    </Field>
+                    <Field label="Repeats">
+                        <CcSelect
+                            ariaLabel="Repeats"
+                            value={repeats || ""}
+                            disabled={loading}
+                            displayEmpty
+                            onChange={(e) => setRepeats(e.target.value)}
+                        >
+                            <MenuItem key={0} value={""}>
+                                {"— None —"}
+                            </MenuItem>
+                            <MenuItem key={1} value={"Daily"}>
+                                {"Daily"}
+                            </MenuItem>
+                            <MenuItem key={2} value={"Weekly"}>
+                                {"Weekly"}
+                            </MenuItem>
+                            <MenuItem key={3} value={"Monthly"}>
+                                {"Monthly"}
+                            </MenuItem>
+                            <MenuItem key={4} value={"Yearly"}>
+                                {"Yearly"}
+                            </MenuItem>
+                        </CcSelect>
+                    </Field>
+                    <CcSwitch
+                        id="cc-all-day"
+                        checked={allDay}
+                        disabled={loading}
+                        onChange={(checked) => handleAllDayChange(checked)}
+                        label="All Day"
+                    />
+                    <Field
+                        label="Special Permissions"
+                        hint="Everyone else just sees the room as busy."
+                    >
+                        <Autocomplete
+                            multiple
+                            options={users.filter(
+                                (gp) =>
+                                    gp.access !== "Read" && gp.id !== user?.id
+                            )}
+                            value={users.filter((u) => special.includes(u.id))}
+                            disabled={loading}
+                            onChange={(event, newValue) => {
+                                handleSpecialChange({
+                                    target: {
+                                        value: newValue.map((user) => user.id),
+                                    },
+                                });
+                            }}
+                            getOptionLabel={(option) =>
+                                `${option.first_name} ${option.last_name}`
+                            }
+                            isOptionEqualToValue={(option, value) =>
+                                option.id === value.id
+                            }
+                            componentsProps={{
+                                paper: { sx: autocompletePaperSx },
+                            }}
+                            renderTags={(value, getTagProps) =>
+                                value.map((option, index) => {
+                                    const { onDelete } = getTagProps({ index });
+                                    return (
+                                        <Tag key={option.id} on>
+                                            {`${option.first_name} ${option.last_name}`}
+                                            <Box
+                                                component="span"
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-label={`Remove ${option.first_name} ${option.last_name}`}
+                                                onClick={onDelete}
+                                                onKeyDown={(e) => {
+                                                    if (
+                                                        e.key === "Enter" ||
+                                                        e.key === " "
+                                                    ) {
+                                                        e.preventDefault();
+                                                        onDelete(e);
+                                                    }
+                                                }}
+                                                sx={{
+                                                    cursor: "pointer",
+                                                    fontSize: "9px",
+                                                    lineHeight: 1,
+                                                    "&:focus-visible":
+                                                        focusRing,
+                                                }}
+                                            >
+                                                ✕
+                                            </Box>
+                                        </Tag>
+                                    );
+                                })
+                            }
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    variant="standard"
+                                    placeholder={
+                                        special?.length ? "" : "Nobody else"
+                                    }
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        disableUnderline: true,
+                                    }}
+                                />
+                            )}
+                            sx={{
+                                "& .MuiInputBase-root": {
+                                    ...controlBox(false, false),
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: "5px",
+                                    padding: "7px 9px",
+                                },
+                                "& .MuiInputBase-root.Mui-focused": {
+                                    borderColor: cc.red,
+                                    background: cc.srf,
+                                },
+                                "& .MuiInputBase-input": {
+                                    fontSize: "14px",
+                                    fontFamily: "inherit",
+                                    color: cc.ink,
+                                    padding: "2px 0",
+                                    minWidth: "60px",
+                                },
+                                "& .MuiAutocomplete-endAdornment": {
+                                    display: "none",
+                                },
+                            }}
+                        />
+                    </Field>
+                </Disclosure>
+            </DialogBody>
+            <DialogFooter>
+                <CcButton onClick={onClose} disabled={loading}>
+                    {update ? "Discard" : "Cancel"}
+                </CcButton>
+                <Spacer />
+                <CcButton
+                    variant="primary"
+                    onClick={onSubbmit}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <CircularProgress
+                            size={14}
+                            thickness={5}
+                            sx={{ color: cc.onRed }}
+                        />
+                    ) : null}
+                    {update ? "Update meeting" : "Book it"}
+                </CcButton>
+            </DialogFooter>
+        </DialogSurface>
     );
 };
 

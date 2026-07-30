@@ -1,27 +1,4 @@
-import { useTheme } from "@emotion/react";
-import {
-    formatDate,
-    getAmPm,
-} from "../../../Utilites/Functions/CommonFunctions";
-import {
-    Grid,
-    Stack,
-    Typography,
-    Button,
-    Dialog,
-    Divider,
-    Tooltip,
-    Box,
-    Chip,
-} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import ManageSearchIcon from "@mui/icons-material/ManageSearch";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import PeopleIcon from "@mui/icons-material/People";
-import DevicesIcon from "@mui/icons-material/Devices";
-import SupportAgentIcon from "@mui/icons-material/SupportAgent";
+import { Box, Dialog } from "@mui/material";
 import { useAuth } from "../../../Utilites/AuthContext";
 import {
     CancelAllMeetingsInRecurrence,
@@ -29,13 +6,41 @@ import {
     UpdateMeetingStatus,
 } from "../../../Utilites/Functions/ApiFunctions/MeetingFunctions";
 import { useState, useEffect } from "react";
-import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
-import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
-import RemoveRoadIcon from "@mui/icons-material/RemoveRoad";
-import EditNoteIcon from "@mui/icons-material/EditNote";
-import EditRoadIcon from "@mui/icons-material/EditRoad";
 import ImageViewer from "../../../Components/ImageViewer";
 import { GetRoomImage } from "../../../Utilites/Functions/ApiFunctions/RoomFunctions";
+import {
+    AlertBlock,
+    Block,
+    cc,
+    CcButton,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Fact,
+    Facts,
+    fmt12,
+    formatCapacity,
+    formatDuration,
+    HeroTime,
+    PersonRow,
+    RoomCard,
+    ScopeList,
+    ScopeOption,
+    scopeDialogProps,
+    Spacer,
+    Tag,
+    TagRow,
+    TYPE_FALLBACK,
+} from "../Concourse/ConcourseDialogKit";
+
+const LONG_DATE = {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+};
+const SHORT_DATE = { weekday: "short", month: "short", day: "numeric" };
 
 const DisplayMeeting = ({
     meeting,
@@ -49,7 +54,6 @@ const DisplayMeeting = ({
     setUpdateMode,
     handleUpdateEvent,
 }) => {
-    const theme = useTheme();
     const { user } = useAuth();
     const [showWarning, setShowWarning] = useState(false);
     const [showParentWarning, setShowParentWarning] = useState(false);
@@ -65,7 +69,7 @@ const DisplayMeeting = ({
                     console.error("Error fetching room image:", error);
                 }
             } else {
-                console.warn("No image URL provided for the room.");
+                setRoomImage(null);
             }
         }
         fetchRoomImage();
@@ -83,12 +87,6 @@ const DisplayMeeting = ({
     const location = locations?.find(
         (lc) => lc?.officeid == meeting?.location
     )?.Alias;
-
-    const formatCapacity = (capacity) => {
-        if (capacity === 0) return "Capacity: No limit";
-        if (capacity >= 1000) return "Capacity: Large";
-        return `Capacity: ${capacity} people`;
-    };
 
     const getRoomResources = (roomId) => {
         const roomResourceLinks =
@@ -187,850 +185,246 @@ const DisplayMeeting = ({
         handleUpdateEvent();
     };
 
+    /* --------------------------------------------------------- presentation --- */
+
+    const allDay = !!(meeting?.all_day || meeting?.allDay);
+    const longDate = isNaN(start.getTime())
+        ? ""
+        : start.toLocaleDateString("en-US", LONG_DATE);
+    const shortDate = isNaN(start.getTime())
+        ? "this meeting"
+        : start.toLocaleDateString("en-US", SHORT_DATE);
+    const repeatWord = meeting?.repeats
+        ? String(meeting.repeats).toLowerCase()
+        : null;
+    const roomResourceList = room ? getRoomResources(room.id) : [];
+    const scopeSub = [meeting?.name, longDate].filter(Boolean).join(" · ");
+
+    const roomName = (
+        <Box sx={{ display: "flex", alignItems: "center", gap: "7px" }}>
+            {room?.color ? (
+                <Box
+                    aria-hidden="true"
+                    sx={{
+                        width: "9px",
+                        height: "9px",
+                        flex: "none",
+                        borderRadius: "99px",
+                        background: formatColor(room.color),
+                    }}
+                />
+            ) : null}
+            <Box
+                component="span"
+                sx={{
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                }}
+            >
+                SEA {location} / {room?.value}
+            </Box>
+        </Box>
+    );
+
     return (
-        <Box sx={{ display: "flex", flexGrow: 1 }}>
-            {/* Delete/Cancel Parent Warning Dialog*/}
+        <Box sx={{ display: "flex", flexGrow: 1, minWidth: 0 }}>
+            {/* Cancel scope — which meetings in the recurrence get released */}
             <Dialog
                 open={showWarning}
                 onClose={() => setShowWarning(false)}
-                maxWidth={"md"}
+                {...scopeDialogProps(480)}
             >
-                <Grid
-                    container
-                    height={"100%"}
-                    sx={{
-                        minWidth: "315px",
-                        minHeight: "320px",
-                        width: "410px",
-                        overflow: "hidden",
-                    }}
-                >
-                    <CloseIcon
-                        sx={{
-                            position: "absolute",
-                            top: 1,
-                            right: 1,
-                            borderRadius: "50%",
-                            width: "25px",
-                            height: "25px",
-                            color: "black",
-                            background: "#f5f5f5",
-                            ":hover": {
-                                background: "#e8e8e8",
-                                cursor: "pointer",
-                                transform: "scale(1.1)",
-                            },
-                        }}
-                        onClick={() => setShowWarning(false)}
+                <DialogSurface accent="var(--cc-red)">
+                    <DialogHeader
+                        badge={repeatWord ? `↻ Repeats ${repeatWord}` : null}
+                        title="Cancel which meetings?"
+                        sub={scopeSub}
+                        onClose={() => setShowWarning(false)}
                     />
-                    <Grid
-                        item
-                        sx={{
-                            width: "100%",
-                            height: "100%",
-                            borderBottom: `5px solid ${color}`,
-                            padding: "15px 20px 10px 20px",
-                            background: "#f2eeed",
-                        }}
-                    >
-                        <Stack
-                            direction={"column"}
-                            spacing={"-5px"}
-                            sx={{ paddingLeft: "5px" }}
-                        >
-                            <Typography variant="h5">{meeting.name}</Typography>
-                            <Typography
-                                variant="caption"
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                {new Date(
-                                    meeting.start_time
-                                ).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                            </Typography>
-                        </Stack>
-                        <Divider sx={{ paddingTop: "5px" }} />
-                        <Stack
-                            direction={"column"}
-                            sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-                            spacing={"-8px"}
-                        >
-                            <Typography
-                                variant="h6"
-                                fontSize={18}
-                                letterSpacing={1}
-                                color={theme.palette.secondary.main}
-                            >
-                                {start.getHours() > 12
-                                    ? start.getHours() - 12
-                                    : start.getHours() < 1
-                                    ? "12"
-                                    : start.getHours()}
-                                :{String(start.getMinutes()).padStart(2, "0")}
-                                {getAmPm(start)} -{" "}
-                                {end.getHours() > 12
-                                    ? end.getHours() - 12
-                                    : end.getHours() < 1
-                                    ? "12"
-                                    : end.getHours()}
-                                :{String(end.getMinutes()).padStart(2, "0")}
-                                {getAmPm(end)}
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                SEA {location} / {room?.value}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-                    <Grid
-                        item
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            width: "100%",
-                            height: "100%",
-                            padding: "15px 20px 10px 20px",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Typography paddingTop={"10px"}>
-                            This meeting is recurring {meeting.repeats}.
-                        </Typography>
-                        <Typography paddingTop={"10px"}>
-                            What would you like to do?
-                        </Typography>
-                    </Grid>
-                    <Grid padding={"5px"}></Grid>
-                    <Stack
-                        position={"relative"}
-                        bottom={meeting.description ? 0 : -5}
-                        direction={"row"}
-                        width={"100%"}
-                        sx={{
-                            marginBottom: "-5px",
-                            paddingRight: "5px",
-                            paddingTop: "5px",
-                            paddingLeft: "5px",
-                            height: "35px",
-                            borderTop: "1px solid #dedede",
-                        }}
-                        spacing={1}
-                    >
-                        <Tooltip
-                            title={"Cancel all recurring meetings"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem", // Larger text
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                    padding: "5px",
-                                }}
-                                onClick={handleCancelAll}
-                                startIcon={
-                                    <DeleteSweepIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Cancel All
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={"Cancel all following meetings"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem", // Larger text
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleCancelAllNext}
-                                startIcon={
-                                    <RemoveRoadIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Cancel Next
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={"Cancel this meeting"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem", // Larger text
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                    padding: "5px",
-                                }}
+                    <DialogBody>
+                        <AlertBlock
+                            title="This releases the room"
+                            body="Cancelled meetings leave the calendar and the room opens for anyone to take. The record of who cancelled stays."
+                        />
+                        <ScopeList>
+                            <ScopeOption
+                                glyph="1"
+                                title="Just this one"
+                                desc={`Only ${shortDate} is cancelled. The rest of the series stays booked.`}
                                 onClick={handleCancelOnlyParent}
-                                startIcon={
-                                    <DoNotDisturbIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Cancel Current
-                            </Button>
-                        </Tooltip>
-                    </Stack>
-                </Grid>
+                            />
+                            <ScopeOption
+                                glyph="→"
+                                title="This one and everything after"
+                                desc={`${shortDate} and every later meeting in the series are cancelled.`}
+                                onClick={handleCancelAllNext}
+                            />
+                            <ScopeOption
+                                glyph="↻"
+                                title="The whole series"
+                                desc="Every meeting in the series is cancelled, past ones included."
+                                onClick={handleCancelAll}
+                            />
+                        </ScopeList>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Spacer />
+                        <CcButton onClick={() => setShowWarning(false)}>
+                            Keep the meeting
+                        </CcButton>
+                    </DialogFooter>
+                </DialogSurface>
             </Dialog>
-            {/* Edit Parent Warning Dialog*/}
+
+            {/* Edit scope — which meetings in the recurrence the form will change */}
             <Dialog
                 open={showParentWarning}
                 onClose={() => setShowParentWarning(false)}
+                {...scopeDialogProps(480)}
             >
-                <Grid
-                    container
-                    height={"100%"}
-                    sx={{
-                        minWidth: "320px",
-                        minHeight: "320px",
-                        width: "400px",
-                        overflow: "hidden",
-                    }}
-                >
-                    <CloseIcon
-                        sx={{
-                            position: "absolute",
-                            top: 1,
-                            right: 1,
-                            borderRadius: "50%",
-                            width: "25px",
-                            height: "25px",
-                            color: "black",
-                            background: "#f5f5f5",
-                            ":hover": {
-                                background: "#e8e8e8",
-                                cursor: "pointer",
-                                transform: "scale(1.1)",
-                            },
-                        }}
-                        onClick={() => setShowParentWarning(false)}
+                <DialogSurface accent={color || TYPE_FALLBACK}>
+                    <DialogHeader
+                        badge={repeatWord ? `↻ Repeats ${repeatWord}` : null}
+                        title="Change which meetings?"
+                        sub={scopeSub}
+                        onClose={() => setShowParentWarning(false)}
                     />
-                    <Grid
-                        item
-                        sx={{
-                            width: "100%",
-                            height: "100%",
-                            borderBottom: `5px solid ${color}`,
-                            padding: "15px 20px 10px 20px",
-                            background: "#f2eeed",
-                        }}
-                    >
-                        <Stack
-                            direction={"column"}
-                            spacing={"-5px"}
-                            sx={{ paddingLeft: "5px" }}
-                        >
-                            <Typography variant="h5">{meeting.name}</Typography>
-                            <Typography
-                                variant="caption"
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                {new Date(
-                                    meeting.start_time
-                                ).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                            </Typography>
-                        </Stack>
-                        <Divider sx={{ paddingTop: "5px" }} />
-                        <Stack
-                            direction={"column"}
-                            sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-                            spacing={"-8px"}
-                        >
-                            <Typography
-                                variant="h6"
-                                fontSize={18}
-                                letterSpacing={1}
-                                color={theme.palette.secondary.main}
-                            >
-                                {start.getHours() > 12
-                                    ? start.getHours() - 12
-                                    : start.getHours() < 1
-                                    ? "12"
-                                    : start.getHours()}
-                                :{String(start.getMinutes()).padStart(2, "0")}
-                                {getAmPm(start)} -{" "}
-                                {end.getHours() > 12
-                                    ? end.getHours() - 12
-                                    : end.getHours() < 1
-                                    ? "12"
-                                    : end.getHours()}
-                                :{String(end.getMinutes()).padStart(2, "0")}
-                                {getAmPm(end)}
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                SEA {location} / {room?.value}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-                    <Grid
-                        item
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            width: "100%",
-                            height: "100%",
-                            padding: "15px 20px 10px 20px",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Typography paddingTop={"10px"}>
-                            This meeting is recurring {meeting.repeats}.
-                        </Typography>
-                        <Typography paddingTop={"10px"}>
-                            What would you like to do?
-                        </Typography>
-                    </Grid>
-                    <Grid padding={"5px"}></Grid>
-                    <Stack
-                        position={"relative"}
-                        bottom={meeting.description ? 0 : -5}
-                        direction={"row"}
-                        width={"100%"}
-                        sx={{
-                            marginBottom: "-5px",
-                            paddingRight: "5px",
-                            paddingTop: "5px",
-                            paddingLeft: "5px",
-                            height: "35px",
-                            borderTop: "1px solid #dedede",
-                        }}
-                        spacing={1}
-                    >
-                        <Tooltip
-                            title={"Update all future meetings"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem", // Larger text
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleEditALL}
-                                startIcon={
-                                    <EditNoteIcon sx={{ color: "error" }} />
-                                }
-                            >
-                                Edit All
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={
-                                "Update all the next meetings after this point"
-                            }
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem", // Larger text
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleEditFollowingParent}
-                                startIcon={
-                                    <EditRoadIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Edit Next
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={"Update this meeting"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem", // Larger text
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
+                    <DialogBody>
+                        <ScopeList>
+                            <ScopeOption
+                                glyph="1"
+                                title="Just this one"
+                                desc={`Only ${shortDate} changes. The rest of the series is left alone.`}
                                 onClick={handleEditOnlyParent}
-                                startIcon={
-                                    <EditIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Edit Current
-                            </Button>
-                        </Tooltip>
-                    </Stack>
-                </Grid>
+                            />
+                            <ScopeOption
+                                glyph="→"
+                                title="This one and everything after"
+                                desc={`${shortDate} and every later meeting in the series change.`}
+                                onClick={handleEditFollowingParent}
+                            />
+                            <ScopeOption
+                                glyph="↻"
+                                title="The whole series"
+                                desc="Every meeting in the series changes, past ones included."
+                                onClick={handleEditALL}
+                            />
+                        </ScopeList>
+                    </DialogBody>
+                    <DialogFooter>
+                        <Spacer />
+                        <CcButton onClick={() => setShowParentWarning(false)}>
+                            Back
+                        </CcButton>
+                    </DialogFooter>
+                </DialogSurface>
             </Dialog>
-            {/* Normal Dialog*/}
-            <Grid
-                container
-                height={"100%"}
-                sx={{
-                    minWidth: "300px",
-                    minHeight: "300px",
-                    overflow: "hidden",
-                    paddingBottom: "5px",
-                }}
-            >
-                <CloseIcon
-                    sx={{
-                        position: "absolute",
-                        top: 1,
-                        right: 1,
-                        borderRadius: "50%",
-                        width: "25px",
-                        height: "25px",
-                        color: "black",
-                        background: "#f5f5f5",
-                        ":hover": {
-                            background: "#e8e8e8",
-                            cursor: "pointer",
-                            transform: "scale(1.1)",
-                        },
-                    }}
-                    onClick={handleExit}
+
+            {/* Details */}
+            <DialogSurface accent={color || TYPE_FALLBACK}>
+                <DialogHeader
+                    badge={type || null}
+                    title={meeting.name}
+                    sub={longDate}
+                    onClose={handleExit}
                 />
-                <Grid
-                    item
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        borderBottom: `5px solid ${color}`,
-                        padding: "15px 20px 10px 20px",
-                        background:
-                            theme.palette.background.fill.light.lightHover,
-                    }}
-                >
-                    <Stack
-                        direction={"column"}
-                        spacing={"-5px"}
-                        sx={{ paddingLeft: "5px" }}
-                    >
-                        <Stack
-                            direction={"row"}
-                            sx={{ justifyContent: "space-between" }}
-                        >
-                            <Typography variant="h5">{meeting.name}</Typography>
-                            {room?.image_url && (
-                                <ImageViewer
-                                    src={roomImage}
-                                    alt={`${room?.value} room image`}
-                                    style={{
-                                        maxWidth: "100px",
-                                        marginRight: "10px",
-                                        maxHeight: "60px",
-                                        objectFit: "cover",
-                                        borderRadius: "4px",
-                                        border: "1px solid #ddd",
-                                    }}
-                                />
-                            )}
-                        </Stack>
+                <DialogBody>
+                    <HeroTime
+                        time={
+                            allDay ? "All day" : `${fmt12(start)} – ${fmt12(end)}`
+                        }
+                        chips={[
+                            allDay ? null : formatDuration(start, end),
+                            repeatWord ? `↻ repeats ${repeatWord}` : null,
+                            meeting?.it_support ? "⌁ IT support" : null,
+                        ]}
+                    />
 
-                        <Typography
-                            variant="caption"
-                            fontSize={14}
-                            paddingLeft={"3px"}
-                        >
-                            {new Date(meeting.start_time).toLocaleDateString(
-                                "en-US",
-                                {
-                                    weekday: "long",
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                }
-                            )}
-                        </Typography>
-                    </Stack>
-                    <Divider sx={{ paddingTop: "5px" }} />
-                    <Stack
-                        direction={"column"}
-                        sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-                        spacing={"-8px"}
-                    >
-                        <Typography
-                            variant="h6"
-                            fontSize={18}
-                            letterSpacing={1}
-                            color={theme.palette.secondary.main}
-                        >
-                            {start.getHours() > 12
-                                ? start.getHours() - 12
-                                : start.getHours() < 1
-                                ? "12"
-                                : start.getHours()}
-                            :{String(start.getMinutes()).padStart(2, "0")}
-                            {getAmPm(start)} -{" "}
-                            {end.getHours() > 12
-                                ? end.getHours() - 12
-                                : end.getHours() < 1
-                                ? "12"
-                                : end.getHours()}
-                            :{String(end.getMinutes()).padStart(2, "0")}
-                            {getAmPm(end)}
-                        </Typography>
-                        <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={0.5}
-                            sx={{ paddingLeft: "3px" }}
-                        >
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                                fontSize={14}
-                            >
-                                SEA {location} / {room?.value}
-                            </Typography>
-                            {/* Room Color Indicator next to room name */}
-                            {room?.color && (
-                                <Box
-                                    sx={{
-                                        width: 12,
-                                        height: 12,
-                                        backgroundColor: formatColor(
-                                            room.color
-                                        ),
-                                        borderRadius: "50%",
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        ml: 0.5,
-                                    }}
-                                />
-                            )}
-                        </Stack>
-                    </Stack>
-
-                    {/* Enhanced Room Information */}
-                    {room && (
-                        <Box sx={{ mt: 1, ml: 1 }}>
-                            <Stack
-                                direction="row"
-                                spacing={1}
-                                sx={{ flexWrap: "wrap", gap: 0.5 }}
-                            >
-                                {/* Capacity Info */}
-                                <Chip
-                                    icon={<PeopleIcon />}
-                                    label={formatCapacity(room.capacity)}
-                                    size="small"
-                                    variant="outlined"
-                                    sx={{
-                                        height: 22,
-                                        "& .MuiChip-label": {
-                                            fontSize: "0.7rem",
-                                        },
-                                        "& .MuiChip-icon": {
-                                            fontSize: "0.8rem",
-                                        },
-                                    }}
-                                />
-                            </Stack>
-
-                            {/* Room Resources */}
-                            {(() => {
-                                const roomResourceList = getRoomResources(
-                                    room.id
-                                );
-                                return (
-                                    roomResourceList.length > 0 && (
-                                        <Box sx={{ mt: 1 }}>
-                                            <Stack
-                                                direction="row"
-                                                spacing={0.5}
-                                                alignItems="center"
-                                                sx={{ flexWrap: "wrap" }}
-                                            >
-                                                <DevicesIcon
-                                                    sx={{
-                                                        fontSize: 14,
-                                                        color: theme.palette
-                                                            .text.secondary,
-                                                        mr: 0.5,
-                                                    }}
-                                                />
-                                                {roomResourceList
-                                                    .slice(0, 4)
-                                                    .map((resource) => (
-                                                        <Chip
-                                                            key={resource.id}
-                                                            label={
-                                                                resource.name
-                                                            }
-                                                            size="small"
-                                                            variant="filled"
-                                                            sx={{
-                                                                height: 18,
-                                                                "& .MuiChip-label":
-                                                                    {
-                                                                        fontSize:
-                                                                            "0.6rem",
-                                                                        px: 0.5,
-                                                                    },
-                                                            }}
-                                                        />
-                                                    ))}
-                                                {roomResourceList.length >
-                                                    4 && (
-                                                    <Typography
-                                                        variant="caption"
-                                                        color="text.secondary"
-                                                        sx={{
-                                                            fontSize: "0.6rem",
-                                                            ml: 0.5,
-                                                        }}
-                                                    >
-                                                        +
-                                                        {roomResourceList.length -
-                                                            4}{" "}
-                                                        more
-                                                    </Typography>
-                                                )}
-                                            </Stack>
-                                        </Box>
-                                    )
-                                );
-                            })()}
-                        </Box>
-                    )}
-                </Grid>
-                <Grid
-                    item
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        padding: "15px 20px 10px 20px",
-                    }}
-                >
-                    <Stack
-                        direction={"row"}
-                        sx={{ paddingLeft: "5px" }}
-                        spacing={3}
-                    >
-                        <Stack direction={"column"} spacing={1}>
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                            >
-                                Booker:
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                            >
-                                Type:
-                            </Typography>
-                            {meeting.repeats && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Repeats:
-                                </Typography>
-                            )}
-                            {meeting.UpdatedUser && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Last Updated By:
-                                </Typography>
-                            )}
-                        </Stack>
-                        <Stack direction={"column"} spacing={1}>
-                            <Typography variant="body1">
-                                {meeting.organizer}
-                            </Typography>
-                            <Typography variant="body1">{type}</Typography>
-                            {meeting.repeats && (
-                                <Typography variant="body1">
-                                    {meeting.repeats}
-                                </Typography>
-                            )}
-                            {meeting.UpdatedUser && (
-                                <Tooltip title={meeting.UpdatedUser.email}>
-                                    <Typography variant="body1">{`${meeting.UpdatedUser.first_name} ${meeting.UpdatedUser.last_name}`}</Typography>
-                                </Tooltip>
-                            )}
-                        </Stack>
-                    </Stack>
-                    {meeting.description && (
-                        <Divider sx={{ paddingTop: "5px" }} />
-                    )}
-                    {meeting?.description != "" &&
-                        meeting?.description != null &&
-                        meeting?.description != undefined && (
-                            <Stack
-                                direction={"column"}
-                                sx={{ paddingLeft: "5px" }}
-                            >
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                    sx={{ marginBottom: "-15px" }}
-                                >
-                                    Description:
-                                </Typography>
-                                <Typography paddingTop={"10px"}>
-                                    {meeting.description}
-                                </Typography>
-                            </Stack>
-                        )}
-                    {meeting?.it_support && (
-                        <>
-                            <Divider sx={{ paddingTop: "5px" }} />
-                            <Stack
-                                direction={"column"}
-                                sx={{ paddingLeft: "5px", paddingTop: "5px" }}
-                            >
-                                <Stack
-                                    direction="row"
-                                    alignItems="center"
-                                    spacing={0.5}
-                                >
-                                    <SupportAgentIcon
-                                        sx={{
-                                            fontSize: 18,
-                                            color: theme.palette.secondary.main,
+                    {room ? (
+                        <RoomCard
+                            name={roomName}
+                            meta={formatCapacity(room.capacity)}
+                            thumb={
+                                room.image_url && roomImage ? (
+                                    <ImageViewer
+                                        src={roomImage}
+                                        alt={`${room.value} room image`}
+                                        clickable={true}
+                                        style={{
+                                            width: "64px",
+                                            height: "48px",
+                                            objectFit: "cover",
+                                            display: "block",
                                         }}
                                     />
-                                    <Typography
-                                        variant="body1"
-                                        color={theme.palette.primary.text.dark}
-                                    >
-                                        IT support requested
-                                    </Typography>
-                                </Stack>
-                                {meeting?.it_support_details && (
-                                    <Typography paddingTop={"6px"}>
-                                        {meeting.it_support_details}
-                                    </Typography>
-                                )}
-                            </Stack>
-                        </>
-                    )}
-                </Grid>
-                <Grid padding={"5px"}></Grid>
-                <Stack
-                    position={"relative"}
-                    bottom={meeting.description ? 0 : -5}
-                    direction={"row"}
-                    width={"100%"}
-                    sx={{
-                        padding: "5px",
-                        height: "35px",
-                        borderTop: "1px solid #dedede",
-                    }}
-                    spacing={1}
-                >
-                    <Button
-                        variant={"outlined"}
-                        sx={{
-                            width: "100%",
-                            color: "black",
-                        }}
-                        onClick={handleEdit}
-                        startIcon={<EditIcon />}
-                    >
+                                ) : null
+                            }
+                        >
+                            {roomResourceList.length ? (
+                                <TagRow>
+                                    {roomResourceList
+                                        .slice(0, 4)
+                                        .map((resource) => (
+                                            <Tag key={resource.id}>
+                                                {resource.name}
+                                            </Tag>
+                                        ))}
+                                    {roomResourceList.length > 4 ? (
+                                        <Tag>{`+${
+                                            roomResourceList.length - 4
+                                        } more`}</Tag>
+                                    ) : null}
+                                </TagRow>
+                            ) : null}
+                        </RoomCard>
+                    ) : null}
+
+                    <PersonRow
+                        name={meeting.organizer}
+                        role={
+                            meeting.UpdatedUser
+                                ? `Booker · last changed by ${meeting.UpdatedUser.first_name} ${meeting.UpdatedUser.last_name}`
+                                : "Booker"
+                        }
+                    />
+
+                    <Facts>
+                        <Fact label="Type">{type}</Fact>
+                        {meeting.repeats ? (
+                            <Fact label="Repeats">{meeting.repeats}</Fact>
+                        ) : null}
+                    </Facts>
+
+                    {meeting?.description != "" &&
+                    meeting?.description != null &&
+                    meeting?.description != undefined ? (
+                        <Block label="Description">{meeting.description}</Block>
+                    ) : null}
+
+                    {meeting?.it_support ? (
+                        <Block label="IT support">
+                            {meeting?.it_support_details ? (
+                                meeting.it_support_details
+                            ) : (
+                                <Box sx={{ color: cc.mute }}>
+                                    IT support requested
+                                </Box>
+                            )}
+                        </Block>
+                    ) : null}
+                </DialogBody>
+                <DialogFooter>
+                    <CcButton variant="danger" onClick={handleDelete}>
+                        Cancel meeting
+                    </CcButton>
+                    <Spacer />
+                    <CcButton onClick={handleExit}>Close</CcButton>
+                    <CcButton variant="primary" onClick={handleEdit}>
                         Edit
-                    </Button>
-                    <Button
-                        variant={"outlined"}
-                        sx={{
-                            width: "100%",
-                            color: "black",
-                        }}
-                        onClick={handleDelete}
-                        startIcon={<DeleteOutlineIcon />}
-                    >
-                        Cancel
-                    </Button>
-                </Stack>
-            </Grid>
+                    </CcButton>
+                </DialogFooter>
+            </DialogSurface>
         </Box>
     );
 };
