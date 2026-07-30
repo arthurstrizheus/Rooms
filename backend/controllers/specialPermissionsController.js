@@ -27,9 +27,20 @@ const GetAllForMeeting = async (req, res) => {
     const { id, recurrence_id } = req.body;
     try {
         let meetingId = id;
-        if (meetingId === -1) {
+        if (Number(meetingId) === -1) {
+            if (!recurrence_id) {
+                return res.status(400).json({
+                    message: "recurrence_id is required for a recurring meeting",
+                });
+            }
             const recurance = await MeetingRecurrence.findByPk(recurrence_id);
+            if (!recurance) {
+                return res.status(404).json({ message: "Recurrence not found" });
+            }
             meetingId = recurance.meeting_id;
+        }
+        if (meetingId === undefined || meetingId === null) {
+            return res.status(400).json({ message: "meeting id is required" });
         }
         const data = await SpecialPermission.findAll({
             where: { meeting_id: meetingId },

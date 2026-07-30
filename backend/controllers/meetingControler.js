@@ -1893,6 +1893,7 @@ const Update = async (req, res) => {
                 retired,
                 status,
                 created_user_id,
+                all_day: allDay,
             };
             const finalStatus = await evaluateStatusAndNotify({
                 operation: "create",

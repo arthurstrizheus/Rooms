@@ -315,6 +315,8 @@ const Calendar = ({
     };
 
     const handleEventSelect = (arg) => {
+        // Opening an existing meeting always wins over a day-cell range.
+        setSelectedRange(null);
         if (arg.event.id) {
             const selectEvent = events.find(
                 (_event) => _event.id == arg.event.id
@@ -364,6 +366,10 @@ const Calendar = ({
     };
 
     const handleUpdateEvent = async (eventId, update) => {
+        // We are editing the meeting the user opened, so drop any range that
+        // may still be hanging around — MeetingFourm prefers selectedRange and
+        // a stale one leaves the form with no meeting id and no start_time.
+        setSelectedRange(null);
         setUpdate(true);
         setOpenMeetingDialog(true);
         setIsModalOpen(false);
@@ -722,8 +728,20 @@ const Calendar = ({
                                             info.el.style.cursor = "pointer";
                                             info.el.addEventListener(
                                                 "click",
-                                                () => {
-                                                    console.log("click");
+                                                (jsEvent) => {
+                                                    // In timeGrid views the events are rendered
+                                                    // *inside* this day cell, so clicking a meeting
+                                                    // bubbles up here as well. eventClick already
+                                                    // handled it — starting a new booking range on
+                                                    // top of that leaves a stale selectedRange that
+                                                    // then hijacks the edit form.
+                                                    if (
+                                                        jsEvent.target?.closest?.(
+                                                            ".fc-event, .fc-more-popover, .fc-timegrid-more-link"
+                                                        )
+                                                    ) {
+                                                        return;
+                                                    }
                                                     const start = info.date;
                                                     const end = new Date(start);
                                                     end.setHours(

@@ -1,7 +1,6 @@
 import { useTheme } from "@emotion/react";
 import { useEffect, useState } from "react";
 import {
-    getAmPm,
     getHours,
     getMinutes,
     setTime,
@@ -47,7 +46,7 @@ import {
     GetSpecialPermissionsForMeeting,
     PostSpecialPermission,
 } from "../../../Utilites/Functions/ApiFunctions/SpecialPermissionFunctions";
-import { getDate, getMonth, getSeconds, getTime, getYear } from "date-fns";
+import { getDate, getMonth, getSeconds, getYear } from "date-fns";
 import { GetRoomImage } from "../../../Utilites/Functions/ApiFunctions/RoomFunctions";
 import ShortSelectRoom from "../../../Components/ShortSelectObjectRoom";
 
@@ -186,7 +185,9 @@ const MeetingFourm = ({
     useEffect(() => {
         const data = async () => {
             const usrs = await GetUsers();
-            if (update) {
+            // Without a meeting id there is nothing to look up, and asking
+            // anyway just produces a 500 from the API.
+            if (update && meeting?.id != null) {
                 const selectedUserIds = await GetSpecialPermissionsForMeeting({
                     id: meeting.id,
                     recurrence_id: meeting.recurrence_id,
@@ -256,24 +257,17 @@ const MeetingFourm = ({
             setColor(meetingType?.color); // For when you want your meetings as colorful as your calendar-induced anxiety.
             setRepeats(meeting.repeats); // Because the only thing better than one meeting is infinite meetings.
             setSelectedRoom(meetingRoom); // May the odds of getting a room with working A/C be ever in your favor.
-            if (getTime(meeting.start_time) && getTime(meeting.end_time)) {
+            // start_time/end_time arrive as ISO strings, so parse them with the
+            // Date constructor and format them with the same helper that builds
+            // the dropdown options — otherwise the value never matches an option.
+            const storedStart = new Date(meeting.start_time);
+            const storedEnd = new Date(meeting.end_time);
+            if (!isNaN(storedStart.getTime()) && !isNaN(storedEnd.getTime())) {
                 setStartTime(
-                    `${String(getHours(meeting.start_time)).padStart(
-                        2,
-                        "0"
-                    )}:${String(getMinutes(meeting.start_time)).padStart(
-                        2,
-                        "0"
-                    )} ${getAmPm(meeting.start_time).toUpperCase()}`
+                    formatTime(storedStart.getHours(), storedStart.getMinutes())
                 ); // Because being late by one minute ruins everything.
                 setEndTime(
-                    `${String(getHours(meeting.end_time)).padStart(
-                        2,
-                        "0"
-                    )}:${String(getMinutes(meeting.end_time)).padStart(
-                        2,
-                        "0"
-                    )} ${getAmPm(meeting.end_time).toUpperCase()}`
+                    formatTime(storedEnd.getHours(), storedEnd.getMinutes())
                 );
             } else {
                 setEndTime("12:15 AM");
