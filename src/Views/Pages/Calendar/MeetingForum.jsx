@@ -50,6 +50,7 @@ import {
     Field,
     focusRing,
     formatCapacity,
+    InlineSearch,
     formatRoomMeta,
     menuPaperSx,
     OptionList,
@@ -188,6 +189,9 @@ const MeetingFourm = ({
     const [showDesc, setShowDesc] = useState(false);
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
     const [showEquipment, setShowEquipment] = useState(false);
+    // Narrows the room list only. Purely presentational — nothing that gets
+    // submitted reads it, and the chosen room stays chosen while it is set.
+    const [roomQuery, setRoomQuery] = useState("");
     const [loading, setLoading] = useState(false);
     // Errors only surface once the user has actually tried to submit — the copy
     // is the same copy the snackbars use, so there is one message per rule.
@@ -389,6 +393,7 @@ const MeetingFourm = ({
         setItSupport(false);
         setItSupportDetails("");
         setShowEquipment(false);
+        setRoomQuery("");
         setUpdate(!update);
         console.log("update");
         setUpdateTrigger((prevValue) => prevValue + 1);
@@ -857,6 +862,16 @@ const MeetingFourm = ({
         return parts.filter(Boolean).join(" · ");
     };
 
+    // Filter on what the row already shows — the name plus its meta line — so
+    // "columbus", "projector" or a capacity all narrow the list. A room that
+    // filters out stays selected; the card below the list still names it.
+    const roomFilter = roomQuery.trim().toLowerCase();
+    const visibleRooms = roomFilter
+        ? (rooms || []).filter((rm) =>
+              `${rm.value} ${roomMeta(rm)}`.toLowerCase().includes(roomFilter)
+          )
+        : rooms || [];
+
     const selectedResources = selectedRoom?.id
         ? resourcesForRoom(selectedRoom.id)
         : [];
@@ -1170,7 +1185,22 @@ const MeetingFourm = ({
                         </Box>
                     </Field>
 
-                    <Field label="Room" required error={errors.room}>
+                    <Field
+                        label="Room"
+                        required
+                        error={errors.room}
+                        action={
+                            <InlineSearch
+                                value={roomQuery}
+                                onChange={(e) => setRoomQuery(e.target.value)}
+                                onClear={() => setRoomQuery("")}
+                                placeholder="Search rooms"
+                                ariaLabel="Search rooms"
+                                disabled={loading}
+                                width={112}
+                            />
+                        }
+                    >
                         <OptionList
                             role="group"
                             aria-label="Room"
@@ -1181,7 +1211,7 @@ const MeetingFourm = ({
                                 paddingRight: "2px",
                             }}
                         >
-                            {(rooms || []).map((rm) => (
+                            {visibleRooms.map((rm) => (
                                 <RoomOption
                                     key={rm.id}
                                     color={rm.color}
@@ -1192,6 +1222,17 @@ const MeetingFourm = ({
                                     onClick={() => setSelectedRoom(rm)}
                                 />
                             ))}
+                            {roomFilter && !visibleRooms.length ? (
+                                <Box
+                                    sx={{
+                                        fontSize: "12px",
+                                        color: cc.mute,
+                                        padding: "8px 2px",
+                                    }}
+                                >
+                                    No rooms match “{roomQuery.trim()}”.
+                                </Box>
+                            ) : null}
                         </OptionList>
                     </Field>
 

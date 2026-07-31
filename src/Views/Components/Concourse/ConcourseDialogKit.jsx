@@ -661,38 +661,73 @@ export const CcButton = ({ variant = "default", children, sx, ...rest }) => (
 
 /* ---------------------------------------------------------------- fields --- */
 
-/** §10.19 field wrapper: label (+ required mark), control, then hint or error. */
-export const Field = ({ label, required, hint, error, htmlFor, children }) => (
+/**
+ * §10.19 field wrapper: label (+ required mark), control, then hint or error.
+ *
+ * `action` is an optional control parked at the end of the label row (a filter
+ * for a long option list, say). It sits OUTSIDE the `<label>` so clicking it
+ * does not forward focus to the field's own control.
+ */
+export const Field = ({
+    label,
+    required,
+    hint,
+    error,
+    htmlFor,
+    action,
+    children,
+}) => (
     <Box sx={{ display: "grid", gap: "5px", minWidth: 0 }}>
         {label ? (
             <Box
-                component="label"
-                htmlFor={htmlFor}
                 sx={{
                     display: "flex",
-                    gap: "7px",
+                    gap: "10px",
                     alignItems: "center",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: cc.mute,
+                    minWidth: 0,
                 }}
             >
-                {label}
-                {required ? (
+                <Box
+                    component="label"
+                    htmlFor={htmlFor}
+                    sx={{
+                        display: "flex",
+                        gap: "7px",
+                        alignItems: "center",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        color: cc.mute,
+                    }}
+                >
+                    {label}
+                    {required ? (
+                        <Box
+                            component="span"
+                            sx={{
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                letterSpacing: ".05em",
+                                textTransform: "uppercase",
+                                color: cc.red,
+                                background: cc.wash,
+                                borderRadius: "99px",
+                                padding: "1px 7px",
+                            }}
+                        >
+                            required
+                        </Box>
+                    ) : null}
+                </Box>
+                {action ? (
                     <Box
-                        component="span"
                         sx={{
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            letterSpacing: ".05em",
-                            textTransform: "uppercase",
-                            color: cc.red,
-                            background: cc.wash,
-                            borderRadius: "99px",
-                            padding: "1px 7px",
+                            marginLeft: "auto",
+                            minWidth: 0,
+                            display: "flex",
+                            alignItems: "center",
                         }}
                     >
-                        required
+                        {action}
                     </Box>
                 ) : null}
             </Box>
@@ -704,6 +739,123 @@ export const Field = ({ label, required, hint, error, htmlFor, children }) => (
             </Box>
         ) : hint ? (
             <Box sx={{ fontSize: "11.5px", color: cc.mute }}>{hint}</Box>
+        ) : null}
+    </Box>
+);
+
+/**
+ * A filter that lives on a field's label row (pass it as `<Field action={…}>`).
+ *
+ * Sized to the label, not to a control: 16px tall, borderless and mute, so a
+ * long option list gains a way to be narrowed without the form growing a
+ * second thing to look at. It only draws attention once it holds a value —
+ * that is when the list below is short for a reason worth explaining.
+ */
+export const InlineSearch = ({
+    value,
+    onChange,
+    onClear,
+    placeholder = "Search",
+    ariaLabel,
+    disabled,
+    width = 104,
+    sx,
+    ...rest
+}) => (
+    <Box
+        sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            height: "16px",
+            color: cc.mute,
+            opacity: value ? 1 : 0.62,
+            transition: "opacity 200ms, color 200ms",
+            "&:hover": { opacity: 1 },
+            "&:focus-within": { opacity: 1, color: cc.ink },
+            ...sx,
+        }}
+    >
+        <Box
+            component="svg"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            focusable="false"
+            sx={{ width: "11px", height: "11px", flex: "none" }}
+        >
+            <circle
+                cx="7"
+                cy="7"
+                r="4.25"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+            />
+            <path
+                d="M10.2 10.2 L13.6 13.6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+            />
+        </Box>
+        <Box
+            component="input"
+            type="text"
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            placeholder={placeholder}
+            aria-label={ariaLabel || placeholder}
+            autoComplete="off"
+            spellCheck="false"
+            sx={{
+                width: `${width}px`,
+                maxWidth: "100%",
+                height: "16px",
+                padding: 0,
+                border: 0,
+                borderBottom: "1px solid transparent",
+                background: "transparent",
+                color: "inherit",
+                fontFamily: "inherit",
+                fontSize: "11.5px",
+                fontWeight: 650,
+                lineHeight: "16px",
+                transition: "border-color 200ms",
+                "&::placeholder": { color: "inherit", opacity: 1 },
+                "&:focus": { outline: 0, borderBottomColor: cc.line },
+                "&:disabled": { cursor: "default" },
+            }}
+            {...rest}
+        />
+        {value && onClear ? (
+            <Box
+                component="button"
+                type="button"
+                onClick={onClear}
+                aria-label="Clear search"
+                sx={{
+                    flex: "none",
+                    width: "14px",
+                    height: "14px",
+                    display: "grid",
+                    placeItems: "center",
+                    padding: 0,
+                    border: 0,
+                    borderRadius: "99px",
+                    background: "transparent",
+                    color: "inherit",
+                    fontFamily: "inherit",
+                    fontSize: "12px",
+                    lineHeight: 1,
+                    cursor: "pointer",
+                    [HOVER]: { "&:hover": { color: cc.red } },
+                    "&:focus-visible": focusRing,
+                }}
+            >
+                ×
+            </Box>
         ) : null}
     </Box>
 );

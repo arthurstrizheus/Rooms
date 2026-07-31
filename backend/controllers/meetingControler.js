@@ -24,6 +24,8 @@ const {
     getYear,
     getMonth,
     getTime,
+    format,
+    isSameDay,
 } = require("date-fns");
 const { isUserDev } = require("../functions/utilities");
 // Email notifications
@@ -183,6 +185,64 @@ async function CanSeeMeet(meeting, user) {
     return roomIds.includes(meeting.room);
 }
 
+/**
+ * Where and when a meeting sits, in one human line — "CR 2 on Tue, Jul 28,
+ * 2026 from 9:00 AM to 10:00 AM". The 409s below paste this into their message
+ * so whoever hit the conflict is told which booking is in the way instead of
+ * having to hunt the calendar for it.
+ *
+ * Deliberately no meeting name: the room and the time are what the booker
+ * needs, and the title of a meeting they may not be allowed to see is not.
+ */
+const CONFLICT_DAY_FORMAT = "EEE, MMM d, yyyy";
+const CONFLICT_TIME_FORMAT = "h:mm a";
+
+async function describeConflict(conflict) {
+    if (!conflict) return "";
+
+    const roomRow = conflict.room ? await Room.findByPk(conflict.room) : null;
+    const roomName = roomRow?.value || "another room";
+
+    const start = new Date(conflict.start_time);
+    const end = new Date(conflict.end_time);
+    // A generated occurrence carries whatever its parent had; a malformed row
+    // would otherwise render "Invalid Date" straight into the snackbar.
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return roomName;
+
+    if (conflict.all_day) {
+        return `${roomName}, all day on ${format(start, CONFLICT_DAY_FORMAT)}`;
+    }
+    if (isSameDay(start, end)) {
+        return `${roomName} on ${format(start, CONFLICT_DAY_FORMAT)} from ${format(
+            start,
+            CONFLICT_TIME_FORMAT,
+        )} to ${format(end, CONFLICT_TIME_FORMAT)}`;
+    }
+    return `${roomName} from ${format(start, CONFLICT_DAY_FORMAT)} ${format(
+        start,
+        CONFLICT_TIME_FORMAT,
+    )} to ${format(end, CONFLICT_DAY_FORMAT)} ${format(
+        end,
+        CONFLICT_TIME_FORMAT,
+    )}`;
+}
+
+/** Build the 409 body for a booking that collides with `conflict`. */
+async function overlapResponse(conflict, extra) {
+    const where = await describeConflict(conflict);
+    return {
+        message: where
+            ? `Meeting time overlaps with an existing meeting in ${where}`
+            : "Meeting time overlaps with an existing meeting",
+        ...extra,
+    };
+}
+
+/**
+ * The overlap checks below return the CONFLICTING MEETING (or null) rather than
+ * a boolean, so callers can describe it. Every call site uses the result as a
+ * truthiness test, which an object satisfies exactly as `true` did.
+ */
 async function isOverlapping(meet) {
     // Fetch meetings in the same room
     const meetings = await Meeting.findAll({
@@ -197,8 +257,8 @@ async function isOverlapping(meet) {
     const newStartTime = new Date(meet.start_time);
     const newEndTime = new Date(meet.end_time);
 
-    // Check for overlapping meetings
-    const isOverlapping = meetings.some((meeting) => {
+    // Find the first overlapping meeting
+    const overlap = meetings.find((meeting) => {
         const meetingStart = new Date(meeting.start_time);
         const meetingEnd = new Date(meeting.end_time);
 
@@ -206,7 +266,7 @@ async function isOverlapping(meet) {
         return newStartTime < meetingEnd && newEndTime > meetingStart;
     });
 
-    return isOverlapping; // Return true if overlap is found, false otherwise
+    return overlap || null; // The meeting in the way, or null if the slot is free
 }
 
 async function isOverlappingFakeMeet(meet) {
@@ -220,8 +280,8 @@ async function isOverlappingFakeMeet(meet) {
     const newStartTime = new Date(meet.start_time);
     const newEndTime = new Date(meet.end_time);
 
-    // Check for overlapping meetings
-    const isOverlapping = meetings.some((meeting) => {
+    // Find the first overlapping meeting
+    const overlap = meetings.find((meeting) => {
         const meetingStart = new Date(meeting.start_time);
         const meetingEnd = new Date(meeting.end_time);
 
@@ -233,7 +293,7 @@ async function isOverlappingFakeMeet(meet) {
         );
     });
 
-    return isOverlapping; // Return true if overlap is found, false otherwise
+    return overlap || null; // The meeting in the way, or null if the slot is free
 }
 
 /**
@@ -280,8 +340,8 @@ async function isOverlappingFakeMeetUpdate(meet) {
     const newStartTime = new Date(meet.start_time);
     const newEndTime = new Date(meet.end_time);
 
-    // Check for overlapping meetings
-    const isOverlapping = meetings.some((meeting) => {
+    // Find the first overlapping meeting
+    const overlap = meetings.find((meeting) => {
         const meetingStart = new Date(meeting.start_time);
         const meetingEnd = new Date(meeting.end_time);
 
@@ -293,7 +353,7 @@ async function isOverlappingFakeMeetUpdate(meet) {
         return isOverlap;
     });
 
-    return isOverlapping; // Return true if overlap is found, false otherwise
+    return overlap || null; // The meeting in the way, or null if the slot is free
 }
 
 /**
@@ -1694,8 +1754,9 @@ const CanBook = async (req, res) => {
         meetings?.map((mt) => allMeetsWithRecurrance.push(mt));
         fakeMeets?.map((fm) => allMeetsWithRecurrance.push(fm));
 
-        // Check for overlapping meetings
-        let isOverlapping = allMeetsWithRecurrance.some((meeting) => {
+        // Check for overlapping meetings. `conflict` holds the meeting that is
+        // in the way so the 409 can name its room and time.
+        let conflict = allMeetsWithRecurrance.find((meeting) => {
             const meetingStart = new Date(meeting.start_time);
             const meetingEnd = new Date(meeting.end_time);
             let overlaping = false;
@@ -1728,7 +1789,7 @@ const CanBook = async (req, res) => {
             return overlaping;
         });
 
-        if (!isOverlapping && repeats != "") {
+        if (!conflict && repeats != "") {
             const meeting = {
                 start_time,
                 end_time,
@@ -1747,7 +1808,7 @@ const CanBook = async (req, res) => {
             // recurrence in the recurrence table and we need a separate funtion to determain if it will overlap anything
             const fakeMeets2 =
                 await CreateRepeatingMeetingsOfThisMeeting(meeting);
-            isOverlapping = fakeMeets2.some((meeting) => {
+            conflict = fakeMeets2.find((meeting) => {
                 const meetingStart = new Date(meeting.start_time);
                 const meetingEnd = new Date(meeting.end_time);
 
@@ -1781,8 +1842,8 @@ const CanBook = async (req, res) => {
         }
 
         const blockedDates = await BlockedDate.findAll();
-        if (!isOverlapping) {
-            isOverlapping = blockedDates.some((meeting) => {
+        if (!conflict) {
+            const blockedConflict = blockedDates.find((meeting) => {
                 const meetingStart = new Date(meeting.start_time);
                 const meetingEnd = new Date(meeting.end_time);
                 // Check if the new meeting overlaps with an blocked dates.
@@ -1802,7 +1863,7 @@ const CanBook = async (req, res) => {
                                 getMonth(newEndTime) == getMonth(meetingEnd))))
                 );
             });
-            if (isOverlapping) {
+            if (blockedConflict) {
                 return res.status(409).json({
                     message:
                         "Meeting time overlaps with a blocked section of time",
@@ -1812,8 +1873,8 @@ const CanBook = async (req, res) => {
         }
 
         // Check if its overlaping any standard meetings.
-        if (!isOverlapping) {
-            isOverlapping = meetings.some((meeting) => {
+        if (!conflict) {
+            conflict = meetings.find((meeting) => {
                 const meetingStart = new Date(meeting.start_time);
                 const meetingEnd = new Date(meeting.end_time);
                 let overlaping = false;
@@ -1850,12 +1911,12 @@ const CanBook = async (req, res) => {
             });
         }
 
-        // If there is an overlapping meeting, return a conflict message
-        if (isOverlapping) {
-            return res.status(409).json({
-                message: "Meeting time overlaps with an existing meeting",
-                book: false,
-            });
+        // If there is an overlapping meeting, return a conflict message naming
+        // the room and time of the booking that is in the way.
+        if (conflict) {
+            return res
+                .status(409)
+                .json(await overlapResponse(conflict, { book: false }));
         }
         // If does not have access to book in that room, return a conflict message
         const canUserBook = await CanUserBook(room, userId);
@@ -2450,10 +2511,9 @@ const UpdateAllRecurrence = async (req, res) => {
         for (const fm of fakeMeets) {
             const overlap = await isOverlappingFakeMeetUpdate(fm);
             if (overlap) {
-                return res.status(409).json({
-                    message: "Meeting time overlaps with an existing meeting",
-                    update: false,
-                });
+                return res
+                    .status(409)
+                    .json(await overlapResponse(overlap, { update: false }));
             }
         }
 
@@ -2578,10 +2638,9 @@ const UpdateAllNextInRecurrence = async (req, res) => {
         for (const fm of fakeMeets) {
             const overlap = await isOverlappingFakeMeetUpdate(fm);
             if (overlap) {
-                return res.status(409).json({
-                    message: "Meeting time overlaps with an existing meeting",
-                    update: false,
-                });
+                return res
+                    .status(409)
+                    .json(await overlapResponse(overlap, { update: false }));
             }
         }
 
@@ -2724,10 +2783,13 @@ const UpdateCurrentInRecurrence = async (req, res) => {
         const overlapFakeMeet = await isOverlappingFakeMeet(meeting);
         const overlapMeeting = await isOverlapping(meeting);
         if (overlapFakeMeet || overlapMeeting) {
-            return res.status(409).json({
-                message: "Meeting time overlaps with an existing meeting",
-                update: false,
-            });
+            return res
+                .status(409)
+                .json(
+                    await overlapResponse(overlapFakeMeet || overlapMeeting, {
+                        update: false,
+                    }),
+                );
         }
 
         // Update the meeting the user wants to move

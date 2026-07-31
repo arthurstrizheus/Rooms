@@ -382,3 +382,82 @@ source, not from a browser.**
   until those pages are done.
 - The autocomplete paper uses MUI's deprecated `componentsProps`. Fine on
   5.16.x, will need `slotProps` before a v6/v7 upgrade.
+
+---
+
+## 2026-07-30 — Overlap errors now name the conflicting booking; inline room filter
+
+### 1. "Meeting time overlaps with an existing meeting" said nothing useful
+
+The 409 the booking form surfaces on a conflict was a fixed string, so the
+person who hit it had no way to tell *which* booking was in the way — they had
+to go hunt the calendar for it.
+
+The four overlap 409s (`CanBook`, `UpdateAllRecurrence`,
+`UpdateAllNextInRecurrence`, `UpdateCurrentInRecurrence` in
+`backend/controllers/meetingControler.js`) now report the room and the time of
+the meeting they collided with:
+
+```
+Meeting time overlaps with an existing meeting in CR 2 on Tue, Jul 28, 2026 from 9:00 AM to 10:30 AM
+Meeting time overlaps with an existing meeting in Bay 2 (EE/Fire), all day on Tue, Jul 28, 2026
+Meeting time overlaps with an existing meeting in CR 2 from Tue, Jul 28, 2026 9:00 AM to Wed, Jul 29, 2026 10:30 AM   (multi-day)
+```
+
+How it was done:
+
+- `isOverlapping`, `isOverlappingFakeMeet` and `isOverlappingFakeMeetUpdate`
+  changed from `.some()` → `.find() || null`, so they return **the conflicting
+  meeting** instead of a boolean. Every call site already used the result as a
+  truthiness test, so an object behaves exactly as `true` did. Callers that only
+  wanted a yes/no are unaffected.
+- `CanBook`'s local `let isOverlapping` became `let conflict`, with the three
+  `.some()` scans rewritten as `.find()`. The blocked-date scan kept its own
+  local (`blockedConflict`) so the existing precedence is preserved: a meeting
+  conflict found earlier still short-circuits the blocked-date check and still
+  produces the meeting message.
+- New helpers `describeConflict(conflict)` (room name via `Room.findByPk`, plus
+  a date-fns-formatted time range, all-day and multi-day cases handled) and
+  `overlapResponse(conflict, extra)` (builds the 409 body). `format` and
+  `isSameDay` added to the backend date-fns import.
+- **The conflicting meeting's *name* is deliberately not included.** The room
+  and time are what the booker needs; the title of a meeting they may not be
+  permitted to see is not, and the overlap scans do not run the `CanSeeMeet`
+  chain.
+- Times are formatted with the **server's** local timezone. Single-site app, so
+  server and clients agree; if that ever stops being true this is the line that
+  breaks and the fix is to return the conflict as structured data and format it
+  on the client.
+
+`overlapsFakeMeetCandidates` (the in-memory twin used by the listing hot path)
+still returns a boolean — nothing there reports a message.
+
+### 2. Inline room search on the booking form
+
+The room list is a scrolling `OptionList` and has grown past what fits, so
+finding a room meant scrolling it. Added a filter that lives **on the label
+row**, not as another control in the form:
+
+- `Field` (`ConcourseDialogKit.jsx`) takes an optional `action` node, rendered
+  at the end of the label row. It sits *outside* the `<label>` element so
+  clicking it does not forward focus to the field's own control. With no
+  `action` the markup renders identically to before.
+- New `InlineSearch` export: 16px tall (the height of the label text and the
+  `REQUIRED` chip), 11.5px type, borderless, `cc.mute` at 0.62 opacity until
+  hovered or focused. It only grows a bottom rule on focus and only shows its
+  clear button once it holds a value.
+- `MeetingForum.jsx` filters on `${room.value} ${roomMeta(room)}` lowercased, so
+  the office alias, capacity and resource names in the row's own meta line are
+  all searchable ("columbus", "projector", …). A selected room that filters out
+  **stays selected** — the `RoomCard` below the list still names it — and the
+  query resets in `clearOnClose`.
+
+### Verified vs. reasoned
+
+- **Verified:** `node --check` on the controller; the date-fns v4 format strings
+  were run and produce `Tue, Jul 28, 2026` / `9:00 AM`; `react-scripts build`
+  compiles (warnings are the repo's pre-existing `eqeqeq` / exhaustive-deps
+  noise, none in the new code).
+- **Not verified in a browser:** the message text as it appears in the snackbar,
+  and the search control's rendered size against the label. Neither was run
+  against a live database.
