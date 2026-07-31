@@ -13,6 +13,7 @@ import AppRoutes from "./Routes/Routes";
 import Drawer from "@mui/material/Drawer";
 import { isMobile } from "react-device-detect";
 import { SocketProvider } from "./Contexts/SocketContext";
+import ClippyAssistant from "./Views/Components/Clippy/ClippyAssistant";
 import {
     bp,
     concourseGlobalStyles,
@@ -321,6 +322,14 @@ function App() {
                                 </Box>
                             </Box>
                         </Box>
+
+                        {/* Watches for rage-clicking anywhere in the app and
+                            offers to raise an IT ticket. Portals its own UI to
+                            body, so it renders nothing here and cares only that
+                            it is inside SnackbarProvider. Signed-in only —
+                            there is no ticket to file for someone we cannot
+                            name, and the login page has its own error copy. */}
+                        {isAuthenticated && <ClippyAssistant user={user} />}
                     </SocketProvider>
                 </SnackbarProvider>
             </ThemeProvider>

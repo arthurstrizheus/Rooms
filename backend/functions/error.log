@@ -1,0 +1,14 @@
+
+[2026-07-31T14:48:30.285Z] ERROR:
+  Message: The COMMIT TRANSACTION request has no corresponding BEGIN TRANSACTION.
+  Stack: Error
+    at Query.run (C:\Code\Rooms\backend\node_modules\sequelize\lib\dialects\mssql\query.js:107:25)
+    at C:\Code\Rooms\backend\node_modules\sequelize\lib\sequelize.js:315:28
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async MSSqlQueryInterface.commitTransaction (C:\Code\Rooms\backend\node_modules\sequelize\lib\dialects\abstract\query-interface.js:550:12)
+    at async Transaction.commit (C:\Code\Rooms\backend\node_modules\sequelize\lib\transaction.js:44:7)
+    at async ClippyBadge.findOrCreate (C:\Code\Rooms\backend\node_modules\sequelize\lib\model.js:1456:9)
+    at async awardBadgeForClicks (C:\Code\Rooms\backend\controllers\clippyBadges.js:118:35)
+    at async PostClippyTicket (C:\Code\Rooms\backend\controllers\supportController.js:114:26)
+  Code: N/A
+----------------------------------------

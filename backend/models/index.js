@@ -12,6 +12,7 @@ const Office = require("./office");
 const User = require("./user");
 const MeetingRecurrence = require("./meetingRecurrence");
 const SpecialPermission = require("./specialPermission");
+const ClippyBadge = require("./clippyBadge");
 
 const initModels = () => {
     // Define associations here if needed
@@ -124,6 +125,15 @@ const initModels = () => {
         foreignKey: "meeting_id",
         onDelete: "CASCADE",
     });
+
+    User.hasMany(ClippyBadge, {
+        foreignKey: "user_id",
+        onDelete: "CASCADE",
+    });
+    ClippyBadge.belongsTo(User, {
+        foreignKey: "user_id",
+        onDelete: "CASCADE",
+    });
 };
 
 module.exports = {
@@ -141,5 +151,6 @@ module.exports = {
     User,
     MeetingRecurrence,
     SpecialPermission,
+    ClippyBadge,
     initModels,
 };

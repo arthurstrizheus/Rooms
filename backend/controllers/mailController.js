@@ -448,9 +448,14 @@ const sendMeetingApprovalRequestEmail = async (meeting, recipientEmail) => {
  * @param {string|string[]} [params.bcc]
  * @param {Array} [params.attachments] - Nodemailer attachments array.
  * @param {string} [params.from] - Override from (defaults to noreply@sealimited.com)
+ * @param {string} [params.replyTo] - Where a reply should go. Needed by anything
+ *   sent FROM the app ON BEHALF OF a user — support tickets, in particular —
+ *   since `from` stays the noreply mailbox. Survives `applyEmailOverride`, which
+ *   spreads the options it is handed.
  */
 const sendGenericEmail = async (params = {}) => {
-    const { to, subject, html, text, cc, bcc, attachments, from } = params;
+    const { to, subject, html, text, cc, bcc, attachments, from, replyTo } =
+        params;
     if (!to || !subject || (!html && !text)) {
         console.error(
             "Missing required fields: to, subject, and one of html/text"
@@ -469,6 +474,7 @@ const sendGenericEmail = async (params = {}) => {
                 cc,
                 bcc,
                 attachments,
+                replyTo,
             })
         );
         console.log(`Generic email sent to ${to}: ${info.messageId}`);

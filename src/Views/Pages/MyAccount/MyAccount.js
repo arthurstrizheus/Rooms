@@ -14,6 +14,7 @@ import { useAuth } from "../../../Utilites/AuthContext";
 import { openSnackbar } from "../../../Utilites/SnackbarContext";
 import { Box, MenuItem } from "@mui/material";
 import DisplayGroups from "../../Components/DisplayGroups";
+import ClippyBadgeCase from "../../Components/Clippy/ClippyBadgeCase";
 import {
     GetLocations,
     GetUserGroups,
@@ -532,6 +533,10 @@ const MyAccount = ({ setLoading }) => {
                     </Box>
                 </Box>
             </Box>
+
+            {/* Its own card below the form — a separate concern with its own
+                fetch, and nothing in it belongs inside the account <form>. */}
+            <ClippyBadgeCase />
         </Box>
     );
 };

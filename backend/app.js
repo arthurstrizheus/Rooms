@@ -22,6 +22,7 @@ const {
     User,
     MeetingRecurrence,
     SpecialPermission,
+    ClippyBadge,
 } = require("./models");
 const { authenticateUser } = require("./middleware/auth");
 const connectedUsersRoutes = require("./routes/connectedUsers");
@@ -42,6 +43,7 @@ const specialPermissionsRouter = require("./routes/specialPermissions");
 const recurrenceRouter = require("./routes/meetingrecurrences");
 const matterManagerRoutes = require("./routes/matterManagerRoutes");
 const zscalerRouter = require("./routes/zscaler");
+const supportRouter = require("./routes/support");
 const errorHandler = require("./middleware/errorHandler");
 const {
     initMatterManagerScheduler,
@@ -98,6 +100,9 @@ app.use("/api/locations", officeRouter);
 app.use("/api/recurrences", recurrenceRouter);
 app.use("/api/specialpermissions", specialPermissionsRouter);
 app.use("/api/zscaler", zscalerRouter);
+// Not in `publicRoutes` (middleware/auth.js) — deliberately. A ticket has to
+// carry a real identity, so this one stays behind the JWT.
+app.use("/api/support", supportRouter);
 
 // Initialize WebSocket handlers
 handleSocketConnection(io);
@@ -122,6 +127,7 @@ const startServer = async () => {
             "User",
             "MeetingRecurrence",
             "SpecialPermission",
+            "ClippyBadge",
         ];
         // Debugging to identify undefined models
         const modelsToSync = [
@@ -137,6 +143,7 @@ const startServer = async () => {
             User,
             MeetingRecurrence,
             SpecialPermission,
+            ClippyBadge,
             // Add more models if needed
         ];
 

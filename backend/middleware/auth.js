@@ -9,6 +9,12 @@ const publicRoutes = [
     "/api/locations",
     "/api/mattermanager/full",
     "/api/zscaler",
+    // Clippy badge artwork. Embedded in support-ticket emails, so the fetcher is
+    // a mail client or Gmail's image proxy — neither has a JWT. Serves one of
+    // twelve fixed PNGs of a paperclip and nothing else; no personal data, and
+    // an unknown key 404s. NOTE: this prefix must not shadow `/api/support/clippy`
+    // or `/api/support/badges`, which is why it is the longer `/badge/` path.
+    "/api/support/badge/",
     // Add more public routes as needed
 ];
 

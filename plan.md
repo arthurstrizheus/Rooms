@@ -1496,3 +1496,236 @@ that is a migration, not a line in this function.
 **Verified:** `node --check` on the controller, `npx react-scripts build` with no
 new warnings. **Not verified:** none of this has been run against a database or
 seen in a browser.
+
+---
+
+## 2026-07-31 — Clippy: rage-click detection → IT support ticket, with badges
+
+Branch: `Work`
+
+### What was asked for
+
+An animated easter egg. Refined over the course of the work into: when someone
+clicks rapidly and repeatedly (i.e. something is not working), Clippy appears,
+asks if they need help, offers a button to contact IT and a form to fill in. The
+click count is tracked, shown live, and carried into the ticket. Different Clippy
+variants are earned as badges at different click counts, stored permanently and
+shown on My Account.
+
+### Shape
+
+Frontend (`src/Views/Components/Clippy/`):
+
+| File | Role |
+| --- | --- |
+| `ClippyAssistant.jsx` | The state machine: `idle → offering → form → idle`. Mounted once in `App.js`, signed-in only. |
+| `ClippyBubble.jsx` | The corner panel. Portals to `document.body` at z-index **1350** — above MUI's modal layer (1300), below its snackbar (1400). |
+| `ClippySupportDialog.jsx` | The ticket form, built entirely from `ConcourseDialogKit` atoms. |
+| `ClippyFigure.jsx` | The animated SVG paperclip. **The swap point** for real ClippyJS. |
+| `ClippyBadgeCase.jsx` | The collection, rendered on My Account. |
+| `clippyBadges.js` | Badge catalogue — client mirror. Art + thresholds. |
+| `clippyCopy.js` | Every line Clippy says, in one place. |
+
+Supporting: `Utilites/Hooks/useRageClick.js` (detector + `useClickTally`),
+`Utilites/Hooks/useTypewriter.js`, `Utilites/Functions/ApiFunctions/SupportFunctions.js`.
+
+Backend: `controllers/supportController.js`, `controllers/clippyBadges.js`,
+`models/clippyBadge.js`, `routes/support.js`, mounted at `/api/support`
+(`POST /clippy`, `GET /badges`). `sendGenericEmail` gained an optional `replyTo`.
+
+### Decisions worth knowing
+
+- **Rage heuristic is count + time + place**: 6 presses inside 2000ms that all
+  land within 48px of the first. The *place* test is what stops it firing on
+  ordinary fast work — picking six rooms down a list moves the pointer, a broken
+  button does not. Bound on `pointerdown` in the **capture** phase on `window`,
+  so FullCalendar's drag layer calling `stopPropagation()` cannot hide a burst.
+- **There is no snooze.** An earlier version snoozed Clippy for 10 minutes after
+  a dismissal, which made "no thanks" mean "never again". The only guard is now
+  `phase === "idle"` — he returns every time, unless already up. The 22s timer
+  is reset by every click, so it only fires after real quiet.
+- **Badges award the single tier reached, not every tier below it.** Collecting
+  the set therefore requires separate small and large tantrums. 12 tiers:
+  6 / 12 / 20 / 32 / 50 / 75 / 110 / 160 / 250 / 400 / 650 / 1000.
+- **The catalogue is deliberately duplicated** across `backend/controllers/
+  clippyBadges.js` (authoritative for awards) and `src/…/clippyBadges.js` (art +
+  live variant switching). Two independent deciders need two copies, and CRA
+  refuses imports from outside `src/`. **Both must move together.**
+- **The badge card is hidden until something is earned** — including on a failed
+  read. An error card would advertise the easter egg to exactly the people who
+  have not found it.
+- **The next badge is never named or counted down to.** A visible ladder turns
+  an easter egg into a chore.
+- **No contact field.** The reply address is taken from the JWT (`req.user.email`),
+  never from the request body — one less typo and nothing to spoof. It is
+  *shown* in the diagnostics block so the user can see it before sending.
+- **Diagnostics are shown, not hidden.** Page, browser, window size, click count
+  and identity all appear in the form before the user presses send.
+- **Reduced motion** is handled globally in CSS by `concourseGlobalStyles`, but
+  `useTypewriter` checks `matchMedia` itself — a `setTimeout` chain is invisible
+  to CSS, and text crawling out character by character is exactly what a user
+  who asked for less motion does not want.
+
+### ClippyJS research (why the figure is hand-drawn)
+
+`clippyjs` (pi0/clippyjs) v0.1.0, published 2026-02-17, MIT, zero runtime deps
+(older versions needed jQuery ^3.2.1). Real Office sprites, good API. Rejected
+for now because: **~16.6MB unpacked / 68 files**; **ESM-only** (`dist/index.mjs`)
+against CRA 5, whose webpack has known `fullySpecified` trouble with `.mjs`;
+assets resolve from **jsDelivr at runtime** and this app sits behind a proxy
+(cf. `backend/routes/zscaler.js`), so they would need self-hosting in `public/`;
+and the sprites are **fixed-palette art** that cannot theme to dark mode or
+recolour into 12 badge finishes. `ClippyFigure.jsx` is isolated behind
+`size` / `art` / `locked` props and carries swap notes at the bottom of the file.
+
+### Verified
+
+- `npm run build` compiles; **zero warnings in any new file**. Bundle +~9KB gzip
+  total across all increments.
+- `node --check` on every new/edited backend file.
+- **Migration run against the real database** (`node backend/migrations/add-clippy-badges-table.js`),
+  then run a second time to confirm idempotency. Table and unique index created.
+- `ClippyBadge.findAll()` against the live table — model attributes match the
+  migrated schema.
+- Tier boundaries checked at every edge (5/6, 11/12, …, 999/1000, 5000).
+- The two badge catalogues diffed key-by-key: identical.
+
+### Not verified
+
+- **Nothing has been exercised in a browser.** The rage gesture, the typewriter
+  pacing, the badge re-skin, the bubble's z-index against a real open booking
+  dialog, and the My Account card have all been reasoned about, not seen.
+- **No email has been sent.** `sendGenericEmail` is ungated (unlike
+  `sendGroupNotificationEmail`, it does not check `SEND_EMAILS`), so the first
+  real submission will genuinely email `IT_SUPPORT_EMAIL || ithelp@sealimited.com`
+  unless `EMAIL_OVERRIDE` is on. **Set `IT_SUPPORT_EMAIL` before this ships.**
+- The per-user 60s throttle is in-process memory. Correct for a single node
+  process; a second process would allow one duplicate email.
+
+### Open follow-ups
+
+- Point `IT_SUPPORT_EMAIL` at the real inbox (currently defaults to
+  `ithelp@sealimited.com`).
+- Badges are awarded only when a ticket is actually sent. Someone who dismisses
+  Clippy earns nothing — deliberate, so badges cannot be farmed without IT
+  hearing about it, but worth revisiting if it feels stingy.
+- No ticket history is stored; the email is the only record. A table would be
+  the point to add if a queue or audit view is ever wanted.
+
+### 2026-07-31 (same day) — follow-up: badge writes were failing silently
+
+**Reported:** `Failed to award Clippy badge: … The COMMIT TRANSACTION request has
+no corresponding BEGIN TRANSACTION` on every ticket submission.
+
+**The transaction error was a decoy.** Reproduced with a plain
+`ClippyBadge.create()` outside any transaction and got the real error:
+
+```
+Conversion failed when converting date and/or time from character string.
+```
+
+**Root cause:** `add-clippy-badges-table.js` created `createdAt` / `updatedAt` as
+`DATETIME`. Sequelize's mssql dialect sends a date as
+`2026-07-31 10:48:06.123 +00:00` — with the offset — which SQL Server cannot
+convert to `DATETIME`. Every other `Rooms-*` table already uses `DATETIMEOFFSET`;
+this one did not. `findOrCreate` wraps its insert in a transaction, so when the
+insert failed the server aborted the transaction and Sequelize's subsequent
+`COMMIT` produced error 3902, which is what surfaced and hid the real cause.
+
+**Fixes:**
+
+1. Migration now creates `DATETIMEOFFSET`, **and** carries an idempotent
+   `ALTER COLUMN` block that repairs an already-created table. Run against the
+   real DB: `Converted createdAt: datetime -> datetimeoffset` (and `updatedAt`).
+2. `awardBadgeForClicks` no longer uses `findOrCreate` — find-then-create instead,
+   so the real error is never masked by a transaction abort. The unique index on
+   `(user_id, badge_key)` still makes the race safe: a concurrent insert loses
+   with `SequelizeUniqueConstraintError`, which is caught and read as "held".
+3. **It now returns `{ tier, status }` with status `new` / `held` / `failed` /
+   `none`.** It previously returned `null` for both "already held" and "write
+   failed", so a ticket sent while the write was broken told IT the badge was
+   *"(already held)"* — visible in the reported screenshot, and simply untrue.
+   The email now says "not saved — the badge write failed" when that is what
+   happened.
+
+**Also added:** the badge SVG now travels with the ticket
+(`backend/controllers/clippyBadgeSvg.js`), a static-string port of
+`ClippyFigure.jsx`. It is an **attachment**, not inline: Outlook renders mail
+through Word and drops `<svg>` outright, Gmail strips it too, and an `<img>`
+pointing at an SVG via `cid:` shows a broken icon in Outlook. The body carries a
+coloured swatch + name + flavour that always renders. If `sharp` is ever added,
+rasterising to PNG and switching to `cid:` would let it appear inline everywhere.
+
+Backend `TIERS` gained an `art` field mirroring the client's, with `cc.mute` and
+`cc.red` resolved to their light-scheme hex — an email has no `--cc-*` to read.
+
+**Verified this round:** migration run and re-run against the real DB; award path
+exercised end to end (`new` → `held` → personal best raised 14→18 → cleaned up);
+all 12 SVGs render well-formed; `npm run build` clean. Contact sheet at
+`scratchpad/clippy-badges.html` (light + dark) for eyeballing the drawings.
+
+**Still not verified:** the SVGs have not been rasterised or opened — they are
+well-formed and the geometry is a direct port, but no one has *looked* at them.
+No email has been sent.
+
+### 2026-07-31 (same day) — follow-up 2: cumulative badges, public-link art, twelve silhouettes
+
+Five changes, three of them reversing earlier decisions of mine that were wrong.
+
+**1. Badges are now CUMULATIVE.** `awardBadgesForClicks` awards every tier at or
+below the click count, not just the band reached. 26 clicks hands over Standard
+Issue + Bronze + Gold together. The old behaviour meant a big first tantrum
+skipped the small badges and left permanent holes that could only be filled by
+having a deliberately *smaller* tantrum later — backwards. Return shape is now
+`{ top, all, newly, status }`; the client congratulates on `newly` only.
+
+**2. My Account shows EARNED badges only.** No locked silhouettes, no "3 of 12",
+no names of tiers not yet reached. `ClippyFigure`'s `locked` prop is gone. The
+card still does not exist at all until the first badge lands.
+
+**3. The badge art is a real PNG behind a public URL, embedded with `<img>`.**
+`GET /api/support/badge/:key.png`, added to `publicRoutes` in `middleware/auth.js`
+— the fetcher is a mail client or Gmail's image proxy and has no JWT. Safe: the
+response is one of twelve fixed pictures of a paperclip, identical for every user,
+no personal data, unknown keys 404.
+
+`backend/controllers/clippyBadgeArt.js` rasterises and encodes **with zero
+dependencies** — Node's `zlib` plus a CRC32 table is a complete PNG encoder in
+~40 lines. Renders 156x282 with 2x2 supersampling, displayed at 78x141, cached
+per process (~1.3s for all twelve, once). Ruled out: inline `<svg>` (dropped by
+Outlook and Gmail), `cid:` (needs a raster; an SVG shows a broken icon in
+Outlook), `data:` URIs (blocked by both), and attachments (not embedded).
+
+**4. Twelve distinct silhouettes, not one clip in twelve colours.** This was the
+real complaint and colour alone never fixed it. Each tier now bends the wire
+differently — `plain`, `lean`, `tall`, `recline`, `squat`, `wavy`, `zigzag`,
+`kinked`, `spiral`, `melting`, `broken`, `unfurled` — and wears one of seven
+faces: `normal`, `spiral`, `wink`, `cross`, `wide`, `offset`, `serene`. Five
+shapes are the base clip under a rotate/scale about (32,50); seven rebuild the
+path. All keep the same topology, so they still read as paperclips. Accessories
+moved from *under* the wire to *on* it — behind it, the crown showed only its
+tips through the top curl and read as cat ears.
+
+**5. "Something else" free-text option** on "What were you trying to do?", capped
+at 80 characters client-side with a live counter. The server caps independently
+at 200 and `clean()` now strips control characters, because that text reaches the
+mail **Subject** header and a bare `slice()` left CRLF injection open.
+
+**Bug found and fixed during this round:** the glitch badge's chromatic ghosts
+were invisible. `wirePath` threaded `dx`/`dy` into the path builders, but only
+`basePath` used them — every rebuilt shape silently ignored the offset and drew
+its ghosts exactly under the wire. `glitch` uses `broken`, so it was the one
+badge affected. Offsetting is now done outside the builders (`translated()`),
+where a new shape cannot forget it.
+
+**Verified:** cumulative award exercised against the live DB (26 → standard+
+bronze+gold; re-run → nothing new; 60 → adds rainbow+void only; 3 → none; rows
+cleaned up). 12 distinct shapes / 7 distinct eye styles asserted. All twelve PNGs
+generated, valid signature, 1.8–4.3KB each. **The drawings were opened and looked
+at** — a real gap closed from the previous round. `npm run build` clean, no
+warnings in any new file. Contact sheet: `scratchpad/clippy-badges.html`.
+
+**Still not verified:** no email has been sent, so the `<img>` embedding has not
+been seen in a real Outlook or Gmail client. `PUBLIC_BASE_URL` defaults to
+`https://rooms.sealimited.com` — if that origin is not reachable from wherever
+mail is read, the images will not load. Nothing has been exercised in a browser.
