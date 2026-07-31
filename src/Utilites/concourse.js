@@ -200,7 +200,11 @@ export const layout = {
     hourRow: 44, // time-grid hour height (px)
     dayStart: 7, // H0 — first hour rendered
     dayEnd: 19, // H1 — last hour rendered
-    monthCellMinHeight: 104,
+    monthCellMinHeight: 104, // design target: C = 104 - 6 = 98 -> tier 2, which
+                             // needs 95, so 2 bubbles + "+N more" fit. Live use
+                             // is the loading skeleton only (index.jsx:410) —
+                             // the grid itself has no floor (frame minHeight 0,
+                             // and FC's cellMinHeight is null below 7 rows).
     monthEventsShown: 2, // then "+N more"  (mockup cap = 2)
     weekStartsOn: 0, // Sunday — matches WeekPicker + the FullCalendar grid
     timeStepMinutes: 15,
@@ -212,6 +216,94 @@ export const layout = {
         scope: 480, // editScope / cancelScope / dragScope
         popover: 310, // +N more
     },
+};
+
+/**
+ * MONTH CELL GEOMETRY — the single source of truth for the month grid's
+ * vertical budget. Consumed by CalendarStyled.jsx (the row tracks, the tiers)
+ * and RenderEventContent.jsx (the bubble recipe). They MUST NOT be duplicated:
+ * the bubble's rendered height IS the `thickness` FullCalendar measures back
+ * out of `querySegHeights`, so if the two files disagree a cell renders one
+ * tier's bubble inside another tier's budget and the fit arithmetic breaks.
+ *
+ * THE INVARIANT (proved in CalendarStyled.jsx's MONTH GRID comment):
+ *   maxCoord (FullCalendar's budget) = C - disc - gap
+ *   T (harness thickness)            = round(bubbleHeight + gap)
+ *   capacity for "2 bubbles + N more" requires  C >= 3T + disc + gap
+ * where C = the frame's CONTENT height = cell height - framePad (there is no
+ * padding-bottom), and C is exactly what `@container ccday (max-height:)` tests.
+ *
+ * `at` is the container-query threshold. Each is (3T + disc + gap) rounded up
+ * with a >=2px guard for sub-pixel row heights:
+ *   tier 0 (no query) needs 147, applies above 149
+ *   at 149 needs 122 | at 124 needs 95 | at 97 needs 80
+ */
+export const monthCell = {
+    // The 5px inter-card gutter is carried ENTIRELY as the <td>'s padding-top,
+    // so the <td>'s bottom edge coincides with the card's painted bottom edge —
+    // which is the level `computeMaxContentHeight` measures to.
+    gutter: 5,
+    halfGutter: 2.5, // <td> padding left/right; horizontal is never measured
+    framePad: 6, // frame padding: `6px 6px 0` — NO padding-bottom, ever
+
+    // Tier 0 (no container query). `bub`/`name`/`meta` are documentation of the
+    // recipe VARIANT.month already ships; they are what makes b = 35.725.
+    base: {
+        disc: 23,
+        discFont: 12,
+        gap: 4,
+        link: 10.5,
+        linkPad: "2px 8px",
+        bubPad: "4px 9px 5px 0",
+        name: "11.5px",
+        nameLh: 1.25,
+        meta: "9.5px",
+        metaLh: 1.3,
+    },
+
+    // Ordered widest -> narrowest. Emitted in this order so later blocks win
+    // on source order against the identical-specificity base rules.
+    tiers: [
+        {
+            at: 149,
+            disc: 20,
+            discFont: 11,
+            gap: 3,
+            link: 10,
+            linkPad: "1px 7px",
+            bubPad: "2px 7px 3px 0",
+            name: "10.5px",
+            nameLh: 1.25,
+            meta: "9px",
+            metaLh: 1.3,
+        },
+        {
+            at: 124,
+            disc: 18,
+            discFont: 10.5,
+            gap: 2,
+            link: 9.5,
+            linkPad: "0 6px",
+            bubPad: "1px 6px 1px 0",
+            name: "9.5px",
+            nameLh: 1.15,
+            meta: "9px",
+            metaLh: 1.15,
+        },
+        {
+            at: 97,
+            disc: 16,
+            discFont: 10,
+            gap: 1,
+            link: 9,
+            linkPad: "0 5px",
+            bubPad: "0 5px 0 0",
+            name: "9.5px",
+            nameLh: 1.1,
+            meta: "9px",
+            metaLh: 1.1,
+        },
+    ],
 };
 
 /** Breakpoints, in px, exactly as the mockup's container queries. */

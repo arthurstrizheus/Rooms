@@ -22,7 +22,12 @@
 //     `color-mix()` and the sx object stays static and cacheable.
 import Box from "@mui/material/Box";
 
-import { motion, tokens, type as ccType } from "../../../Utilites/concourse";
+import {
+    monthCell,
+    motion,
+    tokens,
+    type as ccType,
+} from "../../../Utilites/concourse";
 
 export const TYPE_COLOUR_FALLBACK = tokens.constant.typeFallback;
 
@@ -139,8 +144,14 @@ export const compactTime = (value) => {
 /* ----------------------------------------------------------------- recipe --*/
 
 // Per-variant geometry (§10.12). `month` is the base recipe.
+//
+// The month bubble's padding is `monthCell.base.bubPad`, not a literal: this
+// padding is part of the height FullCalendar measures back out of the bubble
+// and compares against the cell's budget, and the tier ladder narrows it from
+// the same table. A literal here would be a second place to edit and a silent
+// way to put one tier's bubble inside another tier's budget.
 const VARIANT = {
-    month: { borderRadius: "11px", padding: "4px 9px 5px 0" },
+    month: { borderRadius: "11px", padding: monthCell.base.bubPad },
     positioned: {
         borderRadius: "11px",
         padding: "4px 9px 5px 0",
@@ -254,31 +265,42 @@ const FIT_TIERS = {
 };
 
 // Month cells stop scrolling and start scaling (defect 5): `ccday` is
-// `.fc-daygrid-day-frame`, whose height is now a sixth of the grid. The bubble
+// `.fc-daygrid-day-frame`, whose height is a sixth of the grid. The bubble
 // shrinks with the cell instead of overflowing it. Same floors.
-// A size container reports its CONTENT box, so these thresholds are the cell
-// height MINUS its 12px of padding. 103 is where the full-size recipe stops
-// fitting (23px date + two 35.7px bubbles + margins = 102.4px of content); 86
-// is where the middle tier stops fitting (85.6px). Measured, not guessed.
-const MONTH_TIERS = {
-    "@container ccday (max-height: 103px)": {
-        padding: "2px 7px 3px 0",
-        "& .cc-bub-name": { fontSize: "10.5px" },
-        "& .cc-bub-meta": { fontSize: "9px" },
-    },
-    "@container ccday (max-height: 86px)": {
-        padding: "1px 6px 1px 0",
-        "& .cc-bub-name": { fontSize: NAME_MIN, lineHeight: 1.15 },
-        "& .cc-bub-meta": { fontSize: META_MIN, lineHeight: 1.15 },
-    },
-    // Last tier: type is already at the floor, so only the boxes tighten. This
-    // is what keeps a 6-row month whole on a short laptop screen.
-    "@container ccday (max-height: 68px)": {
-        padding: "0 5px 0 0",
-        "& .cc-bub-name": { fontSize: NAME_MIN, lineHeight: 1.1 },
-        "& .cc-bub-meta": { fontSize: META_MIN, lineHeight: 1.1 },
-    },
-};
+//
+// THE THRESHOLDS AND THE RECIPE BOTH COME FROM `monthCell.tiers` IN
+// concourse.js. They used to be hand-copied here and in CalendarStyled.jsx,
+// which is a standing invitation for the bubble's height and the cell's budget
+// to drift apart — and that drift is what overflowed. The height this file
+// produces IS the `thickness` FullCalendar reads back out of `querySegHeights`
+// and compares against `maxCoord`, so it is one half of the fit arithmetic:
+//   b = verticalPadding + name(fontSize x lineHeight) + meta(fontSize x lineHeight)
+//     = 35.725 / 29.825 / 23.275 / 20.35 px, tier 0 -> floor
+// A size container reports its CONTENT box, which is the cell height minus the
+// frame's 6px padding-TOP (there is no padding-bottom any more).
+//
+// EVERY MONTH BUBBLE MUST BE THE SAME HEIGHT. That is an invariant of the fit,
+// not a coincidence of the current design. FullCalendar keeps a force-hidden
+// entry in its level hierarchy while it packs (`findInsertion`), so a LATER,
+// SHORTER bubble can legally slot in below a hidden one — and the "+N more"
+// row, positioned from `leftoverMargins`, then lands below a level the budget
+// never accounted for and paints past the card floor. That is the original bug,
+// verbatim. Today the invariant holds because `eventDisplay="block"` sends every
+// segment through the same block renderer and both `.cc-bub-name` and
+// `.cc-bub-meta` are single `nowrap` lines with numeric line-heights. So: no
+// conditional third line, no dropping the meta line for all-day events, no
+// wrapping. If a month bubble ever needs a variable height, the fit has to be
+// re-derived from the TALLEST variant — do not just add the line.
+const MONTH_TIERS = Object.fromEntries(
+    monthCell.tiers.map((t) => [
+        `@container ccday (max-height: ${t.at}px)`,
+        {
+            padding: t.bubPad,
+            "& .cc-bub-name": { fontSize: t.name, lineHeight: t.nameLh },
+            "& .cc-bub-meta": { fontSize: t.meta, lineHeight: t.metaLh },
+        },
+    ])
+);
 
 const build = (variant, allDay, animate) => ({
     display: "flex",

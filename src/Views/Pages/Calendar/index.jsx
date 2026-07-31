@@ -64,7 +64,6 @@ import MeetingFourm from "./MeetingForum";
 import MeetingUpdateWarning from "./MeetingUpdateWarning";
 import {
     CheckPostMeeting,
-    UpdateAllMeetingsInRecurrence,
     UpdateAllNextMeetingsInRecurrence,
     UpdateCurrentOnlyMeeting,
     UpdateMeeting,
@@ -871,6 +870,8 @@ const Calendar = ({
     const [fetchError, setFetchError] = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
     const [morePopover, setMorePopover] = useState(null);
+    // Printing needs a DIFFERENT event cap — see the `views` prop below.
+    const [isPrinting, setIsPrinting] = useState(false);
     const [viewMode, setViewMode] = useState(
         String(defaultView || "").startsWith("list") ? "agenda" : "grid"
     );
@@ -1103,10 +1104,53 @@ const Calendar = ({
         return () => socket.off("message", handler);
     }, [socket, user?.id]);
 
+    /**
+     * THE MONTH GRID CANNOT USE ITS NORMAL EVENT CAP WHILE PRINTING.
+     *
+     * `dayMaxEvents: true` (the height-measured cap) only survives when
+     * `expandRows` is on, and `Table.render` throws the cap away entirely when
+     * it is not — `if (limitViaBalanced && !expandRows) { dayMaxEvents = null }`
+     * (@fullcalendar/daygrid internal.js:825-833). Printing is exactly that
+     * case: `isHeightAuto` is `forPrint || ...`, and `DayTableView` derives
+     * `expandRows: !isHeightAuto`. So on Ctrl+P every meeting in a day would be
+     * placed with no limit at all, in rows that cannot grow — the overflow this
+     * whole layout exists to prevent, arriving through the one door it does not
+     * cover.
+     *
+     * A NUMBER is immune: `limitViaBalanced` is false for a numeric cap, so the
+     * branch above never fires and `maxStackCnt` survives into print. Swapping
+     * to one for the duration is the whole fix. This mirrors how FullCalendar
+     * tracks printing itself (`handleBeforePrint`/`handleAfterPrint`), so it is
+     * as timely as the library's own print support.
+     */
+    useEffect(() => {
+        const before = () => setIsPrinting(true);
+        const after = () => setIsPrinting(false);
+        window.addEventListener("beforeprint", before);
+        window.addEventListener("afterprint", after);
+        return () => {
+            window.removeEventListener("beforeprint", before);
+            window.removeEventListener("afterprint", after);
+        };
+    }, []);
+
     /* ------------------------------------------------------- booking flow --*/
 
     const openBooking = useCallback(
         (start, end, allDay) => {
+            // Booking always wins over the month grid's pending day list, the
+            // same way opening a meeting does. The quick-add "+" sits inside a
+            // day cell and FullCalendar's `isValidDateDownEl` does not exclude
+            // it (only `.fc-event`, `.fc-more-link`, `a[data-navlink]` and
+            // `.fc-popover`), so a click on it fires `dateClick` too — which in
+            // the month grid has already queued the day list by the time this
+            // runs. Without this the user asks to book and gets the day list
+            // stacked on top of the form they asked for.
+            if (dateClickTimer.current) {
+                clearTimeout(dateClickTimer.current);
+                dateClickTimer.current = null;
+            }
+            setMorePopover(null);
             const calendarApi = calendarRef.current?.getApi();
             calendarApi?.unselect();
             const meet = { start, end, allDay, view: gridView };
@@ -1143,6 +1187,41 @@ const Calendar = ({
     }, [bookIntent, openBooking, openMeetingDialog]);
 
     /**
+     * Everything booked on one day, in time order, for the day list dialog. The
+     * same shape the "+N more" link produces, so one dialog serves both: that
+     * link passes the occurrences FullCalendar hid, this passes the whole day.
+     *
+     * The test is an overlap, not an equality, so an all-day or multi-day
+     * booking shows on every day it covers — an all-day event's `end` is
+     * exclusive, which `> dayStart` already handles.
+     *
+     * Re-opening the SAME day is a no-op rather than a fresh state object. A
+     * month click reaches this from both `select` and `dateClick`, and handing
+     * the dialog a new object would replay the staggered entrance of every
+     * bubble in it for the second call.
+     */
+    const openDayList = useCallback(
+        (date) => {
+            const dayStart = startOfDay(date);
+            const dayEnd = endOfDay(date);
+            const items = (events || [])
+                .filter((ev) => {
+                    const start = new Date(ev.start);
+                    if (isNaN(start.getTime())) return false;
+                    const end = ev.end ? new Date(ev.end) : start;
+                    return start <= dayEnd && end > dayStart;
+                })
+                .sort((a, b) => new Date(a.start) - new Date(b.start));
+            setMorePopover((prev) =>
+                prev && isSameDay(prev.date, dayStart)
+                    ? prev
+                    : { date: dayStart, items }
+            );
+        },
+        [events]
+    );
+
+    /**
      * FullCalendar's own drag-selection. This replaces the injected
      * `dayCellDidMount` click listener, which overrode `select` in timeGrid
      * views (the day column IS a day cell) and made every drag collapse to the
@@ -1157,6 +1236,22 @@ const Calendar = ({
             }
             const start = arg.start;
             let end = arg.end;
+            // A PLAIN CLICK ON A MONTH CELL ALSO ARRIVES HERE, as a selection
+            // of exactly that one day — FullCalendar raises `select` for it and
+            // not only for a dragged range. `dateClick` fires for the same
+            // click, so the two handlers have to agree on what a month click
+            // means or the user gets both dialogs: this one opened the booking
+            // form, and `dateClick`'s deferred day list then landed on top of
+            // it. One day means the day list (it carries its own "Book a room");
+            // two or more means the user drew a range and wants the form.
+            if (arg.view?.type === "dayGridMonth") {
+                const days = Math.round((end - start) / 86400000);
+                if (days <= 1) {
+                    calendarRef.current?.getApi()?.unselect();
+                    openDayList(start);
+                    return;
+                }
+            }
             if (!arg.allDay) {
                 const minutes = Math.round((end - start) / 60000);
                 if (minutes <= SLOT_MINUTES) {
@@ -1165,17 +1260,25 @@ const Calendar = ({
             }
             openBooking(start, end, arg.allDay);
         },
-        [openBooking]
+        [openBooking, openDayList]
     );
 
     /**
-     * Single click to book. FullCalendar fires `dateClick` before `select`, and
+     * Single click on a day. FullCalendar fires `dateClick` before `select`, and
      * `select` only fires when the pointer actually moved — so the open is
      * deferred by a tick and cancelled if a real selection follows. That makes
      * both paths deterministic instead of order-dependent.
+     *
+     * In the MONTH grid the click opens that day's list rather than the booking
+     * form: the cell is small, it can only show a couple of bookings, and going
+     * straight to the form hid what was already there. The list carries its own
+     * "Book a room". Everywhere else — the time grids, the agenda's day header
+     * — a click still books the slot it landed on, and dragging a range in the
+     * month grid still goes straight to the form.
      */
     const handleDateClick = useCallback(
         (arg) => {
+            const isMonthGridClick = arg.view?.type === "dayGridMonth";
             const start = arg.date;
             const allDay = Boolean(arg.allDay);
             const end = allDay
@@ -1184,10 +1287,14 @@ const Calendar = ({
             if (dateClickTimer.current) clearTimeout(dateClickTimer.current);
             dateClickTimer.current = setTimeout(() => {
                 dateClickTimer.current = null;
-                openBooking(start, end, allDay);
+                if (isMonthGridClick) {
+                    openDayList(start);
+                } else {
+                    openBooking(start, end, allDay);
+                }
             }, 0);
         },
-        [openBooking]
+        [openBooking, openDayList]
     );
 
     /**
@@ -1346,21 +1453,6 @@ const Calendar = ({
                     })
                     .catch((err) => {
                         console.log(err);
-                        setUpdateTrigger((prev) => prev + 1);
-                        showError("There was an error updating the meetings.");
-                    });
-            } else if (mode == "all" && user?.id) {
-                UpdateAllMeetingsInRecurrence(user?.id, updatedMeeting)
-                    .then((resp) => {
-                        if (resp) {
-                            showSuccess("Meeting has been updated");
-                        }
-                        setLoading(false);
-                        setUpdateTrigger((prev) => prev + 1);
-                    })
-                    .catch((err) => {
-                        console.log(err);
-                        setLoading(false);
                         setUpdateTrigger((prev) => prev + 1);
                         showError("There was an error updating the meetings.");
                     });
@@ -1546,18 +1638,17 @@ const Calendar = ({
 
     const handleMoreLinkClick = useCallback(
         (arg) => {
-            const items = (arg.allSegs || [])
-                .map((seg) =>
-                    events.find((ev) => String(ev.id) === String(seg.event.id))
-                )
-                .filter(Boolean);
-            setMorePopover({ date: arg.date, items });
+            // Built from the day, not from `arg.allSegs`: the link and a click
+            // on the cell itself then open the same list from the same source,
+            // and it cannot inherit FullCalendar's own idea of which segments
+            // belong to which cell.
+            openDayList(arg.date);
             // Truthy and not a view name => FullCalendar's own popover never
             // opens, which is why the MutationObserver that used to reposition
             // it is gone.
             return true;
         },
-        [events]
+        [openDayList]
     );
 
     /* ------------------------------------------------------------- render --*/
@@ -1701,9 +1792,11 @@ const Calendar = ({
                     // up to App.js's 100vh shell), so: the card fits the page,
                     // month rows expand to fill it — `DayTableView` derives its
                     // own `expandRows` from `!isHeightAuto`, and `cellMinHeight`
-                    // stays null below 7 rows so the 104px cell floor still
-                    // holds the two bubbles + "+N more" — and week/day get a
-                    // real internal scroller that `scrollTime` can place.
+                    // stays null below 7 rows, so a month row is exactly a
+                    // sixth of the card and nothing imposes a floor on it (the
+                    // @container tiers are what keep a short row usable) — and
+                    // week/day get a real internal scroller that `scrollTime`
+                    // can place.
                     height="100%"
                     expandRows={false}
                     rerenderDelay={10}
@@ -1711,10 +1804,60 @@ const Calendar = ({
                     initialView={gridView}
                     firstDay={layout.weekStartsOn}
                     fixedWeekCount
-                    // 2 bubbles then "+N more" (§10.11). `dayMaxEventRows`
-                    // counts the link as a row, so it is `dayMaxEvents` that
-                    // yields the two bubbles the 104px cell is built for.
+                    // The all-day rails in week/day view: a fixed cap, because
+                    // those rails are not height-constrained the way a month
+                    // cell is. The month grid overrides this — see `views`.
                     dayMaxEvents={layout.monthEventsShown}
+                    // THE MONTH GRID COUNTS BY HEIGHT, NOT BY EVENTS (§10.11).
+                    //
+                    // `true` is the ONLY value that consults cell height. A
+                    // NUMBER sets `maxStackCnt`, leaves `hiddenConsumes` false
+                    // and never even computes `maxContentHeight`
+                    // (`limitByContentHeight`, daygrid/internal.js:659) — so it
+                    // caps by count and reserves nothing for the link. `false`
+                    // removes FullCalendar's fit decision altogether and puts
+                    // the body in unbalanced mode. Neither is what we want.
+                    //
+                    // WHY IT NOW FITS EXACTLY. FullCalendar's only overflow
+                    // guard is `levelCoord + thickness <= maxCoord`
+                    // (core/internal-common.js:5843), where `maxCoord` is
+                    // `td.bottom - dayEvents.top` and `thickness` is the
+                    // harness's measured rect. Both edges are now the design's
+                    // own edges, in CalendarStyled.jsx:
+                    //   * the <td> has NO padding-bottom and the frame has NO
+                    //     padding-bottom, so `td.bottom` IS the card's painted
+                    //     bottom edge;
+                    //   * the card's bottom inset is a `margin-bottom` on
+                    //     `.fc-daygrid-event`, INSIDE the harness, so it is part
+                    //     of `thickness`.
+                    // Therefore every bubble ends exactly one gap above the card
+                    // floor, with zero residual, and the "+N more" row — whose
+                    // slot is freed by `hiddenConsumes` force-hiding one entry —
+                    // clears it by (harness height - link height), which is
+                    // 25.5 / 21 / 15.5 / 12px across the four tiers.
+                    //
+                    // `dayMaxEvents: true` needs `expandRows`, which the month
+                    // view derives for itself (`expandRows: !isHeightAuto` in
+                    // DayTableView, daygrid/internal.js:933) — the definite
+                    // `height="100%"` above is what makes that true, and it is
+                    // why the `expandRows={false}` prop does not reach this grid.
+                    //
+                    // There is NO cell floor: the frame is `minHeight: 0` and
+                    // FullCalendar's `cellMinHeight` is null below 7 rows. Two
+                    // bubbles + the link is delivered by the @container tier
+                    // ladder, whose thresholds are solved from that fit — see
+                    // `monthCell` in concourse.js.
+                    //
+                    // ...except while printing, where the measured cap is
+                    // discarded by the library and a numeric one is not. See
+                    // the `beforeprint` effect above.
+                    views={{
+                        dayGridMonth: {
+                            dayMaxEvents: isPrinting
+                                ? layout.monthEventsShown
+                                : true,
+                        },
+                    }}
                     eventDisplay="block"
                     headerToolbar={false}
                     nowIndicator
@@ -2103,13 +2246,24 @@ const Calendar = ({
                         </Box>
                         <Box
                             sx={{
-                                padding: "0 11px 13px",
+                                padding: "0 11px 3px",
                                 display: "grid",
                                 gap: "5px",
                                 maxHeight: "min(320px, 48vh)",
                                 overflowY: "auto",
                             }}
                         >
+                            {morePopover.items.length === 0 ? (
+                                <Box
+                                    sx={{
+                                        padding: "10px 4px 14px",
+                                        color: "var(--cc-mute)",
+                                        ...ccType.popCount,
+                                    }}
+                                >
+                                    Nothing booked on this day yet.
+                                </Box>
+                            ) : null}
                             {morePopover.items.map((ev, index) => {
                                 const props = ev.extendedProps || {};
                                 const fullRoomName =
@@ -2150,6 +2304,38 @@ const Calendar = ({
                                     />
                                 );
                             })}
+                        </Box>
+                        {/* The way out of the list and into a booking on the
+                            day it is showing. All-day range, same call the
+                            cell's quick-add "+" makes, so the form opens on
+                            that day and nowhere else. */}
+                        <Box
+                            sx={{
+                                display: "flex",
+                                padding: "0 15px 14px",
+                            }}
+                        >
+                            <Box
+                                component="button"
+                                type="button"
+                                onClick={() => {
+                                    const day = startOfDay(morePopover.date);
+                                    setMorePopover(null);
+                                    openBooking(
+                                        day,
+                                        new Date(
+                                            day.getTime() + 24 * 60 * 60 * 1000
+                                        ),
+                                        true
+                                    );
+                                }}
+                                sx={{ ...btnPrimary, width: "100%" }}
+                            >
+                                {`Book a room on ${format(
+                                    morePopover.date,
+                                    "MMM d"
+                                )}`}
+                            </Box>
                         </Box>
                     </>
                 )}

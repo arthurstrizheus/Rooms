@@ -97,17 +97,14 @@ const MeetingUpdateWarning = ({
                         desc={`Only ${movedDay} moves. The rest of the series stays where it is.`}
                         onClick={() => handleUpdate("current")}
                     />
+                    {/* A drag never reaches backwards. Moving meetings that
+                        already happened is a deliberate act, not a third
+                        button on this list. */}
                     <ScopeOption
                         glyph="→"
                         title="Move this and all following"
-                        desc={`${movedDay} and every later meeting in the series move.`}
+                        desc={`${movedDay} and every later meeting in the series move. Meetings already past stay where they are.`}
                         onClick={() => handleUpdate("next")}
-                    />
-                    <ScopeOption
-                        glyph="↻"
-                        title="Move the whole series"
-                        desc="Every meeting in the series moves, including the ones already past."
-                        onClick={() => handleUpdate("all")}
                     />
                 </ScopeList>
                 <Box sx={{ fontSize: "11.5px", color: cc.mute }}>

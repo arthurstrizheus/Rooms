@@ -177,11 +177,6 @@ const DisplayMeeting = ({
         setShowParentWarning(false);
         handleUpdateEvent();
     };
-    const handleEditALL = () => {
-        setUpdateMode("all");
-        setShowParentWarning(false);
-        handleUpdateEvent();
-    };
 
     /* --------------------------------------------------------- presentation --- */
 
@@ -296,17 +291,14 @@ const DisplayMeeting = ({
                                 desc={`Only ${shortDate} changes. The rest of the series is left alone.`}
                                 onClick={handleEditOnlyParent}
                             />
+                            {/* An edit never reaches backwards. Rewriting
+                                meetings that already happened is a deliberate
+                                act, not a third button on this list. */}
                             <ScopeOption
                                 glyph="→"
                                 title="This one and everything after"
-                                desc={`${shortDate} and every later meeting in the series change.`}
+                                desc={`${shortDate} and every later meeting in the series change. Meetings already past are left as they were.`}
                                 onClick={handleEditFollowingParent}
-                            />
-                            <ScopeOption
-                                glyph="↻"
-                                title="The whole series"
-                                desc="Every meeting in the series changes, past ones included."
-                                onClick={handleEditALL}
                             />
                         </ScopeList>
                     </DialogBody>

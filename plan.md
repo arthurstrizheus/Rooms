@@ -461,3 +461,513 @@ row**, not as another control in the form:
 - **Not verified in a browser:** the message text as it appears in the snackbar,
   and the search control's rendered size against the label. Neither was run
   against a live database.
+
+---
+
+## 2026-07-30 — Recurrence edits only run forward; month-cell "+N more" and hover flicker
+
+### 1. No more whole-series edits
+
+Editing or dragging a meeting in a recurrence offered three scopes: this one,
+this and following, and **the whole series (past included)**. The third one is
+gone from both scope dialogs — rewriting meetings that already happened is a
+deliberate act, not a third button on a list you land on by accident.
+
+Removed:
+
+- the `The whole series` / `Move the whole series` `ScopeOption`s
+  (`DisplayMeeting.js`, `MeetingUpdateWarning.js`) and `handleEditALL`;
+- the `case "all"` branch in `MeetingForum.jsx`'s submit switch and the
+  `mode == "all"` branch in `Calendar/index.jsx`'s drag handler;
+- `SCOPE_LABEL.all` (the "Applies to" fact in the form);
+- `UpdateAllMeetingsInRecurrence` from `MeetingFunctions.js`.
+
+The remaining series-wide scope ("this one and everything after") already only
+runs forward — `UpdateAllNextInRecurrence` generates occurrences from the edited
+occurrence's date, never from the parent's — so no backend change was needed to
+make "update all" mean "update forward". Both scope descriptions now say
+explicitly that past meetings are left alone.
+
+**`PUT /api/meetings/updateall/:userId` → `UpdateAllRecurrence` is still on the
+server and is now unreachable from the app.** It was left in place on purpose:
+the whole-series edit may come back behind a deliberate, admin-gated action, and
+it still requires `CanDelete` on the series. If it should go, it is the route in
+`backend/routes/meetings.js:13`, the controller, and its `module.exports` entry.
+
+This also removes the class of false conflict the user hit: the whole-series
+path fed `CreateRepeatingMeetingsOfThisMeeting(parent)` into
+`isOverlappingFakeMeetUpdate`, which excludes only meetings sharing the
+occurrence's `recurrence_id` — so a series whose parent row carries a different
+(or null) `recurrence_id` collided **with itself**, reporting a conflict a year
+in the past. The overlap warning itself is unchanged and still fires.
+
+### 2. Month cells: "+N more" sat at the top, over the first bubble
+
+`.fc-daygrid-day-bottom` is the last child of `.fc-daygrid-day-events`, and
+FullCalendar positions it with an **inline, measured `margin-top`**
+(`moreMarginTop`, computed in `computeFgSegPlacement`). That measurement is
+taken from `getBoundingClientRect()` on each event harness and knows nothing
+about the margins and `@container ccday` tiers this file adds, so the offset
+came out short and the link printed over the first bubble.
+
+Rather than try to match FullCalendar's arithmetic, the cell now owns the
+placement: `.fc-daygrid-day-frame` and `.fc-daygrid-day-events` are flex
+columns, day-events takes the slack (`flex: 1 1 auto`), and the link gets
+`margin-top: auto !important` (important to beat the inline style). It lands on
+the floor of the cell however many bubbles are above it. Harnesses got
+`flex-shrink: 0` so becoming flex items cannot squash them. The three container
+tiers that tightened the link's `margin-top` now tighten its `padding-top`
+instead — their `margin-top` values would have been dead.
+
+### 3. Hovering a day cell made bubbles blink, duplicate and the "+N more" spam
+
+**Root cause: `transform: scale(1.012)` on `.fc-daygrid-day-frame:hover`.**
+
+FullCalendar decides how many bubbles fit by measuring each
+`.fc-daygrid-event-harness` with `getBoundingClientRect()`
+(`TableRow.querySegHeights`, `@fullcalendar/daygrid/internal.js`), storing the
+result in state and re-rendering. A rect is reported **through any ancestor
+transform**, so hovering a cell reported every bubble in it ~1% taller. That
+flipped whether the last bubble fit, which changed `moreCnt`, which re-rendered,
+which re-measured — and the 250ms transition fed a slightly different number on
+every frame, so it never settled. The package even carries a comment about this
+class of oscillation ("HACK to prevent oscillations of events being
+shown/hidden from max-event-rows").
+
+The hover is now paint-only (`background` + `box-shadow`); measurement cannot
+see either. The bubble's own hover lift is untouched — it sits two levels below
+the harness, and a transform on a descendant does not change its ancestor's
+rect.
+
+### Verified vs. reasoned
+
+- **Verified:** `react-scripts build` compiles with no new warnings; the
+  measurement path was read in the installed `@fullcalendar/daygrid@6.x` source
+  rather than assumed.
+- **Not verified in a browser:** that the flicker is gone and that the link now
+  sits on the cell floor at every container tier. Both follow from the source
+  above, but neither was watched in the app.
+- The **cancel** scope dialog still offers "The whole series (past included)".
+  Untouched deliberately — the ask was about updating.
+
+---
+
+## 2026-07-30 — Month day click opens a day list; "+N more" placement reverted
+
+### Clicking a day cell now opens that day's list
+
+A click on a month cell went straight to the booking form, which threw away the
+one thing the user wanted to see first: what is already booked that day. The
+month grid can only show two bubbles, so the rest were invisible.
+
+`handleDateClick` now branches on `arg.view?.type === "dayGridMonth"` and opens
+the day list dialog instead. Everything else is unchanged:
+
+- time-grid clicks still book the slot they landed on;
+- the agenda's day header still books (it calls `handleDateClick` with a
+  synthetic arg that has no `view`, so it takes the booking branch);
+- dragging a range in the month grid still goes straight to the form — the
+  existing `dateClick`/`select` deferral is untouched and still cancels this;
+- the cell's quick-add "+" still books directly.
+
+The dialog is the existing "+N more" popover (SEAM 2), extended with a
+`Book a room on <date>` primary button and a "Nothing booked on this day yet."
+empty state. Its list is now built by a new `openDayList(date)` which filters
+`events` by **overlap** with the day (`start <= dayEnd && end > dayStart`), so
+all-day and multi-day bookings appear on every day they cover.
+
+`handleMoreLinkClick` was switched to call `openDayList(arg.date)` instead of
+mapping `arg.allSegs`, so the link and the cell open the same list from the same
+source.
+
+### The "+N more" flex placement from the previous entry is REVERTED
+
+Pinning the link to the floor of the cell with a flex column and
+`margin-top: auto` **hid it entirely**. Constraining `.fc-daygrid-day-events`
+gives its `overflow: hidden` teeth for the first time, and the bubbles above the
+link can already be taller than the cell — so the link was clipped out. It is
+back to FullCalendar's own measured `margin-top`, and the rule now carries a
+comment saying not to fight that measurement from CSS.
+
+The hover-transform fix from the previous entry STANDS — it is the measurement
+corruption itself, and it is the likeliest cause of the whole family of symptoms
+reported against the month grid:
+
+- the "+N more" link printing over the first bubble instead of below it,
+- bubbles from one cell painting over the cell below,
+- a "+N more" click opening a different day's list.
+
+All three are placement, and placement in `@fullcalendar/daygrid` comes from two
+`getBoundingClientRect()` caches: `segHeights` (`querySegHeights`, how tall each
+bubble is) and `framePositions` (a `PositionCache` over the day frames, which
+column an absolutely-positioned segment belongs to). A `scale()` on a hovered
+frame corrupts both, and the corrupted values live in React state until
+something forces a re-measure — which is why the damage outlasts the hover.
+
+**This is reasoned from the package source, NOT observed in a browser**, and it
+needs a hard reload to test (a hot reload leaves the bad measurements in state).
+If the month grid still misplaces bubbles after a clean load, the next thing to
+try is `dayMaxEvents={true}` with `expandRows`, i.e. FullCalendar's balanced
+mode, which computes how many bubbles fit the cell height and reserves room for
+the link instead of showing a fixed two and letting the overflow bleed. That is
+a real layout change and was not made blind.
+
+---
+
+## 2026-07-30 — Month grid: the overflow was the bug. Switched to balanced mode
+
+### What was actually wrong
+
+`dayMaxEvents={2}` — a NUMBER — tells FullCalendar "always show exactly two,
+then the link". It never looks at the cell. Two bubbles plus the link do not fit
+in a 104px cell, so the surplus **overflowed**, and nothing clips it:
+
+- the day frame must not clip (a row-spanning drag-selection `.fc-highlight`
+  lives inside it — see the comment there, and the earlier regression it
+  records);
+- `.fc-daygrid-day-events` carries `overflow: hidden` but has no definite
+  height, so it has nothing to clip against.
+
+What overflowed was painted over the cell in the row BELOW. That is the whole
+family of symptoms reported against the month grid:
+
+- a "+N more" link sitting at the top of a cell, under the day number — it is
+  the link belonging to the cell ABOVE, hanging into this one;
+- which is why clicking it opened a different day's list: `arg.date` was
+  correct, the link was just not drawn where it appeared to be;
+- bubbles from one day painting over another day;
+- two "+N more" links visible in one cell — one hanging in from above, one the
+  cell's own.
+
+### The fix
+
+`views={{ dayGridMonth: { dayMaxEvents: true } }}`. `true` switches the daygrid
+body to FullCalendar's **balanced** mode, which measures the cell
+(`maxContentHeight` = cell bottom − events top, `TableRow.computeMaxContentHeight`),
+fits as many bubbles as actually go in, and reserves the last row for the link.
+Nothing overflows because nothing is placed that does not fit.
+
+Two things make this legal here, both read from the installed source:
+
+- `dayMaxEvents: true` only engages balanced mode when `expandRows` is set. The
+  month view sets it for itself — `DayTableView` passes
+  `expandRows: !props.isHeightAuto` and **ignores the option** — so the definite
+  `height="100%"` on the calendar is what makes it true. The `expandRows={false}`
+  prop never reached this grid; it still applies to the time grids.
+- It is scoped through `views` rather than set globally, because the all-day
+  rails in week/day view are daygrids too and are not height-constrained the
+  same way. They keep the fixed `layout.monthEventsShown` cap.
+
+The visible change: a cell shows one bubble instead of two when it is too short
+for two, and says so in the link. The 104px cell floor still targets two.
+
+**Not verified in a browser.** The mode switch and the `expandRows` derivation
+are both read from `@fullcalendar/daygrid`'s source; what a month cell actually
+holds at each container tier is not.
+
+### Note on the previous entry
+
+The hover-transform fix still stands and is still correct — measuring through a
+`scale()` corrupts `segHeights` and `framePositions` — but it was NOT the cause
+of the misplaced links. The overflow above was. Both are fixed.
+
+## 2026-07-31 — Month grid: the measured edge is now the painted edge
+
+The previous three entries each fixed a real defect and none of them fixed this
+one. This is why, and why this class of fix cannot be re-broken by tuning a
+number.
+
+### Two root causes, both confirmed from the installed source
+
+Read verbatim from `node_modules/@fullcalendar/daygrid/internal.js` and
+`node_modules/@fullcalendar/core/internal-common.js`.
+
+**(a) DOMINANT — we forced FullCalendar's hidden events back into flow.**
+`CalendarStyled.jsx` set `position: relative` on
+`.fc-dayGridMonth-view .fc-daygrid-event-harness`. Emotion emits that at
+specificity (0,3,0); FullCalendar's own
+`.fc .fc-daygrid-event-harness-abs{left:0;position:absolute;right:0;top:0}` is
+(0,2,0). We out-ranked it.
+
+Every seg behind "+N more" is still rendered — as an `-abs` harness with
+`visibility: hidden` (pushed at internal.js:340-346, rendered at :606-612) — and
+relies on `position: absolute` to take **no flow space**. `visibility: hidden`
+does not remove an element from flow; only the positioning does. Forced back to
+`relative`, each hidden bubble occupied its full height in flow, and
+`.fc-daygrid-day-bottom` — the last in-flow child of `.fc-daygrid-day-events` —
+was pushed down by (hidden count x harness height). Four hidden bubbles is
+~160px of displacement inside a ~90px cell.
+
+That single declaration produces the entire reported symptom set: the "+N more"
+link appearing at the TOP of the cell in the row below, under that day's number,
+while `moreLinkClick`'s `arg.date` still correctly reported the day above; two
+links visible in one cell; bubbles painting over other days.
+
+**(b) RESIDUAL — the budget was measured to a line the design does not paint
+to.** `TableRow.computeMaxContentHeight()` (internal.js:679-684) is literally
+`cellEl.getBoundingClientRect().bottom - fcContainerEl.getBoundingClientRect().top`,
+with `cellEl` the `<td>` and `fcContainerEl` the events box. The `<td>`'s 2.5px
+padding-bottom and the frame's 6px padding-bottom both sat between the card's
+painted floor and `td.bottom`, and were therefore counted as usable: **8.5px of
+phantom budget per cell, per row.** `isInsertionValid`
+(internal-common.js:5843) also has no term at all for the "+N more" row — its
+space comes only from `hiddenConsumes` force-hiding the entry that the
+overflowing one touches.
+
+### The fix is an identity, not an offset
+
+- The `<td>` now carries its whole 5px gutter as `padding: 5px 2.5px 0` — no
+  padding-bottom. The frame is `6px 6px 0` — no padding-bottom. So
+  **`td.getBoundingClientRect().bottom` IS the card's painted floor.** Total
+  vertical padding is unchanged, so row heights and card heights are
+  bit-identical to before; only where the gutter sits moved (cards are
+  bottom-aligned in their row instead of centred, and still 5px apart).
+- The card's bottom inset moved onto `.fc-daygrid-event` as a `margin-bottom`.
+  That is the `<a>` INSIDE the harness, and the margin cannot collapse out
+  because the harness's own `:after{clear:both;content:"";display:table}` is the
+  last in-flow child — the same mechanism FullCalendar uses for its own
+  `.fc .fc-daygrid-event{margin-top:1px}`. So the gap is inside the border box
+  that `querySegHeights` (:669-678) reads back as `thickness`.
+
+Therefore FullCalendar's own guard, `levelCoord + thickness <= maxCoord`, now
+*means* `painted bubble bottom <= card floor - gap`, with **zero residual**.
+Every bubble ends exactly one gap above the floor. The link, whose slot is freed
+by the `hiddenConsumes` force-hide, clears the floor by (harness height − link
+height) = 25.5 / 21 / 15.5 / 12px across the four tiers.
+
+This cannot be re-broken by tuning a threshold, because no threshold is holding
+it. Both edges of the inequality are now the design's own edges.
+
+### The tier ladder was re-solved
+
+Thresholds moved from 103 / 86 / 68 to **149 / 124 / 97**, for two reasons: they
+now price the link, and they are measured against the real content box. A `size`
+container reports its content box, which is the card height minus the frame's
+6px padding-**top** only — the old comment claimed 12px, which was wrong by 6px
+even before this change.
+
+The rule is `C >= 3T + disc + gap` where `T = round(bubbleHeight + gap)`: three
+harnesses must fit, because the force-hide of one is what leaves two visible
+plus the link. Per tier: needs 147 / 122 / 95 / 80, thresholds set with a >=2px
+guard for sub-pixel row heights and `Math.round`.
+
+Stated honestly: at a ~900px viewport the grid now selects the floor tier where
+it previously claimed tier 2 and overflowed. Tiers 2 and 3 have identical type
+sizes (both already at the 9.5px / 9px floors), so the visible cost is ~3px of
+bubble padding. In exchange, `layout.monthCellMinHeight` = 104 now genuinely
+delivers two bubbles + the link for the first time (C = 98 → tier 2, needs 95);
+the design has been missing its own stated target by ~2.6px.
+
+### One source of truth
+
+`monthCell` in `src/Utilites/concourse.js` now feeds both CalendarStyled.jsx's
+tier blocks and RenderEventContent.jsx's `MONTH_TIERS`. The bubble's rendered
+height IS the `thickness` FullCalendar measures and compares against `maxCoord`,
+so if those two tables ever disagree a cell renders one tier's bubble inside
+another tier's budget and the arithmetic silently breaks again. They must never
+be edited independently.
+
+### Dead code removed, and why it was dead
+
+FullCalendar writes a **numeric inline** `margin-top` on every in-flow
+`.fc-daygrid-event-harness` (`marginTop: isAbsolute ? '' : placement.marginTop`,
+:606-612) and on `.fc-daygrid-day-bottom` (`style={{ marginTop:
+props.moreMarginTop }}`, :236). Preact serialises the number 0 as the string
+`"0px"` rather than skipping it, and inline beats any emotion class. The
+4/3/2/1px gaps declared in those two places — base rules and all three tier
+overrides — had therefore **never rendered**. The inter-bubble gap now lives on
+`.fc-daygrid-event`, where it is both visible and measured.
+
+Worse than dead: on `-abs` harnesses FullCalendar *clears* the inline margin and
+positions with an exact inline `top`, so there the rule did apply, and displaced
+multi-day bars off the coordinate FullCalendar had computed.
+
+### What did not change, and why a future engineer must not "fix" it
+
+- **`overflow: hidden` stays on `.fc-daygrid-day-events`** — but NOT for the
+  reason first written here. It clips nothing vertically in balanced mode:
+  FullCalendar's own CSS makes that box `position:absolute; left:0; right:0`
+  with `height:auto`, so it shrink-wraps. What it actually does is confine a
+  multi-day bar to its first day, and that is a limitation rather than a
+  safeguard. The inline `right` on a spanning `-abs` harness is
+  `rights[firstCol] - rights[lastCol]` (daygrid/internal.js:598), which is
+  NEGATIVE by construction — that is how FullCalendar *stretches* the bar across
+  the span, not a sliver leaking into the gutter. Removing the clip would not
+  make multi-day bookings span anyway, because the later cards' opaque frames
+  paint over the bar (see "Known, pre-existing" below); it would just replace an
+  amputated bar with a half-painted one. Keep it until both halves are solved.
+  Separately: giving this box a definite height is what gives the clip teeth on
+  the vertical axis, and it then hides the link entirely — a failed attempt, do
+  not repeat it.
+- **The frame still carries no clip.** The row-spanning `.fc-highlight` lives in
+  `.fc-daygrid-day-bg`, a sibling of the events box inside the frame. Clipping
+  the frame cuts a week-spanning drag-selection to its first cell — a regression
+  already recorded in CalendarStyled.jsx.
+- **`container-type: size` stays.** It is the tier mechanism, and it also
+  guarantees the frame is sized as if empty, so the tier a cell picks depends on
+  the row height and never on what got placed in it. That is what makes
+  measure → re-render → re-measure settle in one pass instead of oscillating.
+- The all-day rail is untouched. No handler, no prop and no interaction changed.
+
+### Known, pre-existing, out of scope
+
+Multi-day meetings still appear only in their first column in month view.
+FullCalendar only emits the spanning harness into `multiColPlacements[firstCol]`,
+and `container-type: size` gives the frame layout containment (hence a stacking
+context) while the frame's background is opaque — so a bar escaping into the
+next column is over-painted by that column's card, which paints later in DOM
+order. This fix makes those bars out-of-flow again (which is what the overflow
+depended on) but does not make them span visibly.
+
+Also noted, deliberately not fixed here: the week/day all-day rail's
+`& .fc-timegrid .fc-daygrid-event-harness { marginTop: 4px }` is dead for the
+same inline-style reason. Making it live would add a 4px gap that has never
+rendered to a view that is not broken. Ship it separately if at all.
+
+Also flagged, deliberately left out so the overflow diff stays bisectable: the
+quick-add `+` in `renderDayCell` does not `stopPropagation`, and `openBooking`
+never clears `dateClickTimer`. FullCalendar's `isValidDateDownEl` excludes only
+`.fc-event`, `.fc-more-link`, `a[data-navlink]` and `.fc-popover` — not
+`.cc-plus` — so a `+` click opens the booking dialog and then, 0ms later, the
+day-list dialog on top of it.
+
+### Verified vs reasoned
+
+**Verified:** the two source functions read verbatim; the specificity arithmetic
+against FullCalendar's own `css_248z`; the harness `:before`/`:after` clearfix
+that stops the new margin collapsing out; the balanced-mode CSS; that
+`npx react-scripts build` compiles with no NEW warnings in any touched file.
+
+**Reasoned only, needs a browser:** which tier a real viewport height actually
+selects; and the appearance of the newly-live 4/3/2/1px inter-bubble gap and the
+restored 6px side inset (balanced mode had silently taken that inset away by
+resolving `left:0/right:0` against the frame's padding box).
+
+---
+
+## 2026-07-31 — Post-review corrections to the month-cell rebuild
+
+Two independent reviewers went over the rebuild above against the installed
+FullCalendar source. Both found the core fix sound; both found real defects on
+top of it. Fixed here:
+
+### Printing bypassed the new cap entirely (the same overflow, new door)
+
+`dayMaxEvents: true` is a **measured** cap, and `Table.render` throws a measured
+cap away when rows cannot expand: `if (limitViaBalanced && !expandRows) {
+limitViaBalanced = false; dayMaxEventRows = null; dayMaxEvents = null }`
+(daygrid/internal.js:825-833). Printing is exactly that case — `isHeightAuto` is
+`forPrint || ...` and `DayTableView` derives `expandRows: !isHeightAuto`. So
+Ctrl+P on the month view placed EVERY meeting in a day, visible and in flow,
+into rows that cannot grow: a day with six bookings painted ~240px of bubbles
+straight over the rows below. The old numeric `dayMaxEvents={2}` was immune,
+because `limitViaBalanced` was already false and the branch never fired — so
+this was introduced by the switch to balanced mode, not inherited.
+
+A NUMBER survives into print. `index.jsx` now listens for `beforeprint` /
+`afterprint` and swaps `dayMaxEvents` to `layout.monthEventsShown` for the
+duration — the same mechanism FullCalendar uses to track printing itself
+(`handleBeforePrint`), so it is exactly as timely as the library's own print
+support.
+
+### The quick-add "+" opened the booking form AND the day list on top of it
+
+Flagged in the entry above as deliberately deferred; it is fixed now, because
+"the quick-add +" is one of the constraints the rebuild was required to keep.
+FullCalendar's `isValidDateDownEl` excludes only `.fc-event`, `.fc-more-link`,
+`a[data-navlink]` and `.fc-popover` — not `.cc-plus` — so clicking "+" also
+fires `dateClick`, which in the month grid queues the day list on a 0ms timer.
+`openBooking` now cancels that timer and closes any open day list first, the
+same way `openDetails` already did. Booking wins over the list it was launched
+from, which is the rule this file already established for opening a meeting.
+
+This was a regression of the new month `dateClick` branch, not a pre-existing
+defect: before it, both paths called `openBooking`, which was idempotent.
+
+### Corrected claims
+
+- The `overflow: hidden` rationale was **wrong** and has been rewritten both
+  here and in CalendarStyled.jsx. The negative inline `right` is how a spanning
+  bar is stretched, not a sliver escaping into the gutter; the clip amputates
+  the bar at its first card. Both reviewers found this independently. It stays,
+  for a stated reason that is now true.
+- "No transforms during measurement" was **not quite true**. The calendar card's
+  `cc-rise` entrance animation scales the whole card from .98 with `both` fill,
+  which covers the first `updateSizing`. It is harmless — the budget and every
+  bubble are measured through the same scale, so the fit decision is identical
+  and the only residual is `Math.round`, under half a pixel, corrected on the
+  next sizing pass. The distinction that matters is now written down: a
+  transform over the WHOLE measured tree is safe, one over PART of it (a hovered
+  cell, one bubble) is not.
+- The tier ladder now fires ~40px earlier in cell height than the old one,
+  because the container's content box grew by 6px when the frame's
+  padding-bottom went away and the thresholds were re-solved from the fit. A
+  cell around 140px tall renders one tier smaller than it used to. The entry
+  above called out the tier 2 → 3 step, where type sizes are identical; this
+  tier 0 → 1 step does change type size, and it is the price of the thresholds
+  meaning something.
+
+### Also recorded, not fixed
+
+- **Every month bubble must be the same height** — an invariant of the fit, not
+  a coincidence. FullCalendar keeps force-hidden entries in its level hierarchy
+  while packing, so a later, SHORTER bubble can slot in below a hidden one, and
+  the "+N more" row then lands below a level the budget never accounted for —
+  the original bug, verbatim. It holds today because `eventDisplay="block"`
+  routes every segment through one renderer and both bubble lines are single
+  `nowrap` lines. Written as a warning in RenderEventContent.jsx: no conditional
+  third line, no dropping the meta line for all-day events, no wrapping.
+- When nothing fits at all (`maxCoord` below one harness) no slot is freed and
+  the link is bounded by nothing. Reachable only below roughly the 240px
+  `minHeight` floor, where the grid is already unusable, and the overflow is
+  ~2px. It is the one branch of the argument with no bound.
+- `layout.monthEventsShown` (2) no longer governs the month grid — the count is
+  height-derived now, and a tall viewport shows three. It still governs the
+  week/day all-day rails, and is what print falls back to.
+
+### Verified vs reasoned
+
+**Verified:** `npx react-scripts build` compiles with no new warnings; every
+FullCalendar behaviour cited above was read in the installed package source.
+**Not verified:** nothing in this entry, or the one above it, has been seen in a
+browser. The month grid needs a hard reload to test — a hot reload leaves
+FullCalendar's cached measurements in React state.
+
+---
+
+## 2026-07-31 — A month click opened BOTH dialogs
+
+Clicking a day in the month grid opened the booking form and then the day list
+on top of it.
+
+**`select` fires for a plain month click, not only for a dragged range.** The
+comment on `handleRangeSelect` claimed the opposite ("`select` only fires when
+the pointer actually moved"), and that was the load-bearing assumption behind
+the `dateClick` -> `setTimeout(0)` -> cancelled-by-`select` handshake. It is
+wrong for `dayGridMonth`: a click there produces a one-day selection, so BOTH
+handlers run for one click, and `select` runs first. The handshake only cancels
+in one direction, so the order that actually happens — `select` opens the
+booking form, `dateClick`'s deferred day list lands 0ms later on top — is
+exactly the one it cannot catch.
+
+This was harmless until the month `dateClick` branch was added: before it, both
+handlers called `openBooking`, which is idempotent.
+
+The two handlers now agree on what a month click means, rather than racing:
+
+- `handleRangeSelect` opens the DAY LIST when a month selection covers one day,
+  and the booking form only when it covers two or more. A single-day drag inside
+  one cell is indistinguishable from a click and is treated as one — the day
+  list carries its own "Book a room", so nothing is lost.
+- `openDayList` re-opening the same day is a no-op on state, so the second
+  handler's call cannot replay the dialog's staggered entrance animation.
+- The time grids and the agenda are untouched: the new branch is gated on
+  `arg.view?.type === "dayGridMonth"`.
+
+Same root shape as the quick-add "+" defect fixed in the previous entry: two
+paths that used to do the identical thing now do different things, so every
+place that can trigger both has to say which one wins. The rule for this file:
+**an explicit request to book beats an incidental day list, and a plain day
+click is not an explicit request to book.**
+
+**Verified:** compiles with no new warnings. **Not verified in a browser.**

@@ -18,7 +18,6 @@ import {
 import {
     CheckPostMeeting,
     PostMeeting,
-    UpdateAllMeetingsInRecurrence,
     UpdateAllNextMeetingsInRecurrence,
     UpdateParentOnlyMeeting,
     UpdateMeeting,
@@ -143,10 +142,11 @@ const LONG_DATE = {
 const ADVANCED_PANE_ID = "cc-advanced-pane";
 
 /** The scope words the recurrence handlers use, rendered for a human. */
+// No whole-series scope: an edit only ever runs forward from the occurrence
+// being changed, so meetings that already happened are never rewritten.
 const SCOPE_LABEL = {
     current: "This meeting only",
     next: "This and all following",
-    all: "All in the series",
 };
 
 const MeetingFourm = ({
@@ -655,25 +655,6 @@ const MeetingFourm = ({
                                             clearOnClose();
                                         });
                                 }
-                            })
-                            .catch(() => {
-                                clearOnClose();
-                            });
-                        break;
-                    case "all":
-                        UpdateAllMeetingsInRecurrence(user?.id, meeting)
-                            .then((resp) => {
-                                if (resp) {
-                                    syncSpecialPermissions(
-                                        resp?.id,
-                                        savedSpecial,
-                                        special
-                                    ).then(() => {
-                                        setLoading(false);
-                                        clearOnClose();
-                                    });
-                                }
-                                setLoading(false);
                             })
                             .catch(() => {
                                 clearOnClose();

@@ -13,6 +13,7 @@ import { styled } from "@mui/material/styles";
 import {
     bp,
     layout,
+    monthCell,
     motion,
     zIndex as ccZIndex,
 } from "../../../Utilites/concourse";
@@ -25,8 +26,34 @@ const HOVER = "@media (hover: hover)";
 const HOUR = layout.hourRow; // 44
 const SLAT = HOUR / 4; // 11 — slotDuration is 00:15
 
-// Half of the 5px inter-cell gutter, applied as td padding on both sides.
-const HALF_GAP = 2.5;
+// Half of the 5px inter-cell gutter. Still used by the column headers and the
+// week/day all-day rail. The MONTH grid no longer splits the gutter — see the
+// `.fc-dayGridMonth-view .fc-daygrid-day` rule below.
+const HALF_GAP = monthCell.halfGutter;
+
+// One @container ccday block. `t.gap` is written in BOTH places it matters —
+// the events box's top margin and the bubble's bottom margin — because the
+// budget and the card's bottom inset must move together or the arithmetic
+// stops balancing. Generating both from one number makes that impossible to
+// get wrong. NOTE what is deliberately ABSENT: no `.fc-daygrid-event-harness`
+// margin and no `.fc-daygrid-day-bottom` margin. FullCalendar writes a numeric
+// inline `margin-top` on both (daygrid/internal.js:236 and :606-612) and preact
+// serialises the number 0 as "0px", so an emotion class can never win there.
+const monthTierBlock = (t) => ({
+    "& .fc .cc-daynum": {
+        width: `${t.disc}px`,
+        height: `${t.disc}px`,
+        fontSize: `${t.discFont}px`,
+    },
+    "& .fc-dayGridMonth-view .fc-daygrid-day-events": { marginTop: `${t.gap}px` },
+    "& .fc-dayGridMonth-view .fc-daygrid-day-events .fc-daygrid-event": {
+        marginBottom: `${t.gap}px`,
+    },
+    "& .fc .fc-daygrid-more-link": {
+        fontSize: `${t.link}px`,
+        padding: t.linkPad,
+    },
+});
 
 const CalendarStyled = styled("div")({
     minWidth: 0,
@@ -83,6 +110,11 @@ const CalendarStyled = styled("div")({
         padding: `0 ${HALF_GAP}px 4px`,
         verticalAlign: "bottom",
     },
+    // The month grid now carries its whole 5px gutter as the first row's
+    // padding-top (was 2.5px), which would grow the DOW-row-to-first-card gap
+    // from 6.5px to 9px. Give the 2.5px back here. (0,4,0) beats the shared
+    // (0,3,0) rule above without depending on source order.
+    "& .fc .fc-dayGridMonth-view .fc-col-header-cell": { paddingBottom: "1.5px" },
     "& .fc .fc-col-header-cell-cushion": {
         display: "block",
         padding: 0,
@@ -123,7 +155,23 @@ const CalendarStyled = styled("div")({
     "& .fc .fc-day-today .cc-colhead-num": { color: "var(--cc-red)" },
 
     // ================================================== MONTH GRID (§10.11) ==
-    "& .fc-dayGridMonth-view .fc-daygrid-day": { padding: `${HALF_GAP}px` },
+    // THE ENTIRE 5px VERTICAL GUTTER IS THE TD'S PADDING-TOP, AND THE TD HAS NO
+    // PADDING-BOTTOM. This is the load-bearing half of the fix.
+    // `TableRow.computeMaxContentHeight()` (@fullcalendar/daygrid internal.js:
+    // 679-684) is literally
+    //     cellEl.getBoundingClientRect().bottom - dayEvents.getBoundingClientRect().top
+    // with cellEl = THIS <td>. Anything between the card's painted floor and
+    // the td's border-box bottom is counted as usable space and reappears as
+    // content hanging into the row below. Driving it to zero makes the level
+    // FullCalendar refuses to cross (`levelCoord + thickness <= maxCoord`,
+    // core/internal-common.js:5843) identical to the card's bottom edge.
+    // Total vertical padding is unchanged at 5px, so ROW HEIGHTS AND THE CARD
+    // HEIGHT ARE BIT-IDENTICAL to before — only where the gutter sits moves.
+    // Horizontal padding is untouched, so `framePositions` (internal.js:643-655)
+    // and the column headers still line up exactly.
+    "& .fc-dayGridMonth-view .fc-daygrid-day": {
+        padding: `${monthCell.gutter}px ${monthCell.halfGutter}px 0`,
+    },
     // THE MONTH GRID DOES NOT SCROLL (user, defect 5). Three rules do it:
     //   1. the body table takes the scroller's full height (below), so the six
     //      rows of a `fixedWeekCount` month divide the height that exists
@@ -148,6 +196,39 @@ const CalendarStyled = styled("div")({
     // of each new line" the user saw. The backstop moved to
     // `.fc-daygrid-day-events` below, which is where the content that can
     // overflow actually lives.
+    // NO TRANSFORM ON HOVER. FullCalendar decides how many bubbles fit by
+    // measuring each `.fc-daygrid-event-harness` with `getBoundingClientRect()`
+    // (`querySegHeights`, @fullcalendar/daygrid internal.js), and a rect is
+    // reported through any ANCESTOR transform. A `scale()` here therefore
+    // reported every bubble in the hovered cell ~1% taller, which flipped
+    // whether the last one fit; the re-render re-measured, the measurement
+    // changed again, and the row oscillated — bubbles blinking in and out,
+    // duplicates, and the "+N more" link flickering under the cursor. The
+    // hover now changes paint only, which measurement cannot see.
+    //
+    // One ancestor transform does survive and is harmless: the calendar card's
+    // `cc-rise` entrance animation in index.jsx scales the whole card from .98
+    // for 500ms, which covers the first `updateSizing`. It does not corrupt the
+    // fit because BOTH terms of the comparison are measured through the same
+    // scale — the budget and every bubble shrink together, so the decision is
+    // identical. The only residual is the `Math.round` on thickness, under half
+    // a pixel, and it is corrected on the next sizing pass. A transform that
+    // covered only PART of the measured tree — a hovered cell, one bubble —
+    // would not have that property, which is why one is a bug and one is not.
+    //
+    // NO PADDING-BOTTOM, EVER. The frame's bottom 6px used to sit between the
+    // events box and `td.bottom`, so `computeMaxContentHeight` counted it as
+    // usable: together with the td's old 2.5px that was 8.5px of phantom budget
+    // per cell, per row. The card's bottom inset now lives INSIDE the box
+    // FullCalendar measures — see the `.fc-daygrid-event` margin-bottom below.
+    //
+    // `containerType: "size"` STAYS. It computes to `contain: size layout style`,
+    // so the frame is sized as if empty: the tier a cell selects depends only on
+    // the row height, never on what got placed in it. That is what makes the
+    // measure -> re-render -> re-measure loop (updateSizing on every
+    // componentDidUpdate, internal.js:549-556) settle in one pass instead of
+    // oscillating. It also means `@container ccday (max-height: N)` tests the
+    // frame's CONTENT box, which is now cell height MINUS 6px (not 12px).
     "& .fc-dayGridMonth-view .fc-daygrid-day-frame": {
         position: "relative",
         background: "var(--cc-srf2)",
@@ -156,8 +237,8 @@ const CalendarStyled = styled("div")({
         minHeight: 0,
         containerType: "size",
         containerName: "ccday",
-        padding: "6px",
-        transition: `background 250ms ${SP}, transform 250ms ${SP}`,
+        padding: `${monthCell.framePad}px ${monthCell.framePad}px 0`, // 6px 6px 0
+        transition: `background 250ms ${SP}, box-shadow 250ms ${SP}`,
     },
     "& .fc-dayGridMonth-view .fc-daygrid-body": { height: "100%" },
     "& .fc-dayGridMonth-view .fc-daygrid-body > table": { height: "100%" },
@@ -188,14 +269,19 @@ const CalendarStyled = styled("div")({
         color: "inherit",
         textDecoration: "none",
     },
+    // Tier 0 comes from `monthCell.base`, not from literals. The disc's height
+    // is subtracted from the cell to get FullCalendar's budget, so a number
+    // typed here and a number typed in concourse.js are two numbers that can
+    // disagree — which is the drift the tier ladder was rebuilt to close. The
+    // tier blocks below narrow the same properties from the same source.
     "& .fc .cc-daynum": {
-        width: "23px",
-        height: "23px",
+        width: `${monthCell.base.disc}px`,
+        height: `${monthCell.base.disc}px`,
         borderRadius: "99px",
         display: "grid",
         placeItems: "center",
         flex: "none",
-        fontSize: "12px",
+        fontSize: `${monthCell.base.discFont}px`,
         fontWeight: 700,
         fontVariantNumeric: "tabular-nums",
         color: "var(--cc-mute)",
@@ -206,14 +292,46 @@ const CalendarStyled = styled("div")({
         boxShadow: "var(--cc-glow-dot)",
     },
     "& .fc .fc-day-other .cc-daynum": { opacity: 0.3 },
-    // The clip the frame used to own. Bubbles are the only thing that can
-    // overflow a cell, and clipping them here leaves the row-spanning selection
-    // harness (a sibling of this element) free to cross the whole week.
+    // `overflow: hidden` here clips NOTHING VERTICALLY and that is fine. In
+    // balanced mode FullCalendar's own CSS makes this box
+    // `position:absolute; left:0; right:0` with height:auto (daygrid/internal.js
+    // :982), so it shrink-wraps its flow content and there is never vertical
+    // overflow to hide.
+    //
+    // WHAT IT ACTUALLY DOES IS CONFINE A MULTI-DAY BAR TO ITS FIRST DAY, and
+    // that is a limitation, not a safeguard. A segment spanning several days is
+    // rendered ONCE, in its first cell, as an `-abs` harness with an inline
+    // `left: 0` and a NEGATIVE `right` — `rights[firstCol] - rights[lastCol]`
+    // (daygrid/internal.js:598), where `rights` are measured from a common
+    // origin (core/internal-common.js:5612). A negative `right` is how
+    // FullCalendar STRETCHES the bar past its own cell and across the span; this
+    // clip cuts it back to the first card. Removing the clip does not by itself
+    // make multi-day bookings span, because the opaque `--cc-srf2` frames of the
+    // later cells paint over the bar anyway — that is a second, independent
+    // thing to solve. Until both are solved, leave it: a bar amputated at a card
+    // edge reads as a normal one-day bubble, a bar half-painted under the next
+    // three cards does not.
+    //
+    // Do NOT give this box a definite height, a flex layout, or
+    // `margin-top: auto` — a definite height is exactly what gives this clip
+    // teeth on the vertical axis, and it then hides the "+N more" link entirely.
     "& .fc-dayGridMonth-view .fc-daygrid-day-events": {
-        marginTop: "4px",
+        // Same `base.gap` the bubbles carry as `margin-bottom`. The two are the
+        // top and the bottom of one rhythm and must move together — see the
+        // tier block generator at the top of this file.
+        marginTop: `${monthCell.base.gap}px`,
         marginBottom: 0,
         minHeight: 0,
         overflow: "hidden",
+    },
+    // Balanced mode positions this box against the FRAME'S PADDING BOX, so
+    // `left:0/right:0` land on the card's border edges and the bubbles ran 12px
+    // wider than the day number above them. (0,4,0) beats FullCalendar's
+    // `.fc .fc-daygrid-body-balanced .fc-daygrid-day-events` (0,3,0)
+    // deterministically, without depending on emotion's injection order.
+    "& .fc-dayGridMonth-view .fc-daygrid-body-balanced .fc-daygrid-day-events": {
+        left: `${monthCell.framePad}px`,
+        right: `${monthCell.framePad}px`,
     },
     // Paint order inside a month cell, bottom to top: cell surface -> selection
     // tint (3) -> date number (4, FullCalendar's own) -> bubbles (5). The tint
@@ -222,17 +340,64 @@ const CalendarStyled = styled("div")({
     // the coverage bug, and it survives even once the clipping is gone. Lifting
     // the bubbles to 5 keeps bookings readable through a selection.
     "& .fc-dayGridMonth-view .fc-daygrid-bg-harness": { zIndex: 3 },
-    "& .fc-dayGridMonth-view .fc-daygrid-event-harness": {
-        marginTop: "4px",
-        position: "relative",
-        zIndex: 5,
+    // NEVER DECLARE `position` HERE. This selector is (0,3,0); FullCalendar's
+    // `.fc .fc-daygrid-event-harness-abs{left:0;position:absolute;right:0;top:0}`
+    // is (0,2,0), so ANY position value written here out-ranks it. Every seg
+    // behind "+N more" is rendered as an `-abs` harness with `visibility:hidden`
+    // (daygrid/internal.js:340-346 pushes it, :606-612 renders it) and relies on
+    // `position:absolute` to take NO flow space — `visibility:hidden` does not
+    // remove an element from flow. Forced to `relative`, each hidden bubble took
+    // its full height in flow and pushed `.fc-daygrid-day-bottom` (the LAST
+    // in-flow child of the events box) down by hiddenCount x harness height:
+    // four hidden bubbles is ~160px of displacement in a ~90px cell, which put
+    // the link a full row lower, under the NEXT day's number, while
+    // `moreLinkClick`'s `arg.date` still correctly reported the upper day.
+    // The base rule `.fc .fc-daygrid-event-harness{position:relative}` already
+    // positions in-flow harnesses, so the override was pure redundancy on
+    // visible segs and pure poison on hidden ones.
+    //
+    // NO `marginTop` EITHER. FullCalendar writes an inline `margin-top` on every
+    // in-flow harness (`marginTop: isAbsolute ? '' : placement.marginTop`, a
+    // number preact serialises as "0px"), so it was dead code — and on `-abs`
+    // harnesses, where FullCalendar clears the inline margin and positions with
+    // an exact inline `top`, it would have displaced the bar. The inter-bubble
+    // gap lives on `.fc-daygrid-event` instead (next rule), INSIDE the box
+    // `querySegHeights` measures.
+    //
+    // `zIndex` is layout-inert and stays: it keeps the bubble above the
+    // `.fc-daygrid-bg-harness` drag-selection tint (z-index 3) that precedes it.
+    "& .fc-dayGridMonth-view .fc-daygrid-event-harness": { zIndex: 5 },
+    // THE OTHER HALF OF THE FIX — the card's bottom inset and the inter-bubble
+    // rhythm, expressed where FullCalendar can SEE them.
+    // `.fc-daygrid-event` is the `<a>` inside the harness and is `display:block`.
+    // Its bottom margin does not collapse out, because the harness's own
+    // `:after{clear:both;content:"";display:table}` (daygrid/internal.js:982) is
+    // the last in-flow child — the exact mechanism FullCalendar uses for its own
+    // `.fc .fc-daygrid-event{margin-top:1px}`. So the margin is INSIDE the rect
+    // `querySegHeights` reads back as `thickness`, which makes
+    //     levelCoord + thickness <= maxCoord
+    // equivalent to
+    //     painted bubble bottom <= card floor - gap
+    // with ZERO residual. Selector is (0,4,0) so it beats both
+    // `& .fc .fc-daygrid-event` (0,3,0) below and FullCalendar's
+    // `.fc-direction-ltr .fc-daygrid-event.fc-event-start` family (0,3,0),
+    // regardless of stylesheet injection order.
+    "& .fc-dayGridMonth-view .fc-daygrid-day-events .fc-daygrid-event": {
+        marginBottom: `${monthCell.base.gap}px`,
     },
-    "& .fc-dayGridMonth-view .fc-daygrid-event-harness:first-of-type": {
-        marginTop: 0,
-    },
+    // `.fc-daygrid-day-bottom` is rendered in EVERY cell, even when moreCnt is 0
+    // (only the `<a>` inside it is conditional), and FullCalendar always writes
+    // an inline `margin-top` on it (`style={{ marginTop: props.moreMarginTop }}`,
+    // daygrid/internal.js:236, fed from `leftoverMargins` at :360). That margin
+    // is load-bearing — it is how the link clears absolutely-positioned
+    // multi-day bars — so DO NOT DECLARE `marginTop` HERE. It would be dead code
+    // anyway: inline beats any emotion class. Only the side margins are ours;
+    // FullCalendar's own `margin: 0 2px` would put the link 8px from the card
+    // edge while the bubbles sit at 6px.
     "& .fc-dayGridMonth-view .fc-daygrid-day-bottom": {
         padding: 0,
-        marginTop: "4px",
+        marginLeft: 0,
+        marginRight: 0,
     },
 
     // Quick-add "+" (§10.11). Invisible until the cell is hovered, or until the
@@ -277,10 +442,12 @@ const CalendarStyled = styled("div")({
         outlineOffset: "2px",
     },
     [HOVER]: {
+        // Paint only — see the day-frame rule above for why a transform here
+        // makes the row's bubbles oscillate.
         "& .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover .fc-daygrid-day-frame":
             {
                 background: "var(--cc-wash)",
-                transform: "scale(1.012)",
+                boxShadow: "var(--cc-sh1)",
                 cursor: "cell",
             },
         "& .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover .cc-plus":
@@ -484,52 +651,27 @@ const CalendarStyled = styled("div")({
     },
 
     // ======================================= MONTH CELL FIT TIERS (§10.11) ==
-    // `ccday` is the day frame above. These run last so they out-order the base
-    // rules they narrow; every selector repeats the base selector exactly, so
-    // specificity ties and source order decides. Sizes step DOWN as the cell
-    // gets shorter, and stop at a floor: 18px date disc, 9.5px "+N more" —
-    // still above the 9px `allDayLabel` the design already ships.
+    // `ccday` is the day frame. A size container reports its CONTENT box, so
+    // these thresholds are the CARD height MINUS 6px of frame padding-top (the
+    // frame has no padding-bottom). Every threshold is SOLVED, not tuned:
+    // it is the smallest content height at which its tier can fit THREE
+    // harnesses — `C >= 3T + disc + gap` — because FullCalendar's
+    // `hiddenConsumes` force-hides one entry to make room for the "+N more"
+    // link, so three must fit for two to show. See concourse.js `monthCell`
+    // and the arithmetic in the MONTH GRID comment above.
+    //   at 149 needs 147 | at 124 needs 122 | at 97 needs 95 | floor needs 80
+    // The same `tiers` array drives RenderEventContent.jsx's MONTH_TIERS, so
+    // the bubble's rendered height and the budget it is measured against can
+    // never drift apart.
     //
-    // The thresholds are CONTENT-box heights (a size container reports its
-    // content box), i.e. cell height minus its 12px padding: 103 = the height
-    // at which the full-size cell recipe stops fitting, 86 = the same for the
-    // middle tier. They are shared with RenderEventContent.jsx's MONTH_TIERS.
-    "@container ccday (max-height: 103px)": {
-        "& .fc .cc-daynum": { width: "20px", height: "20px", fontSize: "11px" },
-        "& .fc-dayGridMonth-view .fc-daygrid-day-events": { marginTop: "3px" },
-        "& .fc-dayGridMonth-view .fc-daygrid-event-harness": {
-            marginTop: "3px",
-        },
-        "& .fc-dayGridMonth-view .fc-daygrid-day-bottom": { marginTop: "3px" },
-        "& .fc .fc-daygrid-more-link": { fontSize: "10px", padding: "1px 7px" },
-    },
-    "@container ccday (max-height: 86px)": {
-        "& .fc .cc-daynum": {
-            width: "18px",
-            height: "18px",
-            fontSize: "10.5px",
-        },
-        "& .fc-dayGridMonth-view .fc-daygrid-day-events": { marginTop: "2px" },
-        "& .fc-dayGridMonth-view .fc-daygrid-event-harness": {
-            marginTop: "2px",
-        },
-        "& .fc-dayGridMonth-view .fc-daygrid-day-bottom": { marginTop: "2px" },
-        "& .fc .fc-daygrid-more-link": {
-            fontSize: "9.5px",
-            padding: "0 6px",
-        },
-    },
-    // Floor tier — nothing below this shrinks further; a shorter card clips
-    // rather than scrolls, which is the trade the user asked for.
-    "@container ccday (max-height: 68px)": {
-        "& .fc .cc-daynum": { width: "16px", height: "16px", fontSize: "10px" },
-        "& .fc-dayGridMonth-view .fc-daygrid-day-events": { marginTop: "1px" },
-        "& .fc-dayGridMonth-view .fc-daygrid-event-harness": {
-            marginTop: "1px",
-        },
-        "& .fc-dayGridMonth-view .fc-daygrid-day-bottom": { marginTop: "1px" },
-        "& .fc .fc-daygrid-more-link": { fontSize: "9px", padding: "0 5px" },
-    },
+    // These run LAST so identical-specificity selectors are decided by source
+    // order, exactly as before.
+    ...Object.fromEntries(
+        monthCell.tiers.map((t) => [
+            `@container ccday (max-height: ${t.at}px)`,
+            monthTierBlock(t),
+        ])
+    ),
 
     // -------------------------------------------------------- phone (§9) ---
     // At <=620px the grids are not rendered at all (index.jsx forces Agenda),

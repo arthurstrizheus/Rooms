@@ -144,32 +144,10 @@ export async function UpdateAllNextMeetingsInRecurrence(id, data) {
     }
 }
 
-export async function UpdateAllMeetingsInRecurrence(id, data) {
-    try {
-        const resp = await axios
-            .put(`/api/meetings/updateall/${id}`, data)
-            .catch((resp) =>
-                resp?.response?.data?.message
-                    ? showError(resp?.response?.data.message)
-                    : console.log(resp)
-            );
-
-        if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meetings updated");
-            return resp.data; // Indicate success
-        }
-
-        const errorCheck = handleApiResponseError(resp);
-        if (errorCheck.isError && errorCheck?.message) {
-            showError(errorCheck.message);
-            return false;
-        }
-        showSuccess("Meetings updated");
-        return resp.data;
-    } catch (err) {
-        return false;
-    }
-}
+// NOTE: there is no whole-series update call here on purpose. Editing or moving
+// a recurrence only ever runs forward from the occurrence you picked, so
+// meetings that already happened are never rewritten. The server still has
+// PUT /api/meetings/updateall/:userId, but nothing in the app calls it.
 
 export async function CancelFollowingMeetingsInRecurrence(data) {
     try {
