@@ -10,6 +10,10 @@ const {
     Room,
 } = require("../models");
 const { Sequelize } = require("sequelize");
+// The sequelize INSTANCE, not the class imported above. The split surgery in
+// `UpdateAllNextInRecurrence` needs `sequelize.transaction`; `Sequelize` is the
+// class and only carries `Op` / `fn`, which the rest of this file uses.
+const { sequelize } = require("../config/database");
 const axios = require("axios");
 const {
     startOfDay,
@@ -357,6 +361,67 @@ async function isOverlappingFakeMeetUpdate(meet) {
 }
 
 /**
+ * One bounded query for a whole generated series, replacing one unbounded
+ * `SELECT * FROM [Rooms-Meetings] WHERE room = ?` per occurrence.
+ *
+ * `isOverlappingFakeMeetUpdate` above has two properties that only became
+ * dangerous once a split can start in the PAST. It fires one full-table scan
+ * per generated occurrence — 365 of them for a daily series, the exact pattern
+ * the comment in `CreateRepeatingMeetings` blames for exhausting the
+ * connection pool — and it matches rows of ANY status, so a booking that was
+ * CANCELLED in that room two years ago blocks the save with a 409 naming a
+ * meeting nobody can see. `isOverlapping`, which the booking form has always
+ * used, filters status; the two disagreed. This follows `isOverlapping`.
+ *
+ * The same-series exclusion is byte-for-byte the one in
+ * isOverlappingFakeMeetUpdate, except compared numerically: `recurrence_id`
+ * arrives from the request body, where a string would defeat `===` and turn
+ * every occurrence of the series into a conflict with itself.
+ */
+async function findOverlapForGeneratedSeries(
+    occurrences,
+    { room, recurrenceId },
+) {
+    if (!occurrences?.length) return null;
+
+    let earliest = Infinity;
+    let latest = -Infinity;
+    for (const occ of occurrences) {
+        const s = new Date(occ.start_time).getTime();
+        const e = new Date(occ.end_time).getTime();
+        if (Number.isFinite(s) && s < earliest) earliest = s;
+        if (Number.isFinite(e) && e > latest) latest = e;
+    }
+    if (!Number.isFinite(earliest) || !Number.isFinite(latest)) return null;
+
+    const candidates = await Meeting.findAll({
+        where: {
+            room,
+            status: {
+                [Sequelize.Op.in]: ["Approved", "Waiting on Approval"],
+            },
+            end_time: { [Sequelize.Op.gt]: new Date(earliest) },
+            start_time: { [Sequelize.Op.lt]: new Date(latest) },
+        },
+    });
+
+    const others = candidates.filter(
+        (row) => Number(row.recurrence_id) !== Number(recurrenceId),
+    );
+    if (!others.length) return null;
+
+    for (const occ of occurrences) {
+        const s = new Date(occ.start_time);
+        const e = new Date(occ.end_time);
+        const hit = others.find(
+            (row) => s < new Date(row.end_time) && e > new Date(row.start_time),
+        );
+        if (hit) return hit;
+    }
+    return null;
+}
+
+/**
  * Keep `baseDate`'s calendar day but take the clock time from `timeSource`.
  * Used when a caller submits already-final times for one occurrence and the
  * parent of the recurrence has to pick up the new time-of-day on its own date.
@@ -398,6 +463,72 @@ const RECURRENCE_FREQUENCIES = new Set([
 /** True when `frequency` is one of the values a generation loop can advance. */
 function isKnownRecurrenceFrequency(frequency) {
     return RECURRENCE_FREQUENCIES.has(frequency);
+}
+
+/** ~11 years of a daily series. A cursor that cannot advance is refused
+ *  before we get here; this is belt-and-braces against an endless loop. */
+const MAX_OCCURRENCE_STEPS = 4000;
+
+/**
+ * The first occurrence of `recurrence` whose CALENDAR DAY is not before
+ * `boundary`, as { start, end } Dates — or null when the series ends first.
+ *
+ * This duplicates the generator's cursor on purpose. Occurrences are not rows;
+ * the only way to name a date the calendar actually DREW is to step the same
+ * cursor `CreateRepeatingMeetings` steps: setDate/setMonth/setFullYear, then
+ * re-apply the parent's clock time to BOTH cursors on every step. Millisecond
+ * arithmetic would drift an hour across a US DST change (the mistake
+ * `UpdateAllRecurrence`'s drag branch makes), and "same weekday, next month"
+ * would not reproduce Monthly's 31st-of-the-month rollover, which is
+ * path-dependent and must be reproduced, not corrected, or the anchor stops
+ * matching the calendar.
+ *
+ * The comparison is on the calendar DAY, not the instant: an all-day booking is
+ * stored midnight-to-midnight with start === end, so an instant comparison
+ * files today's all-day meeting as already past at 00:00.
+ *
+ * `repeat_until` is honoured with the generator's own inclusive `>` test in the
+ * generator's own order (advance -> stop-check -> re-normalise), so this can
+ * never name an occurrence the calendar does not draw.
+ */
+function firstOccurrenceOnOrAfter(parentMeeting, recurrence, boundary) {
+    if (!isKnownRecurrenceFrequency(recurrence?.frequency)) return null;
+
+    const parentStart = new Date(parentMeeting.start_time);
+    const parentEnd = new Date(parentMeeting.end_time);
+    if (isNaN(parentStart.getTime()) || isNaN(parentEnd.getTime())) return null;
+
+    const boundaryDay = startOfDay(boundary);
+    const stopAt =
+        recurrence.repeat_until != null
+            ? new Date(recurrence.repeat_until)
+            : null;
+
+    let currentStart = new Date(parentStart);
+    let currentEnd = new Date(parentEnd);
+
+    for (let step = 0; step <= MAX_OCCURRENCE_STEPS; step++) {
+        if (startOfDay(currentStart) >= boundaryDay) {
+            return { start: new Date(currentStart), end: new Date(currentEnd) };
+        }
+        if (recurrence.frequency === "Daily") {
+            currentStart.setDate(currentStart.getDate() + 1);
+            currentEnd.setDate(currentEnd.getDate() + 1);
+        } else if (recurrence.frequency === "Weekly") {
+            currentStart.setDate(currentStart.getDate() + 7);
+            currentEnd.setDate(currentEnd.getDate() + 7);
+        } else if (recurrence.frequency === "Monthly") {
+            currentStart.setMonth(currentStart.getMonth() + 1);
+            currentEnd.setMonth(currentEnd.getMonth() + 1);
+        } else if (recurrence.frequency === "Yearly") {
+            currentStart.setFullYear(currentStart.getFullYear() + 1);
+            currentEnd.setFullYear(currentEnd.getFullYear() + 1);
+        }
+        if (stopAt != null && currentStart > stopAt) return null;
+        currentStart = applyTimeOfDay(currentStart, parentStart);
+        currentEnd = applyTimeOfDay(currentEnd, parentEnd);
+    }
+    return null;
 }
 
 async function CreateRepeatingMeetingsOfThisMeeting(meeting) {
@@ -828,14 +959,8 @@ async function CreateRepeatingMeetings(
                 }
             }),
         );
-        // Both of these are constant for every occurrence this parent
-        // generates, so they are resolved here instead of inside the while loop.
-        let updatedUser = null;
-        if (meeting.dataValues.updated_user_id) {
-            updatedUser = await User.findByPk(
-                meeting.dataValues.updated_user_id,
-            );
-        }
+        // Constant for every occurrence this parent generates, so it is
+        // resolved here instead of inside the while loop.
         const meetingOverlapCandidates =
             overlapCandidates.get(
                 overlapCandidateKey(meeting.room, meeting.recurrence_id),
@@ -904,13 +1029,19 @@ async function CreateRepeatingMeetings(
                 continue;
             }
             // Overlapping‑check… if it still passes, push the fake
+            //
+            // `toJSON()` already carries the parent's `UpdatedUser` (id,
+            // first_name, last_name, email) from the include on the query that
+            // fetched it — which is what DisplayMeeting reads. The extra
+            // lower-case `updatedUser` key beside it was an unnarrowed User
+            // row, PASSWORD COLUMN INCLUDED, serialised to every client that
+            // could see the meeting, and it had no consumer anywhere in src/.
             const fakeMeet = {
                 ...meeting.toJSON(),
                 id: -1, // Fake meeting ID
                 start_time: currentStartTime.toISOString(),
                 end_time: currentEndTime.toISOString(),
                 recurrence_id: meeting.recurrence_id,
-                updatedUser: updatedUser ? updatedUser : null,
             };
             // Only push non-overlapping fake meetings
             // console.log('New Fake Meet', fakeMeet);
@@ -1106,11 +1237,16 @@ const SetStatus = async (req, res) => {
         }
         // Create meeting if this is a recurrence meeting
         if (Number(id) === -1) {
+            // The client echoes the generated occurrence back verbatim, and
+            // that object still carries the association keys the listing query
+            // put on it. Neither is a column, so they are dropped here rather
+            // than handed to `create`.
+            const { UpdatedUser, updatedUser, ...occurrenceFields } = meeting;
             const newResource = await Meeting.create({
-                ...meeting,
+                ...occurrenceFields,
                 id: null,
                 status: status,
-                updated_user_id: userId,
+                updated_user_id: actingUserId(req, userId),
             });
             res.status(200).json(newResource);
         } else {
@@ -1135,34 +1271,45 @@ const SetStatus = async (req, res) => {
                     });
                 }
 
+                // MeetingRecurrence has no updated_user_id column
+                // (backend/models/meetingRecurrence.js), so Sequelize dropped
+                // this key silently — the write never happened. The actor is
+                // recorded on the parent MEETING instead, which is what the
+                // detail dialog reads.
                 if (newParent.id === -1) {
                     console.log("Create new Parent");
+                    // The promoted row is built from a generated occurrence,
+                    // i.e. a projection of the PREVIOUS parent — so without
+                    // this it would inherit that row's updater and claim the
+                    // last editor cancelled it. Name whoever cancelled.
+                    const raw = newParent.toJSON
+                        ? newParent.toJSON()
+                        : newParent;
+                    const { UpdatedUser, updatedUser, ...parentFields } = raw;
                     const newMeeting = await Meeting.create({
-                        ...newParent,
+                        ...parentFields,
                         id: null,
+                        updated_user_id: actingUserId(req, userId),
                     });
 
                     await recurrence.update({
                         meeting_id: newMeeting.id,
-                        updated_user_id: userId,
                     });
                 } else {
                     await recurrence.update({
                         meeting_id: newParent.id,
-                        updated_user_id: userId,
                     });
                 }
             } else if (recurrence && status == "Declined") {
                 await recurrence.update({
                     active: false,
-                    updated_user_id: userId,
                 });
             }
             // Update the resource record in the database
 
             await resource.update({
                 status,
-                updated_user_id: userId,
+                updated_user_id: actingUserId(req, userId),
             });
             // Emit socket event when a meeting is approved so clients can refresh approval counts
             try {
@@ -1256,6 +1403,22 @@ const SetStatus = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+/**
+ * WHO to record in `updated_user_id`.
+ *
+ * Every /api/meetings route sits behind the global `authenticateUser`
+ * middleware and none of them is in its `publicRoutes` allowlist
+ * (backend/middleware/auth.js), so `req.user.id` is the one actor value the
+ * browser cannot choose. The `:userId` param and `body.userId` these handlers
+ * already read STAY EXACTLY WHERE THEY ARE — they are what the CanDelete /
+ * CanUserBook checks run on, and moving those would change who can edit what.
+ * Only the audit column moves to the session. The fallback keeps today's
+ * behaviour if the middleware is ever bypassed.
+ */
+function actingUserId(req, fallback) {
+    return req.user?.id ?? fallback ?? null;
+}
 
 async function CanDelete(meetingId, userId) {
     const meeting = await Meeting.findByPk(Number(meetingId));
@@ -2185,6 +2348,11 @@ const Update = async (req, res) => {
                 all_day: allDay,
                 it_support: !!it_support,
                 it_support_details: it_support ? it_support_details || "" : null,
+                // Materialising an occurrence IS an edit. Without this the most
+                // common recurrence change of all — editing one generated
+                // occurrence — creates a row born with a NULL updater, while
+                // the real-row branch fifteen lines below has always set it.
+                updated_user_id: actingUserId(req, userId),
             };
             const finalStatus = await evaluateStatusAndNotify({
                 operation: "create",
@@ -2235,7 +2403,7 @@ const Update = async (req, res) => {
         await resource.update({
             ...tempUpdated,
             status: finalStatus,
-            updated_user_id: userId,
+            updated_user_id: actingUserId(req, userId),
         });
         if (repeats != null && repeats != "" && !recurrence_id) {
             const recurrence = await MeetingRecurrence.create({
@@ -2295,6 +2463,22 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
                 .status(403)
                 .json({ message: "Access Denied", update: false });
         }
+
+        // THE FETCH HAS TO COME FIRST. It used to sit below the status block
+        // that reads `resource.toJSON()`, which put the read in the temporal
+        // dead zone of its own `const` — a ReferenceError, thrown on every
+        // single call and swallowed by this function's `try`/`catch` into a
+        // generic 500. "Just this one" on a recurring meeting therefore never
+        // worked at all; it is the sibling of "this one and everything after"
+        // in the scope dialog, so half of that dialog was dead.
+        const resource = await Meeting.findByPk(id);
+        if (!resource) {
+            return res.status(404).json({ message: "Resource not found" });
+        }
+        const recurance = await MeetingRecurrence.findByPk(
+            resource.recurrence_id,
+        );
+
         // Determine final status & send notifications
         const tempResource = {
             ...resource.toJSON(),
@@ -2319,15 +2503,9 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             created_user_id: resource.created_user_id,
         });
 
-        // Find the existing resource by ID
-        console.log("Updating Parent MeetingId", id);
-        const resource = await Meeting.findByPk(id);
-        const recurance = await MeetingRecurrence.findByPk(
-            resource.recurrence_id,
-        );
-        if (!resource) {
-            return res.status(404).json({ message: "Resource not found" });
-        } else if (
+        // `resource` and `recurance` are fetched above, before anything reads
+        // them.
+        if (
             repeats != null &&
             repeats != "" &&
             repeats != recurance.frequency
@@ -2395,7 +2573,12 @@ const UpdateOnlyParentRecurrence = async (req, res) => {
             all_day: allDay,
             status: finalStatus,
             created_user_id,
-            updated_user_id: userId,
+            // NOT a revival of this endpoint — it still throws on a temporal
+            // dead zone read of `resource` above. This only means that when
+            // someone does fix it, it stops writing a MEETING id into the actor
+            // column: MeetingForum.jsx passes `meeting.id` where this route
+            // reads `:id` as a user id.
+            updated_user_id: actingUserId(req, userId),
         });
         console.log(
             "Updated meeting",
@@ -2544,11 +2727,29 @@ const UpdateAllRecurrence = async (req, res) => {
     }
 };
 
+/**
+ * PUT /api/meetings/updatenext/:userId — "this one and everything after".
+ *
+ * SPLIT SURGERY. Only the first meeting of a recurrence is a row; every later
+ * occurrence is generated per request from that row. So this cannot update N
+ * rows — it ENDS the old series the day before the split and STARTS a new one
+ * at it. Get the order or the boundary wrong and you duplicate a series,
+ * orphan one, or delete bookings from every calendar, which is why the writes
+ * are in one transaction.
+ *
+ * WHERE THE SPLIT LANDS is chosen by `split_from`:
+ *   "occurrence" — the default, and what the DRAG path gets by omitting the
+ *       key entirely: split at the meeting the user opened. Unchanged.
+ *   "today" — split at the first occurrence whose calendar day is not before
+ *       today, leaving everything that already happened alone. THE CLIENT MUST
+ *       NOT COMPUTE THAT DATE: occurrences have no rows, `repeat_until` and
+ *       `active` are not on the wire, and a bare "today" would re-phase the
+ *       series onto whatever weekday today happens to be.
+ */
 const UpdateAllNextInRecurrence = async (req, res) => {
     try {
-        const { userId } = req.params; // Extract ID from URL parameters
+        const { userId } = req.params;
         const {
-            id,
             start_time,
             end_time,
             new_start_time,
@@ -2565,8 +2766,11 @@ const UpdateAllNextInRecurrence = async (req, res) => {
             created_user_id,
             recurrence_id,
             allDay,
-        } = req.body; // Extract data from the request body
-        // Validate the incoming data (optional but recommended)
+            it_support,
+            it_support_details,
+            split_from,
+        } = req.body;
+
         if (
             !start_time ||
             !end_time ||
@@ -2575,27 +2779,203 @@ const UpdateAllNextInRecurrence = async (req, res) => {
             !organizer ||
             !name ||
             !status ||
-            !created_user_id
+            !created_user_id ||
+            !recurrence_id
         ) {
             return res
                 .status(400)
                 .json({ message: "Required fields missing", update: false });
         }
-        let canDelete = false;
-        const oldRecurrence = await MeetingRecurrence.findByPk(recurrence_id);
-        const oldMeeting = await Meeting.findByPk(oldRecurrence.meeting_id);
-        canDelete = await CanDelete(oldMeeting.id, userId);
 
+        // Was an unguarded `.meeting_id` read that 500'd on a stale id.
+        const oldRecurrence = await MeetingRecurrence.findByPk(recurrence_id);
+        if (!oldRecurrence) {
+            return res
+                .status(404)
+                .json({ message: "Recurrence not found", update: false });
+        }
+        const oldMeeting = await Meeting.findByPk(oldRecurrence.meeting_id);
+        if (!oldMeeting) {
+            return res
+                .status(404)
+                .json({ message: "Series parent not found", update: false });
+        }
+
+        const canDelete = await CanDelete(oldMeeting.id, userId);
         if (!canDelete) {
             return res
                 .status(403)
                 .json({ message: "Access Denied", update: false });
         }
-        // Determine status & notify for next-in-recurrence branch
+        const actorId = actingUserId(req, userId);
+        const user = await User.findByPk(userId);
+
+        // A recurrence parent with no schedule is a series that silently stops:
+        // `frequency` is allowNull:false but unconstrained, so "" passes
+        // validation and then every generator skips the series — by which time
+        // the old series has already been ended. Refuse, and name the flow that
+        // actually means "stop repeating".
+        if (!isKnownRecurrenceFrequency(repeats)) {
+            return res.status(409).json({
+                message:
+                    "Choose how often this meeting repeats. To stop it repeating, cancel this one and everything after.",
+                update: false,
+            });
+        }
+
+        // WHERE THE NEW PARENT STARTS depends on who is calling. A drag sends
+        // `new_start_time`/`new_end_time` — where the occurrence was moved TO —
+        // alongside the times it had before. The edit form sends no `new_*`
+        // pair at all: it has already baked the submitted time-of-day into
+        // `start_time`/`end_time`. Reading only `new_*` meant every save from
+        // the form created a Meeting with null times and 500'd. KEEP THIS.
+        let splitStart = new_start_time || start_time;
+        let splitEnd = new_end_time || end_time;
+
+        if (split_from === "today") {
+            const anchor = firstOccurrenceOnOrAfter(
+                oldMeeting,
+                oldRecurrence,
+                new Date(),
+            );
+            if (!anchor) {
+                return res.status(409).json({
+                    message:
+                        "This series has no meetings left from today onward. Choose the past meeting instead, or edit an upcoming meeting.",
+                    update: false,
+                });
+            }
+            // The form baked the submitted clock time onto the date of the
+            // occurrence the user CLICKED, which is not the date we split at.
+            // Keep the anchor's date — it is the one the calendar drew — and
+            // take the clock time from the submission. Same move
+            // UpdateAllRecurrence makes, applied to an occurrence the user
+            // never clicked. Start and end carry their own dates so a multi-day
+            // booking keeps its span, and an all-day booking (stored
+            // midnight-to-midnight, start === end) keeps its shape.
+            const anchorStart = applyTimeOfDay(anchor.start, splitStart);
+            let anchorEnd = applyTimeOfDay(anchor.end, splitEnd);
+            if (!allDay && anchorEnd <= anchorStart) {
+                // The form's own guard blocks this (`start >= end && !allDay`),
+                // so this is for other callers: keep the submitted duration
+                // rather than store a row no view can draw.
+                anchorEnd = new Date(
+                    anchorStart.getTime() +
+                        (new Date(splitEnd).getTime() -
+                            new Date(splitStart).getTime()),
+                );
+            }
+            splitStart = anchorStart.toISOString();
+            splitEnd = anchorEnd.toISOString();
+        }
+
+        const before = oldMeeting.toJSON();
+        const anchorDay = startOfDay(new Date(splitStart));
+
+        // ── The occurrence being edited IS the first meeting of the series ──
+        // Creating a row here leaves TWO rows in the same slot: the new parent
+        // and the old parent, which nothing in this function retires — plus two
+        // live recurrences. When "this one" is the FIRST meeting of the series
+        // there is nothing earlier to preserve, so "this one and everything
+        // after" is just the parent updated in place. This is NOT the
+        // whole-series option that was deliberately removed from the scope
+        // dialog: it is reached only when the occurrence the user picked IS the
+        // first one, so the edit still never reaches further back than the
+        // meeting they opened.
+        //
+        // TWO WAYS TO BE THE FIRST MEETING, and the date test only catches one.
+        // `anchorDay <= parent day` catches an edit anchored at or before where
+        // the parent sits. It does NOT catch the parent being moved FORWARD,
+        // which is exactly what a drag does — and a drag reaches this endpoint
+        // only for a parent ROW (`IsMeetingParentRecurrence` gates it in
+        // Calendar/index.jsx), while the form pins the date and can only change
+        // the clock. So dragging the series' first meeting to a later day used
+        // to take the split branch: the old parent kept drawing at the day it
+        // had just been moved off, beside a new parent at the new one. One drag,
+        // two meetings. Comparing the ids closes that half.
+        const isParentRow =
+            before.id != null && Number(id) === Number(before.id);
+        if (
+            isParentRow ||
+            anchorDay <= startOfDay(new Date(before.start_time))
+        ) {
+            const inPlace = {
+                start_time: splitStart,
+                end_time: splitEnd,
+                room,
+                location,
+                type,
+                organizer,
+                description,
+                repeats,
+                name,
+                retired,
+                all_day: allDay,
+                it_support: !!it_support,
+                it_support_details: it_support ? it_support_details || "" : null,
+            };
+            const finalStatusInPlace = await evaluateStatusAndNotify({
+                operation: "update",
+                user,
+                meetingData: { ...before, ...inPlace },
+                existingMeeting: before,
+                created_user_id,
+            });
+
+            const occurrences = [
+                {
+                    ...before,
+                    ...inPlace,
+                    id: -1,
+                    recurrence_id: oldRecurrence.id,
+                },
+                ...(await CreateRepeatingMeetingsOfThisMeeting({
+                    ...before,
+                    ...inPlace,
+                    recurrence_id: oldRecurrence.id,
+                })),
+            ];
+            const overlap = await findOverlapForGeneratedSeries(occurrences, {
+                room,
+                recurrenceId: oldRecurrence.id,
+            });
+            if (overlap) {
+                return res
+                    .status(409)
+                    .json(await overlapResponse(overlap, { update: false }));
+            }
+
+            await sequelize.transaction(async (t) => {
+                await oldMeeting.update(
+                    {
+                        ...inPlace,
+                        status: finalStatusInPlace,
+                        updated_user_id: actorId,
+                    },
+                    { transaction: t },
+                );
+                // The cadence itself can change on this path — no new
+                // recurrence row is created to carry it — so the existing one
+                // has to be corrected or the generators keep stepping the old
+                // way while `repeats` on the row says something else.
+                if (oldRecurrence.frequency !== repeats) {
+                    await oldRecurrence.update(
+                        { frequency: repeats },
+                        { transaction: t },
+                    );
+                }
+            });
+            // evaluateStatusAndNotify already mailed the approvers for an
+            // update (meetingData carries the row's id), so there is no second
+            // sendApprovalNotifications here — same as UpdateAllRecurrence.
+            return res.status(200).json(oldMeeting);
+        }
+
+        // ── Genuine split ──────────────────────────────────────────────────
         const tempNext = {
-            ...(oldMeeting.toJSON?.() ? oldMeeting.toJSON() : oldMeeting),
-            start_time: new_start_time,
-            end_time: new_end_time,
+            ...before,
+            start_time: splitStart,
+            end_time: splitEnd,
             room,
             location,
             type,
@@ -2607,17 +2987,15 @@ const UpdateAllNextInRecurrence = async (req, res) => {
         };
         const finalStatusNext = await evaluateStatusAndNotify({
             operation: "create",
-            user: await User.findByPk(userId),
+            user,
             meetingData: tempNext,
-            existingMeeting: oldMeeting.toJSON
-                ? oldMeeting.toJSON()
-                : oldMeeting,
-            created_user_id: created_user_id,
+            existingMeeting: before,
+            created_user_id,
         });
-        let meeting = {
-            id,
-            start_time: new_start_time,
-            end_time: new_end_time,
+
+        const draft = {
+            start_time: splitStart,
+            end_time: splitEnd,
             room,
             location,
             type,
@@ -2627,57 +3005,122 @@ const UpdateAllNextInRecurrence = async (req, res) => {
             name,
             retired,
             all_day: allDay,
-            status,
+            // Neither field was destructured before, so the new parent fell
+            // back to the model defaults (false / null) and the series silently
+            // lost its IT support request — the same class of bug plan.md
+            // records for all_day in Update's materialisation branch.
+            it_support: !!it_support,
+            it_support_details: it_support ? it_support_details || "" : null,
+            status: finalStatusNext,
+            // The series keeps its BOOKER. Overwriting this with the editor
+            // moved the series into the editor's My Bookings
+            // (GetAllUserCreated filters created_user_id), took the
+            // `created_user_id == userId` shortcut in CanDelete away from the
+            // person who booked it, and sent their approved / declined mail to
+            // the editor.
             created_user_id,
+            updated_user_id: actorId,
             recurrence_id,
         };
 
-        let fakeMeets = await CreateRepeatingMeetingsOfThisMeeting(meeting);
-
-        // Dont allow update if it overlaps with other meetings
-        for (const fm of fakeMeets) {
-            const overlap = await isOverlappingFakeMeetUpdate(fm);
-            if (overlap) {
-                return res
-                    .status(409)
-                    .json(await overlapResponse(overlap, { update: false }));
-            }
+        // The anchor itself was never overlap-checked: the generator advances
+        // BEFORE it emits, so it never returns its own seed.
+        const occurrences = [
+            { ...draft, id: -1 },
+            ...(await CreateRepeatingMeetingsOfThisMeeting(draft)),
+        ];
+        const overlap = await findOverlapForGeneratedSeries(occurrences, {
+            room,
+            recurrenceId: recurrence_id,
+        });
+        if (overlap) {
+            return res
+                .status(409)
+                .json(await overlapResponse(overlap, { update: false }));
         }
 
-        // Create a new meeting as the parent for all future recurrences
-        meeting = await Meeting.create({
-            ...meeting,
-            created_user_id: userId,
-            status: finalStatusNext,
-            updated_user_id: userId,
-            id: null,
+        // repeat_until is INCLUSIVE and is tested against a cursor carrying the
+        // PARENT's time-of-day, while the split carries the newly submitted
+        // one. `anchor - 1 day` at the new clock time therefore DROPS the
+        // previous daily occurrence whenever the meeting moves earlier in the
+        // day (9:00 daily series split at Jul 15 moved to 8:00 -> repeat_until
+        // Jul 14 08:00 -> Jul 14's 9:00 meeting tests `>` and disappears).
+        // End of that day is what the boundary always meant.
+        const dayBefore = new Date(splitStart);
+        dayBefore.setDate(dayBefore.getDate() - 1);
+        const stopDate = endOfDay(dayBefore);
+
+        let created;
+        await sequelize.transaction(async (t) => {
+            created = await Meeting.create(
+                { ...draft, id: null },
+                { transaction: t },
+            );
+            await oldRecurrence.update(
+                { repeat_until: stopDate },
+                { transaction: t },
+            );
+            const newRecurrence = await MeetingRecurrence.create(
+                {
+                    meeting_id: created.id,
+                    frequency: repeats,
+                    repeat_until: null,
+                    active: true,
+                },
+                { transaction: t },
+            );
+            await created.update(
+                { recurrence_id: newRecurrence.id },
+                { transaction: t },
+            );
+
+            // EXCEPTIONS THAT ARE ALREADY ROWS. An occurrence someone moved,
+            // edited or had approved individually is a REAL row still carrying
+            // the OLD recurrence_id, and stopping the old recurrence does not
+            // touch it — repeat_until only bounds GENERATION. Left alone it
+            // would sit on the calendar beside the NEW series' generated
+            // occurrence for the same slot, because both duplicate-suppression
+            // sets are keyed on the parent's own recurrence_id. Move them onto
+            // the new series so they keep suppressing. Their own times, room
+            // and status are deliberately NOT rewritten: they were made
+            // exceptions on purpose.
+            await Meeting.update(
+                { recurrence_id: newRecurrence.id, updated_user_id: actorId },
+                {
+                    where: {
+                        recurrence_id: oldRecurrence.id,
+                        id: {
+                            [Sequelize.Op.notIn]: [oldMeeting.id, created.id],
+                        },
+                        start_time: { [Sequelize.Op.gte]: anchorDay },
+                    },
+                    transaction: t,
+                },
+            );
+
+            // THE OLD PARENT IS DELIBERATELY NOT STAMPED.
+            //
+            // Nothing about that row changed: the truncation lives on
+            // MeetingRecurrence.repeat_until, not on the meeting. Stamping it
+            // would be defensible as provenance for the series — except that a
+            // generated occurrence inherits its parent's audit columns
+            // (`CreateRepeatingMeetings` spreads `meeting.toJSON()`), so every
+            // occurrence the user CHOSE NOT TO CHANGE would open with
+            // "Series updated by <them>" against a meeting they explicitly left
+            // alone. The whole point of the "from today" option is that the
+            // past keeps its old time, room and details; the audit line has to
+            // agree with that, not quietly contradict it.
+            //
+            // If who-truncated-a-series is ever worth recording, it belongs on
+            // MeetingRecurrence, which has no audit columns yet — and that is a
+            // migration, not a line here.
         });
-        await sendApprovalNotifications(meeting, {
+
+        await sendApprovalNotifications(created, {
             operation: "create",
-            existingMeeting: oldMeeting,
+            existingMeeting: before,
         });
-
-        // Stop the old recurring meetings at the updated one
-        let stopDate = new Date(meeting.start_time);
-        stopDate.setDate(new Date(meeting.start_time).getDate() - 1);
-        await oldRecurrence.update({
-            repeat_until: stopDate,
-        });
-
-        // Create new recurrence from then on for the updated times
-        const recurrence = await MeetingRecurrence.create({
-            meeting_id: meeting.id,
-            frequency: repeats,
-            repeat_until: null,
-            active: true,
-        });
-
-        //Update the resource record in the database
-        await meeting.update({
-            recurrence_id: recurrence.id,
-        });
-        // Return the updated record as a JSON response
-        res.status(200).json(meeting);
+        return res.status(200).json(created);
     } catch (err) {
         console.error("Error updating resource:", err);
         res.status(500).json({ message: "Server error" });
@@ -2705,6 +3148,8 @@ const UpdateCurrentInRecurrence = async (req, res) => {
             created_user_id,
             recurrence_id,
             allDay,
+            it_support,
+            it_support_details,
         } = req.body; // Extract data from the request body
         // Validate the incoming data (optional but recommended)
         if (
@@ -2732,11 +3177,18 @@ const UpdateCurrentInRecurrence = async (req, res) => {
                 .json({ message: "Access Denied", update: false });
         }
 
+        // Defensive: only the drag path calls this today and it always sends
+        // new_*. If "Just this one" is ever repointed here, the form sends
+        // neither and every save would create a row with null times and 500 —
+        // the exact bug just fixed in UpdateAllNextInRecurrence.
+        const currentStart = new_start_time || start_time;
+        const currentEnd = new_end_time || end_time;
+
         // Determine status & notify for current-in-recurrence branch
         const tempCurrent = {
             ...(oldMeeting.toJSON?.() ? oldMeeting.toJSON() : oldMeeting),
-            start_time: new_start_time,
-            end_time: new_end_time,
+            start_time: currentStart,
+            end_time: currentEnd,
             room,
             location,
             type,
@@ -2757,8 +3209,8 @@ const UpdateCurrentInRecurrence = async (req, res) => {
         });
         let meeting = {
             id,
-            start_time: new_start_time,
-            end_time: new_end_time,
+            start_time: currentStart,
+            end_time: currentEnd,
             room,
             location,
             type,
@@ -2771,14 +3223,11 @@ const UpdateCurrentInRecurrence = async (req, res) => {
             created_user_id,
             recurrence_id,
             all_day: allDay,
-        };
-        // find next meeting that wil become a parent after
-        // let fakeMeets = await CreateRepeatingMeetingsOfThisMeeting(meeting);
-        // update the times
-        meeting = {
-            ...meeting,
-            start_time: new_start_time,
-            end_time: new_end_time,
+            // Same omission the split had: neither field was destructured, so
+            // the materialised row fell back to the model defaults and lost the
+            // IT support request. Shape matches `Update`.
+            it_support: !!it_support,
+            it_support_details: it_support ? it_support_details || "" : null,
         };
         const overlapFakeMeet = await isOverlappingFakeMeet(meeting);
         const overlapMeeting = await isOverlapping(meeting);
@@ -2792,12 +3241,16 @@ const UpdateCurrentInRecurrence = async (req, res) => {
                 );
         }
 
-        // Update the meeting the user wants to move
+        // Update the meeting the user wants to move.
+        // `created_user_id` is deliberately NOT overwritten with the editor:
+        // the occurrence keeps its BOOKER, or it moves into the editor's My
+        // Bookings, loses the booker's `created_user_id == userId` shortcut in
+        // CanDelete, and sends their approval mail to the editor. The literal
+        // above already carries the booker's id from the body.
         meeting = await Meeting.create({
             ...meeting,
-            created_user_id: userId,
             status: finalStatusCurrent,
-            updated_user_id: userId,
+            updated_user_id: actingUserId(req, userId),
             id: null,
         });
         await sendApprovalNotifications(meeting, {
@@ -2831,7 +3284,10 @@ const Delete = async (req, res) => {
         }
 
         // Delete the resource record from the database
-        await resource.update({ status: "Deleted", updated_user_id: userId });
+        await resource.update({
+            status: "Deleted",
+            updated_user_id: actingUserId(req, userId),
+        });
 
         // Return a success message
         res.status(200).json({ message: "Resource deleted successfully" });
@@ -2852,6 +3308,14 @@ const CancelNext = async (req, res) => {
             .json({ message: "Access Denied", delete: false });
     }
     await recurrence.update({ repeat_until: date });
+    // Truncating a series is a change to it, and until now nothing recorded who
+    // did it: the only write is to MeetingRecurrence, which has no
+    // updated_user_id column. The parent row is what carries the series'
+    // provenance into the detail dialog, and stamping it also bumps updatedAt.
+    const parent = await Meeting.findByPk(recurrence.meeting_id);
+    if (parent) {
+        await parent.update({ updated_user_id: actingUserId(req, userId) });
+    }
     res.status(200).json({ message: "Meetings updated" });
 };
 
@@ -2872,7 +3336,10 @@ const CancelAll = async (req, res) => {
         },
     });
     for (const meet of meetings) {
-        await meet.update({ status: "Canceled", updated_user_id: userId });
+        await meet.update({
+            status: "Canceled",
+            updated_user_id: actingUserId(req, userId),
+        });
     }
 
     await recurrence.update({ active: false, repeat_until: today });

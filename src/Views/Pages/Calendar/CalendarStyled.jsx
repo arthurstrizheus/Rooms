@@ -100,6 +100,18 @@ const CalendarStyled = styled("div")({
     "& .fc table, & .fc th, & .fc td, & .fc .fc-scrollgrid, & .fc .fc-scrollgrid-section > *":
         { border: 0 },
     "& .fc .fc-scroller": { scrollbarWidth: "thin" },
+    // THE DRAG GHOST MUST NOT REPLAY THE ENTRANCE ANIMATION.
+    // FullCalendar drags by `cloneNode(true)`-ing the event and marking the
+    // clone `.fc-event-dragging` (interaction/index.js:381). A clone is a new
+    // element, so both the inline `animation` that `eventDidMount` writes and
+    // the bubble's own entrance restart from t=0 — including their stagger
+    // DELAY, which for a bubble low in the grid is several hundred ms. The
+    // ghost therefore spent the start of every drag invisible and then popped
+    // in at `scale(.86)`, which read as the meeting appearing out of nowhere.
+    // The clone is a copy of something already on screen; it has no entrance.
+    "& .fc .fc-event-dragging, & .fc .fc-event-dragging *": {
+        animation: "none !important",
+    },
     // The day-cell content hook also fires for time-grid columns; we return
     // null there, but hide the wrapper too so it can never take up space.
     "& .fc .fc-timegrid-col-misc": { display: "none" },
@@ -291,7 +303,10 @@ const CalendarStyled = styled("div")({
         color: "var(--cc-on-red)",
         boxShadow: "var(--cc-glow-dot)",
     },
-    "& .fc .fc-day-other .cc-daynum": { opacity: 0.3 },
+    "& .fc .fc-day-other .cc-daynum": {
+        opacity: 0.3,
+        transition: "opacity 200ms",
+    },
     // `overflow: hidden` here clips NOTHING VERTICALLY and that is fine. In
     // balanced mode FullCalendar's own CSS makes this box
     // `position:absolute; left:0; right:0` with height:auto (daygrid/internal.js
@@ -444,14 +459,35 @@ const CalendarStyled = styled("div")({
     [HOVER]: {
         // Paint only — see the day-frame rule above for why a transform here
         // makes the row's bubbles oscillate.
+        //
+        // `pointer`, not `cell`. A click on a day cell opens that day's list
+        // (index.jsx `handleDateClick`), so the cell reads as one big button;
+        // `cell` promised a spreadsheet-style selection as the primary action,
+        // which is the secondary one. Dragging a range still works and still
+        // books — the cursor names the click, not the drag.
         "& .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover .fc-daygrid-day-frame":
             {
                 background: "var(--cc-wash)",
                 boxShadow: "var(--cc-sh1)",
-                cursor: "cell",
+                cursor: "pointer",
             },
         "& .fc-dayGridMonth-view .fc-daygrid-day:not(.fc-day-other):hover .cc-plus":
             { opacity: 1, transform: "none" },
+        // The spill days from the neighbouring months answer a click exactly
+        // like any other day, so they cannot be the only cells in the grid that
+        // do not respond to the pointer. They are quieter about it: a half-
+        // strength wash and no lift, because they are not this month, and the
+        // date lifts out of its 0.3 resting opacity just far enough to read.
+        // They still get no quick-add "+" — booking outside the month you are
+        // looking at stays a deliberate act, via the day list's own button.
+        "& .fc-dayGridMonth-view .fc-daygrid-day.fc-day-other:hover .fc-daygrid-day-frame":
+            {
+                background:
+                    "color-mix(in srgb, var(--cc-wash) 55%, transparent)",
+                cursor: "pointer",
+            },
+        "& .fc-dayGridMonth-view .fc-daygrid-day.fc-day-other:hover .cc-daynum":
+            { opacity: 0.6 },
     },
 
     // "+N more" link (§10.12). FullCalendar's own popover is suppressed in

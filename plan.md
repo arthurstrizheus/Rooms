@@ -971,3 +971,528 @@ place that can trigger both has to say which one wins. The rule for this file:
 click is not an explicit request to book.**
 
 **Verified:** compiles with no new warnings. **Not verified in a browser.**
+
+---
+
+## 2026-07-31 — Day list dropped all-day bookings; spill-day hover; cursor
+
+### The day list was missing meetings the cell was showing
+
+A cell showed "Easley · all day" and the day list for that day did not.
+
+**An all-day booking has no duration in this database.** `handleAllDayChange`
+sets both times to "12:00 AM"; the month view's create path then forces the end
+onto the start's own date (`meeting.view == "dayGridMonth"` in
+`MeetingForum.onSubbmit`); and the "end must be after start" guard is explicitly
+skipped for all-day meetings (`if (start >= end && !allDay)`, MeetingForum.jsx).
+So the row is stored midnight-to-midnight on one day, `start === end`.
+
+`openDayList` tested `end > dayStart`, which is right for a normal booking and
+excludes a zero-length one from **its own day** — the exact rows the grid draws
+as all-day bars. The filter now gives any booking whose end is not after its
+start the whole of its start day, which is both what it means and what
+FullCalendar already draws from the same data.
+
+Worth knowing: this is the same "all-day has no duration" fact that makes the
+overlap checks in `meetingControler.js` carry their separate `meeting.all_day ||
+allDay` branches. Anything that reasons about a meeting's span has to handle it.
+
+### Spill days now respond to the pointer
+
+The days from the neighbouring months (`.fc-day-other`) were excluded from the
+hover rule by `:not(.fc-day-other)`, yet they answer a click exactly like any
+other day — so they were the only cells in the grid that looked dead. They now
+get a half-strength wash and their date lifts out of its 0.3 resting opacity.
+Quieter than a real day, and still no quick-add "+": booking outside the month
+you are looking at stays deliberate, via the day list's own button.
+
+### The day cell's cursor is a pointer
+
+Was `cell` (the spreadsheet crosshair), which promised drag-selection as the
+primary action. Since a click opens the day list, the cell reads as one large
+button and says so. Dragging a range still works and still books — the cursor
+names the click, not the drag.
+
+**Verified:** compiles, no new warnings. **Not verified in a browser.**
+
+---
+
+## 2026-07-31 — Editing a PAST occurrence: "from today" vs "from that day"; "Updated by" on the detail dialog
+
+Two asks, one change: a past meeting must be editable with "This one and
+everything after" **and must ask first** which they mean; and any meeting that
+has been changed must say who changed it.
+
+### The prompt is a RULE on the wire, not a date
+
+`split_from` is a new optional body key on `PUT /api/meetings/updatenext/:userId`:
+
+| value | where the split lands |
+| --- | --- |
+| absent / `"occurrence"` | the meeting the user opened — today's behaviour, bit-for-bit |
+| `"today"` | the first occurrence whose CALENDAR DAY is not before today |
+
+**The client is not allowed to compute that date.** Occurrences are not rows;
+`repeat_until` and `active` live on `Rooms-MeetingRecurrences` and are not on
+the wire at all; and a bare "today" would **re-phase the series** — a Monday
+weekly series split on a Thursday becomes a Thursday series. The server resolves
+it in `firstOccurrenceOnOrAfter`, which duplicates the generator's cursor on
+purpose: `setDate`/`setMonth`/`setFullYear`, then re-apply the parent's clock
+time to BOTH cursors on every step, with `repeat_until` honoured by the
+generator's own inclusive `>` test in the generator's own order. Millisecond
+arithmetic would drift an hour across a US DST change (the mistake
+`UpdateAllRecurrence`'s drag branch still makes), and "same weekday, next month"
+would not reproduce Monthly's 31st-of-the-month rollover, which is
+path-dependent and has to be **reproduced, not corrected**, or the anchor names
+a day the calendar never drew. The comparison is on the calendar DAY on both
+sides, because an all-day booking is stored midnight-to-midnight with
+`start === end` and an instant comparison files today's all-day meeting as
+already past at 00:00. `MAX_OCCURRENCE_STEPS = 4000` is a second net behind the
+`isKnownRecurrenceFrequency` guard — an unrecognised frequency leaves the cursor
+untouched and would hang the request.
+
+The dialog asks only when the opened occurrence is on an **earlier calendar
+day** than today, as a second step inside the edit-scope dialog that is already
+open — not a third nested Dialog (a blurred backdrop on a blurred backdrop, and
+a fourth frame variant in a file whose kit header says it should have two) and
+not a third button on the top-level list (the load-bearing comment there
+forbids a past-rewriting option sitting beside the ordinary ones).
+
+### What the rows look like after each choice
+
+Worked example. Weekly "Team sync": parent `P` = Meeting #100, Mon 2026-01-05
+09:00–10:00, room 4, recurrence 7, booked by Dana. `R` = MeetingRecurrence #7,
+Weekly, `repeat_until` NULL. `E` = Meeting #812, an occurrence someone had
+already moved to Mon 2026-08-17 14:00–15:00, still carrying recurrence 7. Today
+is Fri 2026-07-31. Sam (office_admin, not the booker) opens the SYNTHETIC
+occurrence of Mon 2026-06-01, changes it to 10:00–11:00 in room 9, picks "This
+one and everything after", and gets the prompt.
+
+**(a) "Everything from today — Fri, Jul 31"** (`nextFromToday` / `split_from:
+"today"`). The server walks R from P — Jul 20, Jul 27, Aug 3 — and the first
+Monday not before Jul 31 is **Mon 2026-08-03**; only the CLOCK TIME comes from
+the submission, so the anchor is 2026-08-03 10:00–11:00.
+
+- `P` #100: times, room, type, name **unchanged**. Only `updated_user_id` = Sam.
+- `R` #7: `repeat_until` = 2026-08-02T23:59:59.999, still `active`, still points at P.
+- `P'` #941 NEW: 2026-08-03 10:00–11:00, room 9, all submitted fields including
+  `it_support`, `created_user_id` **still Dana**, `updated_user_id` = Sam.
+- `R'` #12 NEW: points at P', Weekly, `repeat_until` NULL.
+- `E` #812: `recurrence_id` 7 becomes 12, `updated_user_id` = Sam. Its own date,
+  time and room untouched.
+
+Drawn: Jan 5 through Jul 27 exactly as before from P; Aug 3 onward at 10:00 in
+room 9 from P'; Aug 17 shows the moved exception **once**, because E now sits in
+R''s `occupied` set.
+
+**(b) "Everything from Mon, Jun 1"** (`next` / `split_from: "occurrence"`).
+Identical surgery, anchor 2026-06-01 10:00–11:00; `R.repeat_until` =
+2026-05-31T23:59:59.999; every old-series row with `start_time >=`
+2026-06-01T00:00 (E included) is repointed and stamped. Drawn: Jan 5 through May
+25 as before; Jun 1 onward — **including the nine Mondays that already
+happened** — at 10:00 in room 9.
+
+**Why (b) is safe:** no row that recorded a meeting which actually took place is
+ever rewritten, **because those meetings were never rows.** Past occurrences are
+projections of P; what changes is which parent projects which stretch of the
+calendar.
+
+**Nothing-to-do case.** (a) on a series that ended before today: zero writes, a
+409 before the transaction opens.
+
+### The split surgery itself, rewritten
+
+`UpdateAllNextInRecurrence` now performs, **in one `sequelize.transaction` — the
+first transaction in this controller**: create the new parent, stop the old
+recurrence at `repeat_until`, create the new recurrence, repoint the new parent
+at it, re-home the post-anchor exception rows, stamp the old parent. Six
+dependent writes with no transaction meant a failure after write 2 left the old
+series stopped with **no successor**: every future occurrence gone from every
+calendar, behind a generic 500. The overlap scan, `evaluateStatusAndNotify` and
+the approval mails are deliberately OUTSIDE it — on MSSQL a managed transaction
+holds one of five pooled connections for its whole duration.
+
+Four other changes to that handler, each of which was a real defect:
+
+- **`repeat_until` is now `endOfDay(anchor − 1 day)`.** It is an INCLUSIVE bound
+  tested against a cursor carrying the PARENT's time-of-day, while the split
+  carries the newly submitted one. On a Daily series moved earlier in the day it
+  silently deleted the occurrence on the day before the split (9:00 daily series
+  split at Jul 15 moved to 8:00 gives `repeat_until` Jul 14 08:00, so Jul 14's
+  9:00 meeting tests `>` and disappears). End of that day is what the boundary
+  always meant.
+- **Anchor at or before the parent updates the parent IN PLACE.** Creating a row
+  there left two rows in the same slot and two live recurrences — and it is the
+  ONLY case the drag path can produce, because `IsMeetingParentRecurrence(-1)`
+  is always false so a drag reaches this endpoint only for a parent ROW. This is
+  **not the whole-series option coming back**: it is reached only when the
+  occurrence picked IS the first one, so the edit still never reaches further
+  back than the meeting the user opened. Tested with `startOfDay(anchor) <=
+  startOfDay(parent)`, not `isSameDay`, so an anchor EARLIER than the parent
+  folds in too.
+- **Post-anchor materialised rows are repointed to the new recurrence.** An
+  occurrence someone had moved or had approved individually is a REAL row still
+  carrying the old `recurrence_id`, and `repeat_until` only bounds GENERATION.
+  Left alone it sat on the calendar beside the new series' generated occurrence
+  for the same slot, because **both** duplicate-suppression mechanisms — the
+  `occupied` set and the overlap-candidate map — are keyed on the parent's own
+  `recurrence_id`. Only `recurrence_id` and `updated_user_id` change; their
+  times, room and status are deliberately left alone, because they were made
+  exceptions on purpose.
+- **`created_user_id` and `it_support` / `it_support_details`.** The new parent
+  was created with `created_user_id: userId` — the EDITOR — which moved the
+  series into the editor's My Bookings (`GetAllUserCreated` filters on it), took
+  the `created_user_id == userId` shortcut in `CanDelete` away from the person
+  who booked it, and sent their approved/declined mail to the editor. The series
+  now keeps its booker. `it_support`/`it_support_details` were never
+  destructured, so the new parent fell back to the model defaults and silently
+  lost the IT support request — the same class of bug this file already records
+  for `all_day` in `Update`'s materialisation branch.
+
+Also added: 404s for a stale `recurrence_id` (was an unguarded `.meeting_id`
+read that 500'd), and a 409 when `repeats` is blank — `frequency` is
+`allowNull: false` but unconstrained, so `""` passes validation and then every
+generator skips the series, by which time the old one has already been ended.
+The message names the flow that actually means "stop repeating".
+
+**Deliberate behaviour change:** the split's overlap scan is now ONE bounded,
+status-filtered range query (`findOverlapForGeneratedSeries`) instead of
+`isOverlappingFakeMeetUpdate` per generated occurrence. That check fires one
+unbounded `SELECT * FROM [Rooms-Meetings] WHERE room = ?` per occurrence — 365
+for a daily series, the exact pattern blamed elsewhere in this controller for
+exhausting the connection pool — and it matches rows of ANY status. From a past
+anchor that year-long scan sweeps precisely the stretch of history where
+cancelled leftovers live, so a booking cancelled two years ago 409'd the save
+naming a meeting nobody can see. It now follows `isOverlapping` and considers
+only `Approved` / `Waiting on Approval`. **Cancelled, declined and deleted
+bookings no longer block a save.** The anchor slot itself is now included in the
+scan, which it never was — the generator advances before it emits, so it never
+returned its own seed. `isOverlappingFakeMeetUpdate` is untouched:
+`UpdateAllRecurrence` still calls it.
+
+### "Updated by" — no new column, no new request
+
+`updated_user_id INT NULL`, `createdAt`/`updatedAt` and the
+`Meeting.belongsTo(User, { as: "UpdatedUser" })` association all already exist,
+and the include is on all four role branches of `GetAllUserCanSee` (a LEFT JOIN,
+so meetings with no updater still return) and on the parent query the generator
+reads. **No migration.** The dialog reads what is already in `extendedProps` —
+the calendar page holds no users list and must not start calling `GetUsers` to
+render one name.
+
+The provenance moved out of the `PersonRow` sub-line, where the editor was
+smuggled in beside the booker (two different people on one line reading as one
+person with two roles), into its own `Fact` row with the time. A generated
+occurrence has no row of its own — its audit columns are its PARENT's — so it
+says "Series updated by". A booking that was never edited renders nothing: the
+test is `updated_user_id` present, OR `updatedAt − createdAt > 5s`, because
+`Post` follows a recurring insert with a second `update({ recurrence_id })`
+milliseconds later and a bare `updatedAt > createdAt` would label every new
+recurring meeting as edited.
+
+**The actor sweep.** "For anything, not just this" meant auditing every path
+that mutates a meeting. Six recorded nobody:
+
+1. `Update`'s `id === -1` branch — materialising a synthetic occurrence, the
+   single most common recurrence edit — created the row with a NULL updater.
+2. `SetStatus`'s parent promotion inherited the PREVIOUS updater by spreading a
+   projection of the old parent.
+3. `CancelNext` wrote no Meeting row at all.
+4. The split never stamped the old parent it had just truncated.
+5. `UpdateCurrentInRecurrence` stole `created_user_id` the same way the split
+   did (now fixed) and dropped `it_support`.
+6. Three `recurrence.update({ …, updated_user_id })` calls in `SetStatus` wrote
+   to a column **MeetingRecurrence does not have**, so Sequelize dropped the key
+   silently and the write never happened. Removed; the actor is recorded on the
+   parent MEETING, which is the row the dialog reads.
+
+All audit writes now go through `actingUserId(req, fallback)`, which returns
+`req.user.id` — the one actor value the browser cannot choose, since every
+/api/meetings route is behind the global `authenticateUser` and none is in its
+`publicRoutes` allowlist. **The permission checks were NOT moved**: `CanDelete` /
+`CanUserBook` still read the `:userId` param and `body.userId` exactly as
+before, so who can edit what is unchanged by construction. `Post` deliberately
+stamps nobody — a brand-new booking has no updater.
+
+Also removed: the lower-case `updatedUser` key on every generated occurrence,
+which serialised a **full User row including the password column** to every
+client that could see the meeting, plus one `User.findByPk` per parent per
+request. It was redundant with the `UpdatedUser` the include already provides
+and had no consumer anywhere in `src/`. Standardising on `UpdatedUser` is what
+lets one render path serve both real rows and occurrences.
+
+### Deliberately NOT fixed
+
+- **`UpdateOnlyParentRecurrence` 500s unconditionally.** It reads
+  `resource.toJSON()` twenty-four lines before `const resource`, a temporal dead
+  zone `ReferenceError` swallowed by the surrounding try/catch, since 2025-08-29.
+  "Just this one" on a recurring meeting has not worked from either caller
+  since. Fixing it turns a dead endpoint live — its own commit, its own testing
+  pass, not a shared release with recurrence surgery.
+- **`MeetingForum.jsx` passes `meeting.id` where `/parentonly/:id` reads a USER
+  id.** The drag path passes `user?.id` correctly, so the two callers of one
+  endpoint disagree. Moot only while the endpoint is dead. `updated_user_id`
+  there now goes through `actingUserId`, so at least it will not write a meeting
+  id into the actor column when someone does fix it.
+- **The `/api/recurrences` mutation routes are unreachable** —
+  `router.put('cancelnext/:recurrence_id')` is missing its leading slash, so
+  path-to-regexp compiles a pattern no URL can match. Both handlers also record
+  no actor.
+- **The split sends two approval mails.** `evaluateStatusAndNotify` fires for the
+  spread-in old row (which carries an id), then `sendApprovalNotifications` fires
+  for the new parent. Pre-existing; untouched here.
+
+### Known, unchanged hazard
+
+An occurrence individually **CANCELLED** after the anchor reappears after a
+split: a `Canceled` row is excluded from the `occupied` set on either side, so
+nothing suppresses the generated occurrence for that slot. Pre-existing, and the
+same on both split choices.
+
+`firstOccurrenceOnOrAfter` does not check `recurrence.active`, matching the
+pre-existing handler, which never did either. A daily series that started more
+than ~11 years ago exceeds `MAX_OCCURRENCE_STEPS` and 409s rather than looping.
+
+### Verified vs reasoned
+
+**Verified.** `node --check backend/controllers/meetingControler.js` passes and
+the module loads (so the new `sequelize` instance import resolves with no
+circular-import breakage). `npx react-scripts build` succeeds; the only warnings
+in the four changed files are the pre-existing `eqeqeq` / `exhaustive-deps` noise
+on lines this change did not touch, and **no `react-hooks/rules-of-hooks`** —
+every new derived value in `DisplayMeeting.js` is a plain const, because that
+component returns early at `if (!meeting) return <></>` and any hook below that
+line would be conditional. `firstOccurrenceOnOrAfter` was extracted from the
+shipped file and exercised directly: the worked example above resolves to Mon
+Aug 3; a series stopped before today returns null; an all-day occurrence today
+counts as not-past; a daily 09:00 series crossing 2026-03-08 US spring-forward
+still lands at 09:00; a Monthly series seeded on Jan 31 rolls to Mar 3 and stays
+on the 3rd, reproducing the generator rather than correcting it; an empty
+frequency returns null instead of hanging; and a boundary before the parent
+returns the parent, which folds into the in-place branch.
+
+**Reasoned from the code only, never executed against the database.** There are
+no tests in this repo. Every claim above about real rows — the two row-level
+walkthroughs, the transaction rollback behaviour, the re-homing of exception
+rows, the overlap query's candidate set, and the six audit paths — is read off
+the source. None of it has been run against MSSQL, and none of it has been seen
+in a browser.
+
+---
+
+## 2026-07-31 — The drag ghost was 270px right of the pointer. Cause: `animation-fill-mode: both`
+
+### The mechanism
+
+`animation-fill-mode: both` is `backwards + forwards`. The FORWARDS half keeps
+the `to` keyframe applied for the life of the element **as an animated value**,
+and an animated `transform: none` computes to `matrix(1, 0, 0, 1, 0, 0)` — not
+the keyword `none`. Per CSS Transforms that makes the element a **permanent
+containing block for `position: fixed` descendants**.
+
+The calendar card carried `animation: cc-rise … both`. FullCalendar's drag ghost
+is a `position: fixed` clone appended INSIDE `.fc`
+(`@fullcalendar/interaction/index.js:1259`) and positioned with VIEWPORT
+coordinates taken from `getBoundingClientRect()`. Resolved against the card
+instead of the viewport, it landed at **source position + card origin**:
+
+```
+horizontal = 246px side menu (concourse.js sideWidth, applied as the shell's
+             margin-left in App.js) + 24px page padding          = 270px
+vertical   = ~61px banner + 22px page padding                    = ~83px
+```
+
+270px is 1.2 month columns at 1920px, 1.8 at 1366px — "a column or more", at
+every window size, and present on the FIRST frame because the drag delta starts
+at zero. The vertical 83px is what dropped the ghost into the gutter between
+week rows in the screenshot.
+
+**Why the month grid shows it for the whole drag:** `getMirrorSegs()` in
+`@fullcalendar/daygrid` returns `eventResize.segs` or `[]` — never
+`eventDrag.segs`. The month grid has no in-grid drag mirror, so the condition
+that normally hides the floating ghost
+(`setMirrorIsVisible(!hit || !querySelector('.fc-event-mirror'))`) is
+permanently true. The correctly-placed pink `.fc-highlight` cell IS the drop
+target; the offset bubble is the ghost. Two different things, which is why they
+appeared in two different places.
+
+### The fix
+
+`both` → `backwards` on the calendar card. `backwards` keeps the only half the
+entrance needs — the `from` state held through the 80ms delay — and the `to`
+state (`opacity: 1; transform: none`) is identical to the element's resting
+style, so nothing that renders changes. The card's computed transform becomes
+the keyword `none` and the viewport is the containing block again.
+
+The same change was made to every builder in `anim` (concourse.js), because
+every entrance keyframe in the system ends at the element's own resting style,
+so none of them ever needed a forwards fill — and the next `position: fixed`
+thing rendered inside a dialog, sheet or nav item would have hit this identically.
+
+Also added: `.fc-event-dragging` and its children get `animation: none`. The
+ghost is a `cloneNode(true)`, so it restarted the entrance animation from t=0
+*including its stagger delay* — it spent the first few hundred ms invisible and
+then popped in at `scale(.86)`. A copy of something already on screen has no
+entrance.
+
+### Verified
+
+Genuinely tested, in the Chrome installed on this machine, with the animation in
+its natural after-phase (`animation-delay: -5000ms`, no scripted `finish()`):
+
+| fill | computed transform | a fixed child asking for left:0/top:0 |
+| --- | --- | --- |
+| `both` | `matrix(1,0,0,1,0,0)` | pinned to the CARD at (270, 84) |
+| `forwards` | `matrix(1,0,0,1,0,0)` | pinned to the card |
+| `backwards` | `none` | pinned to the VIEWPORT at (0,0) — correct |
+| no animation | `none` | viewport |
+| opacity-only keyframes + `both` | `none` | viewport |
+| `container-type: size` alone | `none` | viewport |
+
+That last row clears the day frame's `containerType` of suspicion. Note the trap
+that contaminated the first run: while an animation is RUNNING, Chrome makes the
+element a containing block regardless of the current transform value.
+
+Also verified: deleting `transform: none` from `cc-rise`'s `to` keyframe does
+NOT help — the implicit to-value is still an animated value and still serialises
+as the identity matrix.
+
+### Rejected, and why
+
+`fixedMirrorParent={document.body}` would move the ghost out of the card and the
+coordinates would be honoured, but every rule in CalendarStyled.jsx is a
+descendant selector under its emotion wrapper. A body-parented ghost loses all
+of them and picks up FullCalendar's unscoped default chrome, with
+`--fc-event-bg-color` falling back to the injected `:root` blue, because the app
+only redefines those variables under `& .fc`. That trades a position bug for a
+styling bug.
+
+### Known, not fixed here
+
+- Roughly ten pages outside the calendar (`AdminDashboard`, `ApprovalQueue`,
+  `BlockedDates`, `Groups`, `Locations`, `NotFoundPage`, …) hand-write
+  `cc-rise … both` rather than calling `anim.card()`, so each is still a
+  permanent containing block and stacking context. Nothing `position: fixed`
+  renders inside them today, so nothing is broken — but the next thing that does
+  will land here again. They were left alone because none of them could be
+  checked in a browser as part of this fix.
+- The reduced-motion escape hatch only sets `animation-duration: 0.001ms
+  !important`; it does not remove the animation, so reduced-motion users had the
+  identical bug.
+- A secondary, weaker finding about why the ghost lingers longer in DAY view
+  than WEEK (`useEventCenter` shifts the hit probe by half the dragged bubble's
+  width, which is the whole column in a one-column grid, so the probe leaves the
+  grid and `hit` goes null). It explains DURATION, not displacement, and it
+  predicts week view should still flash the ghost for the first ~11px of
+  movement. Unconfirmed, and moot once the ghost is placed correctly.
+
+**Verified:** the browser experiment above; compiles with no new warnings.
+**Not verified:** that the drag now tracks the pointer in the running app.
+
+---
+
+## 2026-07-31 — All-day meetings dragged into the hour rows; post-review fixes to the split
+
+### An all-day meeting dragged into the time grid became a timed block
+
+Drop an all-day meeting into the hour rows of week or day view and FullCalendar
+did what it does for any calendar: converted it to a TIMED event at the hour it
+landed on and, because `allDayMaintainDuration` is on, handed it the duration it
+had. An all-day booking here is stored midnight-to-midnight, so the conversion
+invented a long block starting mid-afternoon and running past midnight into the
+next day — the room booked across a boundary nobody asked for.
+
+A drag of an all-day meeting now carries exactly ONE piece of information: which
+DAY it landed on. The time of day it was dropped at and the duration FullCalendar
+wants to give it are both discarded, the booking is shifted by whole days (so a
+multi-day all-day booking keeps its length), and it is put back in the all-day
+rail of the target day — `resolveDrop` in Calendar/index.jsx.
+
+Two details that matter:
+
+- The corrected times are computed and passed explicitly, NOT read back off the
+  event afterwards. A zero-length all-day row has no end FullCalendar will keep,
+  so re-reading `event.end` would rewrite midnight-to-midnight into
+  midnight-to-next-midnight for every meeting anyone ever dragged.
+- The recurrence path stores a PLAIN OBJECT rather than the FullCalendar event,
+  because the scope dialog and `handleExitWarning` read `.start`/`.end` off
+  whatever is in that state and for an all-day drop those must be the resolved
+  times, not what the grid happens to hold.
+
+Not changed: dragging a TIMED meeting INTO the all-day rail still converts it to
+all-day. That is FullCalendar's default and nobody has asked for it to stop.
+
+### Post-review fixes to the past-meeting split
+
+Two reviewers went over the split feature. Both passed it; both found real
+defects. Fixed here:
+
+**"Just this one" has been dead since 2025-08-29.**
+`UpdateOnlyParentRecurrence` read `resource.toJSON()` twenty-four lines ABOVE
+`const resource = await Meeting.findByPk(id)` — a temporal-dead-zone
+ReferenceError thrown on every call and swallowed by the function's own
+`try`/`catch` into a generic 500. It is the sibling option of "this one and
+everything after" in the scope dialog, so half of that dialog never worked. The
+fetch now happens before anything reads it.
+
+**Dragging the FIRST meeting of a series forward duplicated it.**
+The in-place branch tested `anchorDay <= parent day`, which catches an edit
+anchored at or before the parent but NOT the parent being moved to a LATER day —
+which is exactly what a drag does, and a drag reaches this endpoint only for a
+parent row. The old parent kept drawing at the day it had just been moved off,
+beside a new parent at the new one: one drag, two meetings. The branch now also
+fires when the edited id IS the parent row's id.
+
+**The old parent is no longer stamped `updated_user_id` on a split.**
+Nothing about that row changes — the truncation lives on
+`MeetingRecurrence.repeat_until`. But a generated occurrence inherits its
+parent's audit columns, so stamping it made every past occurrence the user
+CHOSE NOT TO CHANGE open with "Series updated by <them>". The whole point of the
+"from today" option is that the past keeps its old details; the audit line has to
+agree with that rather than quietly contradict it. If who-truncated-a-series is
+worth recording it belongs on `MeetingRecurrence`, which has no audit columns —
+that is a migration, not a line in this function.
+
+**Two copy defects.**
+- Step 1's "This one and everything after" promised "Meetings already past are
+  left as they were" and then, for a past occurrence, led to a step whose second
+  option explicitly rewrites the past. It now says the user will be asked where
+  the change starts.
+- Step 2's title was "Everything from today — <date>", but the change starts at
+  the first OCCURRENCE on or after today. For a Monday series read on a Friday
+  that is next Monday, not today; a user checking today's date afterwards would
+  see nothing changed and conclude the save failed. The title now states the
+  rule ("From the next meeting onward") and the date moved into the description.
+
+### Still open — reviewed, NOT fixed, listed so they are not lost
+
+- **The "from today" anchor ignores materialised rows.** It walks the cadence
+  only, so it can land on a slot already occupied by an exception row (an
+  occurrence someone moved away, or cancelled). The overlap scan cannot catch it
+  because it excludes the series' own rows. Result: a Monday the team
+  deliberately moved off reappears beside the Tuesday it was moved to, or a
+  cancelled booking silently retakes the room. Needs the anchor walk to consult
+  real rows, which is more surgery than a review fix.
+- **Zero-length all-day rows defeat the split's overlap scan** (`s < end && e >
+  start` is false when `start === end`), so an all-day series can be split into
+  a room that is already booked all day, with no warning. `CanBook` has an
+  all-day branch for exactly this; the split path does not.
+- **"Everything from today" can only fail after the form is filled in.** If the
+  series was already truncated past today the server 409s on save; the option
+  should not have been offered, but `repeat_until` is not on the wire.
+- **The drag scope dialog still has the ambiguity the prompt was built to
+  resolve** — it offers "Move this and all following" with "Meetings already
+  past stay where they are" and no past prompt, then rewrites the past.
+- **Special permissions do not follow a split.** The grant still points at the
+  old parent, so anyone who could only see the meeting through a
+  SpecialPermission loses it from the split date forward, silently.
+- **`MAX_OCCURRENCE_STEPS = 4000`** is ~11 years of a DAILY series; an older one
+  still running reports "no meetings left from today onward", which steers the
+  user into the destructive option.
+- **`CanDelete` still takes its subject from the `:userId` route param** while
+  the audit column now takes the actor from the JWT. The audit is trustworthy;
+  the authorisation subject is not. Pre-existing, flagged by the file's own TODO.
+
+**Verified:** `node --check` on the controller, `npx react-scripts build` with no
+new warnings. **Not verified:** none of this has been run against a database or
+seen in a browser.

@@ -143,10 +143,14 @@ const ADVANCED_PANE_ID = "cc-advanced-pane";
 
 /** The scope words the recurrence handlers use, rendered for a human. */
 // No whole-series scope: an edit only ever runs forward from the occurrence
-// being changed, so meetings that already happened are never rewritten.
+// being changed. `nextFromToday` is that same forward edit with the split point
+// resolved by the SERVER to the first occurrence on or after today — the client
+// cannot compute it, because occurrences have no rows and repeat_until is not
+// on the wire.
 const SCOPE_LABEL = {
     current: "This meeting only",
     next: "This and all following",
+    nextFromToday: "This and all following, from today",
 };
 
 const MeetingFourm = ({
@@ -615,6 +619,18 @@ const MeetingFourm = ({
 
                 switch (updateMode) {
                     case "next":
+                    case "nextFromToday":
+                        // A RULE, not a date. "today" means "the first
+                        // occurrence on or after today"; the server walks the
+                        // cadence to find it, because a bare today would
+                        // re-phase the series onto whatever weekday today
+                        // happens to be. start_time still carries the submitted
+                        // CLOCK TIME, which the server applies to whichever
+                        // date it lands on.
+                        meeting.split_from =
+                            updateMode === "nextFromToday"
+                                ? "today"
+                                : "occurrence";
                         UpdateAllNextMeetingsInRecurrence(user?.id, meeting)
                             .then((resp) => {
                                 if (resp) {

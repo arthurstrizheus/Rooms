@@ -12,7 +12,9 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import {
+    addDays,
     addMinutes,
+    differenceInCalendarDays,
     eachDayOfInterval,
     endOfDay,
     endOfMonth,
@@ -1195,6 +1197,16 @@ const Calendar = ({
      * booking shows on every day it covers — an all-day event's `end` is
      * exclusive, which `> dayStart` already handles.
      *
+     * AN ALL-DAY BOOKING HAS NO DURATION IN THIS DATABASE. The form sets both
+     * times to "12:00 AM" when All Day is ticked, the month view then forces the
+     * end onto the start's own date, and the "end must be after start" guard is
+     * explicitly skipped for all-day meetings (MeetingForum.jsx). So a typical
+     * all-day row is stored midnight-to-midnight on one day, and a plain
+     * `end > dayStart` test drops it from its OWN day — the calendar cell showed
+     * it and this list did not. A booking whose end is not after its start gets
+     * the whole of its start day instead, which is both what it means and what
+     * the grid already draws.
+     *
      * Re-opening the SAME day is a no-op rather than a fresh state object. A
      * month click reaches this from both `select` and `dateClick`, and handing
      * the dialog a new object would replay the staggered entrance of every
@@ -1208,7 +1220,11 @@ const Calendar = ({
                 .filter((ev) => {
                     const start = new Date(ev.start);
                     if (isNaN(start.getTime())) return false;
-                    const end = ev.end ? new Date(ev.end) : start;
+                    const rawEnd = ev.end ? new Date(ev.end) : start;
+                    const end =
+                        !isNaN(rawEnd.getTime()) && rawEnd > start
+                            ? rawEnd
+                            : endOfDay(start);
                     return start <= dayEnd && end > dayStart;
                 })
                 .sort((a, b) => new Date(a.start) - new Date(b.start));
@@ -1332,21 +1348,94 @@ const Calendar = ({
         [events, openDetails]
     );
 
-    const handleEventUpdate = async ({ event }) => {
+    /**
+     * AN ALL-DAY MEETING MOVES BY THE DAY. IT NEVER MOVES INTO THE CLOCK.
+     *
+     * Drop one into the time grid's hour rows and FullCalendar does what it does
+     * for any calendar: converts it to a TIMED event at the hour it landed on,
+     * and — because `allDayMaintainDuration` is on — hands it the duration it
+     * had. An all-day booking in this database is stored midnight-to-midnight
+     * (see MeetingForum's `start >= end` guard, which is skipped when All Day is
+     * ticked), so that conversion invented a long block starting mid-afternoon
+     * and running into the following day. The room was then booked across a
+     * midnight nobody asked for.
+     *
+     * A drag of an all-day meeting therefore carries exactly one piece of
+     * information: WHICH DAY it landed on. Everything else — the time of day it
+     * was dropped at, the duration FullCalendar wants to give it — is discarded,
+     * and the booking is shifted by whole days so a multi-day all-day booking
+     * keeps its length. It goes back in the all-day rail of the target day,
+     * which is the only place it can be.
+     *
+     * Returns the times to SAVE. `event.end` is deliberately not read back
+     * afterwards: a zero-length all-day row has no end FullCalendar will keep,
+     * and re-reading it would rewrite midnight-to-midnight into
+     * midnight-to-next-midnight for every meeting anyone ever drags.
+     */
+    const resolveDrop = (event, oldEvent) => {
+        const wasAllDay = Boolean(
+            oldEvent ? oldEvent.allDay : event.extendedProps?.all_day
+        );
+        if (!wasAllDay || event.allDay) {
+            return {
+                start: event.start,
+                end: event.end,
+                allDay: event.allDay,
+            };
+        }
+
+        const oldStart = new Date(
+            oldEvent?.start || event.extendedProps?.start_time
+        );
+        const rawOldEnd = new Date(
+            oldEvent?.end || event.extendedProps?.end_time
+        );
+        const shiftDays = differenceInCalendarDays(
+            startOfDay(event.start),
+            startOfDay(oldStart)
+        );
+        const start = addDays(oldStart, shiftDays);
+        const end =
+            !isNaN(rawOldEnd.getTime()) && rawOldEnd > oldStart
+                ? addDays(rawOldEnd, shiftDays)
+                : start;
+
+        // Put it back in the all-day rail on the grid too, so the user is not
+        // looking at a timed block until the refetch lands. `null` rather than a
+        // zero-length end: FullCalendar renders an all-day event with no end as
+        // the one day it belongs to, which is what this is.
+        event.setDates(start, end > start ? end : null, { allDay: true });
+
+        return { start, end, allDay: true };
+    };
+
+    const handleEventUpdate = async (arg) => {
+        const { event, oldEvent } = arg;
+        const dropped = resolveDrop(event, oldEvent);
         try {
             const isParent = await IsMeetingParentRecurrence(
                 event.extendedProps.id
             );
             if (event.extendedProps.recurrence_id && isParent.parent) {
                 setShowParentWarning(true);
-                setSelectedEvent(event);
-                setUpdateEvent(event);
+                // A PLAIN OBJECT, not the FullCalendar event: the scope dialog
+                // and `handleExitWarning` read `.start` / `.end` off whatever is
+                // stored here, and for an all-day drop those must be the times
+                // resolved above, not the ones the grid happens to hold.
+                const resolvedEvent = {
+                    extendedProps: event.extendedProps,
+                    start: dropped.start,
+                    end: dropped.end,
+                    allDay: dropped.allDay,
+                };
+                setSelectedEvent(resolvedEvent);
+                setUpdateEvent(resolvedEvent);
             } else {
                 const updatedMeeting = {
                     ...event.extendedProps,
-                    start_time: new Date(event.start).toISOString(),
-                    end_time: new Date(event.end).toISOString(),
-                    all_day: event.allDay,
+                    start_time: new Date(dropped.start).toISOString(),
+                    end_time: new Date(dropped.end).toISOString(),
+                    all_day: dropped.allDay,
                 };
                 UpdateMeeting(user?.id, updatedMeeting)
                     .then((resp) => {
@@ -2019,7 +2108,36 @@ const Calendar = ({
                     // Never let the flex parent squash the states that hug
                     // their content — they scroll the page instead.
                     flexShrink: 0,
-                    animation: `${ccMotion.keyframes.card} ${ccMotion.dur.card}ms ${SP} ${ccMotion.delay.card}ms both`,
+                    // `backwards`, NEVER `both`. This is load-bearing, and it
+                    // is not about the animation.
+                    //
+                    // `both` is `backwards + forwards`, and the FORWARDS half
+                    // keeps the `to` keyframe applied for the life of the
+                    // element — as an ANIMATED value. An animated
+                    // `transform: none` computes to `matrix(1, 0, 0, 1, 0, 0)`,
+                    // which is not the keyword `none`, so per CSS Transforms
+                    // this card became a permanent containing block for every
+                    // `position: fixed` descendant.
+                    //
+                    // FullCalendar's drag ghost is exactly that: a `fixed`
+                    // clone appended INSIDE `.fc` (interaction/index.js:1259)
+                    // and positioned with VIEWPORT coordinates read from
+                    // `getBoundingClientRect()`. Resolved against this card
+                    // instead of the viewport, it landed at (source + card
+                    // origin) — 246px of side menu plus 24px of page padding,
+                    // more than a full month column to the right, from the
+                    // first frame of the drag. The month grid never renders an
+                    // in-grid drag mirror to hide the ghost behind
+                    // (daygrid/internal.js `getMirrorSegs` returns resize segs
+                    // only), so it was on screen for the whole drag.
+                    //
+                    // `backwards` keeps the half the entrance actually needs —
+                    // the `from` state held during the 80ms delay, without
+                    // which the card flashes in at full opacity before rising.
+                    // The `to` state is `opacity: 1; transform: none`, which is
+                    // identical to this element's resting style, so dropping
+                    // the forwards fill changes nothing that renders.
+                    animation: `${ccMotion.keyframes.card} ${ccMotion.dur.card}ms ${SP} ${ccMotion.delay.card}ms backwards`,
                     [PHONE]: { borderRadius: "22px" },
                     // `flex` after `flexShrink` on purpose: the shorthand resets
                     // it. In grid mode the card takes exactly the page height.

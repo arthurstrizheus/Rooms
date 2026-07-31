@@ -39,6 +39,24 @@ const LONG_DATE = {
     year: "numeric",
 };
 const SHORT_DATE = { weekday: "short", month: "short", day: "numeric" };
+const UPDATED_AT = {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+};
+
+/**
+ * A booking that has never been edited must show nothing — "updated by" on an
+ * untouched meeting is noise. Sequelize stamps createdAt and updatedAt from the
+ * same instant on INSERT, but `Post` follows a recurring booking's insert with
+ * a second `update({ recurrence_id })` milliseconds later, so
+ * `updatedAt > createdAt` alone would label every new recurring meeting as
+ * edited. This tolerance is what separates "saved, then saved again
+ * immediately" from a real edit.
+ */
+const EDIT_TOLERANCE_MS = 5000;
 
 const DisplayMeeting = ({
     meeting,
@@ -55,6 +73,8 @@ const DisplayMeeting = ({
     const { user } = useAuth();
     const [showWarning, setShowWarning] = useState(false);
     const [showParentWarning, setShowParentWarning] = useState(false);
+    // "scope" = which meetings; "split" = where a change to a PAST meeting starts.
+    const [scopeStep, setScopeStep] = useState("scope");
     const [roomImage, setRoomImage] = useState(null); // State to hold the room image URL
 
     useEffect(() => {
@@ -110,7 +130,7 @@ const DisplayMeeting = ({
 
     const handleEdit = () => {
         if (meeting.recurrence_id) {
-            setShowParentWarning(true);
+            openScope();
         } else {
             setUpdateMode(null);
             handleUpdateEvent();
@@ -167,15 +187,35 @@ const DisplayMeeting = ({
         setShowWarning(false);
     };
 
-    const handleEditOnlyParent = () => {
-        setUpdateMode("current");
+    const openScope = () => {
+        setScopeStep("scope");
+        setShowParentWarning(true);
+    };
+    const closeScope = () => {
         setShowParentWarning(false);
+        setScopeStep("scope");
+    };
+
+    const startEdit = (mode) => {
+        setUpdateMode(mode);
+        closeScope();
         handleUpdateEvent();
     };
-    const handleEditFollowingParent = () => {
-        setUpdateMode("next");
-        setShowParentWarning(false);
-        handleUpdateEvent();
+
+    const handleEditOnlyParent = () => startEdit("current");
+
+    const handleEditFollowing = () => {
+        // A past occurrence is the one case where "everything after" is
+        // genuinely ambiguous: it can mean "from today", leaving what already
+        // happened alone, or "from that day", rewriting it. Ask instead of
+        // guessing — the second reading rewrites meetings that already
+        // happened, and this file's rule is that reaching backwards is a
+        // deliberate act.
+        if (isPastOccurrence) {
+            setScopeStep("split");
+            return;
+        }
+        startEdit("next");
     };
 
     /* --------------------------------------------------------- presentation --- */
@@ -192,6 +232,57 @@ const DisplayMeeting = ({
         : null;
     const roomResourceList = room ? getRoomResources(room.id) : [];
     const scopeSub = [meeting?.name, longDate].filter(Boolean).join(" · ");
+
+    const todayShort = new Date().toLocaleDateString("en-US", SHORT_DATE);
+    // Compared on the calendar DAY, not the instant, and for the same reason
+    // the server does: a meeting earlier TODAY is not "already happened" for
+    // this purpose — "everything from today" would resolve to that very
+    // occurrence, so the two choices below would be one choice wearing two
+    // labels. (Not date-fns: the frontend is on v2, where `toDate`/`getTime`
+    // silently return NaN for the ISO strings this component is handed.)
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const occurrenceDay = new Date(start);
+    occurrenceDay.setHours(0, 0, 0, 0);
+    const isPastOccurrence =
+        !isNaN(start.getTime()) && occurrenceDay < startOfToday;
+
+    // Provenance costs NOTHING to fetch. Every meeting query in
+    // meetingControler.js already includes `UpdatedUser` (id, first_name,
+    // last_name, email) through the updated_user_id association, and a
+    // generated occurrence carries it through `...meeting.toJSON()`. Do NOT add
+    // a GetUsers() call to render one name — the calendar page holds no users
+    // list, and one would be a whole extra request per page load.
+    const updatedAt = meeting?.updatedAt ? new Date(meeting.updatedAt) : null;
+    const createdAt = meeting?.createdAt ? new Date(meeting.createdAt) : null;
+    const wasEdited =
+        !!meeting?.updated_user_id ||
+        (!!updatedAt &&
+            !!createdAt &&
+            !isNaN(updatedAt.getTime()) &&
+            !isNaN(createdAt.getTime()) &&
+            updatedAt.getTime() - createdAt.getTime() > EDIT_TOLERANCE_MS);
+    const updatedByName = meeting?.UpdatedUser
+        ? `${meeting.UpdatedUser.first_name || ""} ${
+              meeting.UpdatedUser.last_name || ""
+          }`.trim()
+        : "";
+    const updatedWhen =
+        updatedAt && !isNaN(updatedAt.getTime())
+            ? updatedAt.toLocaleDateString("en-US", UPDATED_AT)
+            : "";
+    // A generated occurrence has no row of its own: its audit columns are its
+    // PARENT's. Say "Series" rather than claim someone edited this one day.
+    // `id === -1` is the flag the whole codebase already branches on.
+    const isOccurrence = meeting?.id === -1;
+    const updatedLabel = updatedByName
+        ? isOccurrence
+            ? "Series updated by"
+            : "Updated by"
+        : isOccurrence
+        ? "Series updated"
+        : "Updated";
+    const updatedValue = [updatedByName, updatedWhen].filter(Boolean).join(" · ");
 
     const roomName = (
         <Box sx={{ display: "flex", alignItems: "center", gap: "7px" }}>
@@ -273,38 +364,105 @@ const DisplayMeeting = ({
             {/* Edit scope — which meetings in the recurrence the form will change */}
             <Dialog
                 open={showParentWarning}
-                onClose={() => setShowParentWarning(false)}
+                onClose={closeScope}
                 {...scopeDialogProps(480)}
             >
                 <DialogSurface accent={color || TYPE_FALLBACK}>
                     <DialogHeader
                         badge={repeatWord ? `↻ Repeats ${repeatWord}` : null}
-                        title="Change which meetings?"
+                        title={
+                            scopeStep === "split"
+                                ? "This meeting has already happened"
+                                : "Change which meetings?"
+                        }
                         sub={scopeSub}
-                        onClose={() => setShowParentWarning(false)}
+                        onClose={closeScope}
                     />
                     <DialogBody>
-                        <ScopeList>
-                            <ScopeOption
-                                glyph="1"
-                                title="Just this one"
-                                desc={`Only ${shortDate} changes. The rest of the series is left alone.`}
-                                onClick={handleEditOnlyParent}
+                        {scopeStep === "split" ? (
+                            <AlertBlock
+                                key="past-alert"
+                                title={`${shortDate} is in the past`}
+                                body="Pick where the change starts. Nothing before that point is touched."
                             />
-                            {/* An edit never reaches backwards. Rewriting
-                                meetings that already happened is a deliberate
-                                act, not a third button on this list. */}
-                            <ScopeOption
-                                glyph="→"
-                                title="This one and everything after"
-                                desc={`${shortDate} and every later meeting in the series change. Meetings already past are left as they were.`}
-                                onClick={handleEditFollowingParent}
-                            />
+                        ) : null}
+                        {/* DialogBody keys its stagger wrappers by the child's
+                            own key and falls back to the child's INDEX, so
+                            swapping one step's list for the other in the same
+                            slot would reuse the DOM and the cc-stag entrance
+                            would not replay. The key is what makes this read as
+                            a step change instead of a flicker. */}
+                        <ScopeList key={scopeStep}>
+                            {scopeStep === "scope" ? (
+                                <>
+                                    <ScopeOption
+                                        glyph="1"
+                                        title="Just this one"
+                                        desc={`Only ${shortDate} changes. The rest of the series is left alone.`}
+                                        onClick={handleEditOnlyParent}
+                                    />
+                                    {/* An edit never reaches backwards by
+                                        accident. Rewriting meetings that
+                                        already happened is a deliberate act —
+                                        it is the second step below, not a third
+                                        button on this list. */}
+                                    {/* For a PAST occurrence this button leads
+                                        to the second step rather than acting,
+                                        and one of the choices there does reach
+                                        back — so it must not promise here that
+                                        the past is safe. Saying so would be a
+                                        promise the path behind it breaks. */}
+                                    <ScopeOption
+                                        glyph="→"
+                                        title="This one and everything after"
+                                        desc={
+                                            isPastOccurrence
+                                                ? `${shortDate} has already happened, so you will be asked where the change should start.`
+                                                : `${shortDate} and every later meeting in the series change. Meetings already past are left as they were.`
+                                        }
+                                        onClick={handleEditFollowing}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    {/* NO DATE IN THIS TITLE. The change starts
+                                        at the first OCCURRENCE on or after
+                                        today, which the server resolves from
+                                        the series' own cadence — for a Monday
+                                        series read on a Friday that is next
+                                        Monday, not today. A date in the title
+                                        is the thing users scan and check the
+                                        calendar against, and this one would
+                                        have been wrong most of the time. The
+                                        rule goes in the title; the date belongs
+                                        to whichever meeting actually changes. */}
+                                    <ScopeOption
+                                        glyph="→"
+                                        title="From the next meeting onward"
+                                        desc={`The first meeting on or after today (${todayShort}) changes, and every one after it. The meetings that already happened keep their old time, room and details.`}
+                                        onClick={() =>
+                                            startEdit("nextFromToday")
+                                        }
+                                    />
+                                    <ScopeOption
+                                        glyph="←"
+                                        title={`Everything from ${shortDate}`}
+                                        desc={`Reaches back. ${shortDate} and every meeting since — including the ones that already happened — change too.`}
+                                        onClick={() => startEdit("next")}
+                                    />
+                                </>
+                            )}
                         </ScopeList>
                     </DialogBody>
                     <DialogFooter>
                         <Spacer />
-                        <CcButton onClick={() => setShowParentWarning(false)}>
+                        <CcButton
+                            onClick={
+                                scopeStep === "split"
+                                    ? () => setScopeStep("scope")
+                                    : closeScope
+                            }
+                        >
                             Back
                         </CcButton>
                     </DialogFooter>
@@ -361,19 +519,19 @@ const DisplayMeeting = ({
                         />
                     ) : null}
 
-                    <PersonRow
-                        name={meeting.organizer}
-                        role={
-                            meeting.UpdatedUser
-                                ? `Booker · last changed by ${meeting.UpdatedUser.first_name} ${meeting.UpdatedUser.last_name}`
-                                : "Booker"
-                        }
-                    />
+                    {/* The editor used to be smuggled into this sub-line next
+                        to the booker. Two different people on one line read as
+                        one person with two roles; the editor now has its own
+                        Fact row, with the time it happened. */}
+                    <PersonRow name={meeting.organizer} role="Booker" />
 
                     <Facts>
                         <Fact label="Type">{type}</Fact>
                         {meeting.repeats ? (
                             <Fact label="Repeats">{meeting.repeats}</Fact>
+                        ) : null}
+                        {wasEdited && updatedValue ? (
+                            <Fact label={updatedLabel}>{updatedValue}</Fact>
                         ) : null}
                     </Facts>
 

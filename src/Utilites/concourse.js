@@ -487,23 +487,48 @@ export const motion = {
     },
 };
 
-/** `animation` shorthand builders, so recipes stay one line. */
+/**
+ * `animation` shorthand builders, so recipes stay one line.
+ *
+ * EVERY ONE OF THESE IS `backwards`, NOT `both`. An entrance animation needs the
+ * BACKWARDS half — the `from` state held during the delay, so the element does
+ * not flash at its final appearance before playing — and nothing else. The
+ * FORWARDS half is what causes damage: it keeps the `to` keyframe applied for
+ * the life of the element as an ANIMATED value, and an animated
+ * `transform: none` computes to `matrix(1, 0, 0, 1, 0, 0)` rather than the
+ * keyword `none`. That is enough to make the element a permanent CONTAINING
+ * BLOCK for `position: fixed` descendants and a permanent stacking context.
+ *
+ * That is not hypothetical. It put FullCalendar's drag ghost — a `fixed` clone
+ * positioned with viewport coordinates — 270px to the right of the pointer for
+ * every drag in the month grid, because the calendar card sat above it with a
+ * `both` fill. See the comment on the card in Calendar/index.jsx.
+ *
+ * It is free to do this here because every entrance keyframe below ends at
+ * `opacity: 1; transform: none`, which IS each element's resting style — so the
+ * forwards fill was never rendering anything the element would not render on its
+ * own. Anything that genuinely needs to REST somewhere other than its natural
+ * style must say `forwards` itself, and own the consequence.
+ */
 export const anim = {
     navItem: (delayMs = 0) =>
-        `${motion.keyframes.navItem} ${motion.dur.navItem}ms ${motion.spring} ${delayMs}ms both`,
+        `${motion.keyframes.navItem} ${motion.dur.navItem}ms ${motion.spring} ${delayMs}ms backwards`,
     bubble: (delayMs = 0) =>
-        `${motion.keyframes.bubble} ${motion.dur.bubble}ms ${motion.spring} ${delayMs}ms both`,
+        `${motion.keyframes.bubble} ${motion.dur.bubble}ms ${motion.spring} ${delayMs}ms backwards`,
     posBubble: (delayMs = 0) =>
-        `${motion.keyframes.posBubble} ${motion.dur.posBubble}ms ${motion.spring} ${delayMs}ms both`,
+        `${motion.keyframes.posBubble} ${motion.dur.posBubble}ms ${motion.spring} ${delayMs}ms backwards`,
     card: () =>
-        `${motion.keyframes.card} ${motion.dur.card}ms ${motion.spring} ${motion.delay.card}ms both`,
-    picker: () => `${motion.keyframes.picker} ${motion.dur.picker}ms ${motion.spring} both`,
-    dialog: () => `${motion.keyframes.dialog} ${motion.dur.dialog}ms ${motion.spring} both`,
-    sheet: () => `${motion.keyframes.sheet} ${motion.dur.sheet}ms ${motion.spring} both`,
+        `${motion.keyframes.card} ${motion.dur.card}ms ${motion.spring} ${motion.delay.card}ms backwards`,
+    picker: () =>
+        `${motion.keyframes.picker} ${motion.dur.picker}ms ${motion.spring} backwards`,
+    dialog: () =>
+        `${motion.keyframes.dialog} ${motion.dur.dialog}ms ${motion.spring} backwards`,
+    sheet: () =>
+        `${motion.keyframes.sheet} ${motion.dur.sheet}ms ${motion.spring} backwards`,
     stagger: (index = 0) =>
         `${motion.keyframes.stagger} ${motion.dur.dialogStagger}ms ${motion.spring} ${
             motion.delay.dialogBase + motion.delay.dialogStep * index
-        }ms both`,
+        }ms backwards`,
 };
 
 /* ============================================================================

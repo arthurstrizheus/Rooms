@@ -128,7 +128,19 @@ export async function UpdateAllNextMeetingsInRecurrence(id, data) {
             );
 
         if (resp.status === 204 || resp.status === 200) {
-            showSuccess("Meetings updated");
+            // A split whose new parent needs approval takes the WHOLE forward
+            // series off every calendar until someone approves it: the parent
+            // query that generates occurrences excludes "Waiting on Approval",
+            // and the old series has already been stopped at the split.
+            // "Meetings updated" alone would look like the bookings had been
+            // deleted.
+            if (resp?.data?.status === "Waiting on Approval") {
+                showWarning(
+                    "Waiting on Approval — the later meetings stay hidden until it is approved"
+                );
+            } else {
+                showSuccess("Meetings updated");
+            }
             return resp.data; // Indicate success
         }
 
