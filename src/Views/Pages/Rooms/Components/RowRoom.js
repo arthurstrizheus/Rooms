@@ -1,53 +1,46 @@
-import {
-    darkenHexColorWithAplha,
-    hexToRgba,
-} from "../../../../Utilites/Functions/ColorFunctions";
-import { useTheme } from "@emotion/react";
 import { useEffect, useState } from "react";
-import {
-    Grid,
-    Stack,
-    Typography,
-    Box,
-    Tooltip,
-    Chip,
-    Button,
-} from "@mui/material";
+import { Box } from "@mui/material";
+import EditIcon from "@mui/icons-material/EditOutlined";
 import { useAuth } from "../../../../Utilites/AuthContext";
-import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
 import { GetRoomResources } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
 import ImageViewer from "../../../../Components/ImageViewer";
 import { GetRoomImage } from "../../../../Utilites/Functions/ApiFunctions/RoomFunctions";
 import DisplayGroups from "../../../Components/DisplayGroups";
+import { ColorSwatch } from "./RoomsAtoms";
+import {
+    cc,
+    CcButton,
+    Fact,
+    Facts,
+    Block,
+} from "../../../Components/Concourse/ConcourseDialogKit";
+import { type as ccType } from "../../../../Utilites/concourse";
 
-const rowItem = (name, value, color) => {
-    return (
-        <Grid container direction="row" wrap="wrap">
-            <Grid item xs={4}>
-                <Typography
-                    color={color}
-                    component="div"
-                    variant="body2"
-                    whiteSpace="nowrap" // Prevents text from breaking onto the next line within its box
-                    overflow="hidden" // Ensures any overflow is hidden
-                    textOverflow="ellipsis" // Adds ellipsis if the text is too long
-                >
-                    {name}
-                </Typography>
-            </Grid>
-            <Grid item xs={8} display={"flex"}>
-                <Typography
-                    component="div"
-                    variant="body2"
-                    textAlign="left"
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                >
-                    {value}
-                </Typography>
-            </Grid>
-        </Grid>
-    );
+/** Guide §3.4 section header: `blockLabel` in `mute`, then the hairline. */
+const GroupHeader = ({ label, action }) => (
+    <Box>
+        <Box
+            sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                minHeight: "30px",
+            }}
+        >
+            <Box sx={{ ...ccType.blockLabel, color: cc.mute }}>{label}</Box>
+            {action}
+        </Box>
+        <Box sx={{ height: "1px", background: cc.line, margin: "9px 0 0" }} />
+    </Box>
+);
+
+const groupSx = {
+    display: "grid",
+    gap: "12px",
+    alignContent: "start",
+    minWidth: 0,
+    boxSizing: "border-box",
 };
 
 const RowRoom = ({ location, row, rowRoom, groups, roomgroups, setOpen }) => {
@@ -92,225 +85,96 @@ const RowRoom = ({ location, row, rowRoom, groups, roomgroups, setOpen }) => {
         }
     }, [rowRoom, row]);
 
-    const theme = useTheme();
-
     return (
-        <Grid
+        <Box
             sx={{
-                height: "fit-content",
-                padding: "10px",
-                background: theme.palette.background.fill.light.lightHover,
+                display: "grid",
+                gap: "12px",
+                boxSizing: "border-box",
+                gridTemplateColumns: "1fr",
+                // The two panels used to carry `min-width: 550px` each, which
+                // forced a hard 1100px floor and never collapsed.
+                "@media (min-width:980px)": {
+                    gridTemplateColumns: "1fr 1fr",
+                },
             }}
         >
-            <Stack
-                direction={"row"}
-                sx={{ padding: "10px", display: "flex" }}
-                justifyContent={"space-around"}
-            >
-                <Grid
-                    sx={{
-                        background: "white",
-                        borderRadius: "10px",
-                        minWidth: "550px",
-                        overflow: "hidden",
-                        display: "flex",
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "space-between",
-                            padding: "10px",
-                            paddingTop: "0px",
-                            background: `linear-gradient(135deg, rgba(${hexToRgba(
-                                row.color,
-                                0.5
-                            )}) 0%, rgba(${darkenHexColorWithAplha(
-                                row.color,
-                                60,
-                                0.5
-                            )}) 100%)`,
-                        }}
-                    >
-                        <Typography
-                            component="div"
-                            variant="h6"
-                            paddingLeft={"10px"}
-                        >
-                            Room
-                        </Typography>
-                        {(user?.admin ||
-                            user?.office_admin == `${location.officeid}`) && (
-                            <Button
-                                variant="outlined"
+            <Box sx={groupSx}>
+                <GroupHeader
+                    label="Room"
+                    action={
+                        (user?.admin ||
+                            user?.office_admin == `${location?.officeid}`) && (
+                            <CcButton
                                 onClick={() => setOpen(rowRoom, location)}
-                                startIcon={<EventBusyIcon />}
                                 sx={{
-                                    ":hover": {
-                                        backgroundColor:
-                                            "rgba(255, 187, 0, .1)",
-                                    },
+                                    padding: "6px 13px",
+                                    fontSize: "12.5px",
                                 }}
                             >
+                                <EditIcon sx={{ fontSize: "18px" }} />
                                 Edit
-                            </Button>
+                            </CcButton>
+                        )
+                    }
+                />
+                <Facts>
+                    <Fact label="Name">{row.room}</Fact>
+                    <Fact label="Location">{location?.Alias}</Fact>
+                    <Fact label="Capacity" mono>
+                        {row.capacity}
+                    </Fact>
+                    <Fact label="Color">
+                        <ColorSwatch color={row.color} width={34} height={20} />
+                    </Fact>
+                    <Fact label="Access Groups">
+                        {roomGroups.length == 0 ? (
+                            "None"
+                        ) : (
+                            <DisplayGroups groups={roomGroups} />
                         )}
-                    </Box>
-                    <Stack
-                        width={"100%"}
-                        direction={"column"}
-                        sx={{
-                            marginTop: "10px",
-                            paddingLeft: "20px",
-                            paddingBottom: "5px",
-                        }}
-                        spacing={2}
-                    >
-                        {rowItem(
-                            "Name",
-                            row.room,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Location",
-                            location.Alias,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Capacity",
-                            row.capacity,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Color",
-                            <Box
-                                sx={{
-                                    width: "15px",
-                                    height: "15px",
-                                    border: "1px solid black",
-                                    background: row.color,
-                                }}
-                            />,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Access Groups",
-                            roomGroups.length == 0 ? (
-                                "None"
-                            ) : (
-                                <DisplayGroups groups={roomGroups} />
-                            ),
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Room Resources",
-                            roomResources
-                                ?.map((resource) => resource.name)
-                                .join(", "),
-                            theme.palette.primary.text.dark
-                        )}
-                        {row?.image_url &&
-                            rowItem(
-                                "Image",
-                                <ImageViewer
-                                    src={roomImage}
-                                    alt={`${row?.value} room image`}
-                                    style={{
-                                        maxWidth: "300px",
-                                        maxHeight: "260px",
-                                        objectFit: "cover",
-                                        borderRadius: "4px",
-                                        border: "1px solid #ddd",
-                                    }}
-                                />,
-                                theme.palette.primary.text.dark
-                            )}
-                    </Stack>
-                </Grid>
-                <Grid
-                    sx={{
-                        background: "white",
-                        borderRadius: "10px",
-                        minWidth: "550px",
-                        overflow: "hidden",
-                        display: "flex",
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "space-between",
-                            padding: "10px",
-                            paddingTop: "0px",
-                            background: `linear-gradient(135deg, rgba(${hexToRgba(
-                                row.color,
-                                0.5
-                            )}) 0%, rgba(${darkenHexColorWithAplha(
-                                row.color,
-                                60,
-                                0.5
-                            )}) 100%)`,
-                        }}
-                    >
-                        <Typography
-                            component="div"
-                            variant="h6"
-                            paddingLeft={"10px"}
-                        >
-                            Location
-                        </Typography>
-                    </Box>
-                    <Stack
-                        width={"100%"}
-                        direction={"column"}
-                        sx={{
-                            marginTop: "10px",
-                            paddingLeft: "20px",
-                            paddingBottom: "5px",
-                        }}
-                        spacing={2}
-                    >
-                        {rowItem(
-                            "Alias",
-                            location.Alias,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Number",
-                            location.Number,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "City",
-                            location.City,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "State",
-                            location.state,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Zip",
-                            location.Zip,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Address",
-                            location.SAddress,
-                            theme.palette.primary.text.dark
-                        )}
-                        {rowItem(
-                            "Airport",
-                            location.Airport,
-                            theme.palette.primary.text.dark
-                        )}
-                    </Stack>
-                </Grid>
-            </Stack>
-        </Grid>
+                    </Fact>
+                    <Fact label="Room Resources">
+                        {roomResources
+                            ?.map((resource) => resource.name)
+                            .join(", ")}
+                    </Fact>
+                </Facts>
+                {row?.image_url && (
+                    <Block label="Image">
+                        <ImageViewer
+                            src={roomImage}
+                            alt={`${row?.value} room image`}
+                            style={{
+                                maxWidth: "300px",
+                                maxHeight: "260px",
+                                objectFit: "cover",
+                                borderRadius: "14px",
+                                border: "1px solid var(--cc-line)",
+                                boxSizing: "border-box",
+                            }}
+                        />
+                    </Block>
+                )}
+            </Box>
+
+            <Box sx={groupSx}>
+                <GroupHeader label="Location" />
+                <Facts>
+                    <Fact label="Alias">{location?.Alias}</Fact>
+                    <Fact label="Number" mono>
+                        {location?.Number}
+                    </Fact>
+                    <Fact label="City">{location?.City}</Fact>
+                    <Fact label="State">{location?.state}</Fact>
+                    <Fact label="Zip" mono>
+                        {location?.Zip}
+                    </Fact>
+                    <Fact label="Address">{location?.SAddress}</Fact>
+                    <Fact label="Airport">{location?.Airport}</Fact>
+                </Facts>
+            </Box>
+        </Box>
     );
 };
 

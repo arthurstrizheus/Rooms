@@ -13,7 +13,10 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import {
     addMinutes,
+    eachDayOfInterval,
     endOfDay,
+    endOfMonth,
+    endOfWeek,
     format,
     getDate,
     getMonth,
@@ -157,9 +160,20 @@ const btnPrimary = {
 
 const dialogFrameSx = {
     // `align-items: flex-start` + `margin: auto` on the Paper = centred when it
-    // fits, top-clamped when it does not. The container is what scrolls, so a
-    // tall dialog can never overlap the top of the page (§10.17).
+    // fits, top-clamped when it does not. The Paper is now bounded to the
+    // container, so the container never actually scrolls — the dialog BODY does
+    // (ConcourseDialogKit's scroll contract). `overflow-y: auto` stays only as a
+    // backstop (§10.17).
     "& .MuiDialog-container": {
+        // MANDATORY. The app mounts no CssBaseline, so box-sizing is the
+        // initial `content-box`: MUI's `height:100%` plus the padding below
+        // makes this box up to 104px TALLER than the window, and `margin:auto`
+        // then centres the Paper on a box whose middle sits up to 76px below
+        // the middle of the window — which is why the dialog looked off-centre
+        // and its footer was clipped by the bottom edge. It also made the
+        // container's own `overflow-y:auto` mint a real scrollbar, which ate
+        // 15px off the right and shifted the Paper half that far left.
+        boxSizing: "border-box",
         alignItems: "flex-start",
         padding: "clamp(28px, 9vh, 76px) 18px 28px",
         overflowY: "auto",
@@ -176,7 +190,12 @@ const dialogPaperSx = {
     width: "100%",
     maxWidth: "var(--cc-dw, 548px)",
     margin: "auto",
-    maxHeight: "none",
+    // Bounded to the container's content box (i.e. the window minus the clamped
+    // overlay padding). This is what lets ConcourseDialogKit make DialogBody the
+    // one scroll region: the frame can never outgrow the window, so the header
+    // and footer never move and the footer is never clipped. `maxHeight:"none"`
+    // was the reason a tall Book/Edit form ran off the bottom edge.
+    maxHeight: "100%",
     overflow: "hidden",
     position: "relative",
     backgroundColor: "var(--cc-srf)",
@@ -190,12 +209,28 @@ const dialogPaperSx = {
     // No `both` fill: MUI's Fade owns opacity on exit, and a forwards fill
     // would pin opacity at 1 and kill the closing transition.
     animation: `${ccMotion.keyframes.dialog} ${ccMotion.dur.dialog}ms ${SP}`,
+    // The Advanced two-column expansion (§8 "Side menu (width) → 400ms sp").
+    // MeetingForum's SidePane stamps `data-cc-pane="open"|"closed"` on itself,
+    // so the frame widens itself from the content with no prop drilling and no
+    // state lifted out of the form. 980px is the same number
+    // ConcourseDialogKit's SIDE_PANE_MIN uses — THE TWO MUST MOVE TOGETHER.
+    // 560 (form) + 340 (pane) = 900, + 2 x 18px overlay padding = 936 <= 980.
+    transition: `max-width ${ccMotion.dur.side}ms ${SP}`,
+    "@media (min-width:980px)": {
+        '&:has([data-cc-pane="open"])': {
+            maxWidth: "var(--cc-dw-wide, var(--cc-dw, 548px))",
+        },
+    },
     [PHONE]: {
         maxWidth: "none",
         margin: "auto 0 0",
         borderRadius: "26px 26px 0 0",
         maxHeight: "100%",
-        overflowY: "auto",
+        // Was `overflowY: "auto"`, which scrolled the whole sheet. The sheet
+        // frame now stays put and its body scrolls internally, which is what
+        // the user asked for on mobile. The bottom-sheet geometry above
+        // (margin/radius/maxHeight/cc-sheet) is untouched.
+        overflow: "hidden",
         animation: `${ccMotion.keyframes.sheet} ${ccMotion.dur.sheet}ms ${SP}`,
     },
 };
@@ -212,6 +247,11 @@ const GrabHandle = () => (
         sx={{
             width: "38px",
             height: "4px",
+            // The Paper is `display:flex; flex-direction:column` and is now
+            // capped at `maxHeight:100%`, so its shrinkable children are shared
+            // out proportionally when the form overflows. Without this the
+            // handle collapses from 4px to <2px (measured) on the phone sheet.
+            flexShrink: 0,
             borderRadius: "99px",
             background: "var(--cc-line)",
             margin: "9px auto 0",
@@ -224,9 +264,13 @@ const GrabHandle = () => (
  * `--cc-c` so Lane D's header wash and type badge can read the meeting's type
  * colour through the portal.
  */
-const framePaperProps = (width, color) => ({
+const framePaperProps = (width, color, wideWidth) => ({
     style: {
         "--cc-dw": `${width}px`,
+        // Only the booking / edit frame passes this: the width the frame grows
+        // to when MeetingForum's Advanced pane opens beside the form.
+        // 560 (form column, = --cc-dw) + 340 (SIDE_PANE_WIDTH) = 900.
+        ...(wideWidth ? { "--cc-dw-wide": `${wideWidth}px` } : null),
         "--cc-c": color || TYPE_COLOUR_FALLBACK,
     },
     sx: dialogPaperSx,
@@ -290,55 +334,16 @@ function isMultipleDayMeeting(meeting) {
     }
 }
 
-/** Minutes of the 7am–7pm span that no timed meeting covers (§10.14). */
-const freeMinutesForDay = (day, items) => {
-    const spanStart = new Date(day);
-    spanStart.setHours(DAY_START_HOUR, 0, 0, 0);
-    const spanEnd = new Date(day);
-    spanEnd.setHours(DAY_END_HOUR, 0, 0, 0);
-    const total = (spanEnd - spanStart) / 60000;
-
-    const intervals = (items || [])
-        .filter((ev) => !ev.allDay)
-        .map((ev) => {
-            const s = Math.max(
-                new Date(ev.start).getTime(),
-                spanStart.getTime()
-            );
-            const e = Math.min(
-                new Date(ev.end || ev.start).getTime(),
-                spanEnd.getTime()
-            );
-            return [s, e];
-        })
-        .filter(([s, e]) => e > s)
-        .sort((a, b) => a[0] - b[0]);
-
-    let busyMs = 0;
-    let cur = null;
-    intervals.forEach(([s, e]) => {
-        if (!cur) {
-            cur = [s, e];
-        } else if (s <= cur[1]) {
-            cur[1] = Math.max(cur[1], e);
-        } else {
-            busyMs += cur[1] - cur[0];
-            cur = [s, e];
-        }
-    });
-    if (cur) busyMs += cur[1] - cur[0];
-
-    return Math.max(0, Math.round(total - busyMs / 60000));
-};
-
-const formatFree = (minutes) => {
-    if (minutes <= 0) return "fully booked";
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h && m) return `${h}h ${m}m free`;
-    if (h) return `${h}h free`;
-    return `${m}m free`;
-};
+/* The agenda used to end each day header with a free-time reading —
+ * "3h 15m free", or "fully booked" when the meetings the CURRENT USER can see
+ * happened to cover 7am-7pm. Both readings were untrue. `GetMeetingsByUserId`
+ * returns one user's meetings, not the building's bookings, so a day with one
+ * long meeting in one room claimed every room was taken. There is no
+ * room-availability endpoint to compute a real figure from, so the claim is
+ * gone rather than reworded — the same call that was already made about the
+ * rejected "free right now" strip. The "N meetings" count carries the density
+ * signal on its own.
+ * ========================================================================*/
 
 /* ==========================================================================
  * Skeleton (§10.16)
@@ -546,17 +551,159 @@ const StateBlock = ({ icon, danger, title, body, actions }) => (
  * agenda needs no drag/drop. Grid interaction stays with FullCalendar.
  * ========================================================================*/
 
-const Agenda = ({ events, rooms, types, onOpenEvent }) => {
-    const days = useMemo(() => {
+/**
+ * The agenda's day header doubles as that day's "book here" control.
+ *
+ * THE HEADER, NOT THE WHOLE CARD. The meetings below it are buttons of their
+ * own: wrapping the card would nest one control inside another (invalid, and
+ * unusable from the keyboard) and would put a day-level handler in every
+ * bubble's bubbling path — which is precisely how the injected timeGrid
+ * day-cell listener used to hijack meeting clicks and open the booking form
+ * against a bare range (plan.md "Root cause 1"). Header and bubbles are
+ * siblings here, so the two can never collide.
+ */
+const agendaDayBtnSx = {
+    appearance: "none",
+    border: 0,
+    margin: 0,
+    width: "100%",
+    font: "inherit",
+    color: "inherit",
+    textAlign: "left",
+    cursor: "pointer",
+    background: "transparent",
+    display: "flex",
+    alignItems: "center",
+    gap: "11px",
+    padding: "11px 14px 9px",
+    transition: `background ${ccMotion.dur.colour}ms`,
+    // Inset ring: the card clips (`overflow: hidden`), so the usual 2px
+    // outline OFFSET would be sliced off along the card's top edge.
+    "&:focus-visible": {
+        outline: "2px solid var(--cc-red)",
+        outlineOffset: "-2px",
+    },
+    [HOVER]: {
+        "&:hover": {
+            background: "var(--cc-wash)",
+            "& .cc-agenda-book": { color: "var(--cc-red)" },
+        },
+    },
+};
+
+/** Always visible, not hover-only: the agenda is the phone layout (§9). */
+const agendaBookHintSx = {
+    marginLeft: "auto",
+    flex: "none",
+    paddingLeft: "8px",
+    color: "var(--cc-mute)",
+    transition: `color ${ccMotion.dur.colour}ms`,
+    ...ccType.agendaSub,
+    fontWeight: 700,
+};
+
+/* Hoisted out of the render loop. A month agenda draws every day of the month,
+ * so these recipes are built ~31 times per render if they live inline — and
+ * emotion re-serialises each one. Only the ring has two variants. */
+const agendaCardSx = {
+    background: "var(--cc-srf2)",
+    borderRadius: "20px",
+    overflow: "hidden",
+};
+
+const agendaRingSx = {
+    width: "38px",
+    height: "38px",
+    borderRadius: "99px",
+    display: "grid",
+    placeItems: "center",
+    flex: "none",
+    boxShadow: "var(--cc-sh1)",
+    background: "var(--cc-srf)",
+    color: "var(--cc-ink)",
+    ...ccType.agendaRing,
+};
+
+/** Today keeps the red ring — the one thing that has to stay findable now
+ *  that the list is a whole month long. */
+const agendaRingTodaySx = {
+    ...agendaRingSx,
+    background: "var(--cc-red)",
+    color: "var(--cc-on-red)",
+};
+
+const agendaTextColSx = { minWidth: 0 };
+const agendaDaySx = { ...ccType.agendaDay };
+const agendaSubSx = { ...ccType.agendaSub, color: "var(--cc-mute)" };
+
+/**
+ * A day with nothing on it: one quiet line, indented to the day name's column
+ * (14px padding + 38px ring + 11px gap).
+ *
+ * The wording is deliberate. `GetMeetingsByUserId` returns ONE USER'S
+ * meetings, not the building's bookings, so "free" or "available" would be a
+ * fifth untrue availability claim on this page. This line says only what is
+ * true: nothing of yours is on this day.
+ */
+const agendaEmptySx = {
+    padding: "0 14px 12px 63px",
+    ...ccType.agendaSub,
+    color: "var(--cc-mute)",
+};
+
+const agendaListSx = { display: "grid", gap: "5px", padding: "0 10px 11px" };
+
+const agendaRowSx = {
+    display: "grid",
+    gridTemplateColumns: "112px 1fr",
+    gap: "10px",
+    alignItems: "center",
+    [PHONE]: { gridTemplateColumns: "1fr", gap: "3px" },
+};
+
+const agendaTimeSx = {
+    ...ccType.agendaTime,
+    color: "var(--cc-mute)",
+    textAlign: "right",
+    [PHONE]: { textAlign: "left", paddingLeft: "2px" },
+};
+
+// The entrance stagger restarts inside every day card, so a month-long list
+// cannot crawl on its own. Capped anyway: one very busy day would otherwise
+// hold its last bubble back by 60ms x N.
+const AGENDA_STAGGER_CAP = 6;
+
+const Agenda = ({ events, rooms, types, days, onOpenEvent, onBookDay }) => {
+    const rows = useMemo(() => {
         const map = new Map();
+        const at = (date) => {
+            const key = format(date, "yyyy-MM-dd");
+            if (!map.has(key)) {
+                map.set(key, { key, date: startOfDay(date), items: [] });
+            }
+            return map.get(key);
+        };
+        // EVERY day of the period first. A day with nothing on it is exactly
+        // the day you want to book, and below 620px the agenda is the only
+        // view there is (§9) — with no card there was no way to reach one.
+        const period = days || [];
+        period.forEach(at);
+        // Then the meetings, CLIPPED to the period. `GetAllUserCanSee` widens
+        // its query by a week on each side, and listing those days would put a
+        // 32-day list under a banner reading "26 – 01 Aug". The grid for this
+        // view does not offer them either: the week and day grids stop at
+        // their own edges, and the month grid's spill cells are `isOther`, so
+        // they get no quick-add `+`. The agenda now covers exactly the days
+        // this view lets you book. (With no period — a malformed date — it
+        // falls back to the days the meetings themselves name, so nothing can
+        // vanish.)
         (events || []).forEach((ev) => {
             const start = new Date(ev.start);
             if (Number.isNaN(start.getTime())) return;
-            const key = format(start, "yyyy-MM-dd");
-            if (!map.has(key)) {
-                map.set(key, { key, date: startOfDay(start), items: [] });
-            }
-            map.get(key).items.push(ev);
+            const row = period.length
+                ? map.get(format(start, "yyyy-MM-dd"))
+                : at(start);
+            if (row) row.items.push(ev);
         });
         return Array.from(map.values())
             .sort((a, b) => a.date - b.date)
@@ -566,161 +713,117 @@ const Agenda = ({ events, rooms, types, onOpenEvent }) => {
                     .slice()
                     .sort((a, b) => new Date(a.start) - new Date(b.start)),
             }));
-    }, [events]);
+    }, [days, events]);
 
     return (
         <Box sx={{ padding: "0 12px 14px", display: "grid", gap: "12px" }}>
-            {days.map((day) => {
+            {rows.map((day) => {
                 const today = isSameDay(day.date, new Date());
                 const count = day.items.length;
                 return (
-                    <Box
-                        key={day.key}
-                        sx={{
-                            background: "var(--cc-srf2)",
-                            borderRadius: "20px",
-                            overflow: "hidden",
-                        }}
-                    >
+                    <Box key={day.key} sx={agendaCardSx}>
                         <Box
-                            sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "11px",
-                                padding: "11px 14px 9px",
-                            }}
+                            component="button"
+                            type="button"
+                            aria-label={`Book on ${format(
+                                day.date,
+                                "EEEE d MMM"
+                            )}`}
+                            onClick={() => onBookDay?.(day.date)}
+                            sx={agendaDayBtnSx}
                         >
-                            <Box
-                                sx={{
-                                    width: "38px",
-                                    height: "38px",
-                                    borderRadius: "99px",
-                                    display: "grid",
-                                    placeItems: "center",
-                                    flex: "none",
-                                    boxShadow: "var(--cc-sh1)",
-                                    background: today
-                                        ? "var(--cc-red)"
-                                        : "var(--cc-srf)",
-                                    color: today
-                                        ? "var(--cc-on-red)"
-                                        : "var(--cc-ink)",
-                                    ...ccType.agendaRing,
-                                }}
-                            >
+                            <Box sx={today ? agendaRingTodaySx : agendaRingSx}>
                                 {getDate(day.date)}
                             </Box>
-                            <Box sx={{ minWidth: 0 }}>
-                                <Box sx={{ ...ccType.agendaDay }}>
+                            <Box sx={agendaTextColSx}>
+                                <Box sx={agendaDaySx}>
                                     {format(day.date, "EEEE")}
                                     {today ? " · today" : ""}
                                 </Box>
-                                <Box
-                                    sx={{
-                                        ...ccType.agendaSub,
-                                        color: "var(--cc-mute)",
-                                    }}
-                                >
-                                    {`${format(day.date, "MMM yyyy")} · ${count} ${
-                                        count === 1 ? "meeting" : "meetings"
-                                    }`}
+                                <Box sx={agendaSubSx}>
+                                    {count
+                                        ? `${format(day.date, "MMM yyyy")} · ${count} ${
+                                              count === 1
+                                                  ? "meeting"
+                                                  : "meetings"
+                                          }`
+                                        : format(day.date, "MMM yyyy")}
                                 </Box>
                             </Box>
                             <Box
-                                sx={{
-                                    marginLeft: "auto",
-                                    flex: "none",
-                                    ...ccType.agendaFree,
-                                    color: "var(--cc-mute)",
-                                }}
+                                component="span"
+                                className="cc-agenda-book"
+                                aria-hidden="true"
+                                sx={agendaBookHintSx}
                             >
-                                {formatFree(
-                                    freeMinutesForDay(day.date, day.items)
-                                )}
+                                + Book
                             </Box>
                         </Box>
 
-                        <Box
-                            sx={{
-                                display: "grid",
-                                gap: "5px",
-                                padding: "0 10px 11px",
-                            }}
-                        >
-                            {day.items.map((ev, index) => {
-                                const props = ev.extendedProps || {};
-                                const fullRoomName =
-                                    (rooms || []).find(
-                                        (rm) => rm?.id === props.room
-                                    )?.value || props.roomName;
-                                const typeName = (types || []).find(
-                                    (tp) => tp?.id === props.type
-                                )?.value;
-                                return (
-                                    <Box
-                                        key={ev.id}
-                                        sx={{
-                                            display: "grid",
-                                            gridTemplateColumns: "112px 1fr",
-                                            gap: "10px",
-                                            alignItems: "center",
-                                            [PHONE]: {
-                                                gridTemplateColumns: "1fr",
-                                                gap: "3px",
-                                            },
-                                        }}
-                                    >
-                                        <Box
-                                            sx={{
-                                                ...ccType.agendaTime,
-                                                color: "var(--cc-mute)",
-                                                textAlign: "right",
-                                                [PHONE]: {
-                                                    textAlign: "left",
-                                                    paddingLeft: "2px",
-                                                },
-                                            }}
-                                        >
-                                            {ev.allDay
-                                                ? "all day"
-                                                : `${displayTime(
-                                                      ev.start
-                                                  )} – ${displayTime(ev.end)}`}
+                        {count === 0 ? (
+                            <Box sx={agendaEmptySx}>
+                                Nothing on your calendar
+                            </Box>
+                        ) : (
+                            <Box sx={agendaListSx}>
+                                {day.items.map((ev, index) => {
+                                    const props = ev.extendedProps || {};
+                                    const fullRoomName =
+                                        (rooms || []).find(
+                                            (rm) => rm?.id === props.room
+                                        )?.value || props.roomName;
+                                    const typeName = (types || []).find(
+                                        (tp) => tp?.id === props.type
+                                    )?.value;
+                                    return (
+                                        <Box key={ev.id} sx={agendaRowSx}>
+                                            <Box sx={agendaTimeSx}>
+                                                {ev.allDay
+                                                    ? "all day"
+                                                    : `${displayTime(
+                                                          ev.start
+                                                      )} – ${displayTime(
+                                                          ev.end
+                                                      )}`}
+                                            </Box>
+                                            <MeetingBubble
+                                                as="button"
+                                                variant="agenda"
+                                                allDay={Boolean(ev.allDay)}
+                                                color={ev.backgroundColor}
+                                                name={ev.title}
+                                                meta={bubbleMeta({
+                                                    variant: "agenda",
+                                                    roomName: props.roomName,
+                                                })}
+                                                repeats={Boolean(
+                                                    props.recurrence_id
+                                                )}
+                                                itSupport={Boolean(
+                                                    props.it_support
+                                                )}
+                                                delay={
+                                                    ccMotion.delay.agendaStep *
+                                                    Math.min(
+                                                        index,
+                                                        AGENDA_STAGGER_CAP
+                                                    )
+                                                }
+                                                ariaLabel={bubbleAriaLabel({
+                                                    name: ev.title,
+                                                    fullRoomName,
+                                                    start: ev.start,
+                                                    end: ev.end,
+                                                    allDay: Boolean(ev.allDay),
+                                                    typeName,
+                                                })}
+                                                onClick={() => onOpenEvent(ev)}
+                                            />
                                         </Box>
-                                        <MeetingBubble
-                                            as="button"
-                                            variant="agenda"
-                                            allDay={Boolean(ev.allDay)}
-                                            color={ev.backgroundColor}
-                                            name={ev.title}
-                                            meta={bubbleMeta({
-                                                variant: "agenda",
-                                                roomName: props.roomName,
-                                            })}
-                                            repeats={Boolean(
-                                                props.recurrence_id
-                                            )}
-                                            itSupport={Boolean(
-                                                props.it_support
-                                            )}
-                                            delay={
-                                                ccMotion.delay.agendaStep *
-                                                index
-                                            }
-                                            ariaLabel={bubbleAriaLabel({
-                                                name: ev.title,
-                                                fullRoomName,
-                                                start: ev.start,
-                                                end: ev.end,
-                                                allDay: Boolean(ev.allDay),
-                                                typeName,
-                                            })}
-                                            onClick={() => onOpenEvent(ev)}
-                                        />
-                                    </Box>
-                                );
-                            })}
-                        </Box>
+                                    );
+                                })}
+                            </Box>
+                        )}
                     </Box>
                 );
             })}
@@ -792,6 +895,42 @@ const Calendar = ({
         if (range === "Month") return format(new Date(selectedDate), "MMMM yyyy");
         if (range === "Week") return "this week";
         return "this day";
+    }, [range, selectedDate]);
+
+    /**
+     * The days the agenda lists: EXACTLY the period the banner's date switcher
+     * is showing, derived from the same route `range` and `selectedDate` the
+     * fetch above uses — month -> that calendar month, week -> that
+     * Sunday-first week, day -> the one day. `formatPeriod` in
+     * Banner/Components/period.js builds its label from `startOfMonth` /
+     * `startOfWeek(WEEK_STARTS_ON = 0)` / the day itself, so the two read the
+     * same period by construction. `layout.weekStartsOn` and that
+     * `WEEK_STARTS_ON` are both Sunday and MUST move together.
+     *
+     * Weekends are included and past days stay bookable, because that is what
+     * the month grid already allows — it renders `weekends`, puts its quick-add
+     * `+` on every day of the month including days gone by, and sets no
+     * `validRange`. The server (`CanUserBook`) remains the authority on what
+     * may actually be booked; a client-side rule here and nowhere else would
+     * just make the two entry points disagree.
+     */
+    const periodDays = useMemo(() => {
+        const anchor = new Date(selectedDate);
+        if (Number.isNaN(anchor.getTime())) return [];
+        if (range === "Month") {
+            return eachDayOfInterval({
+                start: startOfMonth(anchor),
+                end: endOfMonth(anchor),
+            });
+        }
+        if (range === "Week") {
+            const opts = { weekStartsOn: layout.weekStartsOn };
+            return eachDayOfInterval({
+                start: startOfWeek(anchor, opts),
+                end: endOfWeek(anchor, opts),
+            });
+        }
+        return [startOfDay(anchor)];
     }, [range, selectedDate]);
 
     const officeAlias = useMemo(() => {
@@ -874,44 +1013,54 @@ const Calendar = ({
         return () => observer.disconnect();
     }, [layoutMode]);
 
-    /**
-     * Open the time grid on business hours (§10.13's real intent).
-     *
-     * The 7am-7pm `slotMinTime`/`slotMaxTime` clamp was dropped because it hid
-     * every meeting outside it, so the grid now renders all 24 hours.
-     * FullCalendar's own `scrollTime` cannot place us: `height="auto"` sets
-     * `isHeightAuto`, which makes its ScrollGrid non-liquid, so FullCalendar
-     * owns no scroller — the page container (`containerRef`) does. Scroll it to
-     * the 7am slat ourselves, once per view/layout change. Purely additive: if
-     * the slat is not there the container is left exactly where it was.
-     */
-    useEffect(() => {
-        if (isMonthGrid) return undefined;
-        const container = containerRef.current;
-        if (!container) return undefined;
-        const frame = requestAnimationFrame(() => {
-            const slat = container.querySelector(
-                `.fc-timegrid-slot[data-time="${String(
-                    DAY_START_HOUR
-                ).padStart(2, "0")}:00:00"]`
-            );
-            if (!slat) return;
-            const offset =
-                slat.getBoundingClientRect().top -
-                container.getBoundingClientRect().top;
-            container.scrollTop += offset;
-        });
-        return () => cancelAnimationFrame(frame);
-    }, [gridView, isMonthGrid, layoutMode, loading, hasLoaded]);
+    // The effect that used to scroll `containerRef` to the 7am slat is gone.
+    // It only existed because `height="auto"` set `isHeightAuto`, which makes
+    // FullCalendar's ScrollGrid non-liquid — it owned no scroller, so its own
+    // `scrollTime` was inert and the page container had to be scrolled by hand.
+    // The calendar now takes a definite height (`height="100%"` below), so
+    // FullCalendar owns a real scroller again and `scrollTime` places the view
+    // itself.
 
-    // keep FullCalendar's view in step with the route
+    // Keep FullCalendar's view in step with the route.
+    //
+    // The call is handed to a microtask on purpose — this is the fix for the
+    // `flushSync was called from inside a lifecycle method` warning that used
+    // to arrive in bursts of ~40-175 on every month/week/day switch. The chain:
+    //
+    //   changeView -> CalendarImpl.batchRendering -> renderRunner.resume()
+    //   -> DelayedRunner.tryDrain() — which drains SYNCHRONOUSLY and ignores
+    //   `rerenderDelay`, unlike every other dispatch (gotoDate included, which
+    //   is why that one never warned) -> FullCalendar's inner preact render
+    //   -> every ContentContainer re-registers itself through
+    //   CustomRenderingStore.handle(), and `Store.set` notifies subscribers
+    //   ONCE PER CONTAINER -> @fullcalendar/react answers each notification
+    //   with ReactDOM.flushSync.
+    //
+    // React runs passive effects with CommitContext set, so a flushSync raised
+    // from an effect body is refused and warned about instead of flushing.
+    // Worse, the adapter only records `lastRequestTimestamp` inside the
+    // setState callback, so while React is refusing it that timestamp never
+    // advances — the adapter's own "one flushSync, then coalesce for 100ms"
+    // fast path is defeated and EVERY container in the incoming view takes the
+    // flushSync branch. Hence one warning per bubble, day cell, day header and
+    // slot label, on every view change.
+    //
+    // Deferring by a microtask lets the commit unwind first. The adapter then
+    // flushes once and coalesces the rest, exactly as it was designed to, and
+    // the view still changes before paint so nothing flickers. A timeout or a
+    // rAF would work too but would show the old view for a frame.
     useEffect(() => {
-        const calendarEl = calendarRef.current;
-        if (!calendarEl) return;
-        const calendarApi = calendarEl.getApi();
-        if (calendarApi && calendarApi.view?.type !== gridView) {
-            calendarApi.changeView(gridView);
-        }
+        const calendarApi = calendarRef.current?.getApi();
+        if (!calendarApi || calendarApi.view?.type === gridView) return;
+        let cancelled = false;
+        queueMicrotask(() => {
+            if (cancelled) return;
+            const api = calendarRef.current?.getApi();
+            if (api && api.view?.type !== gridView) api.changeView(gridView);
+        });
+        return () => {
+            cancelled = true;
+        };
     }, [gridView, layoutMode]);
 
     useEffect(() => {
@@ -974,18 +1123,24 @@ const Calendar = ({
 
     /**
      * The Banner's "Book a room" CTA. `bookIntent` is a counter owned by
-     * `App.js`; every increment is one click. The ref keeps this keyed to the
-     * click and not to `openBooking`'s identity, which changes whenever the
-     * view does — without it, switching month/week/day would re-open the
-     * dialog. Same call as the empty state's "Book a room" so the two buttons
-     * with the same label behave identically.
+     * `App.js`; every increment is one click, and it is raised even when the
+     * click happened on another page — App navigates here and this consumes the
+     * intent on mount. The ref keeps this keyed to the click and not to
+     * `openBooking`'s identity, which changes whenever the view does — without
+     * it, switching month/week/day would re-open the dialog. Same call as the
+     * empty state's "Book a room" so the two buttons with the same label behave
+     * identically.
      */
     const handledBookIntent = useRef(0);
     useEffect(() => {
         if (!bookIntent || handledBookIntent.current === bookIntent) return;
+        // Consumed either way: a click that lands while the dialog is already
+        // up must not re-open it, which would throw away the range the form is
+        // holding.
         handledBookIntent.current = bookIntent;
+        if (openMeetingDialog) return;
         openBooking(new Date(), endOfDay(new Date()), false);
-    }, [bookIntent, openBooking]);
+    }, [bookIntent, openBooking, openMeetingDialog]);
 
     /**
      * FullCalendar's own drag-selection. This replaces the injected
@@ -1033,6 +1188,18 @@ const Calendar = ({
             }, 0);
         },
         [openBooking]
+    );
+
+    /**
+     * Agenda day header -> a booking on that day. It goes through
+     * `handleDateClick` with the same argument shape FullCalendar hands it for
+     * a month day cell (`date` at midnight, `allDay: true`), so the agenda and
+     * the month grid cannot drift apart — and it inherits the deferral that
+     * keeps `dateClick` and `select` from both firing.
+     */
+    const handleAgendaDayClick = useCallback(
+        (date) => handleDateClick({ date: startOfDay(date), allDay: true }),
+        [handleDateClick]
     );
 
     const openDetails = useCallback((event) => {
@@ -1319,10 +1486,21 @@ const Calendar = ({
 
     const renderDayHeader = useCallback((arg) => {
         if (arg.view.type === "dayGridMonth") {
-            return (
-                <span className="cc-dow">{format(arg.date, "EEE")}</span>
-            );
+            // `arg.text`, NOT `format(arg.date, "EEE")`. When a header stands
+            // for a day of the week rather than a real date, FullCalendar hands
+            // us a UTC-anchored MARKER (Sun = 1970-01-04T00:00:00Z — see
+            // TableDowCell in @fullcalendar/core), while date-fns reads LOCAL
+            // fields. West of Greenwich that marker resolves to the previous
+            // day, so every label rendered one column to the left of the dates
+            // it belongs to (SAT SUN MON... over a Sunday-first grid).
+            // `arg.text` is the same marker formatted by the dateEnv that laid
+            // the columns out, so label and column can never disagree — and it
+            // follows `firstDay`/locale on its own.
+            return <span className="cc-dow">{arg.text}</span>;
         }
+        // Week/day headers stand for real dates, and there FullCalendar passes
+        // `dateEnv.toDate(marker)` — a genuine local Date. Formatting it with
+        // date-fns is correct.
         return (
             <span className="cc-colhead">
                 <span className="cc-colhead-dow">
@@ -1386,12 +1564,32 @@ const Calendar = ({
 
     const isSkeleton = loading || (!hasLoaded && Boolean(user?.id));
     const isErrorState = !isSkeleton && fetchError;
+    // The agenda has no empty screen any more: it lists every day of the
+    // period, so "no meetings" reads as a column of quiet, bookable day cards.
+    // That is deliberate — below 620px the agenda is the only view (§9), and
+    // the state block's single CTA could only ever book TODAY. The grid keeps
+    // its state block, having no such affordance.
     const isEmptyState =
-        !isSkeleton && !fetchError && (events?.length || 0) === 0;
+        !isSkeleton &&
+        !fetchError &&
+        (events?.length || 0) === 0 &&
+        layoutMode !== "agenda";
 
     const meetingColour = (event) =>
         meetingTypes?.find((tp) => tp?.id === event?.extendedProps?.type)
             ?.color;
+
+    /**
+     * Does the card take the whole page instead of hugging its content?
+     *
+     * Only the grid needs it, and only the grid gets it: giving FullCalendar a
+     * definite height is what stops the month grid from overflowing the page
+     * (the scroll moves INSIDE the calendar) and what gives week/day a scroller
+     * `scrollTime` can drive. The agenda is an open-ended list that should keep
+     * scrolling the page, and the empty/error cards should keep hugging. The
+     * skeleton is included so the card does not resize when the data lands.
+     */
+    const fillHeight = layoutMode === "grid" && !isErrorState && !isEmptyState;
 
     let body;
     if (isSkeleton) {
@@ -1444,12 +1642,8 @@ const Calendar = ({
         body = (
             <StateBlock
                 icon="🗓"
-                title={`Nothing booked in ${periodLabel}`}
-                body={`${["Every room in SEA", officeAlias]
-                    .filter(Boolean)
-                    .join(
-                        " "
-                    )} is free. Drag across any day to claim a slot, or start from here.`}
+                title={`Nothing on your calendar for ${periodLabel}`}
+                body="Drag across any day to claim a slot, or start from here."
                 actions={
                     <>
                         <Box
@@ -1484,7 +1678,9 @@ const Calendar = ({
                 events={events}
                 rooms={rooms}
                 types={meetingTypes}
+                days={periodDays}
                 onOpenEvent={openDetails}
+                onBookDay={handleAgendaDayClick}
             />
         );
     } else {
@@ -1497,7 +1693,18 @@ const Calendar = ({
                     selectable
                     events={events}
                     ref={calendarRef}
-                    height="auto"
+                    // A DEFINITE height, not "auto". "auto" made the grid grow
+                    // past the viewport and push the page into a scrollbar, and
+                    // it set `isHeightAuto`, which leaves FullCalendar without
+                    // a scroller of its own. "100%" resolves against
+                    // CalendarStyled (a definite-height flex item all the way
+                    // up to App.js's 100vh shell), so: the card fits the page,
+                    // month rows expand to fill it — `DayTableView` derives its
+                    // own `expandRows` from `!isHeightAuto`, and `cellMinHeight`
+                    // stays null below 7 rows so the 104px cell floor still
+                    // holds the two bubbles + "+N more" — and week/day get a
+                    // real internal scroller that `scrollTime` can place.
+                    height="100%"
                     expandRows={false}
                     rerenderDelay={10}
                     initialDate={selectedDate}
@@ -1518,9 +1725,8 @@ const Calendar = ({
                     // INVISIBLE in week and day view — a booking system that
                     // hides bookings. The full 24 hours stays reachable and the
                     // design intent is expressed as an opening scroll position
-                    // instead. (`scrollTime` only bites when FullCalendar owns
-                    // a scroller; with `height="auto"` the page container does,
-                    // so `scrollDayStartIntoView` below finishes the job.)
+                    // instead. `scrollTime` only bites when FullCalendar owns a
+                    // scroller, which the definite `height` above restores.
                     scrollTime={`${String(DAY_START_HOUR).padStart(
                         2,
                         "0"
@@ -1565,7 +1771,14 @@ const Calendar = ({
             sx={{
                 flex: 1,
                 minHeight: 0,
+                // A column so the card below can claim the leftover height.
+                // `overflowY` stays as the safety valve for the states that
+                // still hug their content (agenda, empty, error) and for
+                // viewports too short for the grid's own floor.
+                display: "flex",
+                flexDirection: "column",
                 overflowY: "auto",
+                overflowX: "hidden",
                 scrollbarWidth: "thin",
                 background: "var(--cc-grd)",
                 color: "var(--cc-ink)",
@@ -1585,7 +1798,11 @@ const Calendar = ({
                     sx={dialogFrameSx}
                     PaperProps={framePaperProps(
                         layout.dialogWidth.book,
-                        meetingColour(selectedEvent)
+                        meetingColour(selectedEvent),
+                        // 560 (form) + 340 (ConcourseDialogKit SIDE_PANE_WIDTH)
+                        // — the width this frame grows to when Advanced opens
+                        // as a second column at >= 980px.
+                        layout.dialogWidth.book + 340
                     )}
                 >
                     {isPhone && <GrabHandle />}
@@ -1656,77 +1873,121 @@ const Calendar = ({
                     borderRadius: "26px",
                     boxShadow: "var(--cc-sh2)",
                     overflow: "hidden",
+                    // Never let the flex parent squash the states that hug
+                    // their content — they scroll the page instead.
+                    flexShrink: 0,
                     animation: `${ccMotion.keyframes.card} ${ccMotion.dur.card}ms ${SP} ${ccMotion.delay.card}ms both`,
                     [PHONE]: { borderRadius: "22px" },
+                    // `flex` after `flexShrink` on purpose: the shorthand resets
+                    // it. In grid mode the card takes exactly the page height.
+                    ...(fillHeight
+                        ? {
+                              flex: 1,
+                              minHeight: 0,
+                              display: "flex",
+                              flexDirection: "column",
+                          }
+                        : null),
                 }}
             >
                 {/* Toolbar holds the mode toggle only — the banner owns the
-                    date and the title (§10.10 / §15 #10). */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        flexWrap: "wrap",
-                        padding: "13px 16px 11px",
-                    }}
-                >
+                    date and the title (§10.10 / §15 #10).
+
+                    At <=620px (`bp.sheet`, the same breakpoint that pins
+                    `layoutMode` to "agenda") the grid is not rendered at all,
+                    so the toggle has exactly one reachable option. It used to
+                    render with "Grid" disabled, which offers the user a control
+                    they cannot use. The whole toolbar row goes with it — hiding
+                    only the group would leave its 13/11px padding behind as an
+                    empty strip above the agenda. `isPhone` rather than the
+                    PHONE media query on purpose: a display:none element would
+                    still occupy the toolbar's flex layout at the edge case
+                    where the two disagree. */}
+                {!isPhone && (
                     <Box
-                        role="group"
-                        aria-label="Calendar layout"
                         sx={{
                             display: "flex",
-                            background: "var(--cc-srf2)",
-                            borderRadius: "99px",
-                            padding: "3px",
-                            gap: "2px",
-                            [PHONE]: { width: "100%" },
+                            alignItems: "center",
+                            gap: "10px",
+                            flexWrap: "wrap",
+                            flexShrink: 0,
+                            padding: "13px 16px 11px",
                         }}
                     >
-                        {[
-                            {
-                                key: "grid",
-                                label: isMonthGrid ? "Grid" : "Timeline",
-                            },
-                            { key: "agenda", label: "Agenda" },
-                        ].map((item) => (
-                            <Box
-                                key={item.key}
-                                component="button"
-                                type="button"
-                                aria-pressed={layoutMode === item.key}
-                                disabled={isPhone && item.key === "grid"}
-                                onClick={() => setViewMode(item.key)}
-                                sx={{
-                                    border: 0,
-                                    background: "transparent",
-                                    borderRadius: "99px",
-                                    padding: "6px 15px",
-                                    cursor: "pointer",
-                                    fontFamily: "var(--cc-sans)",
-                                    ...ccType.modeToggle,
-                                    color: "var(--cc-mute)",
-                                    transition: `color 200ms, background 250ms ${SP}`,
-                                    "&[aria-pressed='true']": {
-                                        background: "var(--cc-srf)",
-                                        color: "var(--cc-ink)",
-                                        boxShadow: "var(--cc-sh1)",
-                                    },
-                                    "&:disabled": {
-                                        opacity: 0.4,
-                                        cursor: "default",
-                                    },
-                                    "&:focus-visible": FOCUS_RING,
-                                    [PHONE]: { flex: 1 },
-                                }}
-                            >
-                                {item.label}
-                            </Box>
-                        ))}
+                        <Box
+                            role="group"
+                            aria-label="Calendar layout"
+                            sx={{
+                                display: "flex",
+                                background: "var(--cc-srf2)",
+                                borderRadius: "99px",
+                                padding: "3px",
+                                gap: "2px",
+                            }}
+                        >
+                            {[
+                                {
+                                    key: "grid",
+                                    label: isMonthGrid ? "Grid" : "Timeline",
+                                },
+                                { key: "agenda", label: "Agenda" },
+                            ].map((item) => (
+                                <Box
+                                    key={item.key}
+                                    component="button"
+                                    type="button"
+                                    aria-pressed={layoutMode === item.key}
+                                    onClick={() => setViewMode(item.key)}
+                                    sx={{
+                                        border: 0,
+                                        background: "transparent",
+                                        borderRadius: "99px",
+                                        padding: "6px 15px",
+                                        cursor: "pointer",
+                                        fontFamily: "var(--cc-sans)",
+                                        ...ccType.modeToggle,
+                                        color: "var(--cc-mute)",
+                                        transition: `color 200ms, background 250ms ${SP}`,
+                                        "&[aria-pressed='true']": {
+                                            background: "var(--cc-srf)",
+                                            color: "var(--cc-ink)",
+                                            boxShadow: "var(--cc-sh1)",
+                                        },
+                                        "&:focus-visible": FOCUS_RING,
+                                    }}
+                                >
+                                    {item.label}
+                                </Box>
+                            ))}
+                        </Box>
                     </Box>
-                </Box>
+                )}
 
-                {body}
+                {/* In grid mode this is the definite-height box FullCalendar's
+                    `height="100%"` resolves against, and the only thing that
+                    scrolls if a very busy month still will not fit. Left
+                    unstyled otherwise so the agenda and the state cards behave
+                    exactly as before — except on the phone, where it now also
+                    supplies the top inset the removed toolbar used to provide.
+                    Without it the first agenda day sits flush against the
+                    card's rounded top edge. 12px matches the agenda's own
+                    gutter and row gap. */}
+                <Box
+                    sx={{
+                        ...(isPhone ? { paddingTop: "12px" } : null),
+                        ...(fillHeight
+                            ? {
+                                  flex: 1,
+                                  minHeight: 0,
+                                  overflowY: "auto",
+                                  overflowX: "hidden",
+                                  scrollbarWidth: "thin",
+                              }
+                            : null),
+                    }}
+                >
+                    {body}
+                </Box>
             </Box>
 
             {/* --------------------- SEAM 2: details frame (§10.30) ---------- */}

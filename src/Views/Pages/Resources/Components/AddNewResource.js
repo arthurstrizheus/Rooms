@@ -1,21 +1,24 @@
 import { useState } from "react";
-import {
-    Stack,
-    Typography,
-    Button,
-    Dialog,
-    Divider,
-    Input,
-} from "@mui/material";
+import { Dialog } from "@mui/material";
 import {
     showError,
     showSuccess,
 } from "../../../../Utilites/Functions/ApiFunctions";
 import { useAuth } from "../../../../Utilites/AuthContext";
 import { PostResource } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
+import {
+    CcButton,
+    CcInput,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Field,
+    scopeDialogProps,
+    Spacer,
+} from "../../../Components/Concourse/ConcourseDialogKit";
 
 const AddNewResource = ({ open, setOpen, location, setUpdate }) => {
-    const ariaLabel = { "aria-label": "description" };
     const [name, setName] = useState("");
     const { user } = useAuth();
 
@@ -41,40 +44,29 @@ const AddNewResource = ({ open, setOpen, location, setUpdate }) => {
     };
 
     return (
-        <Dialog open={!!open} onClose={onClose} maxWidth="xs">
-            <Stack
-                direction={"column"}
-                sx={{ width: "300px", padding: "20px" }}
-            >
-                <Typography
-                    variant="h5"
-                    textAlign={"center"}
-                    width={"100%"}
-                    fontFamily={"Courier New, sans-serif"}
-                    marginBottom={2}
-                >
-                    Create Resource
-                </Typography>
-                <Divider width={"100%"} />
-                <Input
-                    sx={{ marginTop: "30px" }}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Resource Name"
-                    inputProps={ariaLabel}
-                />
-                <Button
-                    variant="outlined"
-                    sx={{
-                        marginTop: "20px",
-                        backgroundColor: "rgba(0,170,0,.2)",
-                        ":hover": { backgroundColor: "rgba(0,200,0,.4)" },
-                    }}
-                    onClick={onSubmit}
-                >
-                    Submit
-                </Button>
-            </Stack>
+        <Dialog open={!!open} onClose={onClose} {...scopeDialogProps(480)}>
+            {/* No per-record accent on this page, so the header wash is pinned
+                to the brand red (guide §7.5). */}
+            <DialogSurface accent="var(--cc-red)">
+                <DialogHeader title="Create Resource" onClose={onClose} />
+                <DialogBody>
+                    <Field label="Resource Name" htmlFor="new-resource-name">
+                        <CcInput
+                            id="new-resource-name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Resource Name"
+                            autoComplete="off"
+                        />
+                    </Field>
+                </DialogBody>
+                <DialogFooter>
+                    <Spacer />
+                    <CcButton variant="primary" onClick={onSubmit}>
+                        Submit
+                    </CcButton>
+                </DialogFooter>
+            </DialogSurface>
         </Dialog>
     );
 };

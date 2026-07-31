@@ -75,6 +75,7 @@ const ShortSelectRoom = ({
 
     const formatCapacity = (capacity) => {
         if (capacity === 0) return "No limit";
+        if (!Number.isFinite(capacity)) return null;
         if (capacity >= 1000) return "Large capacity";
         return `${capacity} people`;
     };

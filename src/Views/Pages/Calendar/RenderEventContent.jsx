@@ -4,6 +4,14 @@
 // asked to keep. Line 1 is always the meeting name, line 2 is always the room.
 // Never reorder them, never collapse to one line, never drop the room.
 //
+// ONE measured exception, added with the wrap/shrink/ellipsis work: a time-grid
+// bubble shorter than 34px (a 15-minute booking is 22.5px) hides the room LINE,
+// because two lines of legible type do not fit in 22px — the alternative was
+// half a clipped room line under a clipped name. The room is still in the
+// `aria-label`, and the line returns the moment the booking is 34px tall. It is
+// hidden by a container query, not by the markup: the element is always
+// rendered, so line 1 / line 2 is intact in the DOM at every size.
+//
 // Traps worth re-reading before editing:
 //   * left padding is ZERO (`4px 9px 5px 0`) — the 3px type-colour bar lives
 //     in that space.
@@ -19,16 +27,88 @@ import { motion, tokens, type as ccType } from "../../../Utilites/concourse";
 export const TYPE_COLOUR_FALLBACK = tokens.constant.typeFallback;
 
 const SP = "var(--cc-sp)";
-const REST_BG = "color-mix(in srgb, var(--cc-c) 12%, var(--cc-srf))";
-const HOVER_BG = "color-mix(in srgb, var(--cc-c) 22%, var(--cc-srf))";
+
+/* -------------------------------------------------------- the type wash ---*/
+//
+// The user asked for more colour ("More aplha"), so the rest wash doubles from
+// the specced 12% to 24%. The ceiling is not taste, it is contrast, measured in
+// Chrome over a 144-colour sweep (every 10 deg of hue x four lightness/chroma
+// pairs) in BOTH modes, because a meeting type is a free-form hex the admin
+// picks with a colour picker (backend/models/type.js) — there is no fixed
+// palette to design against, so the whole space has to hold.
+//
+// Worst case of that sweep, name (`--cc-ink`) on the wash:
+//     24%  9.87 light / 6.96 dark      32%  8.04 / 5.31      36%  7.22 / 4.66
+// 40% would put dark-mode name at 4.10, under 4.5 — that is why the press step
+// stops at 36 instead of continuing +10 per state.
+//
+// The room line is the real constraint and it was ALREADY failing before this
+// change: `--cc-mute` on a bare `--cc-srf` measures 4.84 light / 5.84 dark, so
+// any wash at all drops it under 4.5 (at the shipped 12% it was 3.74 / 4.13).
+// The fix is to darken the room line in step with the wash — still tokens, no
+// mode branch, no palette. Worst case with these pairings:
+//     rest  24% + ink60  6.18 light / 4.98 dark
+//     hover 32% + ink85  6.88 / 4.71
+//     press 36% + ink    7.22 / 4.66
+// Every state, every hue, both modes, >= 4.5.
+const REST_BG = "color-mix(in srgb, var(--cc-c) 24%, var(--cc-srf))";
+const HOVER_BG = "color-mix(in srgb, var(--cc-c) 32%, var(--cc-srf))";
+const ACTIVE_BG = "color-mix(in srgb, var(--cc-c) 36%, var(--cc-srf))";
+// The hatch's heavier stop tracks the flat wash, so the numbers above bound it.
 const HATCH_BG =
     "repeating-linear-gradient(135deg," +
-    "color-mix(in srgb, var(--cc-c) 13%, var(--cc-srf)) 0 7px," +
-    "color-mix(in srgb, var(--cc-c) 7%, var(--cc-srf)) 7px 14px)";
+    "color-mix(in srgb, var(--cc-c) 24%, var(--cc-srf)) 0 7px," +
+    "color-mix(in srgb, var(--cc-c) 13%, var(--cc-srf)) 7px 14px)";
 const HATCH_BG_HOVER =
     "repeating-linear-gradient(135deg," +
-    "color-mix(in srgb, var(--cc-c) 22%, var(--cc-srf)) 0 7px," +
-    "color-mix(in srgb, var(--cc-c) 14%, var(--cc-srf)) 7px 14px)";
+    "color-mix(in srgb, var(--cc-c) 32%, var(--cc-srf)) 0 7px," +
+    "color-mix(in srgb, var(--cc-c) 20%, var(--cc-srf)) 7px 14px)";
+const HATCH_BG_ACTIVE =
+    "repeating-linear-gradient(135deg," +
+    "color-mix(in srgb, var(--cc-c) 36%, var(--cc-srf)) 0 7px," +
+    "color-mix(in srgb, var(--cc-c) 24%, var(--cc-srf)) 7px 14px)";
+
+// The room line, one step darker per wash step. DEVIATION from §6, which puts
+// `bubbleMeta` at a flat `--cc-mute`; at 24% that reads 2.82:1.
+const META_INK = "color-mix(in srgb, var(--cc-ink) 60%, var(--cc-mute))";
+const META_INK_HOVER = "color-mix(in srgb, var(--cc-ink) 85%, var(--cc-mute))";
+const META_INK_ACTIVE = "var(--cc-ink)";
+
+const isPositioned = (variant) => variant === "positioned";
+
+// THE ONE MOTION RULE FOR A TIME-GRID BUBBLE: everything that moves is a fixed
+// number of pixels on a child INSIDE the bubble, and the bubble's own box never
+// changes. A positioned bubble is as tall as its booking is long — 21px for a
+// 15-minute slot, 2157px for a 24-hour one — so any transform on the bubble
+// itself moves by a PERCENTAGE OF AN UNBOUNDED HEIGHT: 1.5% is 0.3px on the
+// short one and 32px on the tall one. That is what produced both complaints
+// (the title leaving the clipped column, then the body sliding on exit), and
+// scaling inward instead of outward only changes the direction of the same
+// problem. A 2px nudge is 2px at every height, and the bubble's own
+// `overflow: hidden` means a child can never paint outside the rest box.
+const MOTION = "transform 200ms ease-out"; // no overshoot, mirrors on exit
+const BAR_HOVER = "scaleX(1.9)"; // 3px -> 5.7px, paints over its own gap
+const BAR_ACTIVE = "scaleX(2.6)";
+const BODY_HOVER = "translateX(2px)"; // into the right padding, never past it
+const BODY_ACTIVE = "translateX(1px)";
+
+// Shared so the positioned variant can add motion to these without restating
+// their geometry (a duplicate key would silently drop the base rule).
+const BUB_BAR = {
+    width: "3px",
+    flex: "none",
+    alignSelf: "stretch",
+    borderRadius: "0 3px 3px 0",
+    background: "var(--cc-c)",
+};
+// `align-content: start` is load-bearing — see the note in `build`.
+const BUB_BODY = {
+    minWidth: 0,
+    minHeight: 0,
+    display: "grid",
+    alignContent: "start",
+    gridAutoRows: "min-content",
+};
 
 /* ------------------------------------------------------------------ times --*/
 
@@ -65,6 +145,11 @@ const VARIANT = {
         borderRadius: "11px",
         padding: "4px 9px 5px 0",
         height: "100%",
+        // Width-driven type scaling reads the bubble's own inline size. Height
+        // tiers read `ccev` — declared on `.fc-timegrid-event` in
+        // CalendarStyled.jsx, because an element cannot query ITS OWN
+        // container and the padding above has to shrink with the bubble.
+        containerType: "inline-size",
     },
     agenda: { borderRadius: "14px", padding: "8px 12px 8px 0" },
     popover: { borderRadius: "14px", padding: "7px 11px 7px 0" },
@@ -87,6 +172,114 @@ const ENTRANCE = {
     default: `${motion.keyframes.bubble} ${motion.dur.bubble}ms ${SP} var(--cc-d, 0ms) both`,
 };
 
+/* ------------------------------------------------------------- fit rules --*/
+//
+// §10.12 said "nowrap + ellipsis" on both lines. The user overrode that for the
+// time grid: **wrap first, shrink to a floor, ellipsise only as a last resort.**
+// That is the order these rules implement, in CSS only — no JS measurement,
+// because measuring inside `eventContent` re-enters FullCalendar's render pass.
+//
+//   wrap    `-webkit-box` + `overflow-wrap:break-word` — the name flows onto as
+//           many lines as the bubble can show, and only splits a word when that
+//           word cannot fit a line of its own.
+//   shrink  `clamp()` driven by `cqw` (the bubble's own inline size), so a lane
+//           squeezed by three neighbours gets smaller type, not less text.
+//   ellipsis `-webkit-line-clamp`, stepped down by the `ccev` height tiers
+//           below so the clamp always matches the number of lines that fit.
+//
+// FLOORS: name 9.5px, room 9px. Nothing here is smaller than type the design
+// already ships — `bubbleMeta` is 9.5px and `allDayLabel` is 9px (§6) — so the
+// worst case is as legible as the all-day rail label next to it.
+const NAME_MIN = "9.5px";
+const META_MIN = "9px";
+// Knees chosen so a bubble that is NOT squeezed keeps the shipped §6 sizes: the
+// name is still 11.5px at >=120px of text column (a full-width week lane
+// measures 134px), and only starts shrinking when a neighbour takes the width.
+// It reaches the floor at ~45px, which is the 4-concurrent worst case.
+const nameFluid = (cap) => `clamp(${NAME_MIN}, calc(8.3px + 2.667cqw), ${cap})`;
+const NAME_FLUID = nameFluid("11.5px");
+const META_FLUID = `clamp(${META_MIN}, calc(8.5px + 0.833cqw), 9.5px)`;
+
+// Height tiers. `ccev` is `.fc-timegrid-event` (CalendarStyled.jsx), which is
+// inset:0 inside the harness, so its height IS the booking's height on the
+// grid. Thresholds are (lines x 14.4px name) + 9px padding + 12.4px room line,
+// i.e. the clamp only ever promises lines that actually fit. Ordered
+// large -> small: every matching tier applies, the last one wins.
+const FIT_TIERS = {
+    // WIDTH tiers come first (height tiers below may re-set `padding`).
+    // In a lane squeezed by three neighbours the bubble is ~36px wide, of which
+    // the 3px bar, the 8px gap and the 9px right padding took 20px — 56% of the
+    // box — leaving 16px for text. Tightening the chrome on narrow lanes is
+    // worth more than any type change: it takes the text column from 16px to
+    // 26px on the same bubble.
+    "@container ccev (max-width: 92px)": {
+        gap: "5px",
+        padding: "4px 5px 5px 0",
+    },
+    "@container ccev (max-width: 58px)": {
+        gap: "3px",
+        padding: "3px 3px 4px 0",
+    },
+    // Each step down does BOTH things the user asked for, in her order: fewer
+    // lines before the ellipsis, and a lower ceiling on the type so more words
+    // reach the page before it ellipsises. The floor never moves.
+    "@container ccev (max-height: 79px)": {
+        "& .cc-bub-name": { WebkitLineClamp: 3, fontSize: nameFluid("11px") },
+    },
+    "@container ccev (max-height: 65px)": {
+        "& .cc-bub-name": { WebkitLineClamp: 2, fontSize: nameFluid("10.5px") },
+    },
+    "@container ccev (max-height: 50px)": {
+        "& .cc-bub-name": { WebkitLineClamp: 1, fontSize: nameFluid("10px") },
+    },
+    // A 30-minute booking (45px at the shipped 90px hour) — one name line and
+    // the room line, on tightened padding.
+    "@container ccev (max-height: 46px)": {
+        padding: "2px 7px 2px 0",
+        "& .cc-bub-name": { WebkitLineClamp: 1, fontSize: nameFluid("10px") },
+        "& .cc-bub-meta": { fontSize: META_MIN },
+    },
+    // A 15-minute booking (22.5px). Two legible lines cannot exist in 22px;
+    // the name wins and the room survives in the aria-label. DEVIATION from
+    // "always two lines" — recorded in the report.
+    "@container ccev (max-height: 34px)": {
+        padding: "0 5px 0 0",
+        "& .cc-bub-name": {
+            WebkitLineClamp: 1,
+            fontSize: NAME_MIN,
+            lineHeight: 1.2,
+        },
+        "& .cc-bub-meta": { display: "none" },
+    },
+};
+
+// Month cells stop scrolling and start scaling (defect 5): `ccday` is
+// `.fc-daygrid-day-frame`, whose height is now a sixth of the grid. The bubble
+// shrinks with the cell instead of overflowing it. Same floors.
+// A size container reports its CONTENT box, so these thresholds are the cell
+// height MINUS its 12px of padding. 103 is where the full-size recipe stops
+// fitting (23px date + two 35.7px bubbles + margins = 102.4px of content); 86
+// is where the middle tier stops fitting (85.6px). Measured, not guessed.
+const MONTH_TIERS = {
+    "@container ccday (max-height: 103px)": {
+        padding: "2px 7px 3px 0",
+        "& .cc-bub-name": { fontSize: "10.5px" },
+        "& .cc-bub-meta": { fontSize: "9px" },
+    },
+    "@container ccday (max-height: 86px)": {
+        padding: "1px 6px 1px 0",
+        "& .cc-bub-name": { fontSize: NAME_MIN, lineHeight: 1.15 },
+        "& .cc-bub-meta": { fontSize: META_MIN, lineHeight: 1.15 },
+    },
+    // Last tier: type is already at the floor, so only the boxes tighten. This
+    // is what keeps a 6-row month whole on a short laptop screen.
+    "@container ccday (max-height: 68px)": {
+        padding: "0 5px 0 0",
+        "& .cc-bub-name": { fontSize: NAME_MIN, lineHeight: 1.1 },
+        "& .cc-bub-meta": { fontSize: META_MIN, lineHeight: 1.1 },
+    },
+};
+
 const build = (variant, allDay, animate) => ({
     display: "flex",
     gap: "8px",
@@ -102,34 +295,74 @@ const build = (variant, allDay, animate) => ({
     color: "var(--cc-ink)",
     background: allDay ? HATCH_BG : REST_BG,
     ...VARIANT[variant],
-    transition: `transform 280ms ${SP}, box-shadow 280ms ${SP}, background 200ms`,
+    // The time-grid bubble's own box transitions PAINT ONLY — its geometry is
+    // never a transition target, so there is nothing here that can clip. The
+    // easing is deliberately not `--cc-sp`: `cubic-bezier(.34,1.4,.64,1)` has a
+    // control point above 1, so it crosses PAST the target and settles back.
+    // That is the right feel for a small element travelling a fixed 2px, and
+    // the wrong feel for anything sized as a fraction of a 2000px element —
+    // measured on the old rule, the exit crossed 2.29px past its resting
+    // position before settling, which is what read as a glitch.
+    transition: isPositioned(variant)
+        ? "box-shadow 200ms ease-out, background 200ms ease-out"
+        : `transform 280ms ${SP}, box-shadow 280ms ${SP}, background 200ms`,
     ...(animate
         ? { animation: ENTRANCE[variant] || ENTRANCE.default }
         : null),
 
     // §13-G5 — hover lift only where hover is real, or a tap leaves the bubble
     // permanently raised on touch.
+    //
+    // THE TIME-GRID BUBBLE ANIMATES, BUT ITS OWN BOX NEVER MOVES. The type bar
+    // swells from 3px to 5.7px and the name/room block slides 2px right into
+    // the padding it already owns — both inside a box with `overflow: hidden`,
+    // so the motion is geometrically incapable of leaving the rest bounds at
+    // any height or scroll position. See the MOTION block above for why the
+    // bubble itself is not the thing that moves.
+    // DEVIATION from §10.12's lift and `scale(.97)` press, and from §8's
+    // spring easing, for the positioned variant only; month, agenda, list and
+    // popover bubbles are height-bounded and keep the lift exactly as specced.
+    // The room line darkens one step with every wash step — that pairing is
+    // what keeps it at or above 4.5:1 for every type colour in both modes.
     "@media (hover: hover)": {
-        "&:hover": {
-            transform: "translateY(-2px) scale(1.02)",
-            boxShadow: "var(--cc-sh1)",
-            background: allDay ? HATCH_BG_HOVER : HOVER_BG,
-        },
+        "&:hover": isPositioned(variant)
+            ? {
+                  boxShadow: "var(--cc-sh1)",
+                  background: allDay ? HATCH_BG_HOVER : HOVER_BG,
+                  "& .cc-bub-bar": { transform: BAR_HOVER },
+                  "& .cc-bub-body": { transform: BODY_HOVER },
+                  "& .cc-bub-meta": { color: META_INK_HOVER },
+              }
+            : {
+                  transform: "translateY(-2px) scale(1.02)",
+                  boxShadow: "var(--cc-sh1)",
+                  background: allDay ? HATCH_BG_HOVER : HOVER_BG,
+                  "& .cc-bub-meta": { color: META_INK_HOVER },
+              },
     },
-    "&:active": { transform: "scale(.97)" },
+    "&:active": isPositioned(variant)
+        ? {
+              background: allDay ? HATCH_BG_ACTIVE : ACTIVE_BG,
+              "& .cc-bub-bar": { transform: BAR_ACTIVE },
+              "& .cc-bub-body": { transform: BODY_ACTIVE },
+              "& .cc-bub-meta": { color: META_INK_ACTIVE },
+          }
+        : {
+              transform: "scale(.97)",
+              "& .cc-bub-meta": { color: META_INK_ACTIVE },
+          },
     "&:focus-visible": {
         outline: "2px solid var(--cc-c)",
         outlineOffset: "2px",
     },
 
-    "& .cc-bub-bar": {
-        width: "3px",
-        flex: "none",
-        alignSelf: "stretch",
-        borderRadius: "0 3px 3px 0",
-        background: "var(--cc-c)",
-    },
-    "& .cc-bub-body": { minWidth: 0, display: "grid" },
+    "& .cc-bub-bar": BUB_BAR,
+    // `align-content: start` is load-bearing. A two-row grid defaults to
+    // `stretch`, so in a tall week/day bubble each row took HALF the height and
+    // the room line rendered at the vertical middle — measured 360px below the
+    // name on a 720px booking. Packing the rows at the top puts the room
+    // directly under the name, which is what line 1 / line 2 has always meant.
+    "& .cc-bub-body": BUB_BODY,
     "& .cc-bub-name": {
         ...ccType.bubbleName,
         ...NAME_OVERRIDE[variant],
@@ -141,11 +374,51 @@ const build = (variant, allDay, animate) => ({
     "& .cc-bub-meta": {
         ...ccType.bubbleMeta,
         ...META_OVERRIDE[variant],
-        color: "var(--cc-mute)",
+        color: META_INK,
+        transition: "color 200ms ease-out",
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
     },
+
+    // Week / day only: wrap -> shrink -> ellipsis (see FIT_TIERS above), plus
+    // the in-bounds hover motion. The transitions live on the RESTING rules, so
+    // enter and exit are the same 200ms ease-out in both directions — an
+    // asymmetric exit was the other half of the "glitching".
+    ...(variant === "positioned"
+        ? {
+              "& .cc-bub-bar": {
+                  ...BUB_BAR,
+                  transformOrigin: "left center",
+                  transition: MOTION,
+              },
+              "& .cc-bub-body": { ...BUB_BODY, transition: MOTION },
+              "& .cc-bub-name": {
+                  ...ccType.bubbleName,
+                  fontSize: NAME_FLUID,
+                  display: "-webkit-box",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: 4,
+                  overflowWrap: "break-word",
+                  overflow: "hidden",
+                  minWidth: 0,
+              },
+              "& .cc-bub-meta": {
+                  ...ccType.bubbleMeta,
+                  fontSize: META_FLUID,
+                  color: META_INK,
+                  transition: "color 200ms ease-out",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+              },
+              ...FIT_TIERS,
+          }
+        : null),
+
+    // Month only: the grid no longer scrolls, so the bubble scales with its
+    // cell (defect 5). Both lines stay — only their size changes.
+    ...(variant === "month" ? MONTH_TIERS : null),
 });
 
 // Cache one sx object per (variant, allDay, animate) so emotion reuses the

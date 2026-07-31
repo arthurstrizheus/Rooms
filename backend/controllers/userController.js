@@ -356,7 +356,9 @@ const userExistsInAd = async (req, res) => {
             },
         });
 
-        res.json({ exists, accountCreated: !!userAcc || !userAcc.location });
+        // `accountCreated` tells Login.js whether it still needs to ask for a
+        // location: true only when a DB account exists AND already has one.
+        res.json({ exists, accountCreated: !!userAcc && !!userAcc.location });
     } catch (error) {
         console.error("Error checking user in AD:", error);
         res.status(500).json({

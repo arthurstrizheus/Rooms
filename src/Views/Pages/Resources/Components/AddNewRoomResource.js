@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
-import {
-    Stack,
-    Typography,
-    Button,
-    Dialog,
-    FormControl,
-    InputLabel,
-    Select,
-    Divider,
-    MenuItem,
-} from "@mui/material";
+import { Dialog, MenuItem } from "@mui/material";
 import { PostRoomResource } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
 import {
     showError,
     showSuccess,
 } from "../../../../Utilites/Functions/ApiFunctions";
 import { useAuth } from "../../../../Utilites/AuthContext";
+import {
+    CcButton,
+    CcSelect,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Field,
+    scopeDialogProps,
+    Spacer,
+} from "../../../Components/Concourse/ConcourseDialogKit";
 
 const AddNewRoomResource = ({
     open,
@@ -52,7 +53,6 @@ const AddNewRoomResource = ({
     };
     useEffect(() => {
         if (room?.id) {
-            console.log("here");
             setFilteredResources(
                 resources.filter(
                     (r) =>
@@ -67,85 +67,57 @@ const AddNewRoomResource = ({
     }, [room]);
 
     return (
-        <Dialog open={!!open} onClose={onClose} maxWidth="xs">
-            <Stack
-                direction={"column"}
-                sx={{ width: "300px", padding: "20px" }}
-            >
-                <Typography
-                    variant="h5"
-                    textAlign={"center"}
-                    width={"100%"}
-                    fontFamily={"Courier New, sans-serif"}
-                    marginBottom={2}
-                >
-                    Add Resource To Room
-                </Typography>
-                <Divider width={"100%"} />
-                <FormControl
-                    variant="standard"
-                    sx={{ minWidth: 160, width: "100%" }}
-                >
-                    <InputLabel id="demo-simple-select-standard-label">
-                        Select Room
-                    </InputLabel>
-                    <Select
-                        sx={{ width: "100%" }}
-                        labelId="demo-simple-select-standard-label"
-                        id="demo-simple-select-standard"
-                        value={room?.id || ""}
-                        onChange={(e) => {
-                            const selectedItem = rooms?.find(
-                                (itm) => itm.id === e.target.value
-                            );
-                            setRoom(selectedItem); // Return the entire object
-                        }}
-                    >
-                        {rooms?.map((itm, index) => (
-                            <MenuItem key={index} value={itm.id}>
-                                {itm.value}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                <FormControl
-                    variant="standard"
-                    sx={{ minWidth: 160, width: "100%" }}
-                >
-                    <InputLabel id="demo-simple-select-standard-label">
-                        Select Resource
-                    </InputLabel>
-                    <Select
-                        sx={{ width: "100%" }}
-                        labelId="demo-simple-select-standard-label"
-                        id="demo-simple-select-standard"
-                        value={resource?.id || ""}
-                        onChange={(e) => {
-                            const selectedItem = filteredResources?.find(
-                                (itm) => itm.id === e.target.value
-                            );
-                            setResource(selectedItem); // Return the entire object
-                        }}
-                    >
-                        {filteredResources?.map((itm, index) => (
-                            <MenuItem key={index} value={itm.id}>
-                                {itm.name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-                <Button
-                    variant="outlined"
-                    sx={{
-                        marginTop: "20px",
-                        backgroundColor: "rgba(0,170,0,.2)",
-                        ":hover": { backgroundColor: "rgba(0,200,0,.4)" },
-                    }}
-                    onClick={onSubmit}
-                >
-                    Submit
-                </Button>
-            </Stack>
+        <Dialog open={!!open} onClose={onClose} {...scopeDialogProps(480)}>
+            {/* This page has no per-record accent, so the header wash is pinned
+                to the brand red — otherwise `--cc-c` falls back to the
+                meeting-type green (guide §7.5). */}
+            <DialogSurface accent="var(--cc-red)">
+                <DialogHeader title="Add Resource To Room" onClose={onClose} />
+                <DialogBody>
+                    <Field label="Select Room">
+                        <CcSelect
+                            ariaLabel="Select Room"
+                            value={room?.id || ""}
+                            onChange={(e) => {
+                                const selectedItem = rooms?.find(
+                                    (itm) => itm.id === e.target.value
+                                );
+                                setRoom(selectedItem); // Return the entire object
+                            }}
+                        >
+                            {rooms?.map((itm, index) => (
+                                <MenuItem key={index} value={itm.id}>
+                                    {itm.value}
+                                </MenuItem>
+                            ))}
+                        </CcSelect>
+                    </Field>
+                    <Field label="Select Resource">
+                        <CcSelect
+                            ariaLabel="Select Resource"
+                            value={resource?.id || ""}
+                            onChange={(e) => {
+                                const selectedItem = filteredResources?.find(
+                                    (itm) => itm.id === e.target.value
+                                );
+                                setResource(selectedItem); // Return the entire object
+                            }}
+                        >
+                            {filteredResources?.map((itm, index) => (
+                                <MenuItem key={index} value={itm.id}>
+                                    {itm.name}
+                                </MenuItem>
+                            ))}
+                        </CcSelect>
+                    </Field>
+                </DialogBody>
+                <DialogFooter>
+                    <Spacer />
+                    <CcButton variant="primary" onClick={onSubmit}>
+                        Submit
+                    </CcButton>
+                </DialogFooter>
+            </DialogSurface>
         </Dialog>
     );
 };

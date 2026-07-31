@@ -1,74 +1,61 @@
-import React, { useState, useEffect } from "react";
-import { styled } from "@mui/material/styles";
-import TableCell, { tableCellClasses } from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-import { useTheme } from "@emotion/react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../../Utilites/AuthContext";
-import {
-    FormControl,
-    InputLabel,
-    Select,
-    Box,
-    Tooltip,
-    TableContainer,
-    Table,
-    TableHead,
-    TableBody,
-    TablePagination,
-    Paper,
-    Checkbox,
-    MenuItem,
-} from "@mui/material";
+import { useState, useEffect } from "react";
+import { Box, Checkbox, MenuItem } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import AddIcon from "@mui/icons-material/AddOutlined";
+import { useAuth } from "../../../../Utilites/AuthContext";
 import AddNewRoomResource from "./AddNewRoomResource";
 import {
-    GetGroups,
-    GetGroupUsers,
     GetLocations,
     GetResources,
-    GetRoomGroups,
     GetRoomResources,
     GetRooms,
     showError,
     showSuccess,
-    UserFullAccessRooms,
+    showWarning,
 } from "../../../../Utilites/Functions/ApiFunctions";
-import DeleteIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { DeleteRoomResource } from "../../../../Utilites/Functions/ApiFunctions/ResourceFunctions";
-
-const StyledTableCell = styled(TableCell)(({ theme }) => ({
-    [`&.${tableCellClasses.head}`]: {
-        backgroundColor: "white",
-        color: theme.palette.common.black,
-        fontWeight: "Bold",
-    },
-    [`&.${tableCellClasses.body}`]: {
-        fontSize: 14,
-    },
-}));
-
-const StyledTableRow = styled(TableRow)(({ theme }) => ({
-    "&:nth-of-type(odd)": {
-        backgroundColor: theme.palette.action.hover,
-    },
-    "&:last-child td, &:last-child th": {
-        border: 0,
-    },
-}));
+import { bp } from "../../../../Utilites/concourse";
+import {
+    CcButton,
+    CcSelect,
+} from "../../../Components/Concourse/ConcourseDialogKit";
+import {
+    checkboxSx,
+    ConfirmDeleteDialog,
+    muteCellSx,
+    nameCellSx,
+    PaginationBar,
+    PHONE_Q,
+    RowCard,
+    RowCardList,
+    RowCardListSkeleton,
+    rowSx,
+    SelectAllStrip,
+    SelectionSummary,
+    StateBlock,
+    stateWrapSx,
+    tableSx,
+    tableWrapSx,
+    TableSkeleton,
+    tdCheckboxSx,
+    tdSx,
+    thCheckboxSx,
+    thSx,
+    toolbarSx,
+} from "./ResourcesUi";
 
 function createData(id, resources_id, room_id) {
     return { id, resources_id, room_id };
 }
 
-export default function RoomResources({ setLoading }) {
-    const theme = useTheme();
+export default function RoomResources({ setLoading, tabs }) {
     const { user } = useAuth();
-    const navigate = useNavigate();
+    const isPhone = useMediaQuery(`(max-width:${bp.sheet}px)`);
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(25);
     const [selected, setSelected] = useState([]);
     const [openDialog, setOpenDialog] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
     const [filterLocation, setFilterLocation] = useState();
     const [paginatedRows, setPaginatedRows] = useState([]);
     const [filteredResources, setFilteredResources] = useState([]);
@@ -78,6 +65,10 @@ export default function RoomResources({ setLoading }) {
     const [roomResources, setRoomResources] = useState([]);
     const [resources, setResources] = useState([]);
     const [update, setUpdate] = useState(0);
+    // Local mirrors of the fetch lifecycle. `setLoading` is the parent's state
+    // and cannot be read back, so the skeleton needs its own flags (guide §3.7).
+    const [fetching, setFetching] = useState(true);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
     const handleChangePage = (event, newPage) => {
         setPage(newPage);
@@ -90,14 +81,23 @@ export default function RoomResources({ setLoading }) {
 
     const handleDeleteSelected = () => {
         const remove = async () => {
-            const promises = roomResources?.map(async (itm) =>
-                isSelected(itm.id) ? await DeleteRoomResource(itm.id) : null
+            const targets =
+                roomResources?.filter((itm) => isSelected(itm.id)) || [];
+            // `Promise.all` resolves to an array, which is truthy even when
+            // every delete failed, so the outcome has to come from the
+            // per-item results. DeleteRoomResource resolves true/false and
+            // never rejects.
+            const results = await Promise.all(
+                targets.map((itm) => DeleteRoomResource(itm.id))
             );
-            await Promise.all(promises).then((resp) =>
-                resp
-                    ? showSuccess("Items Deleted")
-                    : showError("Failed to delete")
-            );
+            const deleted = results.filter(Boolean).length;
+            if (targets.length > 0 && deleted === targets.length) {
+                showSuccess("Items Deleted");
+            } else if (deleted > 0) {
+                showWarning(`Deleted ${deleted} of ${targets.length} items`);
+            } else {
+                showError("Failed to delete");
+            }
             setSelected([]);
             setUpdate((prev) => prev + 1);
         };
@@ -138,6 +138,7 @@ export default function RoomResources({ setLoading }) {
     useEffect(() => {
         const getData = async () => {
             setLoading(true);
+            setFetching(true);
 
             const rms = await GetRooms(user.id);
             const lcs = await GetLocations();
@@ -150,6 +151,8 @@ export default function RoomResources({ setLoading }) {
             setLocations(lcs);
             setFilterLocation(lcs?.find((lc) => lc.officeid == user?.location));
             setLoading(false);
+            setFetching(false);
+            setHasLoaded(true);
         };
         if (user?.id) {
             getData();
@@ -178,12 +181,214 @@ export default function RoomResources({ setLoading }) {
             );
         }
     }, [filterLocation, roomResources, page, rowsPerPage, update, rooms]);
-    console.log(
-        resources.filter((rr) => rr.location == filterLocation?.officeid)
+
+    /* ---------------------------------------------------------- states ---
+       There is no error state on this page and there cannot be one:
+       GetRooms / GetLocations / GetRoomResources / GetResources all swallow
+       failure and return [], so a failed load is indistinguishable from an
+       empty one. The API layer still raises its own error toast. Reported. */
+    const isSkeleton = fetching || (!hasLoaded && Boolean(user?.id));
+    const isEmptyState = !isSkeleton && filteredResources.length === 0;
+
+    const selectedCount = selected?.length || 0;
+    const plural = selectedCount === 1 ? "" : "s";
+    const locationAlias = filterLocation?.Alias;
+
+    const selectAllCheckbox = (
+        <Checkbox
+            indeterminate={
+                selected.length > 0 &&
+                selected.length < filteredResources.length
+            }
+            checked={
+                filteredResources.length > 0 &&
+                selected.length === filteredResources.length
+            }
+            onChange={handleSelectAllClick}
+            inputProps={{
+                "aria-label": "select all meetings",
+            }}
+            sx={checkboxSx}
+        />
     );
+
+    const rowCheckbox = (row, isItemSelected) => (
+        <Checkbox
+            onClick={(event) => {
+                event.stopPropagation(); // Prevent the event from bubbling up
+                handleClick(event, row.id);
+            }}
+            checked={isItemSelected}
+            inputProps={{
+                "aria-labelledby": `enhanced-table-checkbox-${row.id}`,
+            }}
+            sx={checkboxSx}
+        />
+    );
+
+    const addButton = (
+        <CcButton
+            variant="primary"
+            onClick={setOpenDialog}
+            sx={{ [PHONE_Q]: { flex: "1 1 100%" } }}
+        >
+            <AddIcon sx={{ fontSize: "18px" }} />
+            Add resource to room
+        </CcButton>
+    );
+
+    let body;
+    if (isSkeleton) {
+        body = isPhone ? (
+            <RowCardListSkeleton facts={2} />
+        ) : (
+            <Box sx={tableWrapSx}>
+                <Box component="table" sx={tableSx} aria-label="Room resources">
+                    <Box component="thead">
+                        <Box component="tr">
+                            <Box component="th" sx={thCheckboxSx} />
+                            <Box component="th" sx={thSx}>
+                                Resource
+                            </Box>
+                            <Box component="th" sx={thSx}>
+                                Room Name
+                            </Box>
+                            <Box component="th" sx={thSx}>
+                                Location
+                            </Box>
+                        </Box>
+                    </Box>
+                    <TableSkeleton columns={3} />
+                </Box>
+            </Box>
+        );
+    } else if (isEmptyState) {
+        body = (
+            <Box sx={stateWrapSx}>
+                <StateBlock
+                    icon="🧰"
+                    title={
+                        locationAlias
+                            ? `No resources assigned in ${locationAlias}`
+                            : "No resources assigned"
+                    }
+                    body="Assign a resource to a room to see it here."
+                    actions={
+                        <CcButton variant="primary" onClick={setOpenDialog}>
+                            Add resource to room
+                        </CcButton>
+                    }
+                />
+            </Box>
+        );
+    } else if (isPhone) {
+        body = (
+            <RowCardList>
+                <SelectAllStrip>{selectAllCheckbox}</SelectAllStrip>
+                {paginatedRows?.map((row) => {
+                    const isItemSelected = isSelected(row.id);
+                    const room = filteredRooms?.find(
+                        (rm) => rm.id == row.room_id
+                    );
+                    const location = locations?.find(
+                        (lc) => lc.officeid == room.location
+                    );
+                    const rowResource = resources?.find(
+                        (rc) => rc.id == row.resources_id
+                    );
+
+                    return (
+                        <RowCard
+                            key={row.id}
+                            selected={isItemSelected}
+                            checkbox={rowCheckbox(row, isItemSelected)}
+                            name={rowResource.name}
+                            facts={[
+                                { label: "Room", value: room.value },
+                                { label: "Location", value: location?.Alias },
+                            ]}
+                        />
+                    );
+                })}
+            </RowCardList>
+        );
+    } else {
+        body = (
+            <Box sx={tableWrapSx}>
+                <Box component="table" sx={tableSx} aria-label="Room resources">
+                    <Box component="thead">
+                        <Box component="tr">
+                            <Box component="th" sx={thCheckboxSx}>
+                                {selectAllCheckbox}
+                            </Box>
+                            <Box component="th" sx={thSx}>
+                                Resource
+                            </Box>
+                            <Box component="th" sx={thSx}>
+                                Room Name
+                            </Box>
+                            <Box component="th" sx={thSx}>
+                                Location
+                            </Box>
+                        </Box>
+                    </Box>
+                    <Box component="tbody">
+                        {paginatedRows?.map((row) => {
+                            const isItemSelected = isSelected(row.id);
+                            const room = filteredRooms?.find(
+                                (rm) => rm.id == row.room_id
+                            );
+                            const location = locations?.find(
+                                (lc) => lc.officeid == room.location
+                            );
+                            const rowResource = resources?.find(
+                                (rc) => rc.id == row.resources_id
+                            );
+
+                            return (
+                                <Box
+                                    component="tr"
+                                    key={row.id}
+                                    role="checkbox"
+                                    aria-checked={isItemSelected}
+                                    tabIndex={-1}
+                                    sx={rowSx(isItemSelected)}
+                                >
+                                    <Box component="td" sx={tdCheckboxSx}>
+                                        {rowCheckbox(row, isItemSelected)}
+                                    </Box>
+                                    <Box
+                                        component="th"
+                                        scope="row"
+                                        sx={nameCellSx}
+                                    >
+                                        {rowResource.name}
+                                    </Box>
+                                    <Box component="td" sx={tdSx}>
+                                        {room.value}
+                                    </Box>
+                                    <Box component="td" sx={muteCellSx}>
+                                        {location?.Alias}
+                                    </Box>
+                                </Box>
+                            );
+                        })}
+                    </Box>
+                </Box>
+            </Box>
+        );
+    }
+
     return (
         <Box
-            sx={{ height: "100%", width: "100%", display: "flex", flexGrow: 1 }}
+            sx={{
+                display: "flex",
+                flexDirection: "column",
+                flex: 1,
+                minHeight: 0,
+                width: "100%",
+                boxSizing: "border-box",
+            }}
         >
             <AddNewRoomResource
                 open={openDialog}
@@ -195,194 +400,72 @@ export default function RoomResources({ setLoading }) {
                 )}
                 setUpdate={setUpdate}
             />
-            <Paper
-                sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexGrow: 1,
-                    flexDirection: "column",
-                    overflow: "hidden",
+            <ConfirmDeleteDialog
+                open={confirmOpen}
+                onClose={() => setConfirmOpen(false)}
+                onConfirm={() => {
+                    setConfirmOpen(false);
+                    handleDeleteSelected();
                 }}
-            >
-                <Tooltip title={"Add Item"}>
-                    <AddIcon
-                        sx={{
-                            position: "absolute",
-                            right: 40,
-                            zIndex: 2,
-                            top: 110,
-                            color: "darkgreen",
-                            cursor: "pointer",
-                            ":hover": { color: "green" },
-                            height: "30px",
-                            width: "30px",
-                        }}
-                        onClick={setOpenDialog}
-                    />
-                </Tooltip>
-                {selected?.length > 0 && (
-                    <Tooltip title={"Delete Selected"}>
-                        <DeleteIcon
-                            sx={{
-                                position: "absolute",
-                                right: 70,
-                                zIndex: 2,
-                                top: 110,
-                                color: "red",
-                                cursor: "pointer",
-                                ":hover": { color: "darkred" },
-                                height: "30px",
-                                width: "30px",
-                            }}
-                            onClick={handleDeleteSelected}
-                        />
-                    </Tooltip>
-                )}
-                <Box
-                    sx={{
-                        width: "200px",
-                        position: "absolute",
-                        right: 5,
-                        top: 60,
-                    }}
-                >
-                    <FormControl
-                        variant="standard"
-                        sx={{ minWidth: 160, width: "100%" }}
-                    >
-                        <InputLabel id="demo-simple-select-standard-label">
-                            Filter By Location
-                        </InputLabel>
-                        <Select
-                            sx={{ width: "100%" }}
-                            labelId="demo-simple-select-standard-label"
-                            id="demo-simple-select-standard"
-                            value={
-                                filterLocation?.officeid === 0
-                                    ? 0
-                                    : filterLocation?.officeid
-                                    ? filterLocation.officeid
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                const selectedItem = locations?.find(
-                                    (itm) => itm.officeid === e.target.value
-                                );
-                                setFilterLocation(selectedItem); // Return the entire object
-                            }}
-                        >
-                            {locations?.map((itm, index) => (
-                                <MenuItem key={index} value={itm.officeid}>
-                                    {itm.Alias}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </Box>
-                <TableContainer
-                    sx={{ flexGrow: 1, height: "100%", overflowY: "hidden" }}
-                >
-                    <Table sx={{ minWidth: 700 }} aria-label="customized table">
-                        <TableHead
-                            sx={{ position: "sticky", top: 0, zIndex: 1 }}
-                        >
-                            <TableRow>
-                                <StyledTableCell padding="checkbox">
-                                    <Checkbox
-                                        indeterminate={
-                                            selected.length > 0 &&
-                                            selected.length <
-                                                filteredResources.length
-                                        }
-                                        checked={
-                                            filteredResources.length > 0 &&
-                                            selected.length ===
-                                                filteredResources.length
-                                        }
-                                        onChange={handleSelectAllClick}
-                                        inputProps={{
-                                            "aria-label": "select all meetings",
-                                        }}
-                                    />
-                                </StyledTableCell>
-                                <StyledTableCell align="left">
-                                    Resource
-                                </StyledTableCell>
-                                <StyledTableCell align="left">
-                                    Room Name
-                                </StyledTableCell>
-                                <StyledTableCell align="left">
-                                    Location
-                                </StyledTableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody sx={{ backgroundColor: "white" }}>
-                            {paginatedRows?.map((row) => {
-                                const isItemSelected = isSelected(row.id);
-                                const room = filteredRooms?.find(
-                                    (rm) => rm.id == row.room_id
-                                );
-                                const location = locations?.find(
-                                    (lc) => lc.officeid == room.location
-                                );
-                                const rowResource = resources?.find(
-                                    (rc) => rc.id == row.resources_id
-                                );
+                title={`Delete ${selectedCount} selected room resource${plural}?`}
+                alertTitle="This cannot be undone"
+                alertBody="The resource is removed from the room. The resource itself is not deleted."
+                confirmLabel={`Delete room resource${plural}`}
+                dismissLabel={selectedCount === 1 ? "Keep it" : "Keep them"}
+            />
 
-                                return (
-                                    <React.Fragment key={row.id}>
-                                        <StyledTableRow
-                                            hover
-                                            role="checkbox"
-                                            aria-checked={isItemSelected}
-                                            tabIndex={-1}
-                                            selected={isItemSelected}
-                                        >
-                                            <StyledTableCell padding="checkbox">
-                                                <Checkbox
-                                                    onClick={(event) => {
-                                                        event.stopPropagation(); // Prevent the event from bubbling up
-                                                        handleClick(
-                                                            event,
-                                                            row.id
-                                                        );
-                                                    }}
-                                                    checked={isItemSelected}
-                                                    inputProps={{
-                                                        "aria-labelledby": `enhanced-table-checkbox-${row.id}`,
-                                                    }}
-                                                />
-                                            </StyledTableCell>
-                                            <StyledTableCell
-                                                component="th"
-                                                scope="row"
-                                            >
-                                                {rowResource.name}
-                                            </StyledTableCell>
-                                            <StyledTableCell align="left">
-                                                {room.value}
-                                            </StyledTableCell>
-                                            <StyledTableCell align="left">
-                                                {location?.Alias}
-                                            </StyledTableCell>
-                                        </StyledTableRow>
-                                    </React.Fragment>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-                <Box sx={{ overflow: "hidden" }}>
-                    <TablePagination
-                        component="div"
-                        count={filteredResources.length}
-                        rowsPerPage={rowsPerPage}
-                        page={page}
-                        onPageChange={handleChangePage}
-                        onRowsPerPageChange={handleChangeRowsPerPage}
-                    />
-                </Box>
-            </Paper>
+            <Box sx={toolbarSx}>
+                {tabs}
+                <Box sx={{ flex: 1 }} />
+                {selectedCount > 0 && (
+                    <SelectionSummary count={selectedCount} />
+                )}
+                <CcSelect
+                    ariaLabel="Filter By Location"
+                    value={
+                        filterLocation?.officeid === 0
+                            ? 0
+                            : filterLocation?.officeid
+                            ? filterLocation.officeid
+                            : ""
+                    }
+                    onChange={(e) => {
+                        const selectedItem = locations?.find(
+                            (itm) => itm.officeid === e.target.value
+                        );
+                        setFilterLocation(selectedItem); // Return the entire object
+                    }}
+                    sx={{ width: "auto", minWidth: "170px", flex: "none" }}
+                >
+                    {locations?.map((itm, index) => (
+                        <MenuItem key={index} value={itm.officeid}>
+                            {itm.Alias}
+                        </MenuItem>
+                    ))}
+                </CcSelect>
+                {selectedCount > 0 && (
+                    <CcButton
+                        variant="danger"
+                        onClick={() => setConfirmOpen(true)}
+                    >
+                        Delete selected
+                    </CcButton>
+                )}
+                {addButton}
+            </Box>
+
+            {body}
+
+            {!isEmptyState && (
+                <PaginationBar
+                    count={filteredResources.length}
+                    page={page}
+                    rowsPerPage={rowsPerPage}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    loading={isSkeleton}
+                />
+            )}
         </Box>
     );
 }

@@ -1,26 +1,6 @@
 import { useEffect, useState } from "react";
-import { useTheme, useMediaQuery } from "@mui/material";
-import {
-    Grid,
-    Stack,
-    Typography,
-    Button,
-    Dialog,
-    FormControl,
-    InputLabel,
-    Select,
-    Box,
-    Divider,
-    Input,
-    MenuItem,
-    TextField,
-    OutlinedInput,
-    FormHelperText,
-    Chip,
-    IconButton,
-} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import { PhotoCamera, Delete } from "@mui/icons-material";
+import { Box, Dialog, MenuItem, useTheme } from "@mui/material";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCameraOutlined";
 import { SketchPicker } from "react-color";
 import { showError } from "../../../../Utilites/Functions/ApiFunctions";
 import {
@@ -33,6 +13,114 @@ import {
     PostRoomGroup,
 } from "../../../../Utilites/Functions/ApiFunctions/RoomGroupFunctions";
 import { useAuth } from "../../../../Utilites/AuthContext";
+import {
+    cc,
+    CcButton,
+    CcInput,
+    CcSelect,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Field,
+    focusRing,
+    scopeDialogProps,
+    Spacer,
+    Tag,
+    TagRow,
+    TwoUp,
+} from "../../../Components/Concourse/ConcourseDialogKit";
+import { hover } from "../../../Components/Banner/Components/atoms";
+import { type as ccType } from "../../../../Utilites/concourse";
+
+/* ==========================================================================
+ * Local dressing.
+ *
+ * Two things the kit does not cover and that are flagged for the integrator:
+ *   - a file-upload drop target (built from `controlBox`'s border/radius/fill
+ *     with a dashed border, plus `ScopeOption`'s hover);
+ *   - `react-color`'s SketchPicker, a third-party surface with its own inline
+ *     styles. Only its container is neutralised, through its documented
+ *     `styles` escape hatch. Its internals will not fully match Concourse.
+ * ========================================================================*/
+
+const blockLabelSx = {
+    ...ccType.blockLabel,
+    color: cc.mute,
+    marginBottom: "7px",
+};
+
+const groupSx = {
+    background: cc.srf2,
+    borderRadius: "18px",
+    padding: "14px",
+    display: "grid",
+    gap: "12px",
+    justifyItems: "start",
+    boxSizing: "border-box",
+};
+
+const dropTargetSx = {
+    width: "100%",
+    maxWidth: "200px",
+    height: "120px",
+    boxSizing: "border-box",
+    border: `1.5px dashed ${cc.line}`,
+    background: cc.srf2,
+    borderRadius: "14px",
+    display: "grid",
+    placeItems: "center",
+    alignContent: "center",
+    gap: "6px",
+    cursor: "pointer",
+    color: cc.mute,
+    transition: "border-color 200ms, background 200ms, color 200ms",
+    ...hover({
+        borderColor: cc.red,
+        background: cc.wash,
+        color: cc.red,
+    }),
+    "&:focus-visible": focusRing,
+};
+
+const removeImageSx = {
+    position: "absolute",
+    top: "-8px",
+    right: "-8px",
+    width: "30px",
+    height: "30px",
+    borderRadius: "99px",
+    border: 0,
+    padding: 0,
+    boxSizing: "border-box",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    background: cc.wash,
+    color: cc.red,
+    fontFamily: "inherit",
+    fontSize: "13px",
+    lineHeight: 1,
+    boxShadow: cc.sh1,
+    transition: "transform 300ms var(--cc-sp), background 200ms",
+    ...hover({ background: cc.red, color: cc.onRed, transform: "rotate(90deg)" }),
+    "&:focus-visible": focusRing,
+};
+
+/** Neutralise only the picker's own card — never its swatches. */
+const sketchPickerStyles = {
+    default: {
+        picker: {
+            background: "transparent",
+            boxShadow: "none",
+            borderRadius: "14px",
+            width: "100%",
+            boxSizing: "border-box",
+            fontFamily: "var(--cc-sans)",
+            padding: 0,
+        },
+    },
+};
 
 const AddNewRoom = ({
     open,
@@ -45,9 +133,7 @@ const AddNewRoom = ({
     setUpdate,
 }) => {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm")); // Check if the screen size is small
     const { user } = useAuth();
-    const ariaLabel = { "aria-label": "description" };
     const [color, setColor] = useState("22194D");
     const [roomName, setRoomName] = useState("");
     const [location, setLocation] = useState("");
@@ -260,83 +346,73 @@ const AddNewRoom = ({
         }
     }, [selectedRoom, roomLocation]);
 
+    const capacityInvalid = !/^\d*$/.test(capacity);
+
+    const groupChips = (selected) => (
+        <TagRow sx={{ marginTop: 0, maxHeight: "60px", overflowY: "auto" }}>
+            {selected?.map((value) => (
+                <Tag key={value} on>
+                    {groups?.find((gp) => gp.id === value)?.group_name}
+                </Tag>
+            ))}
+        </TagRow>
+    );
+
     return (
-        <Dialog
-            open={!!open}
-            onClose={onClose}
-            maxWidth={"lg"}
-            fullScreen={isMobile} // Make dialog fullscreen on mobile
-        >
-            <Grid
-                sx={{
-                    width: "100%",
-                    textAlign: "center",
-                    padding: isMobile ? "10px" : "20px",
-                    minHeight: "65vh",
-                    height: "fit-content",
-                }}
-            >
-                <IconButton
-                    onClick={onClose}
-                    size="small"
-                    sx={{
-                        position: "absolute",
-                        right: 5,
-                        top: 5,
-                        color: "white",
-                        backgroundColor: "rgba(0, 0, 0, 0.7)",
-                        width: 24,
-                        height: 24,
-                        zIndex: 1,
-                        justifySelf: "right",
-                        "&:hover": {
-                            backgroundColor: "rgba(0, 0, 0, 0.9)",
-                        },
-                    }}
-                >
-                    <CloseIcon fontSize="small" />
-                </IconButton>
-                <Typography
-                    variant="h5"
-                    textAlign={"center"}
-                    width={"100%"}
-                    fontFamily={"Courier New, sans-serif"}
-                    marginBottom={1}
-                    marginTop={-1}
-                >
-                    Add Room
-                </Typography>
-                <Divider width={"100%"} />
-                <Stack
-                    direction={isMobile ? "column" : "row"} // Stack vertically on mobile
-                    sx={{
-                        minWidth: isMobile ? "100%" : "600px",
-                        minHeight: "380px",
-                        padding: isMobile ? "10px" : "20px",
-                    }}
-                    spacing={2}
-                >
-                    <Stack
-                        direction={"column"}
-                        sx={{ flex: 1, marginBottom: isMobile ? 20 : 0 }}
-                    >
-                        <Input
+        <Dialog open={!!open} onClose={onClose} {...scopeDialogProps(700)}>
+            <DialogSurface accent="var(--cc-red)">
+                <DialogHeader title="Add Room" onClose={onClose} />
+                <DialogBody>
+                    <Field label="Room Name" required htmlFor="add-room-name">
+                        <CcInput
+                            id="add-room-name"
                             value={roomName}
                             onChange={(e) => setRoomName(e.target.value)}
                             placeholder="Room Name"
-                            inputProps={ariaLabel}
-                            sx={{ marginBottom: "10px" }}
                         />
+                    </Field>
 
-                        {/* Image Upload Section */}
-                        <Box sx={{ marginBottom: "10px" }}>
-                            <Typography
-                                variant="body2"
-                                sx={{ marginBottom: 1, textAlign: "left" }}
+                    <TwoUp>
+                        <Field label="Location" required>
+                            <CcSelect
+                                ariaLabel="Location"
+                                value={location?.officeid || ""}
+                                onChange={(e) => {
+                                    const selectedItem = locations?.find(
+                                        (itm) => itm.officeid === e.target.value
+                                    );
+                                    setLocation(selectedItem); // Return the entire object
+                                }}
                             >
-                                Room Image
-                            </Typography>
+                                {locations?.map((itm, index) => (
+                                    <MenuItem key={index} value={itm.officeid}>
+                                        {itm.Alias}
+                                    </MenuItem>
+                                ))}
+                            </CcSelect>
+                        </Field>
+                        <Field
+                            label="Capacity"
+                            htmlFor="add-room-capacity"
+                            error={capacityInvalid ? "Numbers Only" : undefined}
+                        >
+                            <CcInput
+                                id="add-room-capacity"
+                                mono
+                                inputMode="numeric"
+                                invalid={capacityInvalid}
+                                value={capacity ?? ""}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setCapacity(value);
+                                }}
+                            />
+                        </Field>
+                    </TwoUp>
 
+                    <Box>
+                        <Box sx={blockLabelSx}>Room Image</Box>
+                        <Box sx={groupSx}>
                             {imagePreview ? (
                                 <Box
                                     sx={{
@@ -348,318 +424,166 @@ const AddNewRoom = ({
                                         src={imagePreview}
                                         alt="Room preview"
                                         style={{
+                                            display: "block",
                                             width: "100%",
                                             maxWidth: "200px",
                                             height: "120px",
                                             objectFit: "cover",
-                                            borderRadius: "8px",
-                                            border: "1px solid #ccc",
+                                            borderRadius: "14px",
+                                            border: "1px solid var(--cc-line)",
+                                            boxSizing: "border-box",
                                         }}
                                     />
-                                    <IconButton
+                                    <Box
+                                        component="button"
+                                        type="button"
+                                        aria-label="Remove image"
                                         onClick={removeImage}
-                                        sx={{
-                                            position: "absolute",
-                                            top: -8,
-                                            right: -8,
-                                            backgroundColor:
-                                                "rgba(255,255,255,0.8)",
-                                            "&:hover": {
-                                                backgroundColor:
-                                                    "rgba(255,255,255,1)",
-                                            },
-                                        }}
-                                        size="small"
+                                        sx={removeImageSx}
                                     >
-                                        <Delete fontSize="small" />
-                                    </IconButton>
+                                        ✕
+                                    </Box>
                                 </Box>
                             ) : (
-                                <Button
-                                    variant="outlined"
+                                <Box
                                     component="label"
-                                    startIcon={<PhotoCamera />}
-                                    sx={{
-                                        width: "100%",
-                                        maxWidth: "200px",
-                                        height: "120px",
+                                    role="button"
+                                    tabIndex={0}
+                                    // A <label> is focusable here but Enter /
+                                    // Space do not activate it the way they
+                                    // activated the MUI ButtonBase this
+                                    // replaced, so forward them to the input
+                                    // the label already wraps.
+                                    onKeyDown={(event) => {
+                                        if (
+                                            event.key !== "Enter" &&
+                                            event.key !== " "
+                                        ) {
+                                            return;
+                                        }
+                                        event.preventDefault();
+                                        event.currentTarget
+                                            .querySelector("input")
+                                            ?.click();
                                     }}
+                                    sx={dropTargetSx}
                                 >
-                                    Upload Image
+                                    <PhotoCameraIcon
+                                        sx={{ fontSize: "19px", opacity: 0.82 }}
+                                    />
+                                    <Box
+                                        component="span"
+                                        sx={{ ...ccType.button }}
+                                    >
+                                        Upload Image
+                                    </Box>
                                     <input
                                         hidden
                                         accept="image/*"
                                         type="file"
                                         onChange={handleImageUpload}
                                     />
-                                </Button>
+                                </Box>
                             )}
                         </Box>
+                    </Box>
 
-                        <Stack
-                            direction={isMobile ? "column" : "row"}
-                            sx={{ width: "100%", marginTop: "10px" }}
-                            spacing={1}
-                        >
-                            <FormControl
-                                variant="standard"
-                                sx={{ minWidth: 160, width: "100%" }}
-                            >
-                                <InputLabel id="demo-simple-select-standard-label">
-                                    Location
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-simple-select-standard-label"
-                                    id="demo-simple-select-standard"
-                                    value={location?.officeid || ""}
-                                    onChange={(e) => {
-                                        const selectedItem = locations?.find(
-                                            (itm) =>
-                                                itm.officeid === e.target.value
-                                        );
-                                        setLocation(selectedItem); // Return the entire object
-                                    }}
-                                    label="Location"
-                                >
-                                    {locations?.map((itm, index) => (
-                                        <MenuItem
-                                            key={index}
-                                            value={itm.officeid}
-                                        >
-                                            {itm.Alias}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <TextField
-                                value={capacity}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setCapacity(value);
-                                }}
-                                error={!/^\d*$/.test(capacity) ? true : false}
-                                variant={"standard"}
-                                label={"Capacity"}
-                                helperText={
-                                    !/^\d*$/.test(capacity)
-                                        ? "Numbers Only"
-                                        : ""
-                                }
+                    <Box>
+                        <Box sx={blockLabelSx}>Select Room Color</Box>
+                        <Box sx={{ ...groupSx, justifyItems: "stretch" }}>
+                            <Box
                                 sx={{
-                                    width: "100%",
+                                    width: "40px",
+                                    height: "20px",
+                                    borderRadius: "7px",
+                                    border: `1px solid ${cc.line}`,
+                                    boxSizing: "border-box",
+                                    background: color,
                                 }}
                             />
-                        </Stack>
-                        <Stack
-                            direction={"column"}
-                            sx={{
-                                width: "100%",
-                                maxHeight: "60px",
-                                marginTop: "10px",
-                            }}
+                            <SketchPicker
+                                color={color}
+                                onChange={(e) => handleChange(e)}
+                                styles={sketchPickerStyles}
+                            />
+                        </Box>
+                    </Box>
+
+                    <Field
+                        label="Full Control"
+                        hint="Who can Book / Modify mettings for room"
+                    >
+                        <CcSelect
+                            ariaLabel="Full Control"
+                            multiple
+                            value={fullControl}
+                            onChange={handleFullControlChange}
+                            renderValue={groupChips}
                         >
-                            <FormControl
-                                sx={{ marginTop: "10px", width: "100%" }}
-                            >
-                                <InputLabel id="demo-multiple-chip-label-full">
-                                    Full Control
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-multiple-chip-label-full"
-                                    id="demo-multiple-chip-full"
-                                    multiple
-                                    value={fullControl}
-                                    onChange={handleFullControlChange}
-                                    input={
-                                        <OutlinedInput
-                                            id="select-multiple-chip-full"
-                                            label="Full Control"
-                                        />
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                flexWrap: "wrap",
-                                                gap: 0.2,
-                                                maxHeight: 60,
-                                                overflowY: "auto",
-                                                marginTop: "4px",
-                                            }}
-                                        >
-                                            {selected?.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={
-                                                        groups?.find(
-                                                            (gp) =>
-                                                                gp.id === value
-                                                        )?.group_name
-                                                    }
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                    sx={{
-                                        minHeight: 60, // Maximum height for the Select component
-                                        maxWidth: 365,
-                                        height: 60,
-                                    }}
-                                >
-                                    {groups
-                                        .filter((gp) => gp.access != "Read")
-                                        ?.map((name, index) => (
-                                            <MenuItem
-                                                key={index}
-                                                value={name.id}
-                                                sx={{
-                                                    fontWeight:
-                                                        fullControl.indexOf(
-                                                            name.id
-                                                        ) === -1
-                                                            ? theme.typography
-                                                                  .fontWeightRegular
-                                                            : theme.typography
-                                                                  .fontWeightMedium,
-                                                }}
-                                            >
-                                                {name.group_name}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                                <FormHelperText>
-                                    Who can Book / Modify mettings for room
-                                </FormHelperText>
-                            </FormControl>
-                            <FormControl
-                                sx={{ marginTop: "10px", width: "100%" }}
-                            >
-                                <InputLabel id="demo-multiple-chip-label-read">
-                                    Read Access
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-multiple-chip-label-read"
-                                    id="demo-multiple-chip-read"
-                                    multiple
-                                    value={readAccess}
-                                    onChange={handleReadAccessChange}
-                                    input={
-                                        <OutlinedInput
-                                            id="select-multiple-chip-read"
-                                            label="Read Access"
-                                        />
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                flexWrap: "wrap",
-                                                gap: 0.5,
-                                                maxHeight: 105,
-                                                overflowY: "auto",
-                                                marginTop: "4px",
-                                            }}
-                                        >
-                                            {selected?.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={
-                                                        groups?.find(
-                                                            (gp) =>
-                                                                gp.id === value
-                                                        )?.group_name
-                                                    }
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                    sx={{
-                                        minHeight: 60, // Maximum height for the Select component
-                                        maxWidth: 365,
-                                        height: 60,
-                                    }}
-                                >
-                                    {groups
-                                        .filter((gp) => gp.access !== "Full")
-                                        ?.map((name, index) => (
-                                            <MenuItem
-                                                key={index}
-                                                value={name.id}
-                                                sx={{
-                                                    fontWeight:
-                                                        readAccess.indexOf(
-                                                            name.id
-                                                        ) === -1
-                                                            ? theme.typography
-                                                                  .fontWeightRegular
-                                                            : theme.typography
-                                                                  .fontWeightMedium,
-                                                }}
-                                            >
-                                                {name.group_name}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                                <FormHelperText>
-                                    Who can Read / View meetings and room
-                                </FormHelperText>
-                            </FormControl>
-                        </Stack>
-                    </Stack>
-                    <Stack direction={"column"}>
-                        <Grid
-                            sx={{
-                                border: "1px solid black",
-                                borderRadius: "20px",
-                                padding: "10px",
-                                marginTop: isMobile ? 15 : 0,
-                            }}
+                            {groups
+                                .filter((gp) => gp.access != "Read")
+                                ?.map((name, index) => (
+                                    <MenuItem
+                                        key={index}
+                                        value={name.id}
+                                        sx={{
+                                            fontWeight:
+                                                fullControl.indexOf(
+                                                    name.id
+                                                ) === -1
+                                                    ? theme.typography
+                                                          .fontWeightRegular
+                                                    : theme.typography
+                                                          .fontWeightMedium,
+                                        }}
+                                    >
+                                        {name.group_name}
+                                    </MenuItem>
+                                ))}
+                        </CcSelect>
+                    </Field>
+
+                    <Field
+                        label="Read Access"
+                        hint="Who can Read / View meetings and room"
+                    >
+                        <CcSelect
+                            ariaLabel="Read Access"
+                            multiple
+                            value={readAccess}
+                            onChange={handleReadAccessChange}
+                            renderValue={groupChips}
                         >
-                            <Stack
-                                direction={"row"}
-                                padding={"10px"}
-                                spacing={1}
-                            >
-                                <Typography marginLeft={"10px"}>
-                                    Select Room Color
-                                </Typography>
-                                <Box
-                                    width={"40px"}
-                                    height={"20px"}
-                                    sx={{
-                                        backgroundColor: color,
-                                        border: "1px solid black",
-                                    }}
-                                />
-                            </Stack>
-                            <Box
-                                sx={{ width: "100%" }}
-                                justifyContent={"center"}
-                            >
-                                <SketchPicker
-                                    color={color}
-                                    onChange={(e) => handleChange(e)}
-                                />
-                            </Box>
-                        </Grid>
-                        <Button
-                            variant="outlined"
-                            sx={{
-                                backgroundColor: "rgba(0,170,0,.2)",
-                                ":hover": {
-                                    backgroundColor: "rgba(0,200,0,.4)",
-                                },
-                                marginTop: "10px",
-                            }}
-                            onClick={onSubmit}
-                        >
-                            Submit
-                        </Button>
-                    </Stack>
-                </Stack>
-            </Grid>
+                            {groups
+                                .filter((gp) => gp.access !== "Full")
+                                ?.map((name, index) => (
+                                    <MenuItem
+                                        key={index}
+                                        value={name.id}
+                                        sx={{
+                                            fontWeight:
+                                                readAccess.indexOf(name.id) ===
+                                                -1
+                                                    ? theme.typography
+                                                          .fontWeightRegular
+                                                    : theme.typography
+                                                          .fontWeightMedium,
+                                        }}
+                                    >
+                                        {name.group_name}
+                                    </MenuItem>
+                                ))}
+                        </CcSelect>
+                    </Field>
+                </DialogBody>
+                <DialogFooter>
+                    <Spacer />
+                    <CcButton onClick={onClose}>Cancel</CcButton>
+                    <CcButton variant="primary" onClick={onSubmit}>
+                        Submit
+                    </CcButton>
+                </DialogFooter>
+            </DialogSurface>
         </Dialog>
     );
 };

@@ -40,6 +40,17 @@ const LIGHT = {
     red: "#C8102E", // brand accent (S-E-A red): primary action, today, selection
     wash: "#FBF0F2", // red-tinted hover / soft-danger fill
     ok: "#2F7D52", // success / "Free"
+    // Warning / partial success. Same construction as `red` -> `wash`: an accent
+    // plus a 6.5% tint of it over the surface (mix(warn,6.5,srf) === warnWash),
+    // so the amber joins the palette rather than arriving from outside it.
+    // Measured (see ARBITER note in SnackbarContext): as an ICON/graphic colour
+    // it clears WCAG 1.4.11 at 3.06:1 on warnWash and separates from `red` by
+    // dE2000 15.0 under deuteranopia / 25.6 under protanopia — both above the
+    // 12.5 this palette's own red-vs-ok pair achieves. It is NOT usable as body
+    // text: no amber that reads as amber clears 4.5:1 here (ceiling dE 9.0, and
+    // it reads brown), so warning copy uses `ink`, exactly as success does.
+    warn: "#C77E00", // amber accent: warning icon, partial-success marker
+    warnWash: "#FBF7EE", // amber-tinted soft-warning fill  = mix(warn,6.5,srf)
     sh1: "0 1px 2px rgba(35,26,29,.05),0 8px 20px -12px rgba(35,26,29,.16)",
     sh2: "0 2px 4px rgba(35,26,29,.06),0 20px 44px -18px rgba(35,26,29,.3)",
 };
@@ -57,6 +68,13 @@ const DARK = {
     red: "#FF5266",
     wash: "#2C1A1E",
     ok: "#6FD79B",
+    // Dark amber is softened the same way `red` and `ok` are in this scheme.
+    // warnWash follows dark's own recipe — the accent at 11% over `grd`, which
+    // is how `wash` relates to `red` here (NOT over `srf`; dark inverts that).
+    // Measured: icon 8.16:1 on warnWash, ink 13.30:1, dE2000 vs red 14.6
+    // (deuteranopia) / 27.5 (protanopia).
+    warn: "#F5B23F",
+    warnWash: "#2F241A", // = mix(warn,11,grd)
     sh1: "0 1px 2px rgba(0,0,0,.4),0 8px 20px -12px rgba(0,0,0,.6)",
     sh2: "0 2px 4px rgba(0,0,0,.5),0 20px 44px -18px rgba(0,0,0,.78)",
 };
@@ -453,6 +471,8 @@ export const cssVars = (mode = "light") => {
         "--cc-red": p.red,
         "--cc-wash": p.wash,
         "--cc-ok": p.ok,
+        "--cc-warn": p.warn,
+        "--cc-warn-wash": p.warnWash,
         "--cc-sh1": p.sh1,
         "--cc-sh2": p.sh2,
         "--cc-sp": motion.spring,

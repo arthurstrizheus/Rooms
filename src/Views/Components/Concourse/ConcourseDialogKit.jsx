@@ -14,13 +14,24 @@
  * in a Lane-D file, so nobody else can reach them. Every frame that lives in
  * Calendar/index.jsx is styled by that file's owner, not here.
  *
+ * SCROLL CONTRACT (the fix for "clicking Advanced scrolls the whole dialog"):
+ * the frame gives the Paper a bounded height; this file makes the BODY the only
+ * scroll region. `DialogSurface` is `flex:1 1 auto; min-height:0`, the header
+ * and footer are `flex:none`, and `DialogBody` is `flex:1 1 auto; min-height:0;
+ * overflow-y:auto`. Nothing above the body ever moves.
+ *
+ * `SidePane` is the second column the Advanced fields move into on a wide
+ * screen. Its own width is content geometry and lives here; the FRAME's widened
+ * `max-width` is still the frame owner's business — Calendar/index.jsx keys it
+ * off `:has([data-cc-pane="open"])`, which `SidePane` stamps on itself.
+ *
  * Colour is read as `var(--cc-*)`, which resolves in a portal because the vars
  * are emitted at :root. The one runtime accent, `--cc-c`, is set inline on the
  * element that owns it (the dialog surface, a type chip, a room row).
  */
 
 import React from "react";
-import { Box } from "@mui/material";
+import { Box, useMediaQuery } from "@mui/material";
 import Select from "@mui/material/Select";
 import { mix, v } from "../../../Utilites/concourse";
 
@@ -60,6 +71,48 @@ export const PHONE = "@media (max-width:619.95px)";
 /** Hover lifts only where hover is real, or a tap leaves the row raised (§13-G5). */
 export const HOVER = "@media (hover: hover)";
 
+/* ------------------------------------------------- the Advanced side pane --- */
+
+/**
+ * Width of the Advanced column. It carries the same 14px controls as the form,
+ * and 340 − 22 − 22 = 296px of control is wider than a `TwoUp` cell in the
+ * 560px form column (560 − 44 = 516 ⇒ 252 per cell), so nothing in it is
+ * tighter than what already ships.
+ */
+export const SIDE_PANE_WIDTH = 340;
+
+/**
+ * Where the two-column layout engages. The widened frame is
+ * 560 (form) + 340 (pane) = 900, and the overlay keeps 18px of padding each
+ * side, so the frame needs 936px of viewport to sit at full width without
+ * squeezing the form column. 980 is the next number on the system's own
+ * breakpoint scale (`bp.rail`, ARBITER §9) and clears it with 44px to spare —
+ * it is also exactly where the side menu stops being an overlay, so
+ * "two-column dialog" and "desktop with a docked side menu" mean the same
+ * thing here. Below it the frame stays 560 and Advanced expands inline.
+ *
+ * NOTE: Calendar/index.jsx repeats this number in the frame's `:has()` rule.
+ * The two must move together.
+ */
+export const SIDE_PANE_MIN = 980;
+export const WIDE = `@media (min-width:${SIDE_PANE_MIN}px)`;
+
+/**
+ * The frame widens itself with `:has([data-cc-pane="open"])`. Where that
+ * selector is not supported the frame could never grow and the pane would stay
+ * clipped, so the two-column layout simply does not engage there and the
+ * inline disclosure is used instead. Evaluated once — support does not change.
+ */
+const SUPPORTS_HAS =
+    typeof CSS !== "undefined" &&
+    typeof CSS.supports === "function" &&
+    CSS.supports("selector(:has(*))");
+
+/** True when the Advanced fields should render as a second column. */
+export const useSidePane = () =>
+    useMediaQuery(`(min-width:${SIDE_PANE_MIN}px)`, { noSsr: true }) &&
+    SUPPORTS_HAS;
+
 export const focusRing = {
     outline: `2px solid ${cc.red}`,
     outlineOffset: "2px",
@@ -83,8 +136,43 @@ export const fmt12 = (date) => {
 /** Capacity copy is the app's own (DisplayMeeting.js:88). */
 export const formatCapacity = (capacity) => {
     if (capacity === 0) return "No limit";
+    if (!Number.isFinite(capacity)) return null;
     if (capacity >= 1000) return "Large";
     return `${capacity} people`;
+};
+
+/**
+ * Capacity as a sentence, for the room CARD's meta line. `formatCapacity`'s
+ * bare fragments do not survive a "Fits …" prefix — "Fits No limit" and "Fits
+ * Large" are both nonsense — so the two special cases get their own wording
+ * carrying exactly the same claim. Returns null for a capacity the room does
+ * not actually have, so the card renders no line rather than "Fits undefined
+ * people".
+ */
+export const formatCapacityLong = (capacity) => {
+    if (capacity === 0) return "No capacity limit";
+    if (!Number.isFinite(capacity)) return null;
+    if (capacity >= 1000) return "Fits a large group";
+    return `Fits ${capacity} people`;
+};
+
+/**
+ * The room card's meta line: what the room HAS if we know of anything, else how
+ * many it seats. Truncation is `RoomOption`'s existing idiom — first three by
+ * name, then `+N` — so a long equipment list can never widen the card.
+ *
+ * `roomResources` here is the already-resolved list of resource objects; an
+ * empty list means "this room has no equipment linked", which is a real answer,
+ * not a missing one.
+ */
+export const formatRoomMeta = (roomResources, capacity) => {
+    const list = (roomResources || []).filter(Boolean);
+    if (!list.length) return formatCapacityLong(capacity);
+    const shown = list
+        .slice(0, 3)
+        .map((r) => r.name)
+        .join(", ");
+    return list.length > 3 ? `${shown} +${list.length - 3}` : shown;
 };
 
 /** `1h`, `1h 30m`, `45m`. */
@@ -113,7 +201,9 @@ export const initials = (name) =>
 
 /**
  * The root element rendered inside a dialog frame. Owns the runtime accent and
- * the Concourse font stack; owns NO geometry.
+ * the Concourse font stack; owns NO geometry beyond its share of the scroll
+ * contract — it is the Paper's flex child, so it must be allowed to shrink
+ * (`min-height:0`) or the body can never become the scroll region.
  */
 export const DialogSurface = ({ accent, children, sx, ...rest }) => (
     <Box
@@ -123,6 +213,9 @@ export const DialogSurface = ({ accent, children, sx, ...rest }) => (
             flexDirection: "column",
             width: "100%",
             minWidth: 0,
+            flex: "1 1 auto",
+            minHeight: 0,
+            overflow: "hidden",
             position: "relative",
             fontFamily: cc.sans,
             fontSize: "15px",
@@ -136,12 +229,25 @@ export const DialogSurface = ({ accent, children, sx, ...rest }) => (
     </Box>
 );
 
-/** §10.17 close button — 32px circle, rotates on hover. */
-export const CloseButton = ({ onClick, label = "Close" }) => (
+/**
+ * §10.17 close button — 32px circle, rotates on hover.
+ * `sx` is applied last so a caller can re-place it (the Advanced pane puts one
+ * in its own header, in flow rather than absolutely positioned), and
+ * `controls`/`expanded` let it double as a disclosure control.
+ */
+export const CloseButton = ({
+    onClick,
+    label = "Close",
+    controls,
+    expanded,
+    sx,
+}) => (
     <Box
         component="button"
         type="button"
         aria-label={label}
+        aria-controls={controls}
+        aria-expanded={expanded}
         onClick={onClick}
         sx={{
             position: "absolute",
@@ -170,6 +276,7 @@ export const CloseButton = ({ onClick, label = "Close" }) => (
                 },
             },
             "&:focus-visible": focusRing,
+            ...sx,
         }}
     >
         ✕
@@ -244,6 +351,11 @@ export const DialogHeader = ({ badge, title, sub, onClose, children }) => (
  * `70ms + 45ms × index` through `--cc-i`. Each child is wrapped so the index
  * lands on the animating element itself and so conditional children (which
  * React.Children.toArray drops) never leave a gap in the sequence.
+ *
+ * This is also THE scroll region of a dialog. `flex:1 1 auto` + `min-height:0`
+ * + `overflow-y:auto` means a body that outgrows the frame scrolls inside it
+ * while the header and footer stay pinned; `align-content:start` keeps the grid
+ * rows at their natural height when the body is given more room than it needs.
  */
 export const DialogBody = ({ children, sx }) => {
     const items = React.Children.toArray(children);
@@ -253,7 +365,14 @@ export const DialogBody = ({ children, sx }) => {
                 padding: "4px 22px 20px",
                 display: "grid",
                 gap: "13px",
+                alignContent: "start",
                 minWidth: 0,
+                flex: "1 1 auto",
+                minHeight: 0,
+                overflowY: "auto",
+                overflowX: "hidden",
+                overscrollBehavior: "contain",
+                scrollbarWidth: "thin",
                 "& > *": {
                     minWidth: 0,
                     animation: `cc-stag 340ms ${sp} both`,
@@ -274,7 +393,10 @@ export const DialogBody = ({ children, sx }) => {
     );
 };
 
-/** §10.17 footer. Destructive left, confirm right, `Spacer` between. */
+/**
+ * §10.17 footer. Destructive left, confirm right, `Spacer` between.
+ * `flex:none` pins it below the scrolling body — it is never scrolled away.
+ */
 export const DialogFooter = ({ children, sx }) => (
     <Box
         sx={{
@@ -282,6 +404,8 @@ export const DialogFooter = ({ children, sx }) => (
             gap: "9px",
             padding: "13px 22px 19px",
             flexWrap: "wrap",
+            flex: "none",
+            background: cc.srf,
             borderTop: `1px solid ${cc.line}`,
             [PHONE]: {
                 position: "sticky",
@@ -297,6 +421,168 @@ export const DialogFooter = ({ children, sx }) => (
 );
 
 export const Spacer = () => <Box sx={{ flex: 1 }} />;
+
+/**
+ * The band between the header and the footer. With `split` it becomes the
+ * two-column row that holds the body and the Advanced pane; without it, it is
+ * nothing at all — the body stays a direct flex child of `DialogSurface`, so
+ * the single-column dialog keeps exactly the DOM it has today.
+ *
+ * `overflow:hidden` is what makes the expansion read as a reveal: the body is
+ * pinned to the collapsed frame width and the pane is simply uncovered as the
+ * frame grows, so no form field ever reflows mid-animation.
+ */
+export const SplitRow = ({ split, children, sx }) =>
+    split ? (
+        <Box
+            sx={{
+                display: "flex",
+                flex: "1 1 auto",
+                minHeight: 0,
+                minWidth: 0,
+                overflow: "hidden",
+                ...sx,
+            }}
+        >
+            {children}
+        </Box>
+    ) : (
+        <>{children}</>
+    );
+
+/**
+ * The Advanced column. Always mounted while the two-column layout is in play so
+ * the collapse can run in reverse; `visibility` (not unmounting) takes it out
+ * of the tab order and the a11y tree while it is closed, and is held until the
+ * frame has finished shrinking.
+ *
+ * `box-sizing: border-box` is not optional. The app mounts no CssBaseline, so
+ * the initial `content-box` applies: under it `flex-basis: 340px` plus the
+ * 1px left rule would make the pane's OUTER width 341 (and, when the padding
+ * lived on this element, 384), which is why its fields used to hang past the
+ * frame's right edge and get clipped. Under border-box the pane is exactly
+ * SIDE_PANE_WIDTH and 560 + 340 lands exactly on the widened frame.
+ *
+ * The header is pinned and only the field list scrolls, so the pane obeys the
+ * same rule as the dialog body: content scrolls, chrome never moves. That also
+ * keeps the close control reachable no matter how far the fields run on.
+ *
+ * Children use `cc-stag`'s own values — opacity 0→1, translateY(9px)→none,
+ * 340ms on `--cc-sp`, 45ms per `--cc-i` — as a TRANSITION rather than the
+ * keyframe, because a keyframe with `both` would only ever play once on mount.
+ * The global `prefers-reduced-motion` rule (ARBITER §8/§15) collapses it to an
+ * instant change; per-component reduced-motion blocks are forbidden.
+ */
+export const SidePane = ({ id, open, title, label, onClose, children }) => {
+    const items = React.Children.toArray(children);
+    const titleId = id ? `${id}-title` : undefined;
+    return (
+        <Box
+            id={id}
+            data-cc-pane={open ? "open" : "closed"}
+            role="group"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : label}
+            aria-hidden={open ? undefined : true}
+            sx={{
+                boxSizing: "border-box",
+                flexGrow: 0,
+                flexShrink: 0,
+                flexBasis: `${SIDE_PANE_WIDTH}px`,
+                width: `${SIDE_PANE_WIDTH}px`,
+                minWidth: 0,
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+                borderLeft: `1px solid ${cc.line}`,
+                background: cc.srf,
+                visibility: open ? "visible" : "hidden",
+                // 400ms = the side-menu width duration (§8), the same span the
+                // frame takes to widen. Held on the way out so the pane is
+                // still painted while the frame shrinks over it.
+                transition: open
+                    ? "visibility 0s linear 0s"
+                    : "visibility 0s linear 400ms",
+            }}
+        >
+            <Box
+                sx={{
+                    flex: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "13px 14px 6px 22px",
+                    minWidth: 0,
+                }}
+            >
+                <Box
+                    id={titleId}
+                    sx={{
+                        minWidth: 0,
+                        fontSize: "10.5px",
+                        fontWeight: 700,
+                        letterSpacing: ".06em",
+                        textTransform: "uppercase",
+                        color: cc.mute,
+                    }}
+                >
+                    {title}
+                </Box>
+                {onClose ? (
+                    <CloseButton
+                        onClick={onClose}
+                        label={`Close ${title || label || "panel"}`}
+                        controls={id}
+                        expanded={!!open}
+                        sx={{
+                            position: "static",
+                            top: "auto",
+                            right: "auto",
+                            marginLeft: "auto",
+                            flex: "none",
+                            [PHONE]: { top: "auto" },
+                        }}
+                    />
+                ) : null}
+            </Box>
+            <Box
+                sx={{
+                    flex: "1 1 auto",
+                    minHeight: 0,
+                    minWidth: 0,
+                    display: "grid",
+                    gap: "13px",
+                    alignContent: "start",
+                    padding: "4px 22px 20px",
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    overscrollBehavior: "contain",
+                    scrollbarWidth: "thin",
+                    "& > *": {
+                        minWidth: 0,
+                        opacity: open ? 1 : 0,
+                        transform: open ? "none" : "translateY(9px)",
+                        transition: `opacity 340ms ${sp} ${
+                            open ? "calc(var(--cc-i, 0) * 45ms)" : "0ms"
+                        }, transform 340ms ${sp} ${
+                            open ? "calc(var(--cc-i, 0) * 45ms)" : "0ms"
+                        }`,
+                    },
+                }}
+            >
+                {items.map((child, i) => (
+                    <div
+                        key={child.key != null ? child.key : i}
+                        style={{ "--cc-i": i, minWidth: 0 }}
+                    >
+                        {child}
+                    </div>
+                ))}
+            </Box>
+        </Box>
+    );
+};
 
 /* --------------------------------------------------------------- buttons --- */
 
@@ -1143,8 +1429,19 @@ export const ScopeList = ({ children }) => (
 
 /* --------------------------------------------------------------- advanced --- */
 
-/** §10.26 disclosure. */
-export const Disclosure = ({ open, onToggle, summary, count, children }) => (
+/**
+ * §10.26 disclosure. With no children it is just the toggle — that is the form
+ * the two-column layout uses, where the fields live in the `SidePane` instead
+ * and this row only drives `open`.
+ */
+export const Disclosure = ({
+    open,
+    onToggle,
+    summary,
+    count,
+    controls,
+    children,
+}) => (
     <Box
         sx={{
             background: cc.srf2,
@@ -1156,6 +1453,7 @@ export const Disclosure = ({ open, onToggle, summary, count, children }) => (
             component="button"
             type="button"
             aria-expanded={!!open}
+            aria-controls={controls}
             onClick={onToggle}
             sx={{
                 display: "flex",
@@ -1212,7 +1510,7 @@ export const Disclosure = ({ open, onToggle, summary, count, children }) => (
                 </Box>
             ) : null}
         </Box>
-        {open ? (
+        {open && React.Children.count(children) > 0 ? (
             <Box
                 sx={{
                     display: "grid",
@@ -1249,6 +1547,11 @@ export const scopeDialogProps = (width = 480) => ({
             width: "100%",
             maxWidth: `${width}px`,
             margin: "auto",
+            // Bounded, so the Paper can never grow past the overlay's clamped
+            // padding and push its own footer off the bottom of the window.
+            // `overflow:hidden` on every width keeps the frame still — only
+            // DialogBody scrolls.
+            maxHeight: "100%",
             overflow: "hidden",
             // No `both` fill: a forwards fill pins opacity at 1 and kills
             // MUI's closing Fade. Matches the outer frames in Calendar/index.jsx,
@@ -1260,7 +1563,7 @@ export const scopeDialogProps = (width = 480) => ({
                 margin: "auto 0 0",
                 borderRadius: "26px 26px 0 0",
                 maxHeight: "100%",
-                overflowY: "auto",
+                overflow: "hidden",
                 animation: `cc-sheet 420ms ${sp}`,
             },
         },
@@ -1274,6 +1577,12 @@ export const scopeDialogProps = (width = 480) => ({
     },
     sx: {
         "& .MuiDialog-container": {
+            // The app mounts no CssBaseline, so box-sizing is the initial
+            // `content-box`: MUI's `height:100%` plus this padding would make
+            // the container 104px TALLER than the viewport and `margin:auto`
+            // would centre the Paper on a box whose middle sits up to 76px
+            // below the middle of the window. Border-box is the whole fix.
+            boxSizing: "border-box",
             padding: "clamp(28px,9vh,76px) 18px 28px",
             [PHONE]: { padding: 0, alignItems: "flex-end" },
         },

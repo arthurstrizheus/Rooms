@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useEffect, useState } from "react";
 import {
     getHours,
@@ -49,16 +50,19 @@ import {
     Field,
     focusRing,
     formatCapacity,
+    formatRoomMeta,
     menuPaperSx,
     OptionList,
     RoomCard,
     RoomOption,
+    SidePane,
     Spacer,
+    SplitRow,
     Tag,
-    TagRow,
     TwoUp,
     TypeChip,
     TYPE_FALLBACK,
+    useSidePane,
 } from "../../Components/Concourse/ConcourseDialogKit";
 
 // Welcome to Date Sanity™! All passengers please keep your arms inside the function at all times.
@@ -134,6 +138,9 @@ const LONG_DATE = {
     year: "numeric",
 };
 
+/** Ties the Advanced pane to whichever control is currently exposing it. */
+const ADVANCED_PANE_ID = "cc-advanced-pane";
+
 /** The scope words the recurrence handlers use, rendered for a human. */
 const SCOPE_LABEL = {
     current: "This meeting only",
@@ -157,6 +164,9 @@ const MeetingFourm = ({
     onClose,
 }) => {
     const { user } = useAuth();
+    // Wide enough for the form and the Advanced column side by side. Below
+    // this the disclosure keeps expanding inline, exactly as it does today.
+    const twoCol = useSidePane();
     const [color, setColor] = useState(null);
     const [type, setType] = useState("");
     const [selectedRoom, setSelectedRoom] = useState("");
@@ -166,6 +176,12 @@ const MeetingFourm = ({
     const [repeats, setRepeats] = useState("");
     const [users, setUsers] = useState([]);
     const [special, setSpecial] = useState([]);
+    // The permission set the meeting already has on the server, kept apart from
+    // `special` (which the picker rewrites as the user edits) so a save can tell
+    // what actually changed. `null` means "we never got a trustworthy answer" —
+    // a brand new meeting, or a fetch that failed — and in that state the save
+    // is only ever allowed to grant, never to revoke.
+    const [savedSpecial, setSavedSpecial] = useState(null);
     const [meetingName, setMeetingName] = useState("");
     const [itSupport, setItSupport] = useState(false);
     const [itSupportDetails, setItSupportDetails] = useState("");
@@ -218,7 +234,15 @@ const MeetingFourm = ({
                     id: meeting.id,
                     recurrence_id: meeting.recurrence_id,
                 });
+                // GetSpecialPermissionsForMeeting hands back an array when the
+                // call succeeded — including [] for a meeting that genuinely
+                // has nobody — and undefined when it did not. Only an array is
+                // a baseline we may revoke against; a failed fetch must not
+                // read as "everyone was removed".
                 setSpecial(selectedUserIds || []);
+                setSavedSpecial(
+                    Array.isArray(selectedUserIds) ? selectedUserIds : null
+                );
             }
             setUsers(usrs);
         };
@@ -329,7 +353,7 @@ const MeetingFourm = ({
     }, [selectedRoom]);
 
     const onChangeMeetingType = (e) => {
-        setColor((meetingTypes?.find((m) => m.value == e.value)).color);
+        setColor(meetingTypes?.find((m) => m.value == e.value)?.color);
         setType(e);
         if (e.value.toLowerCase() === "equipment") {
             setShowEquipment(true);
@@ -371,7 +395,138 @@ const MeetingFourm = ({
         onClose();
     };
 
-    const isSelected = (id) => special.indexOf(id) !== -1;
+    /**
+     * One user's special-permission ROWS.
+     *
+     * The meeting-scoped endpoint only ever returns user ids
+     * (specialPermissionsController.GetAllForMeeting collapses its rows to
+     * `[...new Set(userIds)]`), but DELETE /api/specialpermissions/:id deletes
+     * by the permission row's own primary key — so a revoke has to resolve that
+     * row first, and the per-user endpoint is the only one that exposes it.
+     *
+     * Returns null rather than [] when the lookup fails, so "we could not ask"
+     * is never mistaken for "there was nothing to revoke".
+     */
+    const getSpecialPermissionRowsForUser = async (userId) => {
+        try {
+            const resp = await axios.get(`/api/specialpermissions/${userId}`);
+            return Array.isArray(resp?.data) ? resp.data : null;
+        } catch (err) {
+            return null;
+        }
+    };
+
+    /**
+     * Reconcile this meeting's Special Permissions with what the form shows.
+     *
+     * `previous` is the set the server already had, `selected` is what the
+     * picker currently holds:
+     *   in selected, not in previous -> grant
+     *   in previous, not in selected -> revoke
+     *   in both                      -> left alone, so no row churn
+     *
+     * A `previous` of null means the baseline is unknown (new meeting, or the
+     * fetch failed). That case grants only — revoking against a baseline we do
+     * not have would silently strip everyone.
+     */
+    const syncSpecialPermissions = async (
+        savedMeetingId,
+        previous,
+        selected
+    ) => {
+        const targetMeetingId = Number(savedMeetingId);
+        const canGrant =
+            Number.isFinite(targetMeetingId) && targetMeetingId > 0;
+        // A row is hung off whichever meeting the save wrote to, which for a
+        // recurring instance is not always the id the form was opened with, so
+        // a revoke looks at both before it deletes anything. Both ids are this
+        // same meeting as far as this form is concerned; nothing else can match.
+        const revokeMeetingIds = [
+            ...new Set(
+                [savedMeetingId, meeting?.id]
+                    .map((value) => Number(value))
+                    .filter((value) => Number.isFinite(value) && value > 0)
+            ),
+        ];
+
+        const selectedIds = Array.isArray(selected) ? selected : [];
+        const previousIds = Array.isArray(previous) ? previous : null;
+        const sameUser = (a, b) => Number(a) === Number(b);
+
+        const toGrant = previousIds
+            ? selectedIds.filter(
+                  (id) => !previousIds.some((prev) => sameUser(prev, id))
+              )
+            : selectedIds;
+        const toRevoke = previousIds
+            ? previousIds.filter(
+                  (id) => !selectedIds.some((sel) => sameUser(sel, id))
+              )
+            : [];
+
+        const work = [];
+        if (canGrant) {
+            toGrant.forEach((userId) => {
+                work.push(
+                    PostSpecialPermission({
+                        meeting_id: targetMeetingId,
+                        user_id: userId,
+                        created_user_id: user?.id,
+                    })
+                );
+            });
+        }
+        if (revokeMeetingIds.length) {
+            toRevoke.forEach((userId) => {
+                work.push(
+                    (async () => {
+                        const rows =
+                            await getSpecialPermissionRowsForUser(userId);
+                        if (!rows) {
+                            return false;
+                        }
+                        const rowsForMeeting = rows.filter(
+                            (row) =>
+                                sameUser(row?.user_id, userId) &&
+                                revokeMeetingIds.some(
+                                    (id) => Number(row?.meeting_id) === id
+                                )
+                        );
+                        // They were in the saved set, so a row existed. Finding
+                        // none now means we did not manage to revoke anything,
+                        // and saying otherwise would hide a live grant.
+                        if (!rowsForMeeting.length) {
+                            return false;
+                        }
+                        const deleted = await Promise.all(
+                            rowsForMeeting.map((row) =>
+                                DeleteSpecialPermission(row?.id)
+                            )
+                        );
+                        return deleted.every((ok) => ok !== false);
+                    })()
+                );
+            });
+        }
+
+        const results = await Promise.all(work);
+        // Access that was meant to be withdrawn and was not is the whole point
+        // of this path, so it gets said out loud instead of closing quietly —
+        // including the case where the save gave us no meeting id to revoke
+        // against and the revokes never even ran.
+        if (
+            toRevoke.length &&
+            (!revokeMeetingIds.length || results.some((ok) => ok === false))
+        ) {
+            openSnackbar("Some special permissions could not be removed", {
+                severity: "error",
+                autoHideDuration: 4000,
+                anchorOrigin: { vertical: "top", horizontal: "center" },
+                alertProps: { variant: "filled" },
+                transition: "grow",
+            });
+        }
+    };
 
     const onSubbmit = () => {
         setSubmitted(true);
@@ -418,6 +573,17 @@ const MeetingFourm = ({
                     transition: "grow",
                 });
                 setLoading(false);
+            } else if (!type?.id) {
+                // meetingTypes comes back empty if /api/types failed, which
+                // leaves the find() below it undefined rather than throwing.
+                openSnackbar("No meeting type", {
+                    severity: "error",
+                    autoHideDuration: 4000,
+                    anchorOrigin: { vertical: "top", horizontal: "center" },
+                    alertProps: { variant: "filled" },
+                    transition: "grow",
+                });
+                setLoading(false);
             } else {
                 // console.log(`Original: Start: ${formatDate(updateMeeting.start_time)} End: ${formatDate(updateMeeting.end_time)}`);
                 // Parse the start_time to a Date object
@@ -447,16 +613,11 @@ const MeetingFourm = ({
                         UpdateAllNextMeetingsInRecurrence(user?.id, meeting)
                             .then((resp) => {
                                 if (resp) {
-                                    const promises = special?.map(async (itm) =>
-                                        isSelected(itm)
-                                            ? PostSpecialPermission({
-                                                  meeting_id: resp.id,
-                                                  user_id: itm,
-                                                  created_user_id: user?.id,
-                                              })
-                                            : DeleteSpecialPermission(itm)
-                                    );
-                                    Promise.all(promises).then(() => {
+                                    syncSpecialPermissions(
+                                        resp?.id,
+                                        savedSpecial,
+                                        special
+                                    ).then(() => {
                                         setLoading(false);
                                         clearOnClose();
                                     });
@@ -474,29 +635,14 @@ const MeetingFourm = ({
                                     UpdateParentOnlyMeeting(meeting.id, meeting)
                                         .then((resp) => {
                                             if (resp) {
-                                                const promises = special?.map(
-                                                    async (itm) =>
-                                                        isSelected(itm)
-                                                            ? PostSpecialPermission(
-                                                                  {
-                                                                      meeting_id:
-                                                                          resp.id,
-                                                                      user_id:
-                                                                          itm,
-                                                                      created_user_id:
-                                                                          user?.id,
-                                                                  }
-                                                              )
-                                                            : DeleteSpecialPermission(
-                                                                  itm
-                                                              )
-                                                );
-                                                Promise.all(promises).then(
-                                                    () => {
-                                                        setLoading(false);
-                                                        clearOnClose();
-                                                    }
-                                                );
+                                                syncSpecialPermissions(
+                                                    resp?.id,
+                                                    savedSpecial,
+                                                    special
+                                                ).then(() => {
+                                                    setLoading(false);
+                                                    clearOnClose();
+                                                });
                                             }
                                             setLoading(false);
                                         })
@@ -513,16 +659,11 @@ const MeetingFourm = ({
                         UpdateAllMeetingsInRecurrence(user?.id, meeting)
                             .then((resp) => {
                                 if (resp) {
-                                    const promises = special?.map(async (itm) =>
-                                        isSelected(itm)
-                                            ? PostSpecialPermission({
-                                                  meeting_id: resp.id,
-                                                  user_id: itm,
-                                                  created_user_id: user?.id,
-                                              })
-                                            : DeleteSpecialPermission(itm)
-                                    );
-                                    Promise.all(promises).then(() => {
+                                    syncSpecialPermissions(
+                                        resp?.id,
+                                        savedSpecial,
+                                        special
+                                    ).then(() => {
                                         setLoading(false);
                                         clearOnClose();
                                     });
@@ -540,29 +681,14 @@ const MeetingFourm = ({
                                     UpdateMeeting(user?.id, meeting)
                                         .then((resp) => {
                                             if (resp) {
-                                                const promises = special?.map(
-                                                    async (itm) =>
-                                                        isSelected(itm)
-                                                            ? PostSpecialPermission(
-                                                                  {
-                                                                      meeting_id:
-                                                                          resp.id,
-                                                                      user_id:
-                                                                          itm,
-                                                                      created_user_id:
-                                                                          user?.id,
-                                                                  }
-                                                              )
-                                                            : DeleteSpecialPermission(
-                                                                  itm
-                                                              )
-                                                );
-                                                Promise.all(promises).then(
-                                                    () => {
-                                                        setLoading(false);
-                                                        clearOnClose();
-                                                    }
-                                                );
+                                                syncSpecialPermissions(
+                                                    resp?.id,
+                                                    savedSpecial,
+                                                    special
+                                                ).then(() => {
+                                                    setLoading(false);
+                                                    clearOnClose();
+                                                });
                                             }
                                         })
                                         .catch(() => {
@@ -630,6 +756,17 @@ const MeetingFourm = ({
                     transition: "grow",
                 });
                 setLoading(false);
+            } else if (!type?.id) {
+                // meetingTypes comes back empty if /api/types failed, which
+                // leaves the find() below it undefined rather than throwing.
+                openSnackbar("No meeting type", {
+                    severity: "error",
+                    autoHideDuration: 4000,
+                    anchorOrigin: { vertical: "top", horizontal: "center" },
+                    alertProps: { variant: "filled" },
+                    transition: "grow",
+                });
+                setLoading(false);
             } else {
                 const newMeeting = {
                     name: meetingName,
@@ -653,16 +790,13 @@ const MeetingFourm = ({
                     if (resp?.book) {
                         PostMeeting(newMeeting).then((resp) => {
                             if (resp?.id) {
-                                const promises = special?.map(async (itm) =>
-                                    isSelected(itm)
-                                        ? PostSpecialPermission({
-                                              meeting_id: resp.id,
-                                              user_id: itm,
-                                              created_user_id: user?.id,
-                                          })
-                                        : DeleteSpecialPermission(itm)
-                                );
-                                Promise.all(promises).then(() => {
+                                // A meeting that did not exist a moment ago has
+                                // no saved permission set, so this only grants.
+                                syncSpecialPermissions(
+                                    resp?.id,
+                                    savedSpecial,
+                                    special
+                                ).then(() => {
                                     setLoading(false);
                                     clearOnClose();
                                 });
@@ -718,7 +852,9 @@ const MeetingFourm = ({
                 .join(", ");
             parts.push(res.length > 3 ? `${shown} +${res.length - 3}` : shown);
         }
-        return parts.join(" · ");
+        // formatCapacity returns null for a room with no usable capacity, so an
+        // empty part has to drop out rather than leave a leading " · ".
+        return parts.filter(Boolean).join(" · ");
     };
 
     const selectedResources = selectedRoom?.id
@@ -808,6 +944,158 @@ const MeetingFourm = ({
         },
     };
 
+    /**
+     * The Advanced fields, in one place. They render inside the disclosure on a
+     * narrow screen and inside the side pane on a wide one — an array (not a
+     * fragment) so whichever container receives them can still index them for
+     * the `--cc-i` stagger.
+     */
+    const advancedFields = [
+        <Field key="description" label="Description" htmlFor="cc-description">
+            <CcTextarea
+                id="cc-description"
+                rows={2}
+                value={description || ""}
+                disabled={loading}
+                onChange={(e) => setDescription(e.target.value)}
+            />
+        </Field>,
+        <Field key="repeats" label="Repeats">
+            <CcSelect
+                ariaLabel="Repeats"
+                value={repeats || ""}
+                disabled={loading}
+                displayEmpty
+                onChange={(e) => setRepeats(e.target.value)}
+            >
+                <MenuItem key={0} value={""}>
+                    {"— None —"}
+                </MenuItem>
+                <MenuItem key={1} value={"Daily"}>
+                    {"Daily"}
+                </MenuItem>
+                <MenuItem key={2} value={"Weekly"}>
+                    {"Weekly"}
+                </MenuItem>
+                <MenuItem key={3} value={"Monthly"}>
+                    {"Monthly"}
+                </MenuItem>
+                <MenuItem key={4} value={"Yearly"}>
+                    {"Yearly"}
+                </MenuItem>
+            </CcSelect>
+        </Field>,
+        <CcSwitch
+            key="all-day"
+            id="cc-all-day"
+            checked={allDay}
+            disabled={loading}
+            onChange={(checked) => handleAllDayChange(checked)}
+            label="All Day"
+        />,
+        <Field
+            key="special"
+            label="Special Permissions"
+            // The old copy ("Everyone else just sees the room as busy.")
+            // promised a masking behaviour the app does not implement — no
+            // backend query or frontend transform ever redacts a meeting's name
+            // or description for anyone. The permission is purely ADDITIVE:
+            // GetAllUserCanSee unions specially-permitted meetings into the set
+            // a user already gets from room-group membership, so it lets people
+            // in who would otherwise be shut out. It grants read only — CanDelete
+            // never consults the table.
+            hint="People you add here can see this meeting even if they don't have access to the room."
+        >
+            <Autocomplete
+                multiple
+                options={users.filter(
+                    (gp) => gp.access !== "Read" && gp.id !== user?.id
+                )}
+                value={users.filter((u) => special.includes(u.id))}
+                disabled={loading}
+                onChange={(event, newValue) => {
+                    handleSpecialChange({
+                        target: {
+                            value: newValue.map((user) => user.id),
+                        },
+                    });
+                }}
+                getOptionLabel={(option) =>
+                    `${option.first_name} ${option.last_name}`
+                }
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                componentsProps={{
+                    paper: { sx: autocompletePaperSx },
+                }}
+                renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                        const { onDelete } = getTagProps({ index });
+                        return (
+                            <Tag key={option.id} on>
+                                {`${option.first_name} ${option.last_name}`}
+                                <Box
+                                    component="span"
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Remove ${option.first_name} ${option.last_name}`}
+                                    onClick={onDelete}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            onDelete(e);
+                                        }
+                                    }}
+                                    sx={{
+                                        cursor: "pointer",
+                                        fontSize: "9px",
+                                        lineHeight: 1,
+                                        "&:focus-visible": focusRing,
+                                    }}
+                                >
+                                    ✕
+                                </Box>
+                            </Tag>
+                        );
+                    })
+                }
+                renderInput={(params) => (
+                    <TextField
+                        {...params}
+                        variant="standard"
+                        placeholder={special?.length ? "" : "Nobody else"}
+                        InputProps={{
+                            ...params.InputProps,
+                            disableUnderline: true,
+                        }}
+                    />
+                )}
+                sx={{
+                    "& .MuiInputBase-root": {
+                        ...controlBox(false, false),
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "5px",
+                        padding: "7px 9px",
+                    },
+                    "& .MuiInputBase-root.Mui-focused": {
+                        borderColor: cc.red,
+                        background: cc.srf,
+                    },
+                    "& .MuiInputBase-input": {
+                        fontSize: "14px",
+                        fontFamily: "inherit",
+                        color: cc.ink,
+                        padding: "2px 0",
+                        minWidth: "60px",
+                    },
+                    "& .MuiAutocomplete-endAdornment": {
+                        display: "none",
+                    },
+                }}
+            />
+        </Field>,
+    ];
+
     return (
         <DialogSurface accent={accent}>
             <DialogHeader
@@ -815,344 +1103,242 @@ const MeetingFourm = ({
                 sub={headerSub}
                 onClose={onClose}
             />
-            <DialogBody>
-                <Field
-                    label="Meeting name"
-                    required
-                    htmlFor="cc-meeting-name"
-                    error={errors.name}
-                    hint={
-                        nameLocked
-                            ? "Equipment bookings take their name from the equipment."
+            <SplitRow split={twoCol}>
+                <DialogBody
+                    sx={
+                        twoCol
+                            ? {
+                                  // Pinned to the collapsed frame width, so the form
+                                  // does not reflow while the frame widens; the pane
+                                  // is revealed beside it instead.
+                                  // `border-box` is load-bearing: the app mounts
+                                  // no CssBaseline, so under the initial
+                                  // `content-box` this column's 22px side padding
+                                  // would sit OUTSIDE the 560 basis and shove the
+                                  // pane 44px past the frame's right edge.
+                                  boxSizing: "border-box",
+                                  flexGrow: 0,
+                                  flexShrink: 0,
+                                  flexBasis: "var(--cc-dw, 560px)",
+                                  maxWidth: "var(--cc-dw, 560px)",
+                              }
                             : null
                     }
                 >
-                    <CcInput
-                        id="cc-meeting-name"
-                        value={meetingName}
-                        invalid={!!errors.name}
-                        disabled={nameLocked || loading}
-                        autoFocus
-                        placeholder="What is this for?"
-                        onChange={(e) => setMeetingName(e.target.value)}
-                    />
-                </Field>
-
-                <Field
-                    label="Meeting Type"
-                    hint="The type sets the colour this meeting gets on the calendar."
-                >
-                    <Box
-                        role="group"
-                        aria-label="Meeting Type"
-                        sx={{ display: "flex", gap: "6px", flexWrap: "wrap" }}
-                    >
-                        {(meetingTypes || []).map((tp) => (
-                            <TypeChip
-                                key={tp.id}
-                                color={tp.color}
-                                selected={type?.id === tp.id}
-                                disabled={loading}
-                                onClick={() => onChangeMeetingType(tp)}
-                            >
-                                {tp.value}
-                            </TypeChip>
-                        ))}
-                    </Box>
-                </Field>
-
-                <Field label="Room" required error={errors.room}>
-                    <OptionList
-                        role="group"
-                        aria-label="Room"
-                        sx={{
-                            maxHeight: "252px",
-                            overflowY: "auto",
-                            scrollbarWidth: "thin",
-                            paddingRight: "2px",
-                        }}
-                    >
-                        {(rooms || []).map((rm) => (
-                            <RoomOption
-                                key={rm.id}
-                                color={rm.color}
-                                selected={selectedRoom?.id === rm.id}
-                                disabled={loading}
-                                name={rm.value}
-                                meta={roomMeta(rm)}
-                                onClick={() => setSelectedRoom(rm)}
-                            />
-                        ))}
-                    </OptionList>
-                </Field>
-
-                {selectedRoom?.id ? (
-                    <RoomCard
-                        name={
-                            officeAlias(selectedRoom.location)
-                                ? `SEA ${officeAlias(
-                                      selectedRoom.location
-                                  )} / ${selectedRoom.value}`
-                                : selectedRoom.value
-                        }
-                        meta={formatCapacity(selectedRoom.capacity)}
-                        thumb={
-                            selectedRoom.image_url && roomImage ? (
-                                <ImageViewer
-                                    src={roomImage}
-                                    alt={`${selectedRoom.value} room image`}
-                                    clickable={true}
-                                    style={{
-                                        width: "64px",
-                                        height: "48px",
-                                        objectFit: "cover",
-                                        display: "block",
-                                    }}
-                                />
-                            ) : null
-                        }
-                    >
-                        {selectedResources.length ? (
-                            <TagRow>
-                                {selectedResources.map((r) => (
-                                    <Tag key={r.id}>{r.name}</Tag>
-                                ))}
-                            </TagRow>
-                        ) : null}
-                    </RoomCard>
-                ) : null}
-
-                {!allDay ? (
-                    <TwoUp>
-                        <Field label="Start Time" error={errors.time}>
-                            <CcSelect
-                                mono
-                                ariaLabel="Start Time"
-                                invalid={!!errors.time}
-                                value={startTime}
-                                disabled={loading}
-                                onChange={(e) =>
-                                    onChangeStartTime(e.target.value)
-                                }
-                            >
-                                {times.map((t) => (
-                                    <MenuItem key={t} value={t}>
-                                        {t}
-                                    </MenuItem>
-                                ))}
-                            </CcSelect>
-                        </Field>
-                        <Field label="End Time">
-                            <CcSelect
-                                mono
-                                ariaLabel="End Time"
-                                invalid={!!errors.time}
-                                value={endTime}
-                                disabled={loading}
-                                onChange={(e) =>
-                                    onChangeEndTime(e.target.value)
-                                }
-                            >
-                                {filterTimesAfterCutoff(
-                                    times,
-                                    startTime || "12:00 AM"
-                                ).map((t) => (
-                                    <MenuItem key={t} value={t}>
-                                        {t}
-                                    </MenuItem>
-                                ))}
-                            </CcSelect>
-                        </Field>
-                    </TwoUp>
-                ) : null}
-
-                <Box sx={{ display: "grid", gap: "9px" }}>
-                    <CcSwitch
-                        id="cc-it-support"
-                        checked={itSupport}
-                        disabled={loading}
-                        onChange={(checked) => setItSupport(checked)}
-                        label="I would like IT support during this meeting"
-                    />
-                    {itSupport ? (
-                        <Field
-                            label="What do you need help with?"
-                            required
-                            htmlFor="cc-it-support-details"
-                            error={errors.itDetails}
-                        >
-                            <CcTextarea
-                                id="cc-it-support-details"
-                                rows={2}
-                                value={itSupportDetails}
-                                invalid={!!errors.itDetails}
-                                disabled={loading}
-                                onChange={(e) =>
-                                    setItSupportDetails(e.target.value)
-                                }
-                            />
-                        </Field>
-                    ) : null}
-                </Box>
-
-                {update && updateMode && SCOPE_LABEL[updateMode] ? (
-                    <Facts>
-                        <Fact label="Applies to">
-                            {SCOPE_LABEL[updateMode]}
-                        </Fact>
-                    </Facts>
-                ) : null}
-
-                <Disclosure
-                    open={showDesc}
-                    onToggle={() => setShowDesc(!showDesc)}
-                    summary="Advanced"
-                    count="description · repeats · who can see it"
-                >
-                    <Field label="Description" htmlFor="cc-description">
-                        <CcTextarea
-                            id="cc-description"
-                            rows={2}
-                            value={description || ""}
-                            disabled={loading}
-                            onChange={(e) => setDescription(e.target.value)}
-                        />
-                    </Field>
-                    <Field label="Repeats">
-                        <CcSelect
-                            ariaLabel="Repeats"
-                            value={repeats || ""}
-                            disabled={loading}
-                            displayEmpty
-                            onChange={(e) => setRepeats(e.target.value)}
-                        >
-                            <MenuItem key={0} value={""}>
-                                {"— None —"}
-                            </MenuItem>
-                            <MenuItem key={1} value={"Daily"}>
-                                {"Daily"}
-                            </MenuItem>
-                            <MenuItem key={2} value={"Weekly"}>
-                                {"Weekly"}
-                            </MenuItem>
-                            <MenuItem key={3} value={"Monthly"}>
-                                {"Monthly"}
-                            </MenuItem>
-                            <MenuItem key={4} value={"Yearly"}>
-                                {"Yearly"}
-                            </MenuItem>
-                        </CcSelect>
-                    </Field>
-                    <CcSwitch
-                        id="cc-all-day"
-                        checked={allDay}
-                        disabled={loading}
-                        onChange={(checked) => handleAllDayChange(checked)}
-                        label="All Day"
-                    />
                     <Field
-                        label="Special Permissions"
-                        hint="Everyone else just sees the room as busy."
+                        label="Meeting name"
+                        required
+                        htmlFor="cc-meeting-name"
+                        error={errors.name}
+                        hint={
+                            nameLocked
+                                ? "Equipment bookings take their name from the equipment."
+                                : null
+                        }
                     >
-                        <Autocomplete
-                            multiple
-                            options={users.filter(
-                                (gp) =>
-                                    gp.access !== "Read" && gp.id !== user?.id
-                            )}
-                            value={users.filter((u) => special.includes(u.id))}
-                            disabled={loading}
-                            onChange={(event, newValue) => {
-                                handleSpecialChange({
-                                    target: {
-                                        value: newValue.map((user) => user.id),
-                                    },
-                                });
-                            }}
-                            getOptionLabel={(option) =>
-                                `${option.first_name} ${option.last_name}`
-                            }
-                            isOptionEqualToValue={(option, value) =>
-                                option.id === value.id
-                            }
-                            componentsProps={{
-                                paper: { sx: autocompletePaperSx },
-                            }}
-                            renderTags={(value, getTagProps) =>
-                                value.map((option, index) => {
-                                    const { onDelete } = getTagProps({ index });
-                                    return (
-                                        <Tag key={option.id} on>
-                                            {`${option.first_name} ${option.last_name}`}
-                                            <Box
-                                                component="span"
-                                                role="button"
-                                                tabIndex={0}
-                                                aria-label={`Remove ${option.first_name} ${option.last_name}`}
-                                                onClick={onDelete}
-                                                onKeyDown={(e) => {
-                                                    if (
-                                                        e.key === "Enter" ||
-                                                        e.key === " "
-                                                    ) {
-                                                        e.preventDefault();
-                                                        onDelete(e);
-                                                    }
-                                                }}
-                                                sx={{
-                                                    cursor: "pointer",
-                                                    fontSize: "9px",
-                                                    lineHeight: 1,
-                                                    "&:focus-visible":
-                                                        focusRing,
-                                                }}
-                                            >
-                                                ✕
-                                            </Box>
-                                        </Tag>
-                                    );
-                                })
-                            }
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    variant="standard"
-                                    placeholder={
-                                        special?.length ? "" : "Nobody else"
-                                    }
-                                    InputProps={{
-                                        ...params.InputProps,
-                                        disableUnderline: true,
-                                    }}
-                                />
-                            )}
-                            sx={{
-                                "& .MuiInputBase-root": {
-                                    ...controlBox(false, false),
-                                    display: "flex",
-                                    flexWrap: "wrap",
-                                    gap: "5px",
-                                    padding: "7px 9px",
-                                },
-                                "& .MuiInputBase-root.Mui-focused": {
-                                    borderColor: cc.red,
-                                    background: cc.srf,
-                                },
-                                "& .MuiInputBase-input": {
-                                    fontSize: "14px",
-                                    fontFamily: "inherit",
-                                    color: cc.ink,
-                                    padding: "2px 0",
-                                    minWidth: "60px",
-                                },
-                                "& .MuiAutocomplete-endAdornment": {
-                                    display: "none",
-                                },
-                            }}
+                        <CcInput
+                            id="cc-meeting-name"
+                            value={meetingName}
+                            invalid={!!errors.name}
+                            disabled={nameLocked || loading}
+                            autoFocus
+                            placeholder="What is this for?"
+                            onChange={(e) => setMeetingName(e.target.value)}
                         />
                     </Field>
-                </Disclosure>
-            </DialogBody>
+
+                    <Field
+                        label="Meeting Type"
+                        hint="The type sets the colour this meeting gets on the calendar."
+                    >
+                        <Box
+                            role="group"
+                            aria-label="Meeting Type"
+                            sx={{ display: "flex", gap: "6px", flexWrap: "wrap" }}
+                        >
+                            {(meetingTypes || []).map((tp) => (
+                                <TypeChip
+                                    key={tp.id}
+                                    color={tp.color}
+                                    selected={type?.id === tp.id}
+                                    disabled={loading}
+                                    onClick={() => onChangeMeetingType(tp)}
+                                >
+                                    {tp.value}
+                                </TypeChip>
+                            ))}
+                        </Box>
+                    </Field>
+
+                    <Field label="Room" required error={errors.room}>
+                        <OptionList
+                            role="group"
+                            aria-label="Room"
+                            sx={{
+                                maxHeight: "252px",
+                                overflowY: "auto",
+                                scrollbarWidth: "thin",
+                                paddingRight: "2px",
+                            }}
+                        >
+                            {(rooms || []).map((rm) => (
+                                <RoomOption
+                                    key={rm.id}
+                                    color={rm.color}
+                                    selected={selectedRoom?.id === rm.id}
+                                    disabled={loading}
+                                    name={rm.value}
+                                    meta={roomMeta(rm)}
+                                    onClick={() => setSelectedRoom(rm)}
+                                />
+                            ))}
+                        </OptionList>
+                    </Field>
+
+                    {selectedRoom?.id ? (
+                        <RoomCard
+                            name={
+                                officeAlias(selectedRoom.location)
+                                    ? `SEA ${officeAlias(
+                                          selectedRoom.location
+                                      )} / ${selectedRoom.value}`
+                                    : selectedRoom.value
+                            }
+                            // Same rule as the details dialog: the picker above
+                            // is where capacity helps you choose, so once a room
+                            // is chosen this line carries what it actually has.
+                            meta={formatRoomMeta(
+                                selectedResources,
+                                selectedRoom.capacity
+                            )}
+                            thumb={
+                                selectedRoom.image_url && roomImage ? (
+                                    <ImageViewer
+                                        src={roomImage}
+                                        alt={`${selectedRoom.value} room image`}
+                                        clickable={true}
+                                        style={{
+                                            width: "64px",
+                                            height: "48px",
+                                            objectFit: "cover",
+                                            display: "block",
+                                        }}
+                                    />
+                                ) : null
+                            }
+                        />
+                    ) : null}
+
+                    {!allDay ? (
+                        <TwoUp>
+                            <Field label="Start Time" error={errors.time}>
+                                <CcSelect
+                                    mono
+                                    ariaLabel="Start Time"
+                                    invalid={!!errors.time}
+                                    value={startTime}
+                                    disabled={loading}
+                                    onChange={(e) =>
+                                        onChangeStartTime(e.target.value)
+                                    }
+                                >
+                                    {times.map((t) => (
+                                        <MenuItem key={t} value={t}>
+                                            {t}
+                                        </MenuItem>
+                                    ))}
+                                </CcSelect>
+                            </Field>
+                            <Field label="End Time">
+                                <CcSelect
+                                    mono
+                                    ariaLabel="End Time"
+                                    invalid={!!errors.time}
+                                    value={endTime}
+                                    disabled={loading}
+                                    onChange={(e) =>
+                                        onChangeEndTime(e.target.value)
+                                    }
+                                >
+                                    {filterTimesAfterCutoff(
+                                        times,
+                                        startTime || "12:00 AM"
+                                    ).map((t) => (
+                                        <MenuItem key={t} value={t}>
+                                            {t}
+                                        </MenuItem>
+                                    ))}
+                                </CcSelect>
+                            </Field>
+                        </TwoUp>
+                    ) : null}
+
+                    <Box sx={{ display: "grid", gap: "9px" }}>
+                        <CcSwitch
+                            id="cc-it-support"
+                            checked={itSupport}
+                            disabled={loading}
+                            onChange={(checked) => setItSupport(checked)}
+                            label="I would like IT support during this meeting"
+                        />
+                        {itSupport ? (
+                            <Field
+                                label="What do you need help with?"
+                                required
+                                htmlFor="cc-it-support-details"
+                                error={errors.itDetails}
+                            >
+                                <CcTextarea
+                                    id="cc-it-support-details"
+                                    rows={2}
+                                    value={itSupportDetails}
+                                    invalid={!!errors.itDetails}
+                                    disabled={loading}
+                                    onChange={(e) =>
+                                        setItSupportDetails(e.target.value)
+                                    }
+                                />
+                            </Field>
+                        ) : null}
+                    </Box>
+
+                    {update && updateMode && SCOPE_LABEL[updateMode] ? (
+                        <Facts>
+                            <Fact label="Applies to">
+                                {SCOPE_LABEL[updateMode]}
+                            </Fact>
+                        </Facts>
+                    ) : null}
+
+                    {/* One control at a time. In two-column mode this row is
+                        open-only: once the pane is out it is the pane's own
+                        header button that closes it, so the control always sits
+                        with the thing it controls and there are never two rows
+                        claiming the same toggle. It is the last child of the
+                        body, so removing it disturbs nothing above it. */}
+                    {twoCol && showDesc ? null : (
+                        <Disclosure
+                            open={showDesc}
+                            onToggle={() => setShowDesc(!showDesc)}
+                            summary="Advanced"
+                            count="description · repeats · who can see it"
+                            controls={twoCol ? ADVANCED_PANE_ID : undefined}
+                        >
+                            {twoCol ? null : advancedFields}
+                        </Disclosure>
+                    )}
+                </DialogBody>
+                {twoCol ? (
+                    <SidePane
+                        id={ADVANCED_PANE_ID}
+                        open={showDesc}
+                        title="Advanced"
+                        onClose={() => setShowDesc(false)}
+                    >
+                        {advancedFields}
+                    </SidePane>
+                ) : null}
+            </SplitRow>
             <DialogFooter>
                 <CcButton onClick={onClose} disabled={loading}>
                     {update ? "Discard" : "Cancel"}

@@ -1,262 +1,194 @@
-import {
-    darkenHexColorWithAplha,
-    hexToRgba,
-} from "../../../../Utilites/Functions/ColorFunctions";
-import { useTheme } from "@emotion/react";
-import { useAuth } from "../../../../Utilites/AuthContext";
-import { Grid, Stack, Typography, Button, Tooltip, Chip } from "@mui/material";
-import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
-import React from "react";
-import DisplayGroups from "../../../Components/DisplayGroups";
+/**
+ * ViewUser — the expanded row detail under a user row.
+ *
+ * Concourse redesign. Visual only. Every value, its literal copy and the two
+ * date formats are the originals; the `user?.admin || user?.office_admin ==
+ * location?.officeid` gate on Edit is byte-identical (the loose `==` is
+ * load-bearing — `office_admin` may arrive as a string).
+ *
+ * Changed on purpose, per spec:
+ *   - the two hand-rolled `linear-gradient` headers and every
+ *     `theme.palette.*` read are gone (§0.1/§0.2), along with `useTheme`,
+ *     `hexToRgba` and `darkenHexColorWithAplha`, which are now unused here;
+ *   - `minWidth: 550px` on each card is deleted — it forced ~1140px of
+ *     horizontal overflow inside a table cell (recon §7.7);
+ *   - the Edit button's `EventBusyIcon` ("busy calendar") is replaced with
+ *     `EditOutlined`;
+ *   - the per-render `console.log(row.groups)` is deleted;
+ *   - when the guard fails the pane now renders a one-line note instead of
+ *     nothing, so a row cannot open into a void. The note claims no reason,
+ *     because the component cannot know one.
+ *
+ * NOT changed (recon §7.6, report-only): `Last Login` here still runs
+ * `new Date(rowUser?.last_login)` with no null guard and therefore still
+ * renders `Invalid Date` for a user who has never logged in, while the table
+ * cell for the same user shows `Has not Logged In`.
+ */
 
-const rowItem = (name, value, color) => {
-    return (
-        <Grid container direction="row" wrap="wrap">
-            <Grid item xs={4}>
-                <Typography
-                    color={color}
-                    variant="body2"
-                    whiteSpace="nowrap" // Prevents text from breaking onto the next line within its box
-                    overflow="hidden" // Ensures any overflow is hidden
-                    textOverflow="ellipsis" // Adds ellipsis if the text is too long
-                >
-                    {name}
-                </Typography>
-            </Grid>
-            <Grid item xs={8} display={"flex"}>
-                <Typography
-                    variant="body2"
-                    textAlign="left"
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                    whiteSpace="wrap"
-                >
-                    {value}
-                </Typography>
-            </Grid>
-        </Grid>
-    );
+import { Box } from "@mui/material";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { useAuth } from "../../../../Utilites/AuthContext";
+import { type as ccType } from "../../../../Utilites/concourse";
+import {
+    CcButton,
+    Fact,
+    Facts,
+    Spacer,
+} from "../../../Components/Concourse/ConcourseDialogKit";
+import DisplayGroups from "../../../Components/DisplayGroups";
+import { groupChipsSx } from "./UsersConcourse";
+
+const detailSx = {
+    padding: "0 14px 12px",
+    boxSizing: "border-box",
+    minWidth: 0,
+};
+
+const gridSx = {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+    alignItems: "start",
+    boxSizing: "border-box",
+    minWidth: 0,
+    // §6 — one column once the side menu stops being in flow.
+    "@media (max-width:979.95px)": { gridTemplateColumns: "1fr" },
+};
+
+const groupHeaderSx = {
+    display: "flex",
+    alignItems: "center",
+    gap: "9px",
+    marginBottom: "8px",
+    minWidth: 0,
+};
+
+const groupLabelSx = {
+    ...ccType.blockLabel,
+    color: "var(--cc-mute)",
+    whiteSpace: "nowrap",
+};
+
+const editButtonSx = {
+    padding: "6px 13px",
+    fontSize: "12.5px",
+    flex: "none",
+};
+
+/**
+ * `Fact`'s own row is `--cc-srf2`, so the shared chip treatment (which is
+ * written for the `--cc-srf` table cell) would paint the chips in exactly the
+ * row's own colour and they would read as bare text. Read the other token —
+ * never derive one surface from the other, because `srf`/`srf2` invert in dark.
+ */
+const factGroupsSx = {
+    ...groupChipsSx,
+    justifyContent: "flex-end",
+    "& .MuiChip-root": {
+        ...groupChipsSx["& .MuiChip-root"],
+        background: "var(--cc-srf)",
+    },
 };
 
 const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
-    const theme = useTheme();
     const { user } = useAuth();
-    console.log(row.groups);
+
+    if (!(rowUser && location && row)) {
+        return (
+            <Box sx={{ ...detailSx, paddingTop: "10px" }}>
+                <Box sx={{ fontSize: "13.5px", color: "var(--cc-mute)" }}>
+                    Details unavailable for this user.
+                </Box>
+            </Box>
+        );
+    }
 
     return (
-        <React.Fragment>
-            {rowUser && location && row && (
-                <Grid
-                    sx={{
-                        height: "fit-content",
-                        padding: "10px",
-                        background:
-                            theme.palette.background.fill.light.lightHover,
-                    }}
-                >
-                    <Stack
-                        direction={"row"}
-                        sx={{ padding: "10px", display: "flex" }}
-                        justifyContent={"space-around"}
-                    >
-                        <Grid
-                            sx={{
-                                background: "white",
-                                borderRadius: "10px",
-                                minWidth: "550px",
-                                overflow: "hidden",
-                                display: "flex",
-                            }}
-                        >
-                            <Typography
-                                variant="h6"
-                                paddingLeft={"10px"}
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "space-between",
-                                    background: `linear-gradient(135deg, rgba(${hexToRgba(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        0.5
-                                    )}) 0%, rgba(${darkenHexColorWithAplha(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        60,
-                                        0.5
-                                    )}) 100%)`,
-                                }}
+        <Box sx={detailSx}>
+            <Box sx={gridSx}>
+                <Box sx={{ minWidth: 0 }}>
+                    <Box sx={groupHeaderSx}>
+                        <Box sx={groupLabelSx}>User Details</Box>
+                        <Spacer />
+                        {(user?.admin ||
+                            user?.office_admin == location?.officeid) && (
+                            <CcButton
+                                onClick={() => setOpen(rowUser, location)}
+                                sx={editButtonSx}
                             >
-                                User Details
-                                {(user?.admin ||
-                                    user?.office_admin ==
-                                        location?.officeid) && (
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() =>
-                                            setOpen(rowUser, location)
-                                        }
-                                        sx={{
-                                            display: "flex",
-                                            alignSelf: "start",
-                                            marginBottom: "5px",
-                                            textTransform: "none",
-                                            ":hover": {
-                                                backgroundColor:
-                                                    "rgba(255, 187, 0, .1)",
-                                            },
-                                        }}
-                                        startIcon={
-                                            <EventBusyIcon
-                                                sx={{ color: "orange" }}
-                                            />
-                                        }
-                                    >
-                                        Edit
-                                    </Button>
-                                )}
-                            </Typography>
-                            <Stack
-                                width={"100%"}
-                                direction={"column"}
-                                sx={{
-                                    marginTop: "10px",
-                                    paddingLeft: "20px",
-                                    paddingBottom: "5px",
-                                }}
-                                spacing={2}
-                            >
-                                {rowItem(
-                                    "Name",
-                                    row.name,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Email",
-                                    row.email,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Admin",
-                                    row.admin ? "True" : "False",
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Office Admin",
-                                    row.office_admin
-                                        ? `${
-                                              locations?.find(
-                                                  (lc) =>
-                                                      lc.officeid ==
-                                                      row?.office_admin
-                                              )?.Alias
-                                          }`
-                                        : "None",
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Last Login",
-                                    new Date(
-                                        rowUser?.last_login
-                                    ).toLocaleDateString("en-US", {
-                                        hour: "numeric",
-                                        minute: "numeric",
-                                        weekday: "long",
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                    }),
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Groups",
-                                    row.groups.length == 0 ? (
-                                        "None"
-                                    ) : (
-                                        <DisplayGroups groups={row.groups} />
-                                    ),
-                                    theme.palette.primary.text.dark
-                                )}
-                            </Stack>
-                        </Grid>
-                        <Grid
-                            sx={{
-                                display: "flex",
-                                background: "white",
-                                borderRadius: "10px",
-                                minWidth: "550px",
-                                overflow: "hidden",
-                            }}
-                        >
-                            <Typography
-                                variant="h6"
-                                paddingLeft={"10px"}
-                                sx={{
-                                    background: `linear-gradient(135deg, rgba(${hexToRgba(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        0.5
-                                    )}) 0%, rgba(${darkenHexColorWithAplha(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        60,
-                                        0.5
-                                    )}) 100%)`,
-                                }}
-                            >
-                                User Location
-                            </Typography>
-                            <Stack
-                                width={"100%"}
-                                direction={"column"}
-                                sx={{
-                                    marginTop: "10px",
-                                    paddingLeft: "20px",
-                                    paddingBottom: "5px",
-                                }}
-                                spacing={2}
-                            >
-                                {rowItem(
-                                    "Alias",
-                                    location.Alias,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Number",
-                                    location.Number,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "City",
-                                    location.City,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "State",
-                                    location.state,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Zip",
-                                    location.Zip,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Address",
-                                    location.SAddress,
-                                    theme.palette.primary.text.dark
-                                )}
-                                {rowItem(
-                                    "Airport",
-                                    location.Airport,
-                                    theme.palette.primary.text.dark
-                                )}
-                            </Stack>
-                        </Grid>
-                    </Stack>
-                </Grid>
-            )}
-        </React.Fragment>
+                                <EditOutlinedIcon
+                                    sx={{
+                                        fontSize: "18px",
+                                        opacity: 0.82,
+                                    }}
+                                />
+                                Edit
+                            </CcButton>
+                        )}
+                    </Box>
+                    <Facts>
+                        <Fact label="Name">{row.name}</Fact>
+                        <Fact label="Email">{row.email}</Fact>
+                        <Fact label="Admin">
+                            {row.admin ? "True" : "False"}
+                        </Fact>
+                        <Fact label="Office Admin">
+                            {row.office_admin
+                                ? `${
+                                      locations?.find(
+                                          (lc) =>
+                                              lc.officeid == row?.office_admin
+                                      )?.Alias
+                                  }`
+                                : "None"}
+                        </Fact>
+                        <Fact label="Last Login" mono>
+                            {new Date(rowUser?.last_login).toLocaleDateString(
+                                "en-US",
+                                {
+                                    hour: "numeric",
+                                    minute: "numeric",
+                                    weekday: "long",
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                }
+                            )}
+                        </Fact>
+                        <Fact label="Groups">
+                            {row.groups.length == 0 ? (
+                                "None"
+                            ) : (
+                                <Box sx={factGroupsSx}>
+                                    <DisplayGroups groups={row.groups} />
+                                </Box>
+                            )}
+                        </Fact>
+                    </Facts>
+                </Box>
+
+                <Box sx={{ minWidth: 0 }}>
+                    <Box sx={groupHeaderSx}>
+                        <Box sx={groupLabelSx}>User Location</Box>
+                    </Box>
+                    <Facts>
+                        <Fact label="Alias">{location.Alias}</Fact>
+                        <Fact label="Number" mono>
+                            {location.Number}
+                        </Fact>
+                        <Fact label="City">{location.City}</Fact>
+                        <Fact label="State">{location.state}</Fact>
+                        <Fact label="Zip" mono>
+                            {location.Zip}
+                        </Fact>
+                        <Fact label="Address">{location.SAddress}</Fact>
+                        <Fact label="Airport" mono>
+                            {location.Airport}
+                        </Fact>
+                    </Facts>
+                </Box>
+            </Box>
+        </Box>
     );
 };
 

@@ -1,29 +1,63 @@
+/**
+ * AddNewUser — the create / edit user dialog.
+ *
+ * Concourse redesign. Visual only. Byte-identical and deliberately untouched:
+ *   - `emailPattern` and the `!emailPattern.test(email) && email !== ""`
+ *     predicate, plus the helper string `***.***@***.com OR ***@***.com`;
+ *   - the submit guard and its `showError("Fields cannot be empty")`;
+ *   - the `PostUser` / `UpdateUser` / `PostGroupUser` / `DeleteGroupUserById`
+ *     payloads, field for field, including the create/update asymmetry
+ *     (`office_admin: null` on create, `officeAdmin` on update);
+ *   - the two group-option filters, the `locations.filter(lc => lc.Alias !=
+ *     "All")` list and its trailing `<MenuItem key={999} value="">None</…>`;
+ *   - `onClose`'s reset list (which still does NOT reset `officeAdmin` —
+ *     recon §7.9, report-only) and the `[selectedUser, userLocation]` effect;
+ *   - the `user?.admin` gate on the Admin switch.
+ *
+ * Changed on purpose, per spec:
+ *   - the frame is `scopeDialogProps(560)` + `DialogSurface`/`DialogHeader`/
+ *     `DialogBody`/`DialogFooter`; the `Courier New` title and the `<Divider>`
+ *     are dropped because `DialogHeader` carries both roles;
+ *   - `accent="var(--cc-red)"` — without it `--cc-c` falls back to the
+ *     meeting-type green and the header wash goes green (guide §7.5);
+ *   - the MUI `Switch` is `CcSwitch`. **Its `onChange` hands back a boolean**,
+ *     so `setAdmin` is passed directly; the old `e.target.checked` would put
+ *     `undefined` into the `admin` payload field. The whole
+ *     `theme.palette.mode === "dark"` branch is deleted (guide §0.1);
+ *   - a `Cancel` button is added. It calls the existing `onClose` and nothing
+ *     else — the dialog previously had no dismiss control at all.
+ *   - `submitAttempted` is new, presentational state: it turns on `invalid`
+ *     for whichever of the four guarded fields is empty and focuses the first
+ *     one. It mirrors the guard exactly and changes no payload.
+ *
+ * Deliberately NOT added: a pending / `Saving…` state. `onSubmit` is
+ * fire-and-forget and `onClose()` runs synchronously, so a real pending flag
+ * would mean restructuring the promise chain — a behaviour change. Reported.
+ */
+
 import { useEffect, useState } from "react";
-import { useTheme } from "@emotion/react";
+import { Box, Dialog, MenuItem, Tooltip } from "@mui/material";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+import { type as ccType } from "../../../../Utilites/concourse";
 import {
-    Grid,
-    Stack,
-    Typography,
-    Button,
-    InputAdornment,
-    IconButton,
-    Tooltip,
-    Dialog,
-    FormControl,
-    InputLabel,
-    Select,
-    Box,
-    Divider,
-    Input,
-    TextField,
-    MenuItem,
-    OutlinedInput,
-    FormHelperText,
-    FormControlLabel,
-    Switch,
-    Chip,
-} from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
+    CcButton,
+    CcInput,
+    CcSelect,
+    CcSwitch,
+    DialogBody,
+    DialogFooter,
+    DialogHeader,
+    DialogSurface,
+    Field,
+    scopeDialogProps,
+    Spacer,
+    Tag,
+    TagRow,
+    TwoUp,
+} from "../../../Components/Concourse/ConcourseDialogKit";
+import { btnReset, hover } from "../../../Components/Banner/Components/atoms";
+import { ccTooltipSlotProps } from "./UsersConcourse";
 import {
     PostUser,
     UpdateUser,
@@ -40,6 +74,58 @@ import {
 
 const emailPattern = /^[^\s@]+(\.[^\s@]+)?@[^\s@]+\.[^\s@]+$/;
 
+/* --------------------------------------------------------------- styles --- */
+
+const groupLabelSx = {
+    ...ccType.blockLabel,
+    color: "var(--cc-mute)",
+    marginBottom: "8px",
+};
+
+const permissionsBoxSx = {
+    background: "var(--cc-srf2)",
+    borderRadius: "18px",
+    padding: "14px",
+    display: "grid",
+    gap: "12px",
+    boxSizing: "border-box",
+};
+
+/**
+ * A control sitting inside the `srf2` permissions group inverts to `srf`, the
+ * same way `Tag` and the status pill do (guide §2.7 / §4.10), or it vanishes
+ * into the block behind it.
+ */
+const insetControlSx = { background: "var(--cc-srf)" };
+
+/** The multi-select chip row: the original's 105px scroll box, in Tag form. */
+const chipRowSx = {
+    marginTop: 0,
+    maxHeight: "105px",
+    overflowY: "auto",
+    scrollbarWidth: "thin",
+    boxSizing: "border-box",
+};
+
+const passwordWrapSx = { position: "relative", minWidth: 0 };
+
+const passwordToggleSx = {
+    ...btnReset,
+    position: "absolute",
+    right: "10px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: "24px",
+    height: "24px",
+    borderRadius: "99px",
+    boxSizing: "border-box",
+    color: "var(--cc-mute)",
+    transition: "color 200ms",
+    ...hover({ color: "var(--cc-ink)" }),
+};
+
+/* ------------------------------------------------------------ component --- */
+
 const AddNewUser = ({
     open,
     setOpen,
@@ -51,9 +137,7 @@ const AddNewUser = ({
     setUpdate,
     filterLocation,
 }) => {
-    const theme = useTheme();
     const { user } = useAuth();
-    const ariaLabel = { "aria-label": "description" };
     const [admin, setAdmin] = useState(false);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -66,6 +150,8 @@ const AddNewUser = ({
     const [oldFullControl, setOldFullControl] = useState([]);
     const [oldReadAccess, setOldReadAccess] = useState([]);
     const [officeAdmin, setOfficeAdmin] = useState("");
+    // Presentational only — see the header note.
+    const [submitAttempted, setSubmitAttempted] = useState(false);
 
     const onClose = () => {
         setOpen(false);
@@ -81,9 +167,26 @@ const AddNewUser = ({
         setOldFullControl([]);
         setOldReadAccess([]);
         // }
+        setSubmitAttempted(false);
+    };
+
+    /** Mirrors the submit guard exactly; invents no rule of its own. */
+    const focusFirstInvalid = () => {
+        const target =
+            firstName === ""
+                ? "u-first"
+                : lastName === ""
+                ? "u-last"
+                : !(location?.officeid || location?.officeid === 0)
+                ? "u-loc"
+                : email === ""
+                ? "u-email"
+                : null;
+        if (target) document.getElementById(target)?.focus();
     };
 
     const onSubmit = () => {
+        setSubmitAttempted(true);
         if (
             firstName !== "" &&
             lastName !== "" &&
@@ -178,6 +281,7 @@ const AddNewUser = ({
             onClose();
         } else {
             showError("Fields cannot be empty");
+            focusFirstInvalid();
         }
     };
 
@@ -225,431 +329,266 @@ const AddNewUser = ({
         }
     }, [selectedUser, userLocation]);
 
+    /* -- derived, presentational ------------------------------------------ */
+
+    const emailInvalid = !emailPattern.test(email) && email !== "";
+    const missing = (value) => submitAttempted && value === "";
+    const locationMissing =
+        submitAttempted && !(location?.officeid || location?.officeid === 0);
+
+    const renderChips = (selected) => (
+        <TagRow sx={chipRowSx}>
+            {selected?.map((value) => (
+                <Tag key={value}>
+                    {groups?.find((gp) => gp.id === value)?.group_name}
+                </Tag>
+            ))}
+        </TagRow>
+    );
+
     return (
-        <Dialog open={!!open} onClose={onClose} maxWidth={false}>
-            <Grid
-                sx={{
-                    width: "fit-content",
-                    textAlign: "center",
-                    paddingBottom: "5px",
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                }}
-            >
-                <Typography
-                    variant="h5"
-                    textAlign={"center"}
-                    width={"100%"}
-                    fontFamily={"Courier New, sans-serif"}
-                    marginBottom={1}
-                    marginTop={1}
-                >
-                    {selectedUser ? "Edit" : "Add"} User
-                </Typography>
-                <Divider width={"100%"} />
-                <Stack
-                    direction={"row"}
-                    sx={{ minHeight: "380px", padding: "20px", height: "100%" }}
-                    spacing={2}
-                >
-                    <Stack direction={"column"} sx={{ flexGrow: 1 }}>
-                        <Stack
-                            sx={{
-                                display: "felx",
-                                flexDirection: "row",
-                                gap: 1,
-                            }}
-                        >
-                            <Input
+        <Dialog open={!!open} onClose={onClose} {...scopeDialogProps(560)}>
+            <DialogSurface accent="var(--cc-red)">
+                <DialogHeader
+                    title={`${selectedUser ? "Edit" : "Add"} User`}
+                    onClose={onClose}
+                />
+                <DialogBody>
+                    <TwoUp>
+                        <Field label="First Name" required htmlFor="u-first">
+                            <CcInput
+                                id="u-first"
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
-                                placeholder="First Name"
-                                inputProps={ariaLabel}
+                                invalid={missing(firstName)}
+                                autoComplete="off"
                             />
-                            <Input
+                        </Field>
+                        <Field label="Last Name" required htmlFor="u-last">
+                            <CcInput
+                                id="u-last"
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
-                                placeholder="Last Name"
-                                inputProps={ariaLabel}
+                                invalid={missing(lastName)}
+                                autoComplete="off"
                             />
-                        </Stack>
+                        </Field>
+                    </TwoUp>
 
-                        <Stack
-                            direction={"row"}
-                            sx={{
-                                width: "100%",
-                                maxHeight: "60px",
-                                marginTop: "10px",
+                    <Field
+                        label="Email"
+                        required
+                        htmlFor="u-email"
+                        error={
+                            emailInvalid
+                                ? "***.***@***.com OR ***@***.com"
+                                : undefined
+                        }
+                    >
+                        <CcInput
+                            id="u-email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setEmail(value);
                             }}
-                            spacing={1}
+                            invalid={emailInvalid || missing(email)}
+                            autoComplete="off"
+                        />
+                    </Field>
+
+                    <Field label="Location" required>
+                        <CcSelect
+                            // The id is what `focusFirstInvalid` focuses. MUI
+                            // then builds `aria-labelledby` from it, which on
+                            // this element points AT ITSELF and would make the
+                            // accessible name the selected office instead of
+                            // "Location"; clearing it lets `aria-label` win.
+                            SelectDisplayProps={{
+                                id: "u-loc",
+                                "aria-labelledby": undefined,
+                            }}
+                            ariaLabel="Location"
+                            invalid={locationMissing}
+                            value={location?.officeid || ""}
+                            onChange={(e) => {
+                                const selectedItem = locations?.find(
+                                    (itm) => itm.officeid === e.target.value
+                                );
+                                setLocation(selectedItem); // Return the entire object
+                            }}
                         >
-                            <TextField
-                                value={email}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    setEmail(value);
-                                }}
-                                error={
-                                    !emailPattern.test(email) && email !== ""
-                                        ? true
-                                        : false
-                                }
-                                variant={"standard"}
-                                label={"Email"}
-                                helperText={
-                                    !emailPattern.test(email) && email !== ""
-                                        ? "***.***@***.com OR ***@***.com"
-                                        : ""
-                                }
-                                sx={{
-                                    width: "100%",
-                                }}
-                            />
-                            <FormControl
-                                variant="standard"
-                                sx={{ minWidth: 120, width: "50%" }}
-                            >
-                                <InputLabel id="demo-simple-select-standard-label">
-                                    Location
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-simple-select-standard-label"
-                                    id="demo-simple-select-standard"
-                                    value={location?.officeid || ""}
+                            {locations?.map((itm, index) => (
+                                <MenuItem key={index} value={itm.officeid}>
+                                    {itm.Alias}
+                                </MenuItem>
+                            ))}
+                        </CcSelect>
+                    </Field>
+
+                    <Field
+                        label="Full Control"
+                        hint="Full access groups user is in"
+                    >
+                        <CcSelect
+                            ariaLabel="Full Control"
+                            multiple
+                            value={fullControl}
+                            onChange={handleFullControlChange}
+                            renderValue={renderChips}
+                        >
+                            {groups
+                                .filter(
+                                    (gp) =>
+                                        (gp.access != "Read" &&
+                                            gp.location ===
+                                                filterLocation?.officeid) ||
+                                        (gp.access != "Read" &&
+                                            filterLocation?.officeid == 0)
+                                )
+                                ?.map((name, index) => (
+                                    <MenuItem key={index} value={name.id}>
+                                        {name.group_name}
+                                    </MenuItem>
+                                ))}
+                        </CcSelect>
+                    </Field>
+
+                    <Field
+                        label="Read Access"
+                        hint="Read access groups user is in"
+                    >
+                        <CcSelect
+                            ariaLabel="Read Access"
+                            multiple
+                            value={readAccess}
+                            onChange={handleReadAccessChange}
+                            renderValue={renderChips}
+                        >
+                            {groups
+                                .filter(
+                                    (gp) =>
+                                        (gp.access != "Full" &&
+                                            gp.location ===
+                                                filterLocation?.officeid) ||
+                                        (gp.access != "Full" &&
+                                            filterLocation?.officeid == 0)
+                                )
+                                ?.map((name, index) => (
+                                    <MenuItem key={index} value={name.id}>
+                                        {name.group_name}
+                                    </MenuItem>
+                                ))}
+                        </CcSelect>
+                    </Field>
+
+                    <Box>
+                        <Box sx={groupLabelSx}>Permissions</Box>
+                        <Box sx={permissionsBoxSx}>
+                            {user?.admin && (
+                                <CcSwitch
+                                    id="u-admin"
+                                    checked={admin}
+                                    onChange={setAdmin}
+                                    label="Admin"
+                                />
+                            )}
+                            <Field label="Admin Of Office">
+                                <CcSelect
+                                    // Same reason as "Location" above.
+                                    SelectDisplayProps={{
+                                        id: "u-office-admin",
+                                        "aria-labelledby": undefined,
+                                    }}
+                                    ariaLabel="Admin Of Office"
+                                    sx={insetControlSx}
+                                    value={officeAdmin || ""}
                                     onChange={(e) => {
                                         const selectedItem = locations?.find(
                                             (itm) =>
                                                 itm.officeid === e.target.value
                                         );
-                                        setLocation(selectedItem); // Return the entire object
-                                    }}
-                                    label="Location"
-                                >
-                                    {locations?.map((itm, index) => (
-                                        <MenuItem
-                                            key={index}
-                                            value={itm.officeid}
-                                        >
-                                            {itm.Alias}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Stack>
-                        <Stack
-                            direction={"column"}
-                            sx={{
-                                flexGrow: 1,
-                                width: "100%",
-                                marginTop: "10px",
-                                display: "flex",
-                            }}
-                        >
-                            <FormControl
-                                sx={{ marginTop: "10px", width: "100%" }}
-                            >
-                                <InputLabel id="demo-multiple-chip-label">
-                                    Full Control
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-multiple-chip-label"
-                                    id="demo-multiple-chip"
-                                    multiple
-                                    value={fullControl}
-                                    onChange={handleFullControlChange}
-                                    input={
-                                        <OutlinedInput
-                                            id="select-multiple-chip-full"
-                                            label="Full Control"
-                                        />
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                flexWrap: "wrap",
-                                                gap: 0.5,
-                                                maxHeight: 105,
-                                                overflowY: "auto",
-                                                marginTop: "4px",
-                                            }}
-                                        >
-                                            {selected?.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={
-                                                        groups?.find(
-                                                            (gp) =>
-                                                                gp.id === value
-                                                        )?.group_name
-                                                    }
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                    sx={{
-                                        minHeight: 80, // Maximum height for the Select component
-                                        height: 110,
+                                        setOfficeAdmin(selectedItem?.officeid); // Return the entire object
                                     }}
                                 >
-                                    {groups
-                                        .filter(
-                                            (gp) =>
-                                                (gp.access != "Read" &&
-                                                    gp.location ===
-                                                        filterLocation?.officeid) ||
-                                                (gp.access != "Read" &&
-                                                    filterLocation?.officeid ==
-                                                        0)
-                                        )
-                                        ?.map((name, index) => (
+                                    {locations
+                                        ?.filter((lc) => lc.Alias != "All")
+                                        ?.map((itm, index) => (
                                             <MenuItem
                                                 key={index}
-                                                value={name.id}
-                                                sx={{
-                                                    fontWeight:
-                                                        fullControl.indexOf(
-                                                            name.id
-                                                        ) === -1
-                                                            ? theme.typography
-                                                                  .fontWeightRegular
-                                                            : theme.typography
-                                                                  .fontWeightMedium,
-                                                }}
+                                                value={itm.officeid}
                                             >
-                                                {name.group_name}
+                                                {itm.Alias}
                                             </MenuItem>
                                         ))}
-                                </Select>
-                                <FormHelperText>
-                                    Full access groups user is in
-                                </FormHelperText>
-                            </FormControl>
-                            <FormControl
-                                sx={{ marginTop: "10px", width: "100%" }}
-                            >
-                                <InputLabel id="demo-multiple-chip-label">
-                                    Read Access
-                                </InputLabel>
-                                <Select
-                                    labelId="demo-multiple-chip-label"
-                                    id="demo-multiple-chip"
-                                    multiple
-                                    value={readAccess}
-                                    onChange={handleReadAccessChange}
-                                    input={
-                                        <OutlinedInput
-                                            id="select-multiple-chip-read"
-                                            label="Read Access"
-                                        />
-                                    }
-                                    renderValue={(selected) => (
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                flexWrap: "wrap",
-                                                gap: 0.5,
-                                                maxHeight: 105,
-                                                overflowY: "auto",
-                                                marginTop: "4px",
-                                            }}
-                                        >
-                                            {selected?.map((value) => (
-                                                <Chip
-                                                    key={value}
-                                                    label={
-                                                        groups?.find(
-                                                            (gp) =>
-                                                                gp.id === value
-                                                        )?.group_name
-                                                    }
-                                                    sx={{ maxHeight: 25 }}
-                                                />
-                                            ))}
-                                        </Box>
-                                    )}
-                                    sx={{
-                                        minHeight: 80, // Maximum height for the Select component
-                                        height: 110,
-                                    }}
-                                >
-                                    {groups
-                                        .filter(
-                                            (gp) =>
-                                                (gp.access != "Full" &&
-                                                    gp.location ===
-                                                        filterLocation?.officeid) ||
-                                                (gp.access != "Full" &&
-                                                    filterLocation?.officeid ==
-                                                        0)
-                                        )
-                                        ?.map((name, index) => (
-                                            <MenuItem
-                                                key={index}
-                                                value={name.id}
-                                                sx={{
-                                                    fontWeight:
-                                                        readAccess.indexOf(
-                                                            name.id
-                                                        ) === -1
-                                                            ? theme.typography
-                                                                  .fontWeightRegular
-                                                            : theme.typography
-                                                                  .fontWeightMedium,
-                                                }}
-                                            >
-                                                {name.group_name}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                                <FormHelperText>
-                                    Read access groups user is in
-                                </FormHelperText>
-                            </FormControl>
-                            {!selectedUser?.id && (
-                                <Input
-                                    sx={{ marginTop: 2 }}
+                                    <MenuItem key={999} value={""}>
+                                        None
+                                    </MenuItem>
+                                </CcSelect>
+                            </Field>
+                        </Box>
+                    </Box>
+
+                    {!selectedUser?.id && (
+                        <Field label="Password" htmlFor="u-pass">
+                            <Box sx={passwordWrapSx}>
+                                <CcInput
+                                    id="u-pass"
                                     value={password}
                                     onChange={(e) =>
                                         setPassword(e.target.value)
                                     }
-                                    placeholder="Password"
                                     type={viewPassword ? "text" : "password"}
-                                    inputProps={ariaLabel}
-                                    endAdornment={
-                                        <InputAdornment position="end">
-                                            <Tooltip
-                                                title={
-                                                    viewPassword
-                                                        ? "Hide password"
-                                                        : "Unhide password"
-                                                }
-                                            >
-                                                <IconButton
-                                                    onClick={() =>
-                                                        setViewPassword(
-                                                            !viewPassword
-                                                        )
-                                                    }
-                                                    edge="end"
-                                                >
-                                                    {viewPassword ? (
-                                                        <VisibilityOff />
-                                                    ) : (
-                                                        <Visibility />
-                                                    )}
-                                                </IconButton>
-                                            </Tooltip>
-                                        </InputAdornment>
-                                    }
+                                    autoComplete="new-password"
+                                    sx={{ paddingRight: "38px" }}
                                 />
-                            )}
-                        </Stack>
-                    </Stack>
-                </Stack>
-                <Grid
-                    container
-                    direction={"row"}
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}
-                >
-                    <Grid item paddingLeft={"10px"}>
-                        {user?.admin && (
-                            <FormControlLabel
-                                control={
-                                    <Switch
-                                        checked={admin}
-                                        onChange={(e) =>
-                                            setAdmin(e.target.checked)
+                                <Tooltip
+                                    arrow
+                                    title={
+                                        viewPassword
+                                            ? "Hide password"
+                                            : "Unhide password"
+                                    }
+                                    slotProps={ccTooltipSlotProps}
+                                >
+                                    <Box
+                                        component="button"
+                                        type="button"
+                                        aria-label={
+                                            viewPassword
+                                                ? "Hide password"
+                                                : "Unhide password"
                                         }
-                                        sx={{
-                                            "& .MuiSwitch-switchBase": {
-                                                "&.Mui-checked": {
-                                                    color: "#fff",
-                                                    "& + .MuiSwitch-track": {
-                                                        backgroundColor:
-                                                            theme.palette
-                                                                .mode === "dark"
-                                                                ? "#2ECA45"
-                                                                : "#65C466",
-                                                        opacity: 1,
-                                                        border: 0,
-                                                    },
-                                                    "&.Mui-disabled + .MuiSwitch-track":
-                                                        {
-                                                            opacity: 0.5,
-                                                        },
-                                                },
-                                            },
-                                        }}
-                                    />
-                                }
-                                label="Admin"
-                                sx={{
-                                    "& .MuiFormControlLabel-label": {
-                                        color: admin ? "black" : "grey",
-                                    },
-                                }}
-                            />
-                        )}
+                                        onClick={() =>
+                                            setViewPassword(!viewPassword)
+                                        }
+                                        sx={passwordToggleSx}
+                                    >
+                                        {viewPassword ? (
+                                            <VisibilityOffOutlinedIcon
+                                                sx={{ fontSize: "18px" }}
+                                            />
+                                        ) : (
+                                            <VisibilityOutlinedIcon
+                                                sx={{ fontSize: "18px" }}
+                                            />
+                                        )}
+                                    </Box>
+                                </Tooltip>
+                            </Box>
+                        </Field>
+                    )}
+                </DialogBody>
 
-                        <FormControl
-                            variant="outlined"
-                            size="small"
-                            sx={{ minWidth: 155, width: "50%" }}
-                        >
-                            <InputLabel id="demo-simple-select-standard-label">
-                                Admin Of Office
-                            </InputLabel>
-                            <Select
-                                labelId="demo-simple-select-standard-label"
-                                id="demo-simple-select-standard"
-                                value={officeAdmin || ""}
-                                onChange={(e) => {
-                                    const selectedItem = locations?.find(
-                                        (itm) => itm.officeid === e.target.value
-                                    );
-                                    setOfficeAdmin(selectedItem?.officeid); // Return the entire object
-                                }}
-                                label=" Admin Of Office"
-                            >
-                                {locations
-                                    ?.filter((lc) => lc.Alias != "All")
-                                    ?.map((itm, index) => (
-                                        <MenuItem
-                                            key={index}
-                                            value={itm.officeid}
-                                        >
-                                            {itm.Alias}
-                                        </MenuItem>
-                                    ))}
-                                <MenuItem key={999} value={""}>
-                                    None
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Grid>
-                    <Grid item paddingRight={"10px"}>
-                        <Button
-                            variant="outlined"
-                            sx={{
-                                backgroundColor: "rgba(0,170,0,.2)",
-                                ":hover": {
-                                    backgroundColor: "rgba(0,200,0,.4)",
-                                },
-                            }}
-                            onClick={onSubmit}
-                        >
-                            Submit
-                        </Button>
-                    </Grid>
-                </Grid>
-            </Grid>
+                <DialogFooter>
+                    <Spacer />
+                    <CcButton onClick={onClose}>Cancel</CcButton>
+                    <CcButton variant="primary" onClick={onSubmit}>
+                        Submit
+                    </CcButton>
+                </DialogFooter>
+            </DialogSurface>
         </Dialog>
     );
 };

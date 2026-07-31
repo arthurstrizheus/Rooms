@@ -144,6 +144,9 @@ async function CanSeeMeet(meeting, user) {
         return true;
     }
     const room = await Room.findByPk(meeting.room);
+    if (!room) {
+        return false;
+    }
     if (user?.office_admin == room.location) {
         return true;
     }
@@ -151,13 +154,20 @@ async function CanSeeMeet(meeting, user) {
     // Fetch all groups the user belongs to
     const groupUsers = await GroupUser.findAll({ where: { user_id: user.id } });
 
-    // If the user is not part of any group, return an empty array
+    // If the user is not part of any group they cannot see the meeting
     if (!groupUsers.length) {
-        return res.status(200).json([]);
+        return false;
     }
 
     // Extract group IDs the user belongs to
     const groupIds = groupUsers?.map((gu) => gu.group_id);
+
+    // Rooms shared with "All SEA Staff" are visible to everyone, matching the
+    // non-recurring path in GetAllUserCanSee which unions that group in too
+    const allGroups = await Group.findAll({
+        where: { group_name: "All SEA Staff" },
+    });
+    groupIds.push(...allGroups.map((gp) => gp.id));
 
     // Find all room groups that match the user's group memberships
     const roomGroups = await RoomGroup.findAll({
@@ -226,6 +236,39 @@ async function isOverlappingFakeMeet(meet) {
     return isOverlapping; // Return true if overlap is found, false otherwise
 }
 
+/**
+ * In-memory twin of `isOverlappingFakeMeet`.
+ *
+ * `isOverlappingFakeMeet` only ever returns true for a stored meeting in the
+ * SAME room AND the SAME recurrence series, so the candidate set depends purely
+ * on (room, recurrence_id) — never on the individual occurrence's times. That
+ * lets the caller fetch the candidates once and re-use them for every generated
+ * occurrence instead of issuing one unbounded `SELECT * FROM [Rooms-Meetings]
+ * WHERE room = ?` per occurrence.
+ *
+ * `candidates` must already be narrowed to the matching room + recurrence_id.
+ * The time comparison below is byte-for-byte the one in isOverlappingFakeMeet.
+ */
+function overlapsFakeMeetCandidates(meet, candidates) {
+    if (!candidates?.length) return false;
+
+    const newStartTime = new Date(meet.start_time);
+    const newEndTime = new Date(meet.end_time);
+
+    return candidates.some((meeting) => {
+        const meetingStart = new Date(meeting.start_time);
+        const meetingEnd = new Date(meeting.end_time);
+
+        // Return true if there is an overlap
+        return newStartTime < meetingEnd && newEndTime > meetingStart;
+    });
+}
+
+/** Bucket key for the overlap candidate map: room + recurrence series. */
+function overlapCandidateKey(room, recurrenceId) {
+    return `${room}|${recurrenceId}`;
+}
+
 async function isOverlappingFakeMeetUpdate(meet) {
     // Fetch meetings in the same room
     const meetings = await Meeting.findAll({
@@ -253,7 +296,66 @@ async function isOverlappingFakeMeetUpdate(meet) {
     return isOverlapping; // Return true if overlap is found, false otherwise
 }
 
+/**
+ * Keep `baseDate`'s calendar day but take the clock time from `timeSource`.
+ * Used when a caller submits already-final times for one occurrence and the
+ * parent of the recurrence has to pick up the new time-of-day on its own date.
+ */
+function applyTimeOfDay(baseDate, timeSource) {
+    const result = new Date(baseDate);
+    const source = new Date(timeSource);
+    if (isNaN(result.getTime()) || isNaN(source.getTime())) {
+        return result;
+    }
+    result.setHours(
+        source.getHours(),
+        source.getMinutes(),
+        source.getSeconds(),
+        source.getMilliseconds(),
+    );
+    return result;
+}
+
+/**
+ * The only recurrence frequencies the generators below know how to advance a
+ * date cursor by.
+ *
+ * Both `Rooms-Meetings.repeats` and `Rooms-MeetingRecurrences.frequency` are
+ * free-form nullable STRING columns, the booking form offers an empty
+ * "— None —" option, and rows written by earlier versions of this code are
+ * still in the table — so a value outside this set is entirely plausible.
+ * Every generation loop advances its cursor in per-frequency branches, so an
+ * unrecognised value leaves the cursor untouched and the loop never ends.
+ * Anything not in this set therefore means "no recurrence": generate nothing.
+ */
+const RECURRENCE_FREQUENCIES = new Set([
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Yearly",
+]);
+
+/** True when `frequency` is one of the values a generation loop can advance. */
+function isKnownRecurrenceFrequency(frequency) {
+    return RECURRENCE_FREQUENCIES.has(frequency);
+}
+
 async function CreateRepeatingMeetingsOfThisMeeting(meeting) {
+    // No branch in the loop below advances the cursor for an unrecognised
+    // `repeats`, so it would spin forever. Treat it exactly like the
+    // "— None —" option: this meeting simply has no further occurrences.
+    if (!isKnownRecurrenceFrequency(meeting?.repeats)) {
+        // "" / null are the normal "does not repeat" values and are not worth
+        // logging; anything else is unexpected data worth being able to find.
+        if (meeting?.repeats) {
+            console.warn(
+                "Unrecognised meeting repeats value, generating no occurrences",
+                meeting.repeats,
+            );
+        }
+        return [];
+    }
+
     // Check 1 year ahead
     let extension = new Date(meeting.start_time);
     extension.setFullYear(extension.getFullYear() + 1);
@@ -298,11 +400,17 @@ async function CreateRepeatingMeetingsOfThisMeeting(meeting) {
     return meetings;
 }
 
+// `applyVisibility` filters the generated occurrences down to what `userId` is
+// allowed to see. Only the callers that return these to a user under a
+// visibility contract set it; the callers that use this as an internal
+// projection (overlap detection, next-parent lookup) must keep seeing every
+// occurrence or they would miss booking conflicts.
 async function CreateRepeatingMeetings(
     currentDate,
     range,
     userId,
     userOnly = false,
+    applyVisibility = false,
 ) {
     const user = await User.findByPk(userId);
 
@@ -455,8 +563,16 @@ async function CreateRepeatingMeetings(
 
     let meetings = [];
 
-    for (let meeting of meetingsWithRecurrence) {
-        // User special permissions
+    // ── Everything below is loop-invariant and is now fetched ONCE per request ──
+    // (it used to run inside the per-parent-meeting loop, or worse, inside the
+    // per-generated-occurrence loop).
+    let specialAccessMeetingIds = [];
+    // key: `${room}|${recurrence_id}` → candidate rows for the overlap check
+    const overlapCandidates = new Map();
+
+    if (meetingsWithRecurrence.length) {
+        // The special-permission lookups depend only on `userId`, so running
+        // them once per parent meeting was pure duplication.
         const special = await SpecialPermission.findAll({
             where: { user_id: userId },
         });
@@ -477,20 +593,111 @@ async function CreateRepeatingMeetings(
                     },
                 ],
             });
-            const meetIds = meetingsUserHasSpecialAccess?.map((mt) => mt.id);
-            if (
-                (!CanSeeMeet(meeting, user) && !meetIds.includes(meeting.id)) ||
-                !CanSeeMeet(meeting, user)
-            )
-                continue;
+            specialAccessMeetingIds =
+                meetingsUserHasSpecialAccess?.map((mt) => mt.id) ?? [];
         }
-        if (!CanSeeMeet(meeting, user)) continue; // Skip if user cannot see this meeting
+
+        // ── Overlap candidates for the whole request, in one bounded query ──
+        //
+        // This replaces the per-occurrence `isOverlappingFakeMeet()` call, whose
+        // query was `SELECT <all 21 columns> FROM [Rooms-Meetings] WHERE room = ?`
+        // with no date bound at all. With no index on [room] that is a full table
+        // scan, and the loop below fired one per generated occurrence — hundreds
+        // to thousands per request. That is what exhausted the 5-connection pool
+        // and surfaced as ECONNRESET / "Request failed to complete in 15000ms".
+        //
+        // Bounds are deliberately conservative supersets of what each individual
+        // occurrence could match, so the in-memory check below sees exactly the
+        // rows the old per-occurrence query would have handed it:
+        //   • recurrence_id — the old check only ever returned true when
+        //     `meeting.recurrence_id === meet.recurrence_id`.
+        //   • end_time > earliest parent start — every generated occurrence
+        //     starts strictly AFTER its parent's start_time, so a meeting that
+        //     already ended by the earliest parent start cannot overlap any.
+        //   • start_time < window end — the loop below never generates past
+        //     `extension` (worst case currentDate + 1 year for range "Year")
+        //     plus one recurrence step (worst case 1 year), plus a day of
+        //     time-of-day normalisation, plus the longest meeting duration.
+        let earliestParentStartMs = Infinity;
+        let longestMeetingMs = 0;
+        for (const parent of meetingsWithRecurrence) {
+            const startMs = new Date(parent.start_time).getTime();
+            const endMs = new Date(parent.end_time).getTime();
+            if (Number.isFinite(startMs) && startMs < earliestParentStartMs) {
+                earliestParentStartMs = startMs;
+            }
+            const durationMs = endMs - startMs;
+            if (Number.isFinite(durationMs) && durationMs > longestMeetingMs) {
+                longestMeetingMs = durationMs;
+            }
+        }
+
+        const overlapWindowEnd = new Date(currentDate);
+        overlapWindowEnd.setFullYear(overlapWindowEnd.getFullYear() + 2);
+        overlapWindowEnd.setDate(overlapWindowEnd.getDate() + 2);
+
+        if (Number.isFinite(earliestParentStartMs)) {
+            const overlapRows = await Meeting.findAll({
+                // Only the columns the overlap check actually reads.
+                attributes: [
+                    "id",
+                    "room",
+                    "recurrence_id",
+                    "start_time",
+                    "end_time",
+                ],
+                where: {
+                    recurrence_id: { [Sequelize.Op.in]: recurrenceIds },
+                    end_time: {
+                        [Sequelize.Op.gt]: new Date(earliestParentStartMs),
+                    },
+                    start_time: {
+                        [Sequelize.Op.lt]: new Date(
+                            overlapWindowEnd.getTime() + longestMeetingMs,
+                        ),
+                    },
+                },
+            });
+
+            for (const row of overlapRows) {
+                const key = overlapCandidateKey(row.room, row.recurrence_id);
+                const bucket = overlapCandidates.get(key);
+                if (bucket) bucket.push(row);
+                else overlapCandidates.set(key, [row]);
+            }
+        }
+    }
+
+    for (let meeting of meetingsWithRecurrence) {
+        // User special permissions
+        const hasSpecialAccess = specialAccessMeetingIds.includes(meeting.id);
+        // Resolved once per parent meeting, not per generated occurrence:
+        // visibility depends on the meeting, not on the individual occurrence.
+        if (applyVisibility) {
+            const canSee =
+                (await CanSeeMeet(meeting, user)) || hasSpecialAccess;
+            if (!canSee) continue; // Skip if user cannot see this meeting
+        }
         if (meeting.status === "Canceled") continue;
 
         const recurrence = await MeetingRecurrence.findByPk(
             meeting.recurrence_id,
         );
         if (!recurrence || !recurrence?.active) continue; // Skip if no recurrence exists…
+
+        // Same hazard as in CreateRepeatingMeetingsOfThisMeeting: the generation
+        // loop further down only advances its cursor for the four known
+        // frequencies, so an unrecognised one would spin forever. Skip the
+        // series instead — its stored meetings are still returned by the normal
+        // queries, we just cannot project any occurrences from it.
+        if (!isKnownRecurrenceFrequency(recurrence.frequency)) {
+            console.warn(
+                "Unrecognised recurrence frequency, skipping recurrence",
+                recurrence.id,
+                recurrence.frequency,
+            );
+            continue;
+        }
 
         // ── NEW! Grab every *real* meeting (aka moved ones) in our window … ──
         let extension = new Date(currentDate);
@@ -561,6 +768,19 @@ async function CreateRepeatingMeetings(
                 }
             }),
         );
+        // Both of these are constant for every occurrence this parent
+        // generates, so they are resolved here instead of inside the while loop.
+        let updatedUser = null;
+        if (meeting.dataValues.updated_user_id) {
+            updatedUser = await User.findByPk(
+                meeting.dataValues.updated_user_id,
+            );
+        }
+        const meetingOverlapCandidates =
+            overlapCandidates.get(
+                overlapCandidateKey(meeting.room, meeting.recurrence_id),
+            ) ?? [];
+
         let currentStartTime = new Date(meeting.start_time);
         let currentEndTime = new Date(meeting.end_time);
         //`while (currentStartTime <= extension)` block …
@@ -623,13 +843,6 @@ async function CreateRepeatingMeetings(
                 // Oh look: a real meeting already snagged this slot. No ghost allowed!
                 continue;
             }
-            let updatedUser = null;
-            if (meeting.dataValues.updated_user_id) {
-                updatedUser = await User.findByPk(
-                    meeting.dataValues.updated_user_id,
-                );
-            }
-
             // Overlapping‑check… if it still passes, push the fake
             const fakeMeet = {
                 ...meeting.toJSON(),
@@ -641,7 +854,12 @@ async function CreateRepeatingMeetings(
             };
             // Only push non-overlapping fake meetings
             // console.log('New Fake Meet', fakeMeet);
-            const createFakeMeet = await isOverlappingFakeMeet(fakeMeet);
+            // Same predicate as isOverlappingFakeMeet(), but against the
+            // pre-fetched candidates instead of a fresh full-table query.
+            const createFakeMeet = overlapsFakeMeetCandidates(
+                fakeMeet,
+                meetingOverlapCandidates,
+            );
             if (!createFakeMeet) meetings.push(fakeMeet);
         }
     }
@@ -1122,7 +1340,13 @@ const GetAllUserCanSee = async (req, res) => {
                 });
         }
 
-        const fakeMeets = await CreateRepeatingMeetings(date, range, id); // Create repeating meetings if they do not exist, only the next 30 from the date
+        const fakeMeets = await CreateRepeatingMeetings(
+            date,
+            range,
+            id,
+            false,
+            true,
+        ); // Create repeating meetings if they do not exist, only the next 30 from the date
 
         const groups = await Group.findAll({
             where: {
@@ -1561,9 +1785,13 @@ const CanBook = async (req, res) => {
             isOverlapping = blockedDates.some((meeting) => {
                 const meetingStart = new Date(meeting.start_time);
                 const meetingEnd = new Date(meeting.end_time);
-                // Check if the new meeting overlaps with an blocked dates
+                // Check if the new meeting overlaps with an blocked dates.
+                // A blocked date belongs to exactly one room (`room_id`, NOT
+                // NULL), so it must only block bookings in that room.
                 return (
-                    (newStartTime < meetingEnd && newEndTime > meetingStart) ||
+                    (meeting.room_id == room &&
+                        newStartTime < meetingEnd &&
+                        newEndTime > meetingStart) ||
                     ((meeting.all_day || allDay) &&
                         meeting.room == room &&
                         ((getDate(newStartTime) == getDate(meetingStart) &&
@@ -2165,6 +2393,33 @@ const UpdateAllRecurrence = async (req, res) => {
                 .status(403)
                 .json({ message: "Access Denied", update: false });
         }
+        // Work out the parent's new times before anything reads them.
+        //
+        // Drag/resize sends where the occurrence moved to (new_start_time /
+        // new_end_time) so the same shift can be applied to the parent — fake
+        // repeating meetings are not actually stored, so the parent is all we
+        // have to move. The edit form has already baked the new time into
+        // start_time/end_time and sends no new_* pair; there the intent is to
+        // apply the submitted time-of-day to the parent's own date.
+        let newStart;
+        let newEnd;
+        if (new_start_time && new_end_time) {
+            const startDeltaMs =
+                new Date(new_start_time).getTime() -
+                new Date(start_time).getTime();
+            const endDeltaMs =
+                new Date(new_end_time).getTime() - new Date(end_time).getTime();
+            newStart = new Date(
+                new Date(resource.start_time).getTime() + startDeltaMs,
+            );
+            newEnd = new Date(
+                new Date(resource.end_time).getTime() + endDeltaMs,
+            );
+        } else {
+            newStart = applyTimeOfDay(resource.start_time, start_time);
+            newEnd = applyTimeOfDay(resource.end_time, end_time);
+        }
+
         // Determine status & notify for full recurrence update
         const tempFull = {
             ...resource.toJSON(),
@@ -2205,23 +2460,6 @@ const UpdateAllRecurrence = async (req, res) => {
         await recurance.update({
             frequency: repeats,
         });
-        // Need to find the original meeting that the user dragged (Fake repeating meetings are not acutall stored because who want coding to be easy!)
-        let startDeltaMs =
-            new Date(start_time).getTime() - new Date(new_start_time).getTime();
-        let endDeltaMs =
-            new Date(end_time).getTime() - new Date(new_end_time).getTime();
-
-        // Are we adding or subtracting time
-        startDeltaMs = startDeltaMs * -1;
-        endDeltaMs = endDeltaMs * -1;
-
-        // Now apply those deltas
-        const newStart = new Date(
-            new Date(resource.start_time).getTime() + startDeltaMs,
-        );
-        const newEnd = new Date(
-            new Date(resource.end_time).getTime() + endDeltaMs,
-        );
         //Update the resource record in the database
         await resource.update({
             ...resource.dataValues,

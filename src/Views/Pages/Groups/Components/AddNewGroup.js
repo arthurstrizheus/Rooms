@@ -1,23 +1,30 @@
 import { useEffect, useState } from "react";
-import {
-  Stack,
-  Typography,
-  Button,
-  Dialog,
-  Divider,
-  Input,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-} from "@mui/material";
+import { Dialog, MenuItem } from "@mui/material";
 import { useAuth } from "../../../../Utilites/AuthContext";
 import { PostGroup } from "../../../../Utilites/Functions/ApiFunctions/GroupFunctions";
 import { showError } from "../../../../Utilites/Functions/ApiFunctions";
+import {
+  CcButton,
+  CcInput,
+  CcSelect,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  DialogSurface,
+  Field,
+  scopeDialogProps,
+  Spacer,
+} from "../../../Components/Concourse/ConcourseDialogKit";
+
+/* ------------------------------------------------------------------ notes ---
+ * Concourse adoption. Visual only: onClose, onSubmit, the validation guard and
+ * its literal string, the POST payload shape and the Full/Read enum values are
+ * all carried over unchanged. The location-block condition keeps its original
+ * tests but is now parenthesised — see the comment at the block itself.
+ * -------------------------------------------------------------------------- */
 
 const AddNewGroup = ({ open, setOpen, location, locations, setUpdate }) => {
   const { user } = useAuth();
-  const ariaLabel = { "aria-label": "description" };
   const [access, setAccess] = useState("");
   const [groupName, setGroupName] = useState("");
   const [selectedLocation, setSelectedLocation] = useState(location);
@@ -51,92 +58,78 @@ const AddNewGroup = ({ open, setOpen, location, locations, setUpdate }) => {
   }, [location]);
 
   return (
-    <Dialog open={!!open} onClose={onClose} maxWidth="xs">
-      <Stack direction={"column"} sx={{ width: "300px", padding: "20px" }}>
-        <Typography
-          variant="h5"
-          textAlign={"center"}
-          width={"100%"}
-          fontFamily={"Courier New, sans-serif"}
-          marginBottom={2}
-        >
-          Add New Group
-        </Typography>
-        <Divider width={"100%"} />
-        <Input
-          sx={{ marginTop: "30px" }}
-          value={groupName}
-          onChange={(e) => setGroupName(e.target.value)}
-          placeholder="Group Name"
-          inputProps={ariaLabel}
-        />
-        <FormControl variant="standard" sx={{ minWidth: 160, width: "100%" }}>
-          <InputLabel id="demo-simple-select-standard-label">
-            Select Access
-          </InputLabel>
-          <Select
-            sx={{ width: "100%" }}
-            labelId="demo-simple-select-standard-label"
-            id="demo-simple-select-standard"
-            value={access}
-            onChange={(e) => setAccess(e.target.value)}
-          >
-            <MenuItem key={1} value={"Full"}>
-              Full
-            </MenuItem>
-            <MenuItem key={2} value={"Read"}>
-              Read
-            </MenuItem>
-          </Select>
-        </FormControl>
-        {location === 0 ||
-          location == undefined ||
-          (location == null && (
-            <FormControl
-              variant="standard"
-              sx={{ minWidth: 160, width: "100%" }}
+    // `--cc-c` on the page root never reaches a portal, so the surface carries
+    // its own accent or DialogHeader's gradient washes bright green (guide §7.5).
+    <Dialog open={!!open} onClose={onClose} {...scopeDialogProps(480)}>
+      <DialogSurface accent="var(--cc-red)">
+        <DialogHeader title="Add New Group" onClose={onClose} />
+        <DialogBody>
+          <Field label="Group Name" htmlFor="group-name">
+            <CcInput
+              id="group-name"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Group Name"
+            />
+          </Field>
+          <Field label="Select Access" htmlFor="group-access">
+            <CcSelect
+              id="group-access"
+              ariaLabel="Select Access"
+              value={access}
+              onChange={(e) => setAccess(e.target.value)}
             >
-              <InputLabel id="demo-simple-select-standard-label-location">
-                Select Location
-              </InputLabel>
-              <Select
-                sx={{ width: "100%" }}
-                labelId="demo-simple-select-standard-label-location"
-                id="demo-simple-select-standard-location"
-                value={
-                  selectedLocation?.officeid === 0
-                    ? 0
-                    : selectedLocation?.officeid
-                    ? selectedLocation.officeid
-                    : ""
-                }
-                onChange={(e) => {
-                  const selectedItem = locations?.find(
-                    (itm) => itm.officeid === e.target.value
-                  );
-                  setSelectedLocation(selectedItem); // Return the entire object
-                }}
-              >
-                {locations?.map((itm, index) => (
-                  <MenuItem key={index} value={itm.officeid}>
-                    {itm.Alias}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          ))}
-        <Button
-          variant="outlined"
-          sx={{
-            marginTop: "20px",
-            backgroundColor: "rgba(0,170,0,.2)",
-            ":hover": { backgroundColor: "rgba(0,200,0,.4)" },
-          }}
-          onClick={onSubmit}
-        >
-          Submit
-        </Button>
-      </Stack>
+              <MenuItem key={1} value={"Full"}>
+                Full
+              </MenuItem>
+              <MenuItem key={2} value={"Read"}>
+                Read
+              </MenuItem>
+            </CcSelect>
+          </Field>
+          {/* Shown only when the caller supplied no location, so the group has
+              somewhere to go. The three tests were originally unparenthesised;
+              `&&` binds tighter than `||`, so the guard bound to the last test
+              alone and the block was unreachable for every value of `location`.
+              Parenthesised, not rewritten: the tests themselves are unchanged. */}
+          {(location === 0 ||
+            location == undefined ||
+            location == null) && (
+              <Field label="Select Location" htmlFor="group-location">
+                <CcSelect
+                  id="group-location"
+                  ariaLabel="Select Location"
+                  value={
+                    selectedLocation?.officeid === 0
+                      ? 0
+                      : selectedLocation?.officeid
+                      ? selectedLocation.officeid
+                      : ""
+                  }
+                  onChange={(e) => {
+                    const selectedItem = locations?.find(
+                      (itm) => itm.officeid === e.target.value
+                    );
+                    setSelectedLocation(selectedItem); // Return the entire object
+                  }}
+                >
+                  {locations?.map((itm, index) => (
+                    <MenuItem key={index} value={itm.officeid}>
+                      {itm.Alias}
+                    </MenuItem>
+                  ))}
+                </CcSelect>
+              </Field>
+            )}
+        </DialogBody>
+        <DialogFooter>
+          <Spacer />
+          <CcButton onClick={onClose}>Cancel</CcButton>
+          <CcButton variant="primary" onClick={onSubmit}>
+            Submit
+          </CcButton>
+        </DialogFooter>
+      </DialogSurface>
     </Dialog>
   );
 };

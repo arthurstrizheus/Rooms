@@ -254,7 +254,7 @@ export async function UpdateParentOnlyMeeting(id, data) {
 
         const errorCheck = handleApiResponseError(resp);
         if (errorCheck.isError && errorCheck?.message) {
-            return showError(errorCheck.me);
+            return showError(errorCheck.message);
         }
         return resp.data;
     } catch (err) {

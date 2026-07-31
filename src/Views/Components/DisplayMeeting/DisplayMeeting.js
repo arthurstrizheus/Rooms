@@ -20,8 +20,8 @@ import {
     Fact,
     Facts,
     fmt12,
-    formatCapacity,
     formatDuration,
+    formatRoomMeta,
     HeroTime,
     PersonRow,
     RoomCard,
@@ -29,8 +29,6 @@ import {
     ScopeOption,
     scopeDialogProps,
     Spacer,
-    Tag,
-    TagRow,
     TYPE_FALLBACK,
 } from "../Concourse/ConcourseDialogKit";
 
@@ -344,7 +342,15 @@ const DisplayMeeting = ({
                     {room ? (
                         <RoomCard
                             name={roomName}
-                            meta={formatCapacity(room.capacity)}
+                            // What the room has, if we know of anything; how
+                            // many it seats when we do not. The equipment used
+                            // to sit in a TagRow below this line, so putting it
+                            // here and keeping the chips would have printed the
+                            // same list twice.
+                            meta={formatRoomMeta(
+                                roomResourceList,
+                                room.capacity
+                            )}
                             thumb={
                                 room.image_url && roomImage ? (
                                     <ImageViewer
@@ -360,24 +366,7 @@ const DisplayMeeting = ({
                                     />
                                 ) : null
                             }
-                        >
-                            {roomResourceList.length ? (
-                                <TagRow>
-                                    {roomResourceList
-                                        .slice(0, 4)
-                                        .map((resource) => (
-                                            <Tag key={resource.id}>
-                                                {resource.name}
-                                            </Tag>
-                                        ))}
-                                    {roomResourceList.length > 4 ? (
-                                        <Tag>{`+${
-                                            roomResourceList.length - 4
-                                        } more`}</Tag>
-                                    ) : null}
-                                </TagRow>
-                            ) : null}
-                        </RoomCard>
+                        />
                     ) : null}
 
                     <PersonRow

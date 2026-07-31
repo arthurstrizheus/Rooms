@@ -122,7 +122,16 @@ const AppRoutes = ({
                     />
                 }
             />
-            <Route path="/" exact element={<LogIn setLoading={setLoading} />} />
+            <Route
+                path="/"
+                exact
+                element={
+                    <LogIn
+                        setLoading={setLoading}
+                        setDrawerOpen={setDrawerOpen}
+                    />
+                }
+            />
             <Route
                 path="/schedule/type/day"
                 element={
@@ -282,11 +291,13 @@ const AppRoutes = ({
             <Route
                 path="/admin-dashboard"
                 element={
-                    user?.admin && (
+                    user?.admin ? (
                         <AdminDashboard
                             setLoading={setLoading}
                             loading={loading}
                         />
+                    ) : (
+                        <NotFoundPage />
                     )
                 }
             />

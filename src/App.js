@@ -29,6 +29,17 @@ const OVERLAY_QUERY = `(max-width:${bp.rail - 0.05}px)`;
 
 const SHELL_EASE = `${ccMotion.dur.side}ms var(--cc-sp)`;
 
+// The calendar the app lands on: the month grid on a desktop, the week view on
+// a phone. ONE copy of that choice — the post-login redirects below and the
+// Banner's "Book a room" CTA all route here.
+const DEFAULT_CALENDAR_PATH = isMobile
+    ? "/schedule/type/week"
+    : "/schedule/type/month";
+
+// The three calendar routes (Routes.js). Only these mount the booking dialog.
+const isCalendarPath = (pathname) =>
+    String(pathname || "").startsWith("/schedule/type");
+
 function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -58,6 +69,27 @@ function App() {
 
     const handleDrawerOpen = () => setOpen(true);
     const handleDrawerClose = () => setOpen(false);
+
+    const onCalendar = isCalendarPath(location.pathname);
+
+    // The Banner's CTA is app-wide but the booking dialog is the Calendar's, so
+    // from anywhere else the click has to take the user there first. The intent
+    // survives the navigation in state, and the Calendar consumes it as it
+    // mounts — one click, one dialog. On a calendar route we only raise the
+    // intent, so the user keeps the view they are on.
+    const handleBookRoom = () => {
+        setBookIntent((n) => n + 1);
+        if (!onCalendar) navigate(DEFAULT_CALENDAR_PATH);
+    };
+
+    // An intent only means anything while the Calendar is mounted to consume
+    // it. Dropping it on the way out is what keeps a click that has already
+    // been served from re-opening the dialog the next time the user walks back
+    // onto the calendar — the Calendar remounts there, and its de-dupe ref
+    // starts from zero again.
+    useEffect(() => {
+        if (!onCalendar) setBookIntent(0);
+    }, [onCalendar]);
 
     useEffect(() => {
         delay(120000).then(() => setUpdate((prev) => prev + 1));
@@ -89,9 +121,7 @@ function App() {
             if (user && token) {
                 setUser(user);
                 login(user, token);
-                navigate(
-                    isMobile ? "/schedule/type/week" : "/schedule/type/month"
-                );
+                navigate(DEFAULT_CALENDAR_PATH);
                 setOpen(isMobile ? false : true);
             }
         }
@@ -111,9 +141,7 @@ function App() {
             login(userData, storedToken);
             setOpen(isMobile ? false : true);
             if (localStorage.getItem("lastLocation") === "/") {
-                navigate(
-                    isMobile ? "/schedule/type/week" : "/schedule/type/month"
-                );
+                navigate(DEFAULT_CALENDAR_PATH);
             } else {
                 navigate(localStorage.getItem("lastLocation"));
             }
@@ -237,9 +265,7 @@ function App() {
                                         setSelectedDate={setSelectedDate}
                                         onOpenDrawer={handleDrawerOpen}
                                         drawerOpen={open}
-                                        onBookRoom={() =>
-                                            setBookIntent((n) => n + 1)
-                                        }
+                                        onBookRoom={handleBookRoom}
                                     />
                                 )}
 

@@ -24,19 +24,41 @@ export function handleApiResponseError(response) {
                 isError: true,
                 message: "Server Error: Please try again later.",
             };
-        case 409:
+        case 409: {
+            // 409 is this app's booking-conflict status ("Meeting time overlaps
+            // with an existing meeting", "Access Denied", ...). The server's copy
+            // is user-facing, so keep it verbatim whenever one was sent. When it
+            // was not, still return a non-empty message: callers gate on
+            // `isError && message`, so an empty/undefined message here would let a
+            // rejected booking fall through into the success path.
+            const conflictMessage = response.response?.data?.message;
             return {
                 isError: true,
-                message: response.response.data.message,
+                message:
+                    typeof conflictMessage === "string" &&
+                    conflictMessage.trim()
+                        ? conflictMessage
+                        : "Conflict: This request could not be completed. Please refresh and try again.",
             };
+        }
         default:
             return {
                 isError: true,
                 message:
-                    response.response.data.message ||
-                    `Unexpected Error: ${
-                        response.statusText || "An error occurred."
-                    }`,
+                    response.response?.data?.message ||
+                    (response.response
+                        ? `Unexpected Error: ${
+                              // On an AxiosError the status text lives on
+                              // `.response.statusText`; the error itself has no
+                              // `statusText`, so reading it directly always fell
+                              // through to the generic wording below.
+                              response.response.statusText ||
+                              response.statusText ||
+                              "An error occurred."
+                          }`
+                        : // Axios network error: the request never reached the
+                          // server, so there is no `response.response` to read.
+                          "No response from the server. Please check your connection."),
             };
     }
 }

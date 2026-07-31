@@ -90,7 +90,7 @@ const Delete = async (req, res) => {
         if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
         }
-        if (req.user?.office_admin != location && !req.user?.admin) {
+        if (req.user?.office_admin != resource.location && !req.user?.admin) {
             return res.status(403).json({
                 message: "Cannot delete resources from another office.",
             });
