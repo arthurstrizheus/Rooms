@@ -1751,3 +1751,30 @@ keep clicking things while they type" was wrong for exactly this reason.
 **Also changed:** the dialog title is now "Let's blame the software, not the developer".
 
 **Verified:** `npm run build` compiles. **Not verified:** not seen in a browser.
+
+### 2026-07-31 (same day) — follow-up 4: the tally fix, and menu ownership
+
+The counter was reported as still climbing when a dropdown option was picked inside the support form, after
+follow-up 3 had landed. The behaviour was pinned with a test rather than guessed at again.
+
+The test lives in the **MatterManager** port (`frontend/src/hooks/useRageClick.test.jsx`, 6 tests) because this
+repo has no test infrastructure. It dispatches real `pointerdown` events and asserts, among other things, that
+the tally **stops dead once disabled — including on a press inside a `.MuiPopover-root` portalled to
+`document.body`**, which is exactly the reported click. All six pass.
+
+The two `useClickTally` implementations were then diffed with comments stripped. The **only** difference is the
+SSR guard `|| typeof window === "undefined"` that Next.js needs and Create React App does not; the logic is
+otherwise identical, so that test covers this app too.
+
+**Conclusion: follow-up 3 was correct and complete, and the running bundle was stale** — Fast Refresh preserves
+component state and can keep a previously-registered effect alive. Confirmed fixed by the user after a reload.
+
+**A second guard was added anyway, because it is right on its own terms.** The `[data-clippy]` exemption tested
+DOM ancestry, but a `CcSelect`'s menu portals to `document.body` — Clippy's surface without being Clippy's
+descendant. The form's menus now carry `data-clippy="menu"`, so **the exemption follows ownership rather than
+DOM position**. `CcSelect` spreads caller props AFTER its own `MenuProps`, so `CLIPPY_MENU_PROPS` REPLACES them
+and reproduces the paper styling via the kit's exported `menuPaperSx` — merging is not an option there.
+
+Two comments still claiming the tally was "live while the form is open" were corrected.
+
+**Verified:** `npm run build` compiles, no warnings in any Clippy file; user-confirmed fixed in the running app.
