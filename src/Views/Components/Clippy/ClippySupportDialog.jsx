@@ -32,6 +32,7 @@ import {
     Facts,
     Fact,
     cc,
+    menuPaperSx,
 } from "../Concourse/ConcourseDialogKit";
 import ClippyFigure from "./ClippyFigure";
 import { PostSupportRequest } from "../../../Utilites/Functions/ApiFunctions/SupportFunctions";
@@ -44,6 +45,21 @@ import {
     tallyVerdict,
 } from "./clippyCopy";
 import { DEFAULT_ART, badgeFor } from "./clippyBadges";
+
+/**
+ * A Select menu portals to document.body, so it is NOT inside the dialog and the
+ * [data-clippy] exemption cannot reach it by ancestry. It is still Clippy own
+ * surface, so it says so itself — the exemption follows OWNERSHIP, not DOM
+ * position. Belt and braces: the tally is already disabled while the form is
+ * open (see ClippyAssistant), and this keeps menu clicks uncounted even if that
+ * ever changes.
+ *
+ * CcSelect spreads its caller props AFTER its own MenuProps, so this REPLACES
+ * them; the paper styling is reproduced here rather than merged.
+ */
+const CLIPPY_MENU_PROPS = {
+    PaperProps: { sx: menuPaperSx(300), "data-clippy": "menu" },
+};
 
 /** Chrome/Edge/Firefox/Safari + major version, or the raw UA if it is something else. */
 const readBrowser = (ua) => {
@@ -136,8 +152,11 @@ const ClippySupportDialog = ({ open, clicks, user, onClose, onSent }) => {
                 />
 
                 <DialogBody>
-                    {/* The rage-o-meter. Live — it keeps counting while the form
-                        is open, because people carry on clicking. */}
+                    {/* The rage-o-meter. FROZEN while the form is open: this
+                        dialog is modal, so from here on every press is either
+                        the form or the backdrop, and none of it is rage at the
+                        app. The number is the count of the tantrum, not of the
+                        paperwork. See the note in ClippyAssistant. */}
                     <Field label={FORM.tallyLabel}>
                         <RageMeter clicks={clicks} />
                     </Field>
@@ -148,6 +167,7 @@ const ClippySupportDialog = ({ open, clicks, user, onClose, onSent }) => {
                             value={doing}
                             onChange={(e) => setDoing(e.target.value)}
                             ariaLabel={FORM.doingLabel}
+                            MenuProps={CLIPPY_MENU_PROPS}
                             fullWidth
                         >
                             {DOING_OPTIONS.map((o) => (
@@ -218,6 +238,7 @@ const ClippySupportDialog = ({ open, clicks, user, onClose, onSent }) => {
                             value={mood}
                             onChange={(e) => setMood(e.target.value)}
                             ariaLabel={FORM.moodLabel}
+                            MenuProps={CLIPPY_MENU_PROPS}
                             fullWidth
                         >
                             {MOOD_OPTIONS.map((o) => (
@@ -278,10 +299,12 @@ const ClippySupportDialog = ({ open, clicks, user, onClose, onSent }) => {
 };
 
 /**
- * The rage-o-meter: the live count, a verdict on it, and the badge it is
- * currently earning. Still live while the form is open — people keep clicking
- * things while they type — so the Clippy here re-skins mid-form exactly as the
- * one in the bubble does.
+ * The rage-o-meter: the count, a verdict on it, and the badge it earned.
+ *
+ * The count is FROZEN by the time this renders — it stops when the modal form
+ * opens, so it reports the tantrum rather than the paperwork. Clippy still wears
+ * the badge that count earned; he simply stops re-skinning, because the number
+ * is no longer moving.
  *
  * Split out only so the body above stays readable as a list of fields.
  */

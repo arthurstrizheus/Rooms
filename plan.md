@@ -1729,3 +1729,25 @@ warnings in any new file. Contact sheet: `scratchpad/clippy-badges.html`.
 been seen in a real Outlook or Gmail client. `PUBLIC_BASE_URL` defaults to
 `https://rooms.sealimited.com` — if that origin is not reachable from wherever
 mail is read, the images will not load. Nothing has been exercised in a browser.
+
+### 2026-07-31 (same day) — follow-up 3: the tally counted the paperwork
+
+**Reported (against the MatterManager port, and true here too):** picking an option from a dropdown inside the
+support form pushed the click counter up.
+
+**Cause.** The exemption is `[data-clippy]` on the dialog. MUI Select menus portal to `document.body`, outside
+the dialog, so `closest("[data-clippy]")` could not see them and every menu click was tallied.
+
+**Fix — not the one that first suggests itself.** Tagging the portalled menus would patch the symptom. The point
+is that the support dialog is **modal**: its backdrop swallows every press behind it, so from the moment it
+opens nothing the user does is rage at the app — it is either filling in the form or hitting the backdrop. So
+`useClickTally` now runs while the BUBBLE is up (non-modal; the user genuinely can carry on fighting the page
+underneath) and stops when the form opens: `useClickTally(phase === "offering", …)`.
+
+The number freezes at whatever it was when they asked for help, which is the honest figure — the count of the
+tantrum, not of the paperwork. The comment in the original claiming the tally should stay live "because people
+keep clicking things while they type" was wrong for exactly this reason.
+
+**Also changed:** the dialog title is now "Let's blame the software, not the developer".
+
+**Verified:** `npm run build` compiles. **Not verified:** not seen in a browser.

@@ -195,7 +195,7 @@ export const MOOD_OPTIONS = [
 
 export const FORM = {
     badge: "Clippy Support",
-    title: "Let's blame the software together",
+    title: "Let's blame the software, not the developer",
     sub: "Fill this in and it goes straight to IT. No paperclips were harmed.",
     doingLabel: "What were you trying to do?",
     doingOtherLabel: "Go on then, what were you doing?",

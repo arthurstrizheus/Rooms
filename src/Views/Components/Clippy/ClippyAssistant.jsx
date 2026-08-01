@@ -35,9 +35,21 @@ const ClippyAssistant = ({ user }) => {
     // a row would leave the counter where the first episode ended.
     const [episode, setEpisode] = useState(0);
 
-    // Keeps counting while he is on screen, seeded with the burst that summoned
-    // him, so the number on the ticket is the user's whole ordeal.
-    const clicks = useClickTally(phase !== "idle", burstClicks, episode);
+    /**
+     * The tally runs while the BUBBLE is up and stops the moment the form opens.
+     *
+     * The bubble is non-modal, so a user can carry on fighting the page
+     * underneath it, and that continued clicking is exactly what the counter is
+     * for. The support dialog is modal: its backdrop swallows everything behind
+     * it, so from then on every press is either the user filling in the form or
+     * the backdrop — none of it is rage at the app. Counting it made picking an
+     * option from a dropdown push the number up, which is both wrong and, since
+     * MUI menus portal outside the dialog, not fixable by tagging the form.
+     *
+     * The number therefore freezes at whatever it was when they asked for help:
+     * the count of the tantrum, not of the paperwork.
+     */
+    const clicks = useClickTally(phase === "offering", burstClicks, episode);
 
     const handleRage = useCallback(({ clicks: burst }) => {
         setBurstClicks(burst);
