@@ -9,6 +9,8 @@ const { User } = require("../models");
 const { Op } = require("sequelize");
 // Socket messaging
 const { SendMessage } = require("../utils/socketUtils");
+// Calendar (.ics) attachments and "Add to Calendar" buttons
+const { buildCheckoutCalendarEmailParts } = require("../utils/icsUtils");
 
 // Global email override: if EMAIL_OVERRIDE is truthy (1,true,yes,on) route ALL outbound emails
 // to EMAIL_OVERRIDE_ADDRESS (or default).
@@ -288,9 +290,10 @@ const sendCheckoutApprovedEmail = async (
     };
 
     let requesterName = "User";
+    let requester = null;
     try {
         if (c.user_id) {
-            const requester = await User.findByPk(c.user_id);
+            requester = await User.findByPk(c.user_id);
             if (requester) {
                 requesterName =
                     `${requester.first_name || ""} ${
@@ -299,6 +302,14 @@ const sendCheckoutApprovedEmail = async (
             }
         }
     } catch {}
+
+    const { attachments, buttonHtml } = buildCheckoutCalendarEmailParts({
+        checkout: c,
+        equipment: e,
+        user: requester,
+        recurrence: c.Recurrence,
+        buttonOptions: { color: "#4caf50" },
+    });
 
     const subject = `Equipment Reservation Confirmed: ${e.name}`;
     const body = `
@@ -348,6 +359,8 @@ const sendCheckoutApprovedEmail = async (
                             e.id
                         }" style="color: #4caf50; text-decoration: none; font-weight: 600;">→ Click here to view equipment details</a></p>
                     </div>
+
+                    ${buttonHtml}
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -364,6 +377,7 @@ const sendCheckoutApprovedEmail = async (
             to: recipientEmail,
             subject,
             html: body,
+            attachments,
         });
 
         if (!SEND_EMAILS_ACTIVE) {
@@ -443,9 +457,10 @@ const sendCheckoutCancelledEmail = async (
     };
 
     let requesterName = "User";
+    let requester = null;
     try {
         if (c.user_id) {
-            const requester = await User.findByPk(c.user_id);
+            requester = await User.findByPk(c.user_id);
             if (requester) {
                 requesterName =
                     `${requester.first_name || ""} ${
@@ -454,6 +469,20 @@ const sendCheckoutCancelledEmail = async (
             }
         }
     } catch {}
+
+    // METHOD:CANCEL removes the event from calendars it was added to earlier
+    const { attachments, buttonHtml } = buildCheckoutCalendarEmailParts({
+        checkout: c,
+        equipment: e,
+        user: requester,
+        recurrence: c.Recurrence,
+        method: "CANCEL",
+        buttonOptions: {
+            color: "#ff9800",
+            label: "🗑️ Remove from Calendar",
+            note: "Or open the attached <strong>equipment-reservation.ics</strong> file to remove this reservation from your calendar.",
+        },
+    });
 
     const subject = `Equipment Reservation Cancelled: ${e.name}`;
     const body = `
@@ -510,7 +539,9 @@ const sendCheckoutCancelledEmail = async (
                             <tr><td style="padding: 8px 0; color: #666; font-size: 14px;"><strong>Cancelled By:</strong></td><td style="padding: 8px 0; color: #333; font-size: 14px;">${cancelledBy}</td></tr>
                         </table>
                     </div>
-                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">The equipment is now available for other reservations during this time period.</p>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0 25px 0;">The equipment is now available for other reservations during this time period.</p>
+
+                    ${buttonHtml}
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -529,6 +560,7 @@ const sendCheckoutCancelledEmail = async (
                 to: email,
                 subject,
                 html: body,
+                attachments,
             });
 
             if (!SEND_EMAILS_ACTIVE) {
@@ -611,6 +643,20 @@ const sendCheckoutDeclinedEmail = async (
             }
         }
     } catch {}
+
+    // A declined request may already have been added to a calendar from the
+    // "reservation created" notification, so send a cancellation for it
+    const calendarParts = buildCheckoutCalendarEmailParts({
+        checkout: c,
+        equipment: e,
+        recurrence: c.Recurrence,
+        method: "CANCEL",
+        buttonOptions: {
+            color: "#e53935",
+            label: "🗑️ Remove from Calendar",
+            note: "Or open the attached <strong>equipment-reservation.ics</strong> file to remove this reservation from your calendar.",
+        },
+    });
 
     // Build approver list
     let approverLinks = [];
@@ -718,6 +764,8 @@ const sendCheckoutDeclinedEmail = async (
                             : ""
                     }
                     <p style="color: #666; font-size: 14px; margin: 20px 0;">If you believe this was in error, you may create a new reservation request${approverLine}.</p>
+
+                    ${calendarParts.buttonHtml}
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -734,6 +782,7 @@ const sendCheckoutDeclinedEmail = async (
             to: recipientEmail,
             subject,
             html: body,
+            attachments: calendarParts.attachments,
         });
 
         if (!SEND_EMAILS_ACTIVE) {
@@ -743,8 +792,9 @@ const sendCheckoutDeclinedEmail = async (
             return;
         }
 
+        let info;
         try {
-            const info = await transporter.sendMail(mailOpts);
+            info = await transporter.sendMail(mailOpts);
             await logEmailToFile({
                 to: mailOpts.to,
                 subject: mailOpts.subject,
@@ -1386,6 +1436,14 @@ const sendCheckoutCreatedEmail = async (
             : user.username || "Unknown User";
     const userEmail = user.email || "N/A";
 
+    const { attachments, buttonHtml } = buildCheckoutCalendarEmailParts({
+        checkout: checkoutData,
+        equipment: equipmentData,
+        user,
+        recurrence: checkoutData.Recurrence,
+        buttonOptions: { color: "#667eea" },
+    });
+
     const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -1479,8 +1537,10 @@ const sendCheckoutCreatedEmail = async (
                             }
                         </table>
                     </div>
+
+                    ${buttonHtml}
                 </div>
-                
+
                 <!-- Footer -->
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; line-height: 1.5; margin: 0 0 10px 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -1499,6 +1559,7 @@ const sendCheckoutCreatedEmail = async (
         to: subscriberEmails.join(", "),
         subject: `Reservation Created: ${equipmentData.name}`,
         html: htmlContent,
+        attachments,
     };
 
     if (!SEND_EMAILS_ACTIVE) {
@@ -1561,6 +1622,14 @@ const sendEquipmentCheckedOutEmail = async (
         user.first_name && user.last_name
             ? `${user.first_name} ${user.last_name}`
             : user.username || "Unknown User";
+
+    const { attachments, buttonHtml } = buildCheckoutCalendarEmailParts({
+        checkout: checkoutData,
+        equipment: equipmentData,
+        user,
+        recurrence: checkoutData.Recurrence,
+        buttonOptions: { color: "#17a2b8" },
+    });
 
     const htmlContent = `
         <!DOCTYPE html>
@@ -1658,6 +1727,8 @@ const sendEquipmentCheckedOutEmail = async (
                     <div style="background-color: #e7f3ff; border-left: 4px solid #2196f3; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
                         <p style="color: #0d47a1; font-size: 13px; line-height: 1.6; margin: 0;">ℹ️ This equipment will be unavailable until returned. You'll receive a notification when it's returned.</p>
                     </div>
+
+                    ${buttonHtml}
                 </div>
                 
                 <!-- Footer -->
@@ -1678,6 +1749,7 @@ const sendEquipmentCheckedOutEmail = async (
         to: subscriberEmails.join(", "),
         subject: `Equipment In Use: ${equipmentData.name}`,
         html: htmlContent,
+        attachments,
     };
 
     if (!SEND_EMAILS_ACTIVE) {
@@ -1945,6 +2017,14 @@ const sendScheduledOnBehalfEmail = async (
         }
     };
 
+    const { attachments, buttonHtml } = buildCheckoutCalendarEmailParts({
+        checkout: c,
+        equipment: e,
+        user: c.User,
+        recurrence: c.Recurrence,
+        buttonOptions: { color: "#667eea" },
+    });
+
     const subject = `Reservation Scheduled on Your Behalf: ${e.name}`;
     const body = `
         <!DOCTYPE html>
@@ -2008,7 +2088,9 @@ const sendScheduledOnBehalfEmail = async (
                             }
                         </table>
                     </div>
-                    <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">This is a notification email. If you have questions about this reservation, please contact ${scheduledByUserName}.</p>
+                    <p style="color: #666; font-size: 14px; margin: 20px 0 25px 0;">This is a notification email. If you have questions about this reservation, please contact ${scheduledByUserName}.</p>
+
+                    ${buttonHtml}
                 </div>
                 <div style="background-color: #f8f9fa; padding: 20px 30px; border-top: 1px solid #e9ecef;">
                     <p style="color: #666; font-size: 12px; margin: 0;">This is an automated notification from the Equipment Scheduler System.</p>
@@ -2025,6 +2107,7 @@ const sendScheduledOnBehalfEmail = async (
             to: scheduledForEmail,
             subject,
             html: body,
+            attachments,
         });
 
         if (!SEND_EMAILS_ACTIVE) {

@@ -159,6 +159,51 @@ export async function RunMatterManagerMonthlyGroupReport() {
     }
 }
 
+// ------------------ CALENDAR (.ICS) --------------------
+
+/**
+ * Downloads a reservation as an .ics file so it can be added to Outlook,
+ * Google Calendar, Apple Calendar, etc. Cancelled reservations come back as a
+ * cancellation, which removes the event from the calendar instead.
+ *
+ * @param {string|number} checkoutId - Checkout id, or a recurring occurrence id ("12_3")
+ * @returns {Promise<boolean>} true when the file was downloaded
+ */
+export async function DownloadCheckoutIcs(checkoutId) {
+    if (checkoutId === null || checkoutId === undefined) {
+        showError("Reservation not found");
+        return false;
+    }
+
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.get(
+            `/api/calendar/checkout/${encodeURIComponent(checkoutId)}.ics`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+                responseType: "blob",
+            }
+        );
+
+        const url = URL.createObjectURL(
+            new Blob([resp.data], { type: "text/calendar;charset=utf-8" })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "equipment-reservation.ics";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        return true;
+    } catch (err) {
+        console.log(err);
+        showError("Failed to download calendar file");
+        return false;
+    }
+}
+
 // ------------------ EQUIPMENT ALERTS --------------------
 
 /**

@@ -54,6 +54,7 @@ import AlertDialog from "../../../Components/AlertDialog";
 import useAlertDialog from "../../../hooks/useAlertDialog";
 import ConfirmDialog from "../../../Components/ConfirmDialog";
 import useConfirmDialog from "../../../hooks/useConfirmDialog";
+import AddToCalendarButton from "../../../Components/AddToCalendarButton";
 
 const MyCheckouts = ({ setLoading, loading }) => {
     const [checkouts, setCheckouts] = useState([]);
@@ -1742,6 +1743,7 @@ const MyCheckouts = ({ setLoading, loading }) => {
                         </>
                     ) : (
                         <>
+                            <AddToCalendarButton checkout={selectedCheckout} />
                             <Button
                                 onClick={handleViewCalendar}
                                 startIcon={<CalendarMonth />}

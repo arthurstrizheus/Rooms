@@ -25,6 +25,7 @@ const connectedUsersRoutes = require("./routes/connectedUsers");
 const { handleSocketConnection } = require("./sockets/socketHandler");
 const { setSocketInstance } = require("./utils/socketUtils");
 const equipmentRouter = require("./routes/equipment");
+const calendarRouter = require("./routes/calendar");
 const checkoutsRouter = require("./routes/checkouts");
 const equipmentFilesRouter = require("./routes/equipmentFiles");
 const calibrationsRouter = require("./routes/calibrations");
@@ -138,6 +139,11 @@ app.use(
         },
     }),
 );
+
+// Calendar (.ics) downloads run BEFORE auth middleware so "Add to Calendar"
+// links in notification emails open without an app session; the route
+// authorizes itself with a signed link or a JWT.
+app.use("/api/calendar", calendarRouter);
 
 // Add authentication middleware globally
 app.use(authenticateUser);

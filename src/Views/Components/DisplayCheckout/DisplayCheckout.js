@@ -29,6 +29,7 @@ import RemoveRoadIcon from "@mui/icons-material/RemoveRoad";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import EditRoadIcon from "@mui/icons-material/EditRoad";
 import ImageViewer from "../../../Components/ImageViewer";
+import AddToCalendarButton from "../../../Components/AddToCalendarButton";
 import axios from "axios";
 
 const DisplayCheckout = ({
@@ -1038,6 +1039,10 @@ const DisplayCheckout = ({
                     }}
                     spacing={1}
                 >
+                    <AddToCalendarButton
+                        checkout={checkout}
+                        sx={{ width: "100%", color: "black" }}
+                    />
                     {(user?.admin ||
                         user?.equipment_admin ||
                         user?.id === checkout.user_id) && (

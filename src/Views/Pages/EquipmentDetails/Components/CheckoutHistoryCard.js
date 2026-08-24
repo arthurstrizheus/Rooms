@@ -34,6 +34,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import RepeatIcon from "@mui/icons-material/Repeat";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import AddToCalendarButton from "../../../../Components/AddToCalendarButton";
 import { format } from "date-fns";
 
 const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
@@ -461,6 +462,7 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                     )}
                 </DialogContent>
                 <DialogActions>
+                    <AddToCalendarButton checkout={selectedCheckout} />
                     <Button onClick={handleCloseDialog} variant="contained">
                         Close
                     </Button>
