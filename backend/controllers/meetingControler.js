@@ -2347,7 +2347,9 @@ const Update = async (req, res) => {
                 created_user_id,
                 all_day: allDay,
                 it_support: !!it_support,
-                it_support_details: it_support ? it_support_details || "" : null,
+                it_support_details: it_support
+                    ? it_support_details || ""
+                    : null,
                 // Materialising an occurrence IS an edit. Without this the most
                 // common recurrence change of all — editing one generated
                 // occurrence — creates a row born with a NULL updater, while
@@ -2894,7 +2896,7 @@ const UpdateAllNextInRecurrence = async (req, res) => {
         // had just been moved off, beside a new parent at the new one. One drag,
         // two meetings. Comparing the ids closes that half.
         const isParentRow =
-            before.id != null && Number(id) === Number(before.id);
+            before?.id != null && Number(req?.body?.id) === Number(before?.id);
         if (
             isParentRow ||
             anchorDay <= startOfDay(new Date(before.start_time))
@@ -2912,7 +2914,9 @@ const UpdateAllNextInRecurrence = async (req, res) => {
                 retired,
                 all_day: allDay,
                 it_support: !!it_support,
-                it_support_details: it_support ? it_support_details || "" : null,
+                it_support_details: it_support
+                    ? it_support_details || ""
+                    : null,
             };
             const finalStatusInPlace = await evaluateStatusAndNotify({
                 operation: "update",
@@ -3232,13 +3236,11 @@ const UpdateCurrentInRecurrence = async (req, res) => {
         const overlapFakeMeet = await isOverlappingFakeMeet(meeting);
         const overlapMeeting = await isOverlapping(meeting);
         if (overlapFakeMeet || overlapMeeting) {
-            return res
-                .status(409)
-                .json(
-                    await overlapResponse(overlapFakeMeet || overlapMeeting, {
-                        update: false,
-                    }),
-                );
+            return res.status(409).json(
+                await overlapResponse(overlapFakeMeet || overlapMeeting, {
+                    update: false,
+                }),
+            );
         }
 
         // Update the meeting the user wants to move.
