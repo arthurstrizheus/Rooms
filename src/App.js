@@ -159,7 +159,9 @@ function AppShell() {
                     sx={{
                         "& .MuiDrawer-paper": {
                             width: NAV_WIDTH,
+                            boxSizing: "border-box",
                             borderRight: "none",
+                            overflowX: "hidden",
                             boxShadow: (t) => t.shadowTokens.xl,
                         },
                     }}
@@ -181,6 +183,7 @@ function AppShell() {
                         "& .MuiDrawer-paper": {
                             width: NAV_WIDTH,
                             boxSizing: "border-box",
+                            overflowX: "hidden",
                         },
                     }}
                 >
@@ -222,11 +225,15 @@ function AppShell() {
                 >
                     {/* Keying on pathname replays the entrance animation on
                         every route change, so navigation always has motion. */}
+                    {/* No `minHeight: 0` here: this is the page wrapper, not a
+                        scroll viewport. Clamping it to 0 made every page
+                        exactly viewport-tall, so tall pages were clipped
+                        instead of scrolling. `flexGrow` still stretches short
+                        pages to fill the window. */}
                     <Box
                         key={location.pathname}
                         sx={{
                             flexGrow: 1,
-                            minHeight: 0,
                             display: "flex",
                             flexDirection: "column",
                             animation:

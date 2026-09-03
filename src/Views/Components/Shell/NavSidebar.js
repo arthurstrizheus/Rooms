@@ -79,10 +79,17 @@ export default function NavSidebar({
             component="nav"
             aria-label="Main navigation"
             sx={{
-                width: NAV_WIDTH,
+                // 100%, not NAV_WIDTH. The docked drawer paper is NAV_WIDTH
+                // *including* its 1px right border, so a hard-coded 264px child
+                // overflowed by exactly that pixel — and because the paper
+                // scrolls vertically, the browser gave it a horizontal
+                // scrollbar for the trouble.
+                width: "100%",
+                maxWidth: NAV_WIDTH,
                 height: "100%",
                 display: "flex",
                 flexDirection: "column",
+                overflowX: "hidden",
                 bgcolor: "background.paper",
             }}
         >
@@ -142,6 +149,10 @@ export default function NavSidebar({
                 sx={{
                     flexGrow: 1,
                     overflowY: "auto",
+                    // `overflow-x` computes to `auto` once either axis is
+                    // non-visible; the active rail sits 6px outside the item
+                    // box, which is enough to trip a scrollbar.
+                    overflowX: "hidden",
                     overscrollBehavior: "contain",
                     px: 1.5,
                     py: 2,

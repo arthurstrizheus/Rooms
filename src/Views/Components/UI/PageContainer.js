@@ -25,7 +25,12 @@ export default function PageContainer({
             sx={{
                 width: "100%",
                 flexGrow: 1,
-                minHeight: 0,
+                // `min-height: auto` is load-bearing. This is a flex item inside
+                // the shell's scroll viewport; pinning it to 0 let it shrink to
+                // the viewport, which squashed the cards inside it (MUI Card
+                // clips) and left the page unable to scroll. Only `fill` pages —
+                // which manage their own internal scrolling — want the clamp.
+                ...(fill ? { minHeight: 0, overflow: "hidden" } : {}),
                 display: "flex",
                 flexDirection: "column",
                 px: disableGutters ? 0 : { xs: 2, sm: 3, md: 4 },
@@ -37,7 +42,6 @@ export default function PageContainer({
                       },
                 mx: "auto",
                 maxWidth: maxWidth === false ? "none" : maxWidth,
-                overflow: fill ? "hidden" : "visible",
                 ...sx,
             }}
             {...rest}

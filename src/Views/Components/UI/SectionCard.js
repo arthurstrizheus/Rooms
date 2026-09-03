@@ -82,6 +82,9 @@ export default function SectionCard({
             sx={{
                 display: "flex",
                 flexDirection: "column",
+                // Card clips its overflow, so a squashed card silently loses
+                // content. Never let it shrink below what it contains.
+                flexShrink: 0,
                 ...(interactive ? hoverLift(theme) : {}),
                 ...sx,
             }}

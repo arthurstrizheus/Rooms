@@ -116,6 +116,7 @@ export default function PageHeader({
                 position: sticky ? "sticky" : "static",
                 top: 0,
                 zIndex: 5,
+                flexShrink: 0,
                 px: { xs: 2, sm: 3, md: 4 },
                 pt: { xs: 2, sm: 2.5, md: 3 },
                 pb: children ? { xs: 1.5, sm: 2 } : { xs: 2, sm: 2.5 },
