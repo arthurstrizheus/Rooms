@@ -4,6 +4,7 @@ const Equipment = require("./equipment");
 const Checkout = require("./checkout");
 const EquipmentFile = require("./equipmentFile");
 const EquipmentAlert = require("./equipmentAlert");
+const EquipmentApprover = require("./equipmentApprover");
 const CalibrationHistory = require("./calibrationHistory");
 const CheckoutRecurrence = require("./checkoutRecurrence");
 const Office = require("./office");
@@ -36,6 +37,16 @@ const initModels = () => {
         onDelete: "CASCADE",
     });
     EquipmentAlert.belongsTo(Equipment, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+    });
+
+    Equipment.hasMany(EquipmentApprover, {
+        foreignKey: "equipment_id",
+        onDelete: "CASCADE",
+        as: "Approvers",
+    });
+    EquipmentApprover.belongsTo(Equipment, {
         foreignKey: "equipment_id",
         onDelete: "CASCADE",
     });
@@ -113,6 +124,19 @@ const initModels = () => {
     });
     EquipmentAlert.belongsTo(User, {
         foreignKey: "user_id",
+        onDelete: "CASCADE",
+    });
+
+    // A named-person approver. Aliased because the approver is not the same
+    // relationship as "the user this row belongs to" anywhere else.
+    User.hasMany(EquipmentApprover, {
+        foreignKey: "user_id",
+        as: "ApproverFor",
+        onDelete: "CASCADE",
+    });
+    EquipmentApprover.belongsTo(User, {
+        foreignKey: "user_id",
+        as: "ApproverUser",
         onDelete: "CASCADE",
     });
 
@@ -240,6 +264,16 @@ const initModels = () => {
         as: "AlertUpdatedBy",
     });
 
+    // EquipmentApprover
+    EquipmentApprover.belongsTo(User, {
+        foreignKey: "created_by",
+        as: "ApproverCreatedBy",
+    });
+    EquipmentApprover.belongsTo(User, {
+        foreignKey: "updated_by",
+        as: "ApproverUpdatedBy",
+    });
+
     // CheckoutRecurrence
     User.hasMany(CheckoutRecurrence, {
         foreignKey: "created_by",
@@ -272,6 +306,7 @@ module.exports = {
     Checkout,
     EquipmentFile,
     EquipmentAlert,
+    EquipmentApprover,
     CalibrationHistory,
     CheckoutRecurrence,
     Office,

@@ -13,6 +13,7 @@ const {
     Checkout,
     EquipmentFile,
     EquipmentAlert,
+    EquipmentApprover,
     CalibrationHistory,
     CheckoutRecurrence,
     AssetTaxMeta,
@@ -279,6 +280,16 @@ const startServer = async () => {
             console.log("✓ EquipmentAlert synced");
         } catch (err) {
             console.error("✗ EquipmentAlert sync failed:", err.message);
+        }
+
+        try {
+            console.log("Syncing EquipmentApprover");
+            // Use alter: false to avoid CHECK constraint issues
+            await EquipmentApprover.sync({ alter: false });
+
+            console.log("✓ EquipmentApprover synced");
+        } catch (err) {
+            console.error("✗ EquipmentApprover sync failed:", err.message);
         }
 
         try {
