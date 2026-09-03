@@ -1,6 +1,33 @@
+/* Base document styles. Everything else lives in the MUI theme
+   (src/Utilites/theme.js), which injects its resets and keyframes through
+   CssBaseline. */
+
 html,
 body,
 #root {
     height: 100%;
     margin: 0;
+}
+
+body {
+    /* Matches theme.palette.background.default, so the page has the right
+       backdrop before React mounts and while chunks load. */
+    background-color: #f7f8fa;
+    color: #14181f;
+    font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI Variable Text",
+        "Segoe UI",
+        Roboto,
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+}
+
+/* Keyboard users get a visible focus ring; pointer users don't. */
+:focus-visible {
+    outline: 2px solid #c8102e;
+    outline-offset: 2px;
 }

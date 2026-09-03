@@ -35,17 +35,8 @@ import {
     PageContainer,
     ResponsiveDialog,
 } from "../Components/UI";
+import { checkoutStatusColor } from "../Components/UI/calendarColors";
 import "../Components/UI/fullcalendar.css";
-
-// Reservation status → event color. Pulled onto the app's semantic palette so
-// calendar events match status chips elsewhere.
-const STATUS_COLORS = {
-    "auto-approved": "#1E9E52",
-    pending: "#C77700",
-    reserved: "#1F6FD0",
-    returned: "#A6ADBA",
-};
-const DEFAULT_STATUS_COLOR = "#78808F";
 
 const CALIBRATION_TONES = {
     overdue: { label: "Out of calibration", color: "#8E0F17", bg: "#FCE4E7" },
@@ -232,12 +223,8 @@ const EquipmentCalendar = ({ setLoading, loading }) => {
                         title: `${who}${checkout.isRecurring ? " ↻" : ""}`,
                         start: checkout.start_time,
                         end: checkout.end_time,
-                        backgroundColor:
-                            STATUS_COLORS[checkout.status] ||
-                            DEFAULT_STATUS_COLOR,
-                        borderColor:
-                            STATUS_COLORS[checkout.status] ||
-                            DEFAULT_STATUS_COLOR,
+                        backgroundColor: checkoutStatusColor(checkout.status),
+                        borderColor: checkoutStatusColor(checkout.status),
                         extendedProps: {
                             status: checkout.status,
                             notes: checkout.notes,

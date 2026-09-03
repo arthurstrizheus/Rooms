@@ -1,5 +1,5 @@
 {
-    "name": "Equipment",
+    "name": "S-E-A Equipment",
     "short_name": "Equipment",
     "icons": [
         {
@@ -13,7 +13,7 @@
             "type": "image/png"
         }
     ],
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
+    "theme_color": "#C8102E",
+    "background_color": "#F7F8FA",
     "display": "standalone"
 }

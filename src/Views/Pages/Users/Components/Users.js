@@ -173,8 +173,11 @@ export default function Users({ setLoading }) {
                     GetLocations(),
                     GetUsers(),
                 ]);
-                setUsers(usrs.filter((usr) => usr.id !== user?.id));
-                setLocations(lcs);
+                // Both calls swallow their own errors and can resolve to
+                // undefined; default so a failed fetch shows an empty list
+                // rather than throwing out of the effect.
+                setUsers((usrs || []).filter((usr) => usr.id !== user?.id));
+                setLocations(lcs || []);
                 setFilterLocation((current) =>
                     current?.officeid || current?.officeid === 0
                         ? current

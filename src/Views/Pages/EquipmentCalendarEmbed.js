@@ -9,17 +9,8 @@ import interactionPlugin from "@fullcalendar/interaction";
 import axios from "axios";
 
 import useResponsive from "../../hooks/useResponsive";
+import { checkoutStatusColor } from "../Components/UI/calendarColors";
 import "../Components/UI/fullcalendar.css";
-
-// Matches the status colors used on the in-app calendars, so an embedded
-// schedule reads the same as the one inside the product.
-const STATUS_COLORS = {
-    "auto-approved": "#1E9E52",
-    pending: "#C77700",
-    reserved: "#1F6FD0",
-    returned: "#A6ADBA",
-};
-const CANCELLED_COLOR = "#C8102E";
 
 /** Read-only equipment schedule, for embedding in another site via iframe. */
 const EquipmentCalendarEmbed = () => {
@@ -53,8 +44,7 @@ const EquipmentCalendarEmbed = () => {
                 response.data
                     .filter((checkout) => checkout.status !== "cancelled")
                     .map((checkout) => {
-                        const color =
-                            STATUS_COLORS[checkout.status] || CANCELLED_COLOR;
+                        const color = checkoutStatusColor(checkout.status);
                         return {
                             id: checkout.id,
                             title:

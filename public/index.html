@@ -22,11 +22,37 @@
         />
         <link rel="manifest" href="%PUBLIC_URL%/site.webmanifest" />
         <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
+        <!-- viewport-fit=cover lets the app paint behind the notch and home
+             indicator; the layout pads itself back with env(safe-area-inset-*). -->
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
+        <!-- Tints the browser chrome on Android and installed PWAs. -->
+        <meta name="theme-color" content="#C8102E" />
+        <meta name="color-scheme" content="light" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="default"
+        />
         <meta
             name="description"
-            content="Web site created using create-react-app"
+            content="S-E-A Equipment — browse the catalog, check availability and reserve equipment."
+        />
+
+        <!-- Inter is the first family in the theme's font stack. Preconnect so
+             it isn't a render-blocking round trip; the system stack is the
+             fallback if it never arrives. -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin
+        />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+            rel="stylesheet"
         />
         <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
         <!--
