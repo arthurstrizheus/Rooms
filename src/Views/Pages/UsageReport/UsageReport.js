@@ -1,32 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     Box,
-    Paper,
     Typography,
     Button,
     TextField,
     MenuItem,
     Card,
-    CardContent,
-    CardMedia,
     Grid,
     Chip,
     CircularProgress,
-    useMediaQuery,
-    useTheme,
     TableSortLabel,
-    InputAdornment,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Avatar,
+    Stack,
+    IconButton,
+    Tooltip,
+    Divider,
 } from "@mui/material";
-import useEasterEggs from "../../../hooks/useEasterEggs";
-import MeatRain from "../../../Components/EasterEggs/MeatRain";
-import HiggyRain from "../../../Components/EasterEggs/HiggyRain";
 import {
     Assessment,
     CalendarToday,
@@ -34,23 +28,92 @@ import {
     Build,
     Schedule,
     Download,
-    TrendingUp,
     Search,
     Visibility,
 } from "@mui/icons-material";
 import axios from "axios";
-import { useAuth } from "../../../Utilites/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+import useEasterEggs from "../../../hooks/useEasterEggs";
+import MeatRain from "../../../Components/EasterEggs/MeatRain";
+import HiggyRain from "../../../Components/EasterEggs/HiggyRain";
 import {
     showError,
     showSuccess,
 } from "../../../Utilites/Functions/ApiFunctions";
-import { useNavigate } from "react-router-dom";
+import useResponsive from "../../../hooks/useResponsive";
+import {
+    PageHeader,
+    PageContainer,
+    SectionCard,
+    StatCard,
+    EmptyState,
+    FilterBar,
+    CardGridSkeleton,
+    Stagger,
+    hoverLift,
+} from "../../Components/UI";
+import { useTheme } from "@mui/material/styles";
 
-const UsageReport = ({ setLoading }) => {
-    const { user } = useAuth();
+const MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
+
+const PERIODS = [
+    { value: "ytd", label: "Year to date" },
+    { value: "month", label: "Month" },
+    { value: "year", label: "Full year" },
+    { value: "custom", label: "Custom range" },
+];
+
+const SORT_OPTIONS = [
+    ["checkout_count_desc", "Reservations (high → low)"],
+    ["checkout_count_asc", "Reservations (low → high)"],
+    ["total_hours_desc", "Hours (high → low)"],
+    ["total_hours_asc", "Hours (low → high)"],
+    ["unique_users_desc", "Users (high → low)"],
+    ["unique_users_asc", "Users (low → high)"],
+    ["name_asc", "Name (A–Z)"],
+    ["name_desc", "Name (Z–A)"],
+    ["location_asc", "Location (A–Z)"],
+    ["asset_number_asc", "Asset # (A–Z)"],
+    ["serial_number_asc", "Serial (A–Z)"],
+];
+
+const TABLE_COLUMNS = [
+    { id: "name", label: "Equipment" },
+    { id: "location", label: "Location" },
+    { id: "asset_number", label: "Asset #" },
+    { id: "serial_number", label: "Serial" },
+    { id: "checkout_count", label: "Reservations", numeric: true },
+    { id: "total_hours", label: "Hours", numeric: true },
+    { id: "unique_users", label: "Users", numeric: true },
+];
+
+/**
+ * Equipment usage reporting.
+ *
+ * The report is generated on demand, so the page has three distinct states —
+ * "not run yet", "running", and "results" — each of which now says what it is
+ * rather than showing an empty screen.
+ */
+const UsageReport = () => {
     const navigate = useNavigate();
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    const { isCompact } = useResponsive();
+    const { meatRain, higgyRain, handleSearchChange } = useEasterEggs();
+
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
 
@@ -64,9 +127,8 @@ const UsageReport = ({ setLoading }) => {
         endDate: "",
         office_id: "",
     });
-
-    const { meatRain, higgyRain, handleSearchChange } = useEasterEggs();
     const [equipmentUsage, setEquipmentUsage] = useState([]);
+    const [hasRun, setHasRun] = useState(false);
     const [loadingReport, setLoadingReport] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [orderBy, setOrderBy] = useState("checkout_count");
@@ -74,17 +136,22 @@ const UsageReport = ({ setLoading }) => {
     const [summary, setSummary] = useState(null);
     const [periodLabel, setPeriodLabel] = useState("");
 
+    // ---- Data -------------------------------------------------------------
+
     useEffect(() => {
         fetchOffices();
         fetchAllEquipment();
     }, []);
 
+    const authHeaders = () => ({
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+    });
+
     const fetchOffices = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get("/api/locations", {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await axios.get("/api/locations", authHeaders());
             setOffices(response.data.filter((o) => o.Alias !== "All"));
         } catch (error) {
             console.error("Error fetching offices:", error);
@@ -94,10 +161,7 @@ const UsageReport = ({ setLoading }) => {
 
     const fetchAllEquipment = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get("/api/equipment", {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await axios.get("/api/equipment", authHeaders());
             setAllEquipment(response.data);
         } catch (error) {
             console.error("Error fetching equipment:", error);
@@ -108,13 +172,8 @@ const UsageReport = ({ setLoading }) => {
     const generateReport = async () => {
         try {
             setLoadingReport(true);
-            const token = localStorage.getItem("authToken");
 
-            // Build query params - always group by equipment for list view
-            const params = {
-                period: filters.period,
-                groupBy: "equipment",
-            };
+            const params = { period: filters.period, groupBy: "equipment" };
 
             if (filters.period === "ytd" || filters.period === "year") {
                 params.year = filters.year;
@@ -124,7 +183,7 @@ const UsageReport = ({ setLoading }) => {
             } else if (filters.period === "custom") {
                 if (!filters.startDate || !filters.endDate) {
                     showError(
-                        "Please select both start and end dates for custom period",
+                        "Please select both start and end dates for a custom period",
                     );
                     setLoadingReport(false);
                     return;
@@ -133,39 +192,28 @@ const UsageReport = ({ setLoading }) => {
                 params.endDate = filters.endDate;
             }
 
-            if (filters.office_id) {
-                params.office_id = filters.office_id;
-            }
+            if (filters.office_id) params.office_id = filters.office_id;
 
             const response = await axios.get("/api/usage-reports", {
-                headers: { Authorization: `Bearer ${token}` },
+                ...authHeaders(),
                 params,
             });
 
             const reportData = response.data;
-
-            // Merge equipment data with usage data
             const usageMap = new Map(
                 reportData.data.map((item) => [item.equipment_id, item]),
             );
 
-            // Get office alias if filtering by office
-            let officeAlias = null;
-            if (filters.office_id) {
-                const selectedOffice = offices.find(
-                    (o) => o.officeid === parseInt(filters.office_id),
-                );
-                officeAlias = selectedOffice?.Alias;
-            }
+            // The report is keyed by equipment id; the office filter applies to
+            // the equipment list, which stores the office by alias.
+            const officeAlias = filters.office_id
+                ? offices.find(
+                      (o) => o.officeid === parseInt(filters.office_id, 10),
+                  )?.Alias
+                : null;
 
             const enrichedData = allEquipment
-                .filter((eq) => {
-                    // Filter by office location if specified
-                    if (officeAlias) {
-                        return eq.location === officeAlias;
-                    }
-                    return true;
-                })
+                .filter((eq) => !officeAlias || eq.location === officeAlias)
                 .map((eq) => {
                     const usage = usageMap.get(eq.id);
                     return {
@@ -179,6 +227,7 @@ const UsageReport = ({ setLoading }) => {
             setEquipmentUsage(enrichedData);
             setSummary(reportData.summary);
             setPeriodLabel(reportData.period);
+            setHasRun(true);
         } catch (error) {
             console.error("Error generating report:", error);
             showError(
@@ -195,49 +244,45 @@ const UsageReport = ({ setLoading }) => {
         setOrderBy(property);
     };
 
-    const filteredAndSortedEquipment = equipmentUsage
-        .filter((item) => {
-            const search = searchTerm.toLowerCase();
-            return (
-                item.name?.toLowerCase().includes(search) ||
-                item.asset_number?.toLowerCase().includes(search) ||
-                item.serial_number?.toLowerCase().includes(search) ||
-                item.location?.toLowerCase().includes(search) ||
-                item.contact_person?.toLowerCase().includes(search) ||
-                item.description?.toLowerCase().includes(search) ||
-                item.billing_code?.toLowerCase().includes(search) ||
-                item.brand_name?.toLowerCase().includes(search)
-            );
-        })
-        .sort((a, b) => {
-            let aVal = a[orderBy];
-            let bVal = b[orderBy];
+    const filteredAndSortedEquipment = useMemo(() => {
+        const search = searchTerm.toLowerCase();
 
-            // Handle string comparisons
-            if (typeof aVal === "string") {
-                aVal = aVal.toLowerCase();
-                bVal = bVal?.toLowerCase() || "";
-            }
+        return equipmentUsage
+            .filter(
+                (item) =>
+                    item.name?.toLowerCase().includes(search) ||
+                    item.asset_number?.toLowerCase().includes(search) ||
+                    item.serial_number?.toLowerCase().includes(search) ||
+                    item.location?.toLowerCase().includes(search) ||
+                    item.contact_person?.toLowerCase().includes(search) ||
+                    item.description?.toLowerCase().includes(search) ||
+                    item.billing_code?.toLowerCase().includes(search) ||
+                    item.brand_name?.toLowerCase().includes(search),
+            )
+            .sort((a, b) => {
+                let aVal = a[orderBy];
+                let bVal = b[orderBy];
 
-            // Handle nulls
-            if (aVal == null) aVal = 0;
-            if (bVal == null) bVal = 0;
+                if (typeof aVal === "string") {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal?.toLowerCase() || "";
+                }
+                if (aVal == null) aVal = 0;
+                if (bVal == null) bVal = 0;
 
-            if (order === "asc") {
-                return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-            } else {
-                return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
-            }
-        });
+                if (aVal === bVal) return 0;
+                const ascending = aVal < bVal ? -1 : 1;
+                return order === "asc" ? ascending : -ascending;
+            });
+    }, [equipmentUsage, searchTerm, orderBy, order]);
 
     const downloadExcel = () => {
-        if (!equipmentUsage || equipmentUsage.length === 0) {
+        if (!equipmentUsage.length) {
             showError("No data to export");
             return;
         }
 
         try {
-            // Create CSV content (Excel will open CSV files)
             const headers = [
                 "Equipment Name",
                 "Asset Number",
@@ -265,9 +310,8 @@ const UsageReport = ({ setLoading }) => {
                 ...rows.map((row) => row.join(",")),
             ].join("\n");
 
-            // Add BOM for Excel UTF-8 recognition
-            const BOM = "\uFEFF";
-            const blob = new Blob([BOM + csvContent], {
+            // BOM so Excel reads it as UTF-8.
+            const blob = new Blob(["﻿" + csvContent], {
                 type: "text/csv;charset=utf-8;",
             });
             const url = window.URL.createObjectURL(blob);
@@ -286,160 +330,235 @@ const UsageReport = ({ setLoading }) => {
         }
     };
 
-    const renderSummaryCards = () => {
-        if (!summary) return null;
+    // ---- Rendering --------------------------------------------------------
 
-        return (
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Box
+    const metricChip = (value, label, threshold, tone) => (
+        <Chip
+            size="small"
+            label={label}
+            sx={
+                value > threshold
+                    ? {
+                          bgcolor: `${tone}.light`,
+                          color: `${tone}.dark`,
+                          fontWeight: 700,
+                      }
+                    : { bgcolor: "grey.100", color: "text.secondary" }
+            }
+        />
+    );
+
+    const usageCard = (item) => (
+        <Card
+            onClick={() => navigate(`/equipment/${item.id}`)}
+            sx={{
+                height: "100%",
+                p: 2,
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                ...hoverLift(theme),
+            }}
+        >
+            <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>
+                {item.name}
+            </Typography>
+
+            <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ display: "block", mt: 0.25 }}
+                noWrap
+            >
+                {[
+                    item.asset_number && `Asset ${item.asset_number}`,
+                    item.serial_number && `SN ${item.serial_number}`,
+                    item.location,
+                ]
+                    .filter(Boolean)
+                    .join(" · ")}
+            </Typography>
+
+            <Divider sx={{ my: 1.5 }} />
+
+            <Stack
+                direction="row"
+                justifyContent="space-between"
+                sx={{ textAlign: "center" }}
+            >
+                {[
+                    ["Reservations", item.checkout_count || 0],
+                    ["Hours", (item.total_hours || 0).toFixed(1)],
+                    ["Users", item.unique_users || 0],
+                ].map(([label, value]) => (
+                    <Box key={label} sx={{ flex: 1 }}>
+                        <Typography
+                            sx={{
+                                fontSize: "1.25rem",
+                                fontWeight: 700,
+                                fontVariantNumeric: "tabular-nums",
+                                lineHeight: 1.2,
+                            }}
+                        >
+                            {value}
+                        </Typography>
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontSize: "0.6875rem" }}
+                        >
+                            {label}
+                        </Typography>
+                    </Box>
+                ))}
+            </Stack>
+        </Card>
+    );
+
+    const resultsTable = (
+        <Card sx={{ overflow: "hidden" }}>
+            <TableContainer sx={{ maxHeight: "calc(100dvh - 460px)" }}>
+                <Table stickyHeader size="small">
+                    <TableHead>
+                        <TableRow>
+                            {TABLE_COLUMNS.map((col) => (
+                                <TableCell
+                                    key={col.id}
+                                    align={col.numeric ? "right" : "left"}
+                                >
+                                    <TableSortLabel
+                                        active={orderBy === col.id}
+                                        direction={
+                                            orderBy === col.id ? order : "asc"
+                                        }
+                                        onClick={() => handleSort(col.id)}
+                                    >
+                                        {col.label}
+                                    </TableSortLabel>
+                                </TableCell>
+                            ))}
+                            <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {filteredAndSortedEquipment.map((item, index) => (
+                            <TableRow
+                                key={item.id}
+                                hover
+                                onClick={() => navigate(`/equipment/${item.id}`)}
                                 sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
+                                    cursor: "pointer",
+                                    animation: "seaFadeIn 240ms ease both",
+                                    animationDelay: `${Math.min(index, 20) * 16}ms`,
                                 }}
                             >
-                                <Box>
+                                <TableCell>
                                     <Typography
-                                        color="textSecondary"
                                         variant="body2"
+                                        sx={{ fontWeight: 600 }}
                                     >
-                                        Total Reservations
+                                        {item.name}
                                     </Typography>
-                                    <Typography variant="h4">
-                                        {summary.totalCheckouts}
-                                    </Typography>
-                                </Box>
-                                <CalendarToday
+                                </TableCell>
+                                <TableCell>{item.location || "—"}</TableCell>
+                                <TableCell
                                     sx={{
-                                        fontSize: 40,
-                                        color: "primary.main",
-                                        opacity: 0.7,
+                                        fontFamily: (t) =>
+                                            t.typography.fontFamilyMono,
+                                        fontSize: "0.8125rem",
+                                        color: "text.secondary",
                                     }}
-                                />
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                }}
-                            >
-                                <Box>
-                                    <Typography
-                                        color="textSecondary"
-                                        variant="body2"
-                                    >
-                                        Total Hours
-                                    </Typography>
-                                    <Typography variant="h4">
-                                        {summary.totalHours}
-                                    </Typography>
-                                </Box>
-                                <Schedule
+                                >
+                                    {item.asset_number || "—"}
+                                </TableCell>
+                                <TableCell
                                     sx={{
-                                        fontSize: 40,
-                                        color: "success.main",
-                                        opacity: 0.7,
+                                        fontFamily: (t) =>
+                                            t.typography.fontFamilyMono,
+                                        fontSize: "0.8125rem",
+                                        color: "text.secondary",
                                     }}
-                                />
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                }}
-                            >
-                                <Box>
-                                    <Typography
-                                        color="textSecondary"
-                                        variant="body2"
-                                    >
-                                        Equipment Used
-                                    </Typography>
-                                    <Typography variant="h4">
-                                        {summary.uniqueEquipment}
-                                    </Typography>
-                                </Box>
-                                <Build
-                                    sx={{
-                                        fontSize: 40,
-                                        color: "warning.main",
-                                        opacity: 0.7,
-                                    }}
-                                />
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                    <Card>
-                        <CardContent>
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                }}
-                            >
-                                <Box>
-                                    <Typography
-                                        color="textSecondary"
-                                        variant="body2"
-                                    >
-                                        Unique Users
-                                    </Typography>
-                                    <Typography variant="h4">
-                                        {summary.uniqueUsers}
-                                    </Typography>
-                                </Box>
-                                <People
-                                    sx={{
-                                        fontSize: 40,
-                                        color: "info.main",
-                                        opacity: 0.7,
-                                    }}
-                                />
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
-        );
-    };
+                                >
+                                    {item.serial_number || "—"}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {metricChip(
+                                        item.checkout_count,
+                                        `${item.checkout_count}`,
+                                        0,
+                                        "primary",
+                                    )}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {metricChip(
+                                        item.total_hours,
+                                        `${(item.total_hours || 0).toFixed(1)} hrs`,
+                                        0,
+                                        "success",
+                                    )}
+                                </TableCell>
+                                <TableCell align="right">
+                                    {metricChip(
+                                        item.unique_users,
+                                        `${item.unique_users}`,
+                                        0,
+                                        "info",
+                                    )}
+                                </TableCell>
+                                <TableCell align="right">
+                                    <Tooltip title="View equipment">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/equipment/${item.id}`,
+                                                );
+                                            }}
+                                        >
+                                            <Visibility sx={{ fontSize: 18 }} />
+                                        </IconButton>
+                                    </Tooltip>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        </Card>
+    );
 
     return (
         <>
-            {/* Easter Eggs */}
             {meatRain && <MeatRain />}
             {higgyRain && <HiggyRain />}
-            <Box
-                sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    p: 2,
-                }}
-            >
-                {/* Filters */}
-                <Paper sx={{ p: 3, mb: 2 }}>
-                    <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} md={2}>
+
+            <PageHeader
+                title="Usage Report"
+                subtitle={
+                    periodLabel
+                        ? `Showing ${periodLabel}`
+                        : "Choose a period and generate a report"
+                }
+                actions={[
+                    equipmentUsage.length > 0 && {
+                        key: "export",
+                        label: "Export CSV",
+                        icon: <Download />,
+                        onClick: downloadExcel,
+                    },
+                ].filter(Boolean)}
+            />
+
+            <PageContainer>
+                {/* ---- Report parameters ---- */}
+                <SectionCard
+                    title="Report parameters"
+                    icon={<Assessment />}
+                    sx={{ mb: 2.5 }}
+                >
+                    <Grid container spacing={2} alignItems="flex-start">
+                        <Grid item xs={12} sm={6} md={3}>
                             <TextField
                                 select
                                 label="Period"
@@ -451,19 +570,17 @@ const UsageReport = ({ setLoading }) => {
                                     })
                                 }
                                 fullWidth
-                                size="small"
                             >
-                                <MenuItem value="ytd">Year-to-Date</MenuItem>
-                                <MenuItem value="month">Month</MenuItem>
-                                <MenuItem value="year">Full Year</MenuItem>
-                                <MenuItem value="custom">Custom Range</MenuItem>
+                                {PERIODS.map((p) => (
+                                    <MenuItem key={p.value} value={p.value}>
+                                        {p.label}
+                                    </MenuItem>
+                                ))}
                             </TextField>
                         </Grid>
 
-                        {(filters.period === "ytd" ||
-                            filters.period === "year" ||
-                            filters.period === "month") && (
-                            <Grid item xs={12} md={1.5}>
+                        {["ytd", "year", "month"].includes(filters.period) && (
+                            <Grid item xs={6} sm={3} md={2}>
                                 <TextField
                                     type="number"
                                     label="Year"
@@ -471,17 +588,16 @@ const UsageReport = ({ setLoading }) => {
                                     onChange={(e) =>
                                         setFilters({
                                             ...filters,
-                                            year: parseInt(e.target.value),
+                                            year: parseInt(e.target.value, 10),
                                         })
                                     }
                                     fullWidth
-                                    size="small"
                                 />
                             </Grid>
                         )}
 
                         {filters.period === "month" && (
-                            <Grid item xs={12} md={2}>
+                            <Grid item xs={6} sm={3} md={2}>
                                 <TextField
                                     select
                                     label="Month"
@@ -493,23 +609,9 @@ const UsageReport = ({ setLoading }) => {
                                         })
                                     }
                                     fullWidth
-                                    size="small"
                                 >
-                                    {[
-                                        "January",
-                                        "February",
-                                        "March",
-                                        "April",
-                                        "May",
-                                        "June",
-                                        "July",
-                                        "August",
-                                        "September",
-                                        "October",
-                                        "November",
-                                        "December",
-                                    ].map((month, index) => (
-                                        <MenuItem key={index} value={index + 1}>
+                                    {MONTHS.map((month, index) => (
+                                        <MenuItem key={month} value={index + 1}>
                                             {month}
                                         </MenuItem>
                                     ))}
@@ -519,10 +621,10 @@ const UsageReport = ({ setLoading }) => {
 
                         {filters.period === "custom" && (
                             <>
-                                <Grid item xs={12} md={2}>
+                                <Grid item xs={12} sm={6} md={2.5}>
                                     <TextField
                                         type="date"
-                                        label="Start Date"
+                                        label="Start date"
                                         value={filters.startDate}
                                         onChange={(e) =>
                                             setFilters({
@@ -532,13 +634,12 @@ const UsageReport = ({ setLoading }) => {
                                         }
                                         InputLabelProps={{ shrink: true }}
                                         fullWidth
-                                        size="small"
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={2}>
+                                <Grid item xs={12} sm={6} md={2.5}>
                                     <TextField
                                         type="date"
-                                        label="End Date"
+                                        label="End date"
                                         value={filters.endDate}
                                         onChange={(e) =>
                                             setFilters({
@@ -548,16 +649,15 @@ const UsageReport = ({ setLoading }) => {
                                         }
                                         InputLabelProps={{ shrink: true }}
                                         fullWidth
-                                        size="small"
                                     />
                                 </Grid>
                             </>
                         )}
 
-                        <Grid item xs={12} md={2.5}>
+                        <Grid item xs={12} sm={6} md={3}>
                             <TextField
                                 select
-                                label="Office (Optional)"
+                                label="Office"
                                 value={filters.office_id}
                                 onChange={(e) =>
                                     setFilters({
@@ -566,9 +666,8 @@ const UsageReport = ({ setLoading }) => {
                                     })
                                 }
                                 fullWidth
-                                size="small"
                             >
-                                <MenuItem value="">All Offices</MenuItem>
+                                <MenuItem value="">All offices</MenuItem>
                                 {offices.map((office) => (
                                     <MenuItem
                                         key={office.officeid}
@@ -586,10 +685,11 @@ const UsageReport = ({ setLoading }) => {
                                 onClick={generateReport}
                                 disabled={loadingReport}
                                 fullWidth
+                                size="large"
                                 startIcon={
                                     loadingReport ? (
                                         <CircularProgress
-                                            size={20}
+                                            size={18}
                                             color="inherit"
                                         />
                                     ) : (
@@ -597,674 +697,128 @@ const UsageReport = ({ setLoading }) => {
                                     )
                                 }
                             >
-                                Generate
+                                {loadingReport ? "Running…" : "Generate"}
                             </Button>
                         </Grid>
+                    </Grid>
+                </SectionCard>
 
-                        {equipmentUsage.length > 0 && (
-                            <Grid item xs={12} md={2}>
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<Download />}
-                                    onClick={downloadExcel}
-                                    fullWidth
-                                >
-                                    Export Excel
-                                </Button>
+                {/* ---- Results ---- */}
+                {loadingReport && !hasRun ? (
+                    <CardGridSkeleton count={6} />
+                ) : !hasRun ? (
+                    <EmptyState
+                        icon={<Assessment />}
+                        title="No report yet"
+                        description="Pick a period and office above, then generate a report to see how equipment is being used."
+                        action={{
+                            label: "Generate report",
+                            icon: <Assessment />,
+                            onClick: generateReport,
+                        }}
+                    />
+                ) : (
+                    <>
+                        {summary && (
+                            <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                                <Grid item xs={6} md={3}>
+                                    <StatCard
+                                        label="Total reservations"
+                                        value={summary.totalCheckouts}
+                                        icon={<CalendarToday />}
+                                        tone="primary"
+                                    />
+                                </Grid>
+                                <Grid item xs={6} md={3}>
+                                    <StatCard
+                                        label="Total hours"
+                                        value={summary.totalHours}
+                                        icon={<Schedule />}
+                                        tone="success"
+                                    />
+                                </Grid>
+                                <Grid item xs={6} md={3}>
+                                    <StatCard
+                                        label="Equipment used"
+                                        value={summary.uniqueEquipment}
+                                        icon={<Build />}
+                                        tone="warning"
+                                    />
+                                </Grid>
+                                <Grid item xs={6} md={3}>
+                                    <StatCard
+                                        label="Unique users"
+                                        value={summary.uniqueUsers}
+                                        icon={<People />}
+                                        tone="info"
+                                    />
+                                </Grid>
                             </Grid>
                         )}
-                    </Grid>
-                </Paper>
 
-                {/* Report Content */}
-                {equipmentUsage.length > 0 && (
-                    <>
-                        {/* Summary Cards */}
-                        {renderSummaryCards()}
+                        <FilterBar
+                            search={searchTerm}
+                            onSearchChange={(value) =>
+                                handleSearchChange(value, setSearchTerm)
+                            }
+                            searchPlaceholder="Search equipment…"
+                            sx={{ mb: 2 }}
+                            trailing={
+                                isCompact && (
+                                    <TextField
+                                        select
+                                        size="small"
+                                        label="Sort"
+                                        value={`${orderBy}_${order}`}
+                                        onChange={(e) => {
+                                            const parts =
+                                                e.target.value.split("_");
+                                            const direction = parts.pop();
+                                            setOrderBy(parts.join("_"));
+                                            setOrder(direction);
+                                        }}
+                                        sx={{ minWidth: 190 }}
+                                    >
+                                        {SORT_OPTIONS.map(([value, label]) => (
+                                            <MenuItem key={value} value={value}>
+                                                {label}
+                                            </MenuItem>
+                                        ))}
+                                    </TextField>
+                                )
+                            }
+                        />
 
-                        {/* Search and Sort Bar */}
-                        <Box
-                            sx={{
-                                display: "flex",
-                                gap: 2,
-                                mb: 2,
-                                alignItems: "center",
-                            }}
-                        >
-                            <TextField
-                                placeholder="Search equipment..."
-                                value={searchTerm}
-                                onChange={(e) =>
-                                    handleSearchChange(
-                                        e.target.value,
-                                        setSearchTerm,
-                                    )
-                                }
-                                size="small"
-                                sx={{ flex: 1 }}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <Search />
-                                        </InputAdornment>
-                                    ),
+                        {filteredAndSortedEquipment.length === 0 ? (
+                            <EmptyState
+                                icon={<Search />}
+                                title="No equipment matches"
+                                description="Nothing in this report matches that search."
+                                action={{
+                                    label: "Clear search",
+                                    onClick: () => setSearchTerm(""),
                                 }}
                             />
-                            {isMobile && (
-                                <TextField
-                                    select
-                                    label="Sort by"
-                                    value={`${orderBy}_${order}`}
-                                    onChange={(e) => {
-                                        const [field, direction] =
-                                            e.target.value.split("_");
-                                        setOrderBy(field);
-                                        setOrder(direction);
-                                    }}
-                                    size="small"
-                                    sx={{ minWidth: 180 }}
-                                >
-                                    <MenuItem value="name_asc">
-                                        Name (A-Z)
-                                    </MenuItem>
-                                    <MenuItem value="name_desc">
-                                        Name (Z-A)
-                                    </MenuItem>
-                                    <MenuItem value="location_asc">
-                                        Location (A-Z)
-                                    </MenuItem>
-                                    <MenuItem value="location_desc">
-                                        Location (Z-A)
-                                    </MenuItem>
-                                    <MenuItem value="asset_number_asc">
-                                        Asset # (A-Z)
-                                    </MenuItem>
-                                    <MenuItem value="asset_number_desc">
-                                        Asset # (Z-A)
-                                    </MenuItem>
-                                    <MenuItem value="serial_number_asc">
-                                        Serial (A-Z)
-                                    </MenuItem>
-                                    <MenuItem value="serial_number_desc">
-                                        Serial (Z-A)
-                                    </MenuItem>
-                                    <MenuItem value="checkout_count_desc">
-                                        Reservations (High-Low)
-                                    </MenuItem>
-                                    <MenuItem value="checkout_count_asc">
-                                        Reservations (Low-High)
-                                    </MenuItem>
-                                    <MenuItem value="total_hours_desc">
-                                        Hours (High-Low)
-                                    </MenuItem>
-                                    <MenuItem value="total_hours_asc">
-                                        Hours (Low-High)
-                                    </MenuItem>
-                                    <MenuItem value="unique_users_desc">
-                                        Users (High-Low)
-                                    </MenuItem>
-                                    <MenuItem value="unique_users_asc">
-                                        Users (Low-High)
-                                    </MenuItem>
-                                </TextField>
-                            )}
-                        </Box>
-
-                        {/* Equipment Display - Table for Desktop, Cards for Mobile */}
-                        <Box sx={{ flex: 1, overflow: "auto" }}>
-                            {isMobile ? (
-                                // Mobile Card View
-                                <>
-                                    <Grid container spacing={2}>
-                                        {filteredAndSortedEquipment.map(
-                                            (item) => (
-                                                <Grid
-                                                    item
-                                                    xs={12}
-                                                    sm={6}
-                                                    key={item.id}
-                                                >
-                                                    <Card
-                                                        sx={{
-                                                            height: "100%",
-                                                            display: "flex",
-                                                            flexDirection:
-                                                                "column",
-                                                            cursor: "pointer",
-                                                            transition:
-                                                                "all 0.2s",
-                                                            "&:hover": {
-                                                                transform:
-                                                                    "translateY(-4px)",
-                                                                boxShadow: 4,
-                                                            },
-                                                        }}
-                                                        onClick={() =>
-                                                            navigate(
-                                                                `/equipment/${item.id}`,
-                                                            )
-                                                        }
-                                                    >
-                                                        {item.image && (
-                                                            <CardMedia
-                                                                component="img"
-                                                                height="140"
-                                                                image={
-                                                                    item.image
-                                                                }
-                                                                alt={item.name}
-                                                                sx={{
-                                                                    objectFit:
-                                                                        "cover",
-                                                                }}
-                                                            />
-                                                        )}
-                                                        <CardContent
-                                                            sx={{
-                                                                flexGrow: 1,
-                                                                p: 2,
-                                                                "&:last-child":
-                                                                    { pb: 2 },
-                                                            }}
-                                                        >
-                                                            <Typography
-                                                                variant="h6"
-                                                                gutterBottom
-                                                                noWrap
-                                                                sx={{ mb: 1 }}
-                                                            >
-                                                                {item.name}
-                                                            </Typography>
-
-                                                            {/* Asset, Serial & Location Row */}
-                                                            <Box
-                                                                sx={{
-                                                                    display:
-                                                                        "flex",
-                                                                    gap: 2,
-                                                                    mb: 1.5,
-                                                                    flexWrap:
-                                                                        "wrap",
-                                                                }}
-                                                            >
-                                                                {item.asset_number && (
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        color="text.secondary"
-                                                                    >
-                                                                        Asset:{" "}
-                                                                        {
-                                                                            item.asset_number
-                                                                        }
-                                                                    </Typography>
-                                                                )}
-                                                                {item.serial_number && (
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        color="text.secondary"
-                                                                    >
-                                                                        SN:{" "}
-                                                                        {
-                                                                            item.serial_number
-                                                                        }
-                                                                    </Typography>
-                                                                )}
-                                                                {item.location && (
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        color="text.secondary"
-                                                                    >
-                                                                        📍{" "}
-                                                                        {
-                                                                            item.location
-                                                                        }
-                                                                    </Typography>
-                                                                )}
-                                                            </Box>
-
-                                                            {/* Stats Row */}
-                                                            <Box
-                                                                sx={{
-                                                                    display:
-                                                                        "flex",
-                                                                    gap: 1,
-                                                                    justifyContent:
-                                                                        "space-between",
-                                                                    alignItems:
-                                                                        "center",
-                                                                }}
-                                                            >
-                                                                <Box
-                                                                    sx={{
-                                                                        textAlign:
-                                                                            "center",
-                                                                        flex: 1,
-                                                                    }}
-                                                                >
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        color="text.secondary"
-                                                                        display="block"
-                                                                    >
-                                                                        Reservations
-                                                                    </Typography>
-                                                                    <Chip
-                                                                        label={
-                                                                            item.checkout_count
-                                                                        }
-                                                                        color={
-                                                                            item.checkout_count >
-                                                                            0
-                                                                                ? "primary"
-                                                                                : "default"
-                                                                        }
-                                                                        size="small"
-                                                                        sx={{
-                                                                            mt: 0.5,
-                                                                        }}
-                                                                    />
-                                                                </Box>
-                                                                <Box
-                                                                    sx={{
-                                                                        textAlign:
-                                                                            "center",
-                                                                        flex: 1,
-                                                                    }}
-                                                                >
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        color="text.secondary"
-                                                                        display="block"
-                                                                    >
-                                                                        Hours
-                                                                    </Typography>
-                                                                    <Chip
-                                                                        label={`${item.total_hours.toFixed(1)}`}
-                                                                        color={
-                                                                            item.total_hours >
-                                                                            0
-                                                                                ? "success"
-                                                                                : "default"
-                                                                        }
-                                                                        size="small"
-                                                                        sx={{
-                                                                            mt: 0.5,
-                                                                        }}
-                                                                    />
-                                                                </Box>
-                                                                <Box
-                                                                    sx={{
-                                                                        textAlign:
-                                                                            "center",
-                                                                        flex: 1,
-                                                                    }}
-                                                                >
-                                                                    <Typography
-                                                                        variant="caption"
-                                                                        color="text.secondary"
-                                                                        display="block"
-                                                                    >
-                                                                        Users
-                                                                    </Typography>
-                                                                    <Chip
-                                                                        label={
-                                                                            item.unique_users
-                                                                        }
-                                                                        color={
-                                                                            item.unique_users >
-                                                                            0
-                                                                                ? "info"
-                                                                                : "default"
-                                                                        }
-                                                                        size="small"
-                                                                        sx={{
-                                                                            mt: 0.5,
-                                                                        }}
-                                                                    />
-                                                                </Box>
-                                                            </Box>
-                                                        </CardContent>
-                                                    </Card>
-                                                </Grid>
-                                            ),
-                                        )}
+                        ) : isCompact ? (
+                            <Stagger
+                                component={Grid}
+                                container
+                                spacing={2}
+                                step={30}
+                                max={12}
+                            >
+                                {filteredAndSortedEquipment.map((item) => (
+                                    <Grid item xs={12} sm={6} key={item.id}>
+                                        {usageCard(item)}
                                     </Grid>
-                                </>
-                            ) : (
-                                // Desktop Table View
-                                <TableContainer
-                                    component={Paper}
-                                    sx={{ maxHeight: "calc(100vh - 400px)" }}
-                                >
-                                    <Table stickyHeader>
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell>
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy === "name"
-                                                        }
-                                                        direction={
-                                                            orderBy === "name"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort("name")
-                                                        }
-                                                    >
-                                                        Equipment
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy ===
-                                                            "location"
-                                                        }
-                                                        direction={
-                                                            orderBy ===
-                                                            "location"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort(
-                                                                "location",
-                                                            )
-                                                        }
-                                                    >
-                                                        Location
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy ===
-                                                            "asset_number"
-                                                        }
-                                                        direction={
-                                                            orderBy ===
-                                                            "asset_number"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort(
-                                                                "asset_number",
-                                                            )
-                                                        }
-                                                    >
-                                                        Asset Number
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy ===
-                                                            "serial_number"
-                                                        }
-                                                        direction={
-                                                            orderBy ===
-                                                            "serial_number"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort(
-                                                                "serial_number",
-                                                            )
-                                                        }
-                                                    >
-                                                        Serial Number
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy ===
-                                                            "checkout_count"
-                                                        }
-                                                        direction={
-                                                            orderBy ===
-                                                            "checkout_count"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort(
-                                                                "checkout_count",
-                                                            )
-                                                        }
-                                                    >
-                                                        Reservations
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy ===
-                                                            "total_hours"
-                                                        }
-                                                        direction={
-                                                            orderBy ===
-                                                            "total_hours"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort(
-                                                                "total_hours",
-                                                            )
-                                                        }
-                                                    >
-                                                        Total Hours
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell align="right">
-                                                    <TableSortLabel
-                                                        active={
-                                                            orderBy ===
-                                                            "unique_users"
-                                                        }
-                                                        direction={
-                                                            orderBy ===
-                                                            "unique_users"
-                                                                ? order
-                                                                : "asc"
-                                                        }
-                                                        onClick={() =>
-                                                            handleSort(
-                                                                "unique_users",
-                                                            )
-                                                        }
-                                                    >
-                                                        Unique Users
-                                                    </TableSortLabel>
-                                                </TableCell>
-                                                <TableCell align="center">
-                                                    Actions
-                                                </TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {filteredAndSortedEquipment.map(
-                                                (item) => (
-                                                    <TableRow
-                                                        key={item.id}
-                                                        hover
-                                                        sx={{
-                                                            cursor: "pointer",
-                                                            "&:hover": {
-                                                                backgroundColor:
-                                                                    "action.hover",
-                                                            },
-                                                        }}
-                                                        onClick={() =>
-                                                            navigate(
-                                                                `/equipment/${item.id}`,
-                                                            )
-                                                        }
-                                                    >
-                                                        <TableCell>
-                                                            <Typography
-                                                                variant="body2"
-                                                                fontWeight={500}
-                                                            >
-                                                                {item.name}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Typography variant="body2">
-                                                                {item.location ||
-                                                                    "—"}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            <Typography
-                                                                variant="body2"
-                                                                color="text.secondary"
-                                                            >
-                                                                {item.asset_number ||
-                                                                    "—"}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            <Typography
-                                                                variant="body2"
-                                                                color="text.secondary"
-                                                            >
-                                                                {item.serial_number ||
-                                                                    "—"}
-                                                            </Typography>
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            <Chip
-                                                                label={
-                                                                    item.checkout_count
-                                                                }
-                                                                color={
-                                                                    item.checkout_count >
-                                                                    0
-                                                                        ? "primary"
-                                                                        : "default"
-                                                                }
-                                                                size="small"
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            <Chip
-                                                                label={`${item.total_hours.toFixed(1)} hrs`}
-                                                                color={
-                                                                    item.total_hours >
-                                                                    0
-                                                                        ? "success"
-                                                                        : "default"
-                                                                }
-                                                                size="small"
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell align="right">
-                                                            <Chip
-                                                                label={
-                                                                    item.unique_users
-                                                                }
-                                                                color={
-                                                                    item.unique_users >
-                                                                    0
-                                                                        ? "info"
-                                                                        : "default"
-                                                                }
-                                                                size="small"
-                                                            />
-                                                        </TableCell>
-                                                        <TableCell align="center">
-                                                            <Button
-                                                                size="small"
-                                                                variant="outlined"
-                                                                startIcon={
-                                                                    <Visibility />
-                                                                }
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.stopPropagation();
-                                                                    navigate(
-                                                                        `/equipment/${item.id}`,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                View
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ),
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            )}
-
-                            {filteredAndSortedEquipment.length === 0 && (
-                                <Paper sx={{ p: 6, textAlign: "center" }}>
-                                    <Search
-                                        sx={{
-                                            fontSize: 80,
-                                            color: "text.secondary",
-                                            opacity: 0.3,
-                                        }}
-                                    />
-                                    <Typography
-                                        variant="h6"
-                                        color="textSecondary"
-                                        sx={{ mt: 2 }}
-                                    >
-                                        No equipment found matching your search
-                                    </Typography>
-                                </Paper>
-                            )}
-                        </Box>
+                                ))}
+                            </Stagger>
+                        ) : (
+                            resultsTable
+                        )}
                     </>
                 )}
-
-                {!equipmentUsage.length && !loadingReport && (
-                    <Paper
-                        sx={{
-                            p: 6,
-                            textAlign: "center",
-                            flex: 1,
-                            display: "flex",
-                            flexDirection: "column",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <TrendingUp
-                            sx={{
-                                fontSize: 80,
-                                color: "text.secondary",
-                                mx: "auto",
-                            }}
-                        />
-                        <Typography
-                            variant="h6"
-                            color="textSecondary"
-                            sx={{ mt: 2 }}
-                        >
-                            {periodLabel
-                                ? `Usage Report: ${periodLabel}`
-                                : "Equipment Usage Report"}
-                        </Typography>
-                        <Typography
-                            variant="body2"
-                            color="textSecondary"
-                            sx={{ mt: 1 }}
-                        >
-                            Select a period and click "Generate" to view
-                            equipment usage statistics
-                        </Typography>
-                    </Paper>
-                )}
-            </Box>
+            </PageContainer>
         </>
     );
 };
