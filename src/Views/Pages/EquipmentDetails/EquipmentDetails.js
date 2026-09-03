@@ -513,23 +513,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         }
     };
 
-    const getCheckoutStatusColor = (status) => {
-        switch (status) {
-            case "pending":
-                return "warning";
-            case "auto-approved":
-                return "success";
-            case "checked_out":
-                return "info";
-            case "returned":
-                return "default";
-            case "cancelled":
-                return "error";
-            default:
-                return "default";
-        }
-    };
-
     const isCalibrationDueSoon = (dueDate) => {
         if (!dueDate) return false;
         const daysUntilDue = Math.floor(
@@ -861,9 +844,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                             <RiseIn delay={180}>
                                 <CheckoutHistoryCard
                                     checkoutHistory={checkoutHistory}
-                                    getCheckoutStatusColor={
-                                        getCheckoutStatusColor
-                                    }
                                 />
                             </RiseIn>
                         </Grid>

@@ -1,81 +1,93 @@
 import React, { useMemo, useState } from "react";
 import {
     Card,
-    CardContent,
     Typography,
-    Divider,
     Table,
     TableBody,
     TableCell,
     TableContainer,
     TableHead,
     TableRow,
-    Chip,
     Box,
     Accordion,
     AccordionSummary,
     AccordionDetails,
     TextField,
     MenuItem,
-    InputAdornment,
-    useMediaQuery,
-    useTheme,
-    Paper,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
+    Stack,
     Button,
+    Avatar,
+    Tooltip,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import RepeatIcon from "@mui/icons-material/Repeat";
+import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
+import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import { format } from "date-fns";
+
 import useEasterEggs from "../../../../hooks/useEasterEggs";
 import MeatRain from "../../../../Components/EasterEggs/MeatRain";
 import HiggyRain from "../../../../Components/EasterEggs/HiggyRain";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import RepeatIcon from "@mui/icons-material/Repeat";
-import SearchIcon from "@mui/icons-material/Search";
-import CloseIcon from "@mui/icons-material/Close";
 import AddToCalendarButton from "../../../../Components/AddToCalendarButton";
-import { format } from "date-fns";
+import useResponsive from "../../../../hooks/useResponsive";
+import SectionCard from "../../../Components/UI/SectionCard";
+import EmptyState from "../../../Components/UI/EmptyState";
+import StatusChip from "../../../Components/UI/StatusChip";
+import DetailField from "../../../Components/UI/DetailField";
+import FilterBar from "../../../Components/UI/FilterBar";
+import ResponsiveDialog from "../../../Components/UI/ResponsiveDialog";
+import { Stagger } from "../../../Components/UI/motion";
 
-const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
+const STATUS_OPTIONS = [
+    { value: "all", label: "All statuses" },
+    { value: "pending", label: "Pending" },
+    { value: "auto-approved", label: "Approved" },
+    { value: "reserved", label: "In use" },
+    { value: "returned", label: "Returned" },
+    { value: "cancelled", label: "Cancelled" },
+];
+
+const userLabel = (checkout) =>
+    checkout.User
+        ? `${checkout.User.first_name} ${checkout.User.last_name}`
+        : "N/A";
+
+const initialsOf = (name) =>
+    name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase();
+
+/**
+ * Reservation history for one piece of equipment.
+ *
+ * Recurring and one-time reservations render through the same `HistorySection`
+ * — previously each had its own copy of a table plus its own mobile card, four
+ * near-identical blocks in total.
+ */
+// Status colors now come from the shared StatusChip vocabulary rather than a
+// per-page color function.
+const CheckoutHistoryCard = ({ checkoutHistory }) => {
     const { meatRain, higgyRain, handleSearchChange } = useEasterEggs();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    const { isCompact } = useResponsive();
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [selectedCheckout, setSelectedCheckout] = useState(null);
-    const [dialogOpen, setDialogOpen] = useState(false);
 
-    const handleCardClick = (checkout) => {
-        setSelectedCheckout(checkout);
-        setDialogOpen(true);
-    };
-
-    const handleCloseDialog = () => {
-        setDialogOpen(false);
-        setSelectedCheckout(null);
-    };
-
-    // Separate recurring and non-recurring checkouts
+    // Virtual occurrences (string ids containing "_") are expansions of a
+    // recurrence and would duplicate their parent, so they're dropped.
     const { recurringCheckouts, nonRecurringCheckouts } = useMemo(() => {
         const recurring = [];
         const nonRecurring = [];
-        const recurringGroups = new Map();
 
         checkoutHistory.forEach((checkout) => {
-            // Check if this is a recurring checkout (has recurrence_id)
-            // But exclude virtual occurrences (IDs with underscore)
-            const isVirtualOccurrence =
+            const isVirtual =
                 typeof checkout.id === "string" && checkout.id.includes("_");
-
-            if (checkout.recurrence_id && !isVirtualOccurrence) {
-                // This is a base recurring checkout
-                recurring.push(checkout);
-            } else if (!checkout.recurrence_id && !isVirtualOccurrence) {
-                // Regular non-recurring checkout
-                nonRecurring.push(checkout);
-            }
-            // Skip virtual occurrences entirely
+            if (isVirtual) return;
+            if (checkout.recurrence_id) recurring.push(checkout);
+            else nonRecurring.push(checkout);
         });
 
         return {
@@ -84,15 +96,11 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
         };
     }, [checkoutHistory]);
 
-    // Filter checkouts based on search and status
-    const filterCheckouts = (checkouts) => {
-        return checkouts.filter((checkout) => {
+    const filterCheckouts = (checkouts) =>
+        checkouts.filter((checkout) => {
             const search = searchTerm.toLowerCase();
-            const userName = checkout.User
-                ? `${checkout.User.first_name} ${checkout.User.last_name}`.toLowerCase()
-                : "";
             const matchesSearch =
-                userName.includes(search) ||
+                userLabel(checkout).toLowerCase().includes(search) ||
                 checkout.notes?.toLowerCase().includes(search) ||
                 checkout.project_number?.toLowerCase().includes(search) ||
                 checkout.status?.toLowerCase().includes(search);
@@ -100,15 +108,16 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
                 statusFilter === "all" || checkout.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
-    };
 
     const filteredRecurring = useMemo(
         () => filterCheckouts(recurringCheckouts),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [recurringCheckouts, searchTerm, statusFilter],
     );
 
     const filteredNonRecurring = useMemo(
         () => filterCheckouts(nonRecurringCheckouts),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [nonRecurringCheckouts, searchTerm, statusFilter],
     );
 
@@ -117,655 +126,446 @@ const CheckoutHistoryCard = ({ checkoutHistory, getCheckoutStatusColor }) => {
 
         const pattern = checkout.repeats.toLowerCase();
         const recurrence = checkout.Recurrence;
-
-        if (!recurrence) {
-            return `Repeats ${pattern}`;
-        }
+        if (!recurrence) return `Repeats ${pattern}`;
 
         const interval = recurrence.separation_count || 1;
-        let description = `Every `;
-
-        if (interval > 1) {
-            description += `${interval} `;
-        }
-
-        description +=
+        const unit =
             pattern === "daily"
-                ? "day(s)"
+                ? "day"
                 : pattern === "weekly"
-                  ? "week(s)"
+                  ? "week"
                   : pattern === "monthly"
-                    ? "month(s)"
+                    ? "month"
                     : pattern;
 
-        if (recurrence.end_date) {
-            description += ` until ${format(
-                new Date(recurrence.end_date),
-                "PP",
-            )}`;
-        } else {
-            description += ` (indefinite)`;
-        }
+        const every =
+            interval > 1 ? `Every ${interval} ${unit}s` : `Every ${unit}`;
 
-        return description;
+        return recurrence.end_date
+            ? `${every} until ${format(new Date(recurrence.end_date), "PP")}`
+            : `${every} (indefinite)`;
     };
 
-    const renderRecurringMobileCard = (checkout) => (
+    // ---- One row shape, both sections -------------------------------------
+
+    const MobileCard = ({ checkout, recurring }) => (
         <Card
-            key={checkout.id}
-            sx={{ mb: 2, cursor: "pointer", "&:hover": { boxShadow: 3 } }}
-            onClick={() => handleCardClick(checkout)}
+            onClick={() => setSelectedCheckout(checkout)}
+            sx={{
+                mb: 1.5,
+                p: 2,
+                cursor: "pointer",
+                transition: "border-color 160ms ease, transform 160ms ease",
+                "&:active": { transform: "scale(0.99)" },
+                "@media (hover: hover)": {
+                    "&:hover": { borderColor: "grey.300" },
+                },
+            }}
         >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "start",
-                        mb: 1,
-                    }}
-                >
-                    <Box sx={{ flex: 1 }}>
-                        <Typography variant="subtitle2" fontWeight="bold">
-                            {checkout.User
-                                ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                                : "N/A"}
-                        </Typography>
+            <Stack direction="row" spacing={1.25} alignItems="flex-start">
+                <Avatar sx={{ width: 30, height: 30, fontSize: "0.6875rem" }}>
+                    {initialsOf(userLabel(checkout))}
+                </Avatar>
+
+                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Stack direction="row" spacing={1} alignItems="center">
                         <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            display="block"
+                            variant="subtitle2"
+                            sx={{ flexGrow: 1, minWidth: 0 }}
+                            noWrap
                         >
-                            {format(new Date(checkout.start_time), "Pp")}
+                            {userLabel(checkout)}
                         </Typography>
-                    </Box>
-                    <Chip
-                        label={checkout.status}
-                        color={getCheckoutStatusColor(checkout.status)}
-                        size="small"
-                    />
-                </Box>
-                <Box
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 0.5,
-                        mb: 1,
-                    }}
-                >
-                    <RepeatIcon fontSize="small" color="action" />
-                    <Typography variant="body2" color="text.secondary">
-                        {getRecurrenceDescription(checkout)}
-                    </Typography>
-                </Box>
-                {checkout.notes && (
+                        <StatusChip status={checkout.status} />
+                    </Stack>
+
                     <Typography
-                        variant="body2"
+                        variant="caption"
                         color="text.secondary"
-                        sx={{ mb: 0.5 }}
+                        sx={{ display: "block", mt: 0.25 }}
                     >
-                        <strong>Purpose:</strong> {checkout.notes}
+                        {recurring
+                            ? format(new Date(checkout.start_time), "Pp")
+                            : `${format(new Date(checkout.start_time), "Pp")} – ${format(
+                                  new Date(checkout.end_time),
+                                  "p",
+                              )}`}
                     </Typography>
-                )}
-                {checkout.project_number && (
-                    <Typography variant="body2" color="text.secondary">
-                        <strong>Project #:</strong> {checkout.project_number}
-                    </Typography>
-                )}
-            </CardContent>
+
+                    {recurring && (
+                        <Stack
+                            direction="row"
+                            spacing={0.5}
+                            alignItems="center"
+                            sx={{ mt: 0.75 }}
+                        >
+                            <RepeatIcon
+                                sx={{ fontSize: 14, color: "text.disabled" }}
+                            />
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                            >
+                                {getRecurrenceDescription(checkout)}
+                            </Typography>
+                        </Stack>
+                    )}
+
+                    {(checkout.notes || checkout.project_number) && (
+                        <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{ mt: 0.75 }}
+                            noWrap
+                        >
+                            {[checkout.project_number, checkout.notes]
+                                .filter(Boolean)
+                                .join(" · ")}
+                        </Typography>
+                    )}
+                </Box>
+            </Stack>
         </Card>
     );
 
-    const renderNonRecurringMobileCard = (checkout) => (
-        <Card
-            key={checkout.id}
-            sx={{ mb: 2, cursor: "pointer", "&:hover": { boxShadow: 3 } }}
-            onClick={() => handleCardClick(checkout)}
-        >
-            <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                <Box
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "start",
-                        mb: 1,
-                    }}
-                >
-                    <Box sx={{ flex: 1 }}>
-                        <Typography variant="subtitle2" fontWeight="bold">
-                            {checkout.User
-                                ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                                : "N/A"}
+    const HistorySection = ({ title, icon, checkouts, recurring, defaultExpanded }) => {
+        if (checkouts.length === 0) return null;
+
+        return (
+            <Accordion defaultExpanded={defaultExpanded}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        {icon}
+                        <Typography variant="subtitle2">
+                            {title} ({checkouts.length})
                         </Typography>
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            display="block"
-                        >
-                            {format(new Date(checkout.start_time), "Pp")} -{" "}
-                            {format(new Date(checkout.end_time), "p")}
-                        </Typography>
-                    </Box>
-                    <Chip
-                        label={checkout.status}
-                        color={getCheckoutStatusColor(checkout.status)}
-                        size="small"
-                    />
-                </Box>
-                {checkout.notes && (
-                    <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mb: 0.5 }}
-                    >
-                        <strong>Purpose:</strong> {checkout.notes}
-                    </Typography>
-                )}
-                {checkout.project_number && (
-                    <Typography variant="body2" color="text.secondary">
-                        <strong>Project #:</strong> {checkout.project_number}
-                    </Typography>
-                )}
-            </CardContent>
-        </Card>
-    );
+                    </Stack>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: { xs: 1.5, sm: 2 }, pb: 2 }}>
+                    {isCompact ? (
+                        <Stagger step={35} max={10}>
+                            {checkouts.map((checkout) => (
+                                <MobileCard
+                                    key={checkout.id}
+                                    checkout={checkout}
+                                    recurring={recurring}
+                                />
+                            ))}
+                        </Stagger>
+                    ) : (
+                        <TableContainer>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>User</TableCell>
+                                        <TableCell>
+                                            {recurring
+                                                ? "First occurrence"
+                                                : "Start"}
+                                        </TableCell>
+                                        <TableCell>
+                                            {recurring ? "Pattern" : "End"}
+                                        </TableCell>
+                                        <TableCell>Status</TableCell>
+                                        <TableCell>Purpose</TableCell>
+                                        <TableCell>Project #</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {checkouts.map((checkout, index) => (
+                                        <TableRow
+                                            key={checkout.id}
+                                            hover
+                                            onClick={() =>
+                                                setSelectedCheckout(checkout)
+                                            }
+                                            sx={{
+                                                cursor: "pointer",
+                                                animation:
+                                                    "seaFadeIn 240ms ease both",
+                                                animationDelay: `${Math.min(index, 15) * 18}ms`,
+                                            }}
+                                        >
+                                            <TableCell>
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={1}
+                                                    alignItems="center"
+                                                >
+                                                    <Avatar
+                                                        sx={{
+                                                            width: 24,
+                                                            height: 24,
+                                                            fontSize:
+                                                                "0.625rem",
+                                                        }}
+                                                    >
+                                                        {initialsOf(
+                                                            userLabel(checkout),
+                                                        )}
+                                                    </Avatar>
+                                                    <Typography variant="body2">
+                                                        {userLabel(checkout)}
+                                                    </Typography>
+                                                </Stack>
+                                            </TableCell>
+                                            <TableCell
+                                                sx={{ whiteSpace: "nowrap" }}
+                                            >
+                                                {format(
+                                                    new Date(
+                                                        checkout.start_time,
+                                                    ),
+                                                    "Pp",
+                                                )}
+                                            </TableCell>
+                                            <TableCell
+                                                sx={{
+                                                    whiteSpace: recurring
+                                                        ? "normal"
+                                                        : "nowrap",
+                                                    color: recurring
+                                                        ? "text.secondary"
+                                                        : "inherit",
+                                                }}
+                                            >
+                                                {recurring
+                                                    ? getRecurrenceDescription(
+                                                          checkout,
+                                                      )
+                                                    : format(
+                                                          new Date(
+                                                              checkout.end_time,
+                                                          ),
+                                                          "Pp",
+                                                      )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <StatusChip
+                                                    status={checkout.status}
+                                                />
+                                            </TableCell>
+                                            <TableCell
+                                                sx={{
+                                                    maxWidth: 220,
+                                                    color: "text.secondary",
+                                                }}
+                                            >
+                                                <Tooltip
+                                                    title={checkout.notes || ""}
+                                                    disableHoverListener={
+                                                        !checkout.notes
+                                                    }
+                                                >
+                                                    <Typography
+                                                        variant="body2"
+                                                        component="span"
+                                                        noWrap
+                                                        sx={{
+                                                            display: "block",
+                                                        }}
+                                                    >
+                                                        {checkout.notes || "—"}
+                                                    </Typography>
+                                                </Tooltip>
+                                            </TableCell>
+                                            <TableCell>
+                                                {checkout.project_number || "—"}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </AccordionDetails>
+            </Accordion>
+        );
+    };
+
+    const nothingMatches =
+        filteredRecurring.length === 0 && filteredNonRecurring.length === 0;
 
     return (
         <>
-            {/* Easter Eggs */}
             {meatRain && <MeatRain />}
             {higgyRain && <HiggyRain />}
-            <Dialog
-                open={dialogOpen}
-                onClose={handleCloseDialog}
-                maxWidth="sm"
-                fullWidth
-                fullScreen={isMobile}
+
+            <SectionCard
+                title="Reservation history"
+                subtitle={`${recurringCheckouts.length + nonRecurringCheckouts.length} total`}
+                icon={<HistoryOutlinedIcon />}
             >
-                <DialogTitle
-                    sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}
+                <FilterBar
+                    search={searchTerm}
+                    onSearchChange={(value) =>
+                        handleSearchChange(value, setSearchTerm)
+                    }
+                    searchPlaceholder="Search user, purpose, project #…"
+                    activeFilters={
+                        statusFilter !== "all"
+                            ? [
+                                  {
+                                      key: "status",
+                                      label:
+                                          STATUS_OPTIONS.find(
+                                              (o) => o.value === statusFilter,
+                                          )?.label || statusFilter,
+                                      onClear: () => setStatusFilter("all"),
+                                  },
+                              ]
+                            : []
+                    }
+                    sx={{ mb: 2 }}
                 >
-                    <Typography variant="h6">Reservation Details</Typography>
-                    <Button
-                        onClick={handleCloseDialog}
-                        color="inherit"
-                        sx={{ minWidth: "auto", p: 0.5 }}
+                    <TextField
+                        select
+                        label="Status"
+                        size="small"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        sx={{ minWidth: 160 }}
                     >
-                        <CloseIcon />
-                    </Button>
-                </DialogTitle>
-                <DialogContent dividers>
-                    {selectedCheckout && (
-                        <Box
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 2,
-                            }}
-                        >
-                            <Box>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                >
-                                    User
-                                </Typography>
-                                <Typography variant="body1">
-                                    {selectedCheckout.User
-                                        ? `${selectedCheckout.User.first_name} ${selectedCheckout.User.last_name}`
-                                        : "N/A"}
-                                </Typography>
-                            </Box>
+                        {STATUS_OPTIONS.map((o) => (
+                            <MenuItem key={o.value} value={o.value}>
+                                {o.label}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                </FilterBar>
 
-                            <Box>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                >
-                                    Status
-                                </Typography>
-                                <Box sx={{ mt: 0.5 }}>
-                                    <Chip
-                                        label={selectedCheckout.status}
-                                        color={getCheckoutStatusColor(
-                                            selectedCheckout.status,
-                                        )}
-                                        size="small"
-                                    />
-                                </Box>
-                            </Box>
-
-                            {selectedCheckout.recurrence_id ? (
-                                <>
-                                    <Box>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                        >
-                                            First Occurrence
-                                        </Typography>
-                                        <Typography variant="body1">
-                                            {format(
-                                                new Date(
-                                                    selectedCheckout.start_time,
-                                                ),
-                                                "PPpp",
-                                            )}
-                                        </Typography>
-                                    </Box>
-                                    <Box>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                        >
-                                            Recurrence Pattern
-                                        </Typography>
-                                        <Box
-                                            sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 1,
-                                                mt: 0.5,
-                                            }}
-                                        >
-                                            <RepeatIcon
-                                                fontSize="small"
-                                                color="action"
-                                            />
-                                            <Typography variant="body1">
-                                                {getRecurrenceDescription(
-                                                    selectedCheckout,
-                                                )}
-                                            </Typography>
-                                        </Box>
-                                    </Box>
-                                </>
-                            ) : (
-                                <>
-                                    <Box>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                        >
-                                            Start Time
-                                        </Typography>
-                                        <Typography variant="body1">
-                                            {format(
-                                                new Date(
-                                                    selectedCheckout.start_time,
-                                                ),
-                                                "PPpp",
-                                            )}
-                                        </Typography>
-                                    </Box>
-                                    <Box>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                        >
-                                            End Time
-                                        </Typography>
-                                        <Typography variant="body1">
-                                            {format(
-                                                new Date(
-                                                    selectedCheckout.end_time,
-                                                ),
-                                                "PPpp",
-                                            )}
-                                        </Typography>
-                                    </Box>
-                                </>
-                            )}
-
-                            <Box>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                >
-                                    Purpose
-                                </Typography>
-                                <Typography variant="body1">
-                                    {selectedCheckout.notes || ""}
-                                </Typography>
-                            </Box>
-
-                            <Box>
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                >
-                                    Project Number
-                                </Typography>
-                                <Typography variant="body1">
-                                    {selectedCheckout.project_number || ""}
-                                </Typography>
-                            </Box>
-
-                            {selectedCheckout.notes && (
-                                <Box>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                    >
-                                        Notes
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        {selectedCheckout.notes}
-                                    </Typography>
-                                </Box>
-                            )}
-                        </Box>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <AddToCalendarButton checkout={selectedCheckout} />
-                    <Button onClick={handleCloseDialog} variant="contained">
-                        Close
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <Card>
-                <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                        Reservation History
-                    </Typography>
-                    <Divider sx={{ mb: 2 }} />
-
-                    {/* Search and Filter */}
-                    <Box
-                        sx={{
-                            display: "flex",
-                            gap: 2,
-                            mb: 2,
-                            flexDirection: isMobile ? "column" : "row",
-                        }}
-                    >
-                        <TextField
-                            placeholder="Search by user, notes, project #..."
-                            value={searchTerm}
-                            onChange={(e) =>
-                                handleSearchChange(
-                                    e.target.value,
-                                    setSearchTerm,
-                                )
-                            }
-                            size="small"
-                            fullWidth={isMobile}
-                            sx={{ flex: isMobile ? 1 : "0 0 300px" }}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <SearchIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                {checkoutHistory.length === 0 ? (
+                    <EmptyState
+                        variant="compact"
+                        icon={<EventNoteOutlinedIcon />}
+                        title="No reservation history"
+                        description="Reservations for this equipment will show up here."
+                    />
+                ) : nothingMatches ? (
+                    <EmptyState
+                        variant="compact"
+                        title="No matching reservations"
+                        description="Try a different search or clear the status filter."
+                    />
+                ) : (
+                    <Stack spacing={1}>
+                        <HistorySection
+                            title="Recurring reservations"
+                            icon={<RepeatIcon sx={{ fontSize: 17 }} />}
+                            checkouts={filteredRecurring}
+                            recurring
+                            defaultExpanded
                         />
-                        <TextField
-                            select
-                            label="Status"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            size="small"
-                            fullWidth={isMobile}
-                            sx={{ flex: isMobile ? 1 : "0 0 150px" }}
-                        >
-                            <MenuItem value="all">All Status</MenuItem>
-                            <MenuItem value="pending">Pending</MenuItem>
-                            <MenuItem value="auto-approved">Approved</MenuItem>
-                            <MenuItem value="reserved">In Use</MenuItem>
-                            <MenuItem value="returned">Returned</MenuItem>
-                            <MenuItem value="cancelled">Cancelled</MenuItem>
-                        </TextField>
-                    </Box>
+                        <HistorySection
+                            title="One-time reservations"
+                            icon={
+                                <EventNoteOutlinedIcon sx={{ fontSize: 17 }} />
+                            }
+                            checkouts={filteredNonRecurring}
+                            defaultExpanded={filteredRecurring.length === 0}
+                        />
+                    </Stack>
+                )}
+            </SectionCard>
 
-                    {checkoutHistory.length === 0 ? (
-                        <Typography align="center" color="text.secondary">
-                            No reservation history
-                        </Typography>
-                    ) : filteredRecurring.length === 0 &&
-                      filteredNonRecurring.length === 0 ? (
-                        <Typography
-                            align="center"
-                            color="text.secondary"
-                            sx={{ py: 3 }}
+            {/* ---- Detail dialog ---- */}
+            <ResponsiveDialog
+                open={Boolean(selectedCheckout)}
+                onClose={() => setSelectedCheckout(null)}
+                title="Reservation details"
+                subtitle={
+                    selectedCheckout ? userLabel(selectedCheckout) : undefined
+                }
+                icon={<EventNoteOutlinedIcon />}
+                maxWidth="sm"
+                actions={
+                    <>
+                        <AddToCalendarButton checkout={selectedCheckout} />
+                        <Button
+                            onClick={() => setSelectedCheckout(null)}
+                            variant="contained"
                         >
-                            No reservations match your search criteria
-                        </Typography>
-                    ) : (
-                        <Box>
-                            {/* Recurring Checkouts Section */}
-                            {filteredRecurring.length > 0 && (
-                                <Accordion defaultExpanded>
-                                    <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon />}
+                            Close
+                        </Button>
+                    </>
+                }
+            >
+                {selectedCheckout && (
+                    <Stack spacing={2.25}>
+                        <DetailField
+                            label="User"
+                            value={userLabel(selectedCheckout)}
+                        />
+
+                        <DetailField label="Status">
+                            <Box sx={{ mt: 0.5 }}>
+                                <StatusChip status={selectedCheckout.status} />
+                            </Box>
+                        </DetailField>
+
+                        {selectedCheckout.recurrence_id ? (
+                            <>
+                                <DetailField
+                                    label="First occurrence"
+                                    value={format(
+                                        new Date(selectedCheckout.start_time),
+                                        "PPpp",
+                                    )}
+                                />
+                                <DetailField label="Recurrence pattern">
+                                    <Stack
+                                        direction="row"
+                                        spacing={0.75}
+                                        alignItems="center"
+                                        sx={{ mt: 0.25 }}
                                     >
-                                        <Box
+                                        <RepeatIcon
                                             sx={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 1,
+                                                fontSize: 16,
+                                                color: "text.disabled",
                                             }}
+                                        />
+                                        <Typography
+                                            variant="body2"
+                                            sx={{ fontWeight: 550 }}
                                         >
-                                            <RepeatIcon fontSize="small" />
-                                            <Typography variant="subtitle1">
-                                                Recurring Reservations (
-                                                {filteredRecurring.length})
-                                            </Typography>
-                                        </Box>
-                                    </AccordionSummary>
-                                    <AccordionDetails>
-                                        {isMobile ? (
-                                            <Box>
-                                                {filteredRecurring.map(
-                                                    (checkout) =>
-                                                        renderRecurringMobileCard(
-                                                            checkout,
-                                                        ),
-                                                )}
-                                            </Box>
-                                        ) : (
-                                            <TableContainer>
-                                                <Table size="small">
-                                                    <TableHead>
-                                                        <TableRow>
-                                                            <TableCell>
-                                                                User
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                First Occurrence
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Pattern
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Status
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Purpose
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Project #
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {filteredRecurring.map(
-                                                            (checkout) => (
-                                                                <TableRow
-                                                                    key={
-                                                                        checkout.id
-                                                                    }
-                                                                >
-                                                                    <TableCell>
-                                                                        {checkout.User
-                                                                            ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                                                                            : "N/A"}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {format(
-                                                                            new Date(
-                                                                                checkout.start_time,
-                                                                            ),
-                                                                            "Pp",
-                                                                        )}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        <Typography
-                                                                            variant="body2"
-                                                                            color="text.secondary"
-                                                                        >
-                                                                            {getRecurrenceDescription(
-                                                                                checkout,
-                                                                            )}
-                                                                        </Typography>
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        <Chip
-                                                                            label={
-                                                                                checkout.status
-                                                                            }
-                                                                            color={getCheckoutStatusColor(
-                                                                                checkout.status,
-                                                                            )}
-                                                                            size="small"
-                                                                        />
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {checkout.notes ||
-                                                                            "N/A"}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {checkout.project_number ||
-                                                                            "-"}
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            ),
-                                                        )}
-                                                    </TableBody>
-                                                </Table>
-                                            </TableContainer>
-                                        )}
-                                    </AccordionDetails>
-                                </Accordion>
-                            )}
-
-                            {/* Non-Recurring Checkouts Section */}
-                            {filteredNonRecurring.length > 0 && (
-                                <Accordion
-                                    defaultExpanded={
-                                        filteredRecurring.length === 0
-                                    }
-                                >
-                                    <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon />}
-                                    >
-                                        <Typography variant="subtitle1">
-                                            One-time Reservations (
-                                            {filteredNonRecurring.length})
+                                            {getRecurrenceDescription(
+                                                selectedCheckout,
+                                            )}
                                         </Typography>
-                                    </AccordionSummary>
-                                    <AccordionDetails>
-                                        {isMobile ? (
-                                            <Box>
-                                                {filteredNonRecurring.map(
-                                                    (checkout) =>
-                                                        renderNonRecurringMobileCard(
-                                                            checkout,
-                                                        ),
-                                                )}
-                                            </Box>
-                                        ) : (
-                                            <TableContainer>
-                                                <Table size="small">
-                                                    <TableHead>
-                                                        <TableRow>
-                                                            <TableCell>
-                                                                User
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Start
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                End
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Status
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Purpose
-                                                            </TableCell>
-                                                            <TableCell>
-                                                                Project #
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {filteredNonRecurring.map(
-                                                            (checkout) => (
-                                                                <TableRow
-                                                                    key={
-                                                                        checkout.id
-                                                                    }
-                                                                >
-                                                                    <TableCell>
-                                                                        {checkout.User
-                                                                            ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                                                                            : "N/A"}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {format(
-                                                                            new Date(
-                                                                                checkout.start_time,
-                                                                            ),
-                                                                            "Pp",
-                                                                        )}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {format(
-                                                                            new Date(
-                                                                                checkout.end_time,
-                                                                            ),
-                                                                            "Pp",
-                                                                        )}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        <Chip
-                                                                            label={
-                                                                                checkout.status
-                                                                            }
-                                                                            color={getCheckoutStatusColor(
-                                                                                checkout.status,
-                                                                            )}
-                                                                            size="small"
-                                                                        />
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {checkout.notes ||
-                                                                            "N/A"}
-                                                                    </TableCell>
-                                                                    <TableCell>
-                                                                        {checkout.project_number ||
-                                                                            "-"}
-                                                                    </TableCell>
-                                                                </TableRow>
-                                                            ),
-                                                        )}
-                                                    </TableBody>
-                                                </Table>
-                                            </TableContainer>
-                                        )}
-                                    </AccordionDetails>
-                                </Accordion>
-                            )}
-                        </Box>
-                    )}
-                </CardContent>
-            </Card>
+                                    </Stack>
+                                </DetailField>
+                            </>
+                        ) : (
+                            <>
+                                <DetailField
+                                    label="Start time"
+                                    value={format(
+                                        new Date(selectedCheckout.start_time),
+                                        "PPpp",
+                                    )}
+                                />
+                                <DetailField
+                                    label="End time"
+                                    value={format(
+                                        new Date(selectedCheckout.end_time),
+                                        "PPpp",
+                                    )}
+                                />
+                            </>
+                        )}
+
+                        <DetailField
+                            label="Purpose"
+                            value={selectedCheckout.notes}
+                        />
+                        <DetailField
+                            label="Project number"
+                            value={selectedCheckout.project_number}
+                        />
+                    </Stack>
+                )}
+            </ResponsiveDialog>
         </>
     );
 };

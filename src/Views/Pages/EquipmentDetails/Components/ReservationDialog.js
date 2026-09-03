@@ -1,26 +1,57 @@
 import React, { useState } from "react";
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Button,
     TextField,
     Box,
     Typography,
     Checkbox,
     FormControlLabel,
-    FormControl,
-    InputLabel,
-    Select,
     MenuItem,
     Autocomplete,
+    Stack,
+    Collapse,
+    Alert,
+    Grid,
 } from "@mui/material";
 import { Warning, Check } from "@mui/icons-material";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import axios from "axios";
+import ResponsiveDialog from "../../../Components/UI/ResponsiveDialog";
 
+const EMPTY_FORM = {
+    start_time: "",
+    end_time: "",
+    notes: "",
+    project_number: "",
+    scheduled_on_behalf_of: "",
+    isRecurring: false,
+    recurrencePattern: "daily",
+    recurrenceInterval: 1,
+    recurrenceEndDate: "",
+};
+
+const UNIT_LABEL = {
+    daily: "day",
+    weekly: "week",
+    monthly: "month",
+};
+
+// Statuses the backend won't accept a reservation for.
+const BLOCKED_STATUSES = {
+    retired: "Cannot reserve retired equipment",
+    "out for calibration":
+        "Cannot reserve equipment that is out for calibration",
+    maintenance: "Cannot reserve equipment that is under maintenance",
+};
+
+/**
+ * Create a reservation.
+ *
+ * Required fields are always visible; notes, on-behalf-of and recurrence live
+ * behind a single "More options" disclosure so the common case is three fields
+ * and a button.
+ */
 const ReservationDialog = ({
     open,
     onClose,
@@ -34,20 +65,14 @@ const ReservationDialog = ({
     setLoading,
     showAlert,
 }) => {
-    const [formData, setFormData] = useState({
-        start_time: "",
-        end_time: "",
-        notes: "",
-        project_number: "",
-        scheduled_on_behalf_of: "",
-        isRecurring: false,
-        recurrencePattern: "daily",
-        recurrenceInterval: 1,
-        recurrenceEndDate: "",
-    });
+    const [formData, setFormData] = useState(EMPTY_FORM);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-    // Calibration status helpers
+    const update = (patch) => setFormData((prev) => ({ ...prev, ...patch }));
+
+    // ---- Calibration banner ----------------------------------------------
+
     const calculateCalibrationDueDate = () => {
         if (
             !equipment?.last_calibration_date ||
@@ -55,9 +80,7 @@ const ReservationDialog = ({
         ) {
             return null;
         }
-        const lastCal = new Date(equipment.last_calibration_date);
-        const dueDate = new Date(lastCal);
-
+        const dueDate = new Date(equipment.last_calibration_date);
         switch (equipment.calibration_interval_unit) {
             case "days":
                 dueDate.setDate(
@@ -75,79 +98,48 @@ const ReservationDialog = ({
                         equipment.calibration_interval_value,
                 );
                 break;
+            default:
+                break;
         }
         return dueDate;
     };
 
+    const calibrationDueDate = calculateCalibrationDueDate();
+
     const getCalibrationStatus = () => {
-        const dueDate = calculateCalibrationDueDate();
-        if (!dueDate) {
-            return null;
-        }
+        if (!calibrationDueDate) return null;
 
         const now = new Date();
-        const twoMonthsFromNow = new Date();
-        twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+        const twoMonthsOut = new Date();
+        twoMonthsOut.setMonth(twoMonthsOut.getMonth() + 2);
 
-        if (now > dueDate) {
-            return {
-                status: "Out of Calibration",
-                color: "#d32f2f",
-                backgroundColor: "#ffebee",
-            };
-        } else if (dueDate <= twoMonthsFromNow) {
-            return {
-                status: "Calibration Due Soon",
-                color: "#ed6c02",
-                backgroundColor: "#fff3e0",
-            };
-        } else if (dueDate >= twoMonthsFromNow) {
-            return {
-                status: "Calibrated",
-                color: "#2e7d32",
-                backgroundColor: "#e8f5e9",
-            };
+        if (now > calibrationDueDate) {
+            return { label: "Out of calibration", severity: "error" };
         }
-        return null;
+        if (calibrationDueDate <= twoMonthsOut) {
+            return { label: "Calibration due soon", severity: "warning" };
+        }
+        return { label: "Calibrated", severity: "success" };
     };
 
+    const calibrationStatus = getCalibrationStatus();
+
+    // ---- Submit -----------------------------------------------------------
+
     const handleSubmit = async () => {
-        // Validate required fields
-        if (!formData.project_number || formData.project_number.trim() === "") {
+        if (!formData.project_number?.trim()) {
             showAlert("Project Number is required", "error");
             return;
         }
-        if (equipment?.status === "retired") {
-            showAlert("Cannot reserve retired equipment", "error");
-            return;
-        }
-        if (equipment?.status === "out for calibration") {
-            showAlert(
-                "Cannot reserve equipment that is out for calibration",
-                "error",
-            );
-            return;
-        }
-        if (equipment?.status === "maintenance") {
-            showAlert(
-                "Cannot reserve equipment that is under maintenance",
-                "error",
-            );
-            return;
-        }
-        if (equipment?.status === "maintenance") {
-            showAlert(
-                "Cannot reserve equipment that is under maintenance",
-                "error",
-            );
+
+        const blockedMessage = BLOCKED_STATUSES[equipment?.status];
+        if (blockedMessage) {
+            showAlert(blockedMessage, "error");
             return;
         }
 
-        // Get dates from formData
         const startTime = new Date(formData.start_time);
         const endTime = new Date(formData.end_time);
-
-        // Validate end time is after start time
         if (endTime <= startTime) {
             showAlert("End time must be after start time", "error");
             return;
@@ -155,11 +147,11 @@ const ReservationDialog = ({
 
         try {
             setLoading(true);
+            setSubmitting(true);
             const token = localStorage.getItem("authToken");
 
-            // Create Reservation data (works for both single and recurring)
             const checkoutData = {
-                equipment_id: parseInt(equipmentId),
+                equipment_id: parseInt(equipmentId, 10),
                 user_id: currentUserId,
                 start_time: startTime.toISOString(),
                 end_time: endTime.toISOString(),
@@ -168,7 +160,6 @@ const ReservationDialog = ({
                 scheduled_on_behalf_of: formData.scheduled_on_behalf_of || null,
             };
 
-            // Add recurrence fields if this is a recurring checkout
             if (formData.isRecurring) {
                 checkoutData.recurrence_pattern = formData.recurrencePattern;
                 checkoutData.separation_count = formData.recurrenceInterval;
@@ -181,11 +172,7 @@ const ReservationDialog = ({
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            // Call success callback and close
-            if (onSuccess) {
-                onSuccess();
-            }
-
+            onSuccess?.();
             handleClose();
         } catch (error) {
             console.error("Error creating reservation:", error);
@@ -196,184 +183,171 @@ const ReservationDialog = ({
             );
         } finally {
             setLoading(false);
+            setSubmitting(false);
         }
     };
 
     const handleClose = () => {
-        setFormData({
-            start_time: "",
-            end_time: "",
-            notes: "",
-            project_number: "",
-            scheduled_on_behalf_of: "",
-            isRecurring: false,
-            recurrencePattern: "daily",
-            recurrenceInterval: 1,
-            recurrenceEndDate: "",
-        });
+        setFormData(EMPTY_FORM);
         setShowOptionalFields(false);
         onClose();
     };
 
-    // Update formData when dialog opens with new times
+    // Seed the times from the calendar slot, or the next quarter hour.
     React.useEffect(() => {
-        if (open && (!formData.start_time || !formData.end_time)) {
-            let startTime, endTime;
+        if (!open || (formData.start_time && formData.end_time)) return;
 
-            // Use selectedSlot if provided (from calendar selection)
-            if (selectedSlot?.start && selectedSlot?.end) {
-                startTime = new Date(selectedSlot.start);
-                endTime = new Date(selectedSlot.end);
-            } else {
-                // Default to current time + 1 hour
-                const now = new Date();
-                const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
-                now.setMinutes(roundedMinutes, 0, 0);
-                startTime = now;
-                endTime = new Date(now);
-                endTime.setHours(endTime.getHours() + 1);
-            }
+        let startTime;
+        let endTime;
 
-            const formatDateTime = (date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, "0");
-                const day = String(date.getDate()).padStart(2, "0");
-                const hours = String(date.getHours()).padStart(2, "0");
-                const minutes = String(date.getMinutes()).padStart(2, "0");
-                return `${year}-${month}-${day}T${hours}:${minutes}`;
-            };
-
-            setFormData((prev) => ({
-                ...prev,
-                start_time: formatDateTime(startTime),
-                end_time: formatDateTime(endTime),
-            }));
+        if (selectedSlot?.start && selectedSlot?.end) {
+            startTime = new Date(selectedSlot.start);
+            endTime = new Date(selectedSlot.end);
+        } else {
+            const now = new Date();
+            now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+            startTime = now;
+            endTime = new Date(now);
+            endTime.setHours(endTime.getHours() + 1);
         }
+
+        const formatDateTime = (date) => {
+            const pad = (n) => String(n).padStart(2, "0");
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+                date.getDate(),
+            )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        };
+
+        update({
+            start_time: formatDateTime(startTime),
+            end_time: formatDateTime(endTime),
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, selectedSlot]);
 
-    const calibrationStatus = getCalibrationStatus();
-    const calibrationDueDate = calculateCalibrationDueDate();
+    const unit = UNIT_LABEL[formData.recurrencePattern] || "day";
 
     return (
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-            <DialogTitle>Reserve {equipmentName}</DialogTitle>
-            <DialogContent>
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 2,
-                        mt: 1,
-                    }}
-                >
-                    {calibrationStatus && (
-                        <Box
-                            sx={{
-                                p: 2,
-                                borderRadius: 1,
-                                backgroundColor:
-                                    calibrationStatus.backgroundColor,
-                                border: `1px solid ${calibrationStatus.color}`,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                            }}
-                        >
-                            {calibrationStatus.status === "Calibrated" ? (
-                                <Check
-                                    sx={{
-                                        color: calibrationStatus.color,
-                                    }}
-                                />
+        <ResponsiveDialog
+            open={open}
+            onClose={handleClose}
+            title="New reservation"
+            subtitle={equipmentName}
+            icon={<EventAvailableOutlinedIcon />}
+            maxWidth="sm"
+            actions={
+                <>
+                    <Button onClick={handleClose} variant="outlined">
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        variant="contained"
+                        disabled={submitting}
+                        startIcon={<EventAvailableOutlinedIcon />}
+                    >
+                        Create reservation
+                    </Button>
+                </>
+            }
+        >
+            <Stack spacing={2}>
+                {calibrationStatus && (
+                    <Alert
+                        severity={calibrationStatus.severity}
+                        icon={
+                            calibrationStatus.severity === "success" ? (
+                                <Check fontSize="inherit" />
                             ) : (
-                                <Warning
-                                    sx={{
-                                        color: calibrationStatus.color,
-                                    }}
-                                />
-                            )}
+                                <Warning fontSize="inherit" />
+                            )
+                        }
+                        sx={{ boxShadow: "none" }}
+                    >
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {calibrationStatus.label}
+                            {calibrationDueDate &&
+                                calibrationStatus.severity !== "success" &&
+                                ` — due ${calibrationDueDate.toLocaleDateString()}`}
+                        </Typography>
+                    </Alert>
+                )}
 
-                            <Typography
-                                variant="body2"
-                                sx={{
-                                    color: calibrationStatus.color,
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {calibrationStatus.status}
-                                {calibrationDueDate &&
-                                    calibrationStatus.status !==
-                                        "Calibrated" && (
-                                        <>
-                                            {" - Due: "}
-                                            {calibrationDueDate.toLocaleDateString()}
-                                        </>
-                                    )}
-                            </Typography>
-                        </Box>
-                    )}
-                    <TextField
-                        label="Start Time"
-                        type="datetime-local"
-                        value={formData.start_time}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                start_time: e.target.value,
-                            })
-                        }
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
-                    />
-                    <TextField
-                        label="End Time"
-                        type="datetime-local"
-                        value={formData.end_time}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                end_time: e.target.value,
-                            })
-                        }
-                        fullWidth
-                        InputLabelProps={{ shrink: true }}
-                    />
-                    <TextField
-                        label="Project Number"
-                        value={formData.project_number}
-                        onChange={(e) =>
-                            setFormData({
-                                ...formData,
-                                project_number: e.target.value,
-                            })
-                        }
-                        fullWidth
-                        required
-                    />
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="Start time"
+                            type="datetime-local"
+                            value={formData.start_time}
+                            onChange={(e) =>
+                                update({ start_time: e.target.value })
+                            }
+                            fullWidth
+                            required
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <TextField
+                            label="End time"
+                            type="datetime-local"
+                            value={formData.end_time}
+                            onChange={(e) =>
+                                update({ end_time: e.target.value })
+                            }
+                            fullWidth
+                            required
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    </Grid>
+                </Grid>
 
-                    {/* Optional Fields Toggle */}
+                <TextField
+                    label="Project number"
+                    value={formData.project_number}
+                    onChange={(e) => update({ project_number: e.target.value })}
+                    fullWidth
+                    required
+                />
+
+                {equipment?.requires_approval && (
+                    <Alert severity="info" sx={{ boxShadow: "none" }}>
+                        <Typography variant="body2">
+                            This equipment requires approval — your reservation
+                            will be pending until an approver reviews it.
+                        </Typography>
+                    </Alert>
+                )}
+
+                {/* ---- Optional ---- */}
+                <Box>
                     <Button
                         size="small"
-                        startIcon={
-                            showOptionalFields ? <RemoveIcon /> : <AddIcon />
+                        variant="text"
+                        onClick={() => setShowOptionalFields((v) => !v)}
+                        endIcon={
+                            <ExpandMoreIcon
+                                sx={{
+                                    transition:
+                                        "transform 240ms cubic-bezier(0.22,1,0.36,1)",
+                                    transform: showOptionalFields
+                                        ? "rotate(180deg)"
+                                        : "none",
+                                }}
+                            />
                         }
-                        onClick={() =>
-                            setShowOptionalFields(!showOptionalFields)
-                        }
+                        sx={{ ml: -1 }}
                     >
-                        Optional Fields
+                        More options
                     </Button>
 
-                    {showOptionalFields && (
-                        <>
+                    <Collapse in={showOptionalFields} timeout={300}>
+                        <Stack spacing={2} sx={{ pt: 2 }}>
                             <TextField
-                                label="Notes (optional)"
+                                label="Notes"
                                 value={formData.notes}
                                 onChange={(e) =>
-                                    setFormData({
-                                        ...formData,
-                                        notes: e.target.value,
-                                    })
+                                    update({ notes: e.target.value })
                                 }
                                 fullWidth
                                 multiline
@@ -396,161 +370,159 @@ const ReservationDialog = ({
                                             formData.scheduled_on_behalf_of,
                                     ) || null
                                 }
-                                onChange={(event, newValue) => {
-                                    setFormData({
-                                        ...formData,
+                                onChange={(_, newValue) =>
+                                    update({
                                         scheduled_on_behalf_of: newValue
                                             ? `${newValue.first_name} ${newValue.last_name}`
                                             : "",
-                                    });
-                                }}
+                                    })
+                                }
                                 renderInput={(params) => (
                                     <TextField
                                         {...params}
-                                        label="Scheduled On Behalf Of"
-                                        placeholder="Enter name if scheduling for someone else"
+                                        label="Scheduled on behalf of"
+                                        placeholder="If you're booking for someone else"
                                         fullWidth
                                     />
                                 )}
                                 renderOption={(props, option) => (
-                                    <li {...props} key={option.id}>
-                                        {option.first_name} {option.last_name} (
-                                        {option.email})
-                                    </li>
+                                    <Box component="li" {...props} key={option.id}>
+                                        <Box sx={{ minWidth: 0 }}>
+                                            <Typography variant="body2" noWrap>
+                                                {option.first_name}{" "}
+                                                {option.last_name}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                noWrap
+                                            >
+                                                {option.email}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
                                 )}
                                 isOptionEqualToValue={(option, value) =>
                                     option.id === value?.id
                                 }
-                                ListboxProps={{
-                                    style: { maxHeight: "250px" },
-                                }}
+                                ListboxProps={{ style: { maxHeight: 250 } }}
                                 fullWidth
                             />
 
-                            {/* Recurring Reservation Options */}
                             <FormControlLabel
+                                sx={{ ml: -0.5 }}
                                 control={
                                     <Checkbox
                                         checked={formData.isRecurring || false}
                                         onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
+                                            update({
                                                 isRecurring: e.target.checked,
                                             })
                                         }
                                     />
                                 }
-                                label="Repeat Reservation"
+                                label={
+                                    <Typography variant="body2">
+                                        Repeat this reservation
+                                    </Typography>
+                                }
                             />
-                            {formData.isRecurring && (
-                                <>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Repeat Pattern</InputLabel>
-                                        <Select
-                                            value={
-                                                formData.recurrencePattern ||
-                                                "daily"
-                                            }
-                                            label="Repeat Pattern"
-                                            onChange={(e) =>
-                                                setFormData({
-                                                    ...formData,
-                                                    recurrencePattern:
-                                                        e.target.value,
-                                                })
-                                            }
-                                        >
-                                            <MenuItem value="daily">
-                                                Daily
-                                            </MenuItem>
-                                            <MenuItem value="weekly">
-                                                Weekly
-                                            </MenuItem>
-                                            <MenuItem value="monthly">
-                                                Monthly
-                                            </MenuItem>
-                                        </Select>
-                                    </FormControl>
+
+                            <Collapse in={formData.isRecurring} timeout={280}>
+                                <Stack
+                                    spacing={2}
+                                    sx={{
+                                        p: 2,
+                                        borderRadius: 2.5,
+                                        border: "1px solid",
+                                        borderColor: "divider",
+                                        bgcolor: "grey.50",
+                                    }}
+                                >
+                                    <Grid container spacing={2}>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                select
+                                                label="Repeat pattern"
+                                                value={
+                                                    formData.recurrencePattern ||
+                                                    "daily"
+                                                }
+                                                onChange={(e) =>
+                                                    update({
+                                                        recurrencePattern:
+                                                            e.target.value,
+                                                    })
+                                                }
+                                                fullWidth
+                                            >
+                                                <MenuItem value="daily">
+                                                    Daily
+                                                </MenuItem>
+                                                <MenuItem value="weekly">
+                                                    Weekly
+                                                </MenuItem>
+                                                <MenuItem value="monthly">
+                                                    Monthly
+                                                </MenuItem>
+                                            </TextField>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6}>
+                                            <TextField
+                                                label="Repeat every"
+                                                type="number"
+                                                value={
+                                                    formData.recurrenceInterval ||
+                                                    1
+                                                }
+                                                onChange={(e) =>
+                                                    update({
+                                                        recurrenceInterval:
+                                                            parseInt(
+                                                                e.target.value,
+                                                                10,
+                                                            ) || 1,
+                                                    })
+                                                }
+                                                InputLabelProps={{
+                                                    shrink: true,
+                                                }}
+                                                inputProps={{ min: 1 }}
+                                                helperText={`Every ${
+                                                    formData.recurrenceInterval ||
+                                                    1
+                                                } ${unit}${
+                                                    (formData.recurrenceInterval ||
+                                                        1) > 1
+                                                        ? "s"
+                                                        : ""
+                                                }`}
+                                                fullWidth
+                                            />
+                                        </Grid>
+                                    </Grid>
+
                                     <TextField
-                                        label="Repeat Every"
-                                        type="number"
-                                        value={formData.recurrenceInterval || 1}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                recurrenceInterval:
-                                                    parseInt(e.target.value) ||
-                                                    1,
-                                            })
-                                        }
-                                        InputLabelProps={{
-                                            shrink: true,
-                                        }}
-                                        inputProps={{ min: 1 }}
-                                        helperText={`Repeat every ${
-                                            formData.recurrenceInterval || 1
-                                        } ${
-                                            formData.recurrencePattern ===
-                                            "daily"
-                                                ? "day(s)"
-                                                : formData.recurrencePattern ===
-                                                    "weekly"
-                                                  ? "week(s)"
-                                                  : formData.recurrencePattern ===
-                                                      "monthly"
-                                                    ? "month(s)"
-                                                    : "day(s)"
-                                        }`}
-                                        fullWidth
-                                    />
-                                    <TextField
-                                        label="End Date (Optional)"
+                                        label="End date"
                                         type="date"
                                         value={formData.recurrenceEndDate || ""}
                                         onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
+                                            update({
                                                 recurrenceEndDate:
                                                     e.target.value,
                                             })
                                         }
-                                        InputLabelProps={{
-                                            shrink: true,
-                                        }}
-                                        helperText="Leave empty for indefinite repeat"
+                                        InputLabelProps={{ shrink: true }}
+                                        helperText="Leave empty to repeat indefinitely"
                                         fullWidth
                                     />
-                                </>
-                            )}
-                        </>
-                    )}
-
-                    {equipment?.requires_approval && (
-                        <Typography variant="caption" color="warning.main">
-                            Note: This equipment requires approval before
-                            checkout.
-                        </Typography>
-                    )}
+                                </Stack>
+                            </Collapse>
+                        </Stack>
+                    </Collapse>
                 </Box>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={handleClose}>Cancel</Button>
-                <Button
-                    onClick={handleSubmit}
-                    variant="contained"
-                    sx={{
-                        backgroundColor: "lightgreen",
-                        color: "black",
-                        ":hover": {
-                            backgroundColor: "green",
-                            color: "white",
-                        },
-                    }}
-                >
-                    Create Reservation
-                </Button>
-            </DialogActions>
-        </Dialog>
+            </Stack>
+        </ResponsiveDialog>
     );
 };
 
