@@ -2,7 +2,13 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
-import { Box, Drawer, CssBaseline } from "@mui/material";
+import {
+    Box,
+    Drawer,
+    CssBaseline,
+    Fade,
+    LinearProgress,
+} from "@mui/material";
 
 import theme from "./Utilites/theme";
 import { useAuth } from "./Utilites/AuthContext";
@@ -42,7 +48,12 @@ function AppShell() {
     const [sidebarOpen, setSidebarOpen] = useState(!isCompact);
     const { approvalCount } = useApprovalCount();
 
-    const title = titleForPath(location.pathname);
+    // The page title now lives in PageHeader, not the top bar. navConfig's
+    // title is still the right label for the browser tab and history entries.
+    useEffect(() => {
+        const title = titleForPath(location.pathname);
+        document.title = title ? `${title} · SEA Equipment` : "SEA Equipment";
+    }, [location.pathname]);
 
     // Collapse the sidebar when the viewport narrows; restore it when it widens.
     useEffect(() => {
@@ -194,6 +205,7 @@ function AppShell() {
             {/* ---- Content column ---- */}
             <Box
                 sx={{
+                    position: "relative",
                     flexGrow: 1,
                     minWidth: 0,
                     display: "flex",
@@ -201,12 +213,32 @@ function AppShell() {
                     overflow: "hidden",
                 }}
             >
-                <TopBar
-                    title={title}
-                    loading={loading}
-                    showMenuButton={isCompact || !sidebarOpen}
-                    onOpenMenu={() => setSidebarOpen(true)}
-                />
+                {/* Global loading bar. It lives here rather than in the top bar
+                    because the top bar isn't always rendered, and it's absolute
+                    so starting a request never shifts the layout. */}
+                <Fade in={loading} timeout={{ enter: 120, exit: 320 }}>
+                    <LinearProgress
+                        sx={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 2,
+                            borderRadius: 0,
+                            bgcolor: "transparent",
+                            zIndex: (t) => t.zIndex.appBar + 1,
+                        }}
+                    />
+                </Fade>
+
+                {/* Nothing to show when the sidebar is already on screen — the
+                    page header carries the title, so the bar would be empty. */}
+                {(isCompact || !sidebarOpen) && (
+                    <TopBar
+                        showMenuButton
+                        onOpenMenu={() => setSidebarOpen(true)}
+                    />
+                )}
 
                 {/* The window never scrolls. Pages get exactly the height left
                     over here and scroll their own body, so page headers,

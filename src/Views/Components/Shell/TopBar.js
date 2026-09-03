@@ -5,8 +5,6 @@ import {
     IconButton,
     Typography,
     Box,
-    LinearProgress,
-    Fade,
     Tooltip,
     Avatar,
 } from "@mui/material";
@@ -14,18 +12,22 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Utilites/AuthContext";
 import useResponsive from "../../../hooks/useResponsive";
+import logo from "../../../Assets/Images/sea-logo.png";
 
 /**
  * Slim translucent top bar.
  *
- * Replaces the old 112px banner. It carries the page title, the menu trigger
- * when the sidebar is hidden, and the global loading bar — which now sits flush
- * on the bottom edge of the bar rather than pushing the page down a few pixels
- * every time a request starts.
+ * Deliberately does NOT carry the page title. PageHeader owns that — it has the
+ * subtitle, the breadcrumbs and the actions to go with it, and since pages no
+ * longer scroll it is always on screen. Rendering the title here as well gave
+ * every page two titles and two `<h1>`s.
+ *
+ * What's left is navigation chrome: the menu trigger when the sidebar is
+ * hidden, brand on small screens where the sidebar isn't visible, and the
+ * account shortcut. The shell skips this bar entirely when none of that
+ * applies, which buys the page back 60px.
  */
 export default function TopBar({
-    title,
-    loading = false,
     onOpenMenu,
     showMenuButton = false,
     /** Node rendered on the right (page-specific controls). */
@@ -67,21 +69,34 @@ export default function TopBar({
                     </IconButton>
                 )}
 
-                {/* Keyed so the title cross-fades on route change. */}
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Fade in key={title} timeout={260}>
-                        <Typography
-                            variant="h6"
-                            component="h1"
-                            noWrap
-                            sx={{
-                                fontSize: { xs: "1rem", md: "1.0625rem" },
-                                letterSpacing: "-0.012em",
-                            }}
-                        >
-                            {title}
-                        </Typography>
-                    </Fade>
+                <Box
+                    sx={{
+                        flexGrow: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                    }}
+                >
+                    {/* The sidebar carries the brand on desktop; on a phone it's
+                        behind the drawer, so it belongs here instead. */}
+                    {isCompact && (
+                        <>
+                            <Box
+                                component="img"
+                                src={logo}
+                                alt="S-E-A"
+                                sx={{ height: 26, width: "auto" }}
+                            />
+                            <Typography
+                                variant="subtitle2"
+                                noWrap
+                                sx={{ fontWeight: 700 }}
+                            >
+                                Equipment
+                            </Typography>
+                        </>
+                    )}
                 </Box>
 
                 {actions}
@@ -100,21 +115,6 @@ export default function TopBar({
                     </Tooltip>
                 )}
             </Toolbar>
-
-            {/* Sits in the border, so showing it never shifts the layout. */}
-            <Fade in={loading} timeout={{ enter: 120, exit: 320 }}>
-                <LinearProgress
-                    sx={{
-                        position: "absolute",
-                        bottom: -1,
-                        left: 0,
-                        right: 0,
-                        height: 2,
-                        borderRadius: 0,
-                        bgcolor: "transparent",
-                    }}
-                />
-            </Fade>
         </AppBar>
     );
 }
