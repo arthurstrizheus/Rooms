@@ -1,57 +1,60 @@
 import * as React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import theme from "./Utilites/theme";
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
+import { Box, Drawer, CssBaseline } from "@mui/material";
+
+import theme from "./Utilites/theme";
 import { useAuth } from "./Utilites/AuthContext";
-import { ThemeProvider } from "@emotion/react";
 import { SnackbarProvider } from "./Utilites/SnackbarContext";
-import { Box, Divider, IconButton, Stack } from "@mui/material";
-import SideBar from "./Views/Components/SideBar/SideBar";
-import Banner from "./Views/Components/Banner/Banner";
-import AppRoutes from "./Routes/Routes";
-import { styled } from "@mui/material/styles";
-import Drawer from "@mui/material/Drawer";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import logo from "./Assets/Images/sea-logo.png";
-import { isMobile } from "react-device-detect";
 import { SocketProvider } from "./Contexts/SocketContext";
+import AppRoutes from "./Routes/Routes";
 
-const drawerWidth = 240;
+import NavSidebar, { NAV_WIDTH } from "./Views/Components/Shell/NavSidebar";
+import TopBar from "./Views/Components/Shell/TopBar";
+import BottomNav, {
+    BOTTOM_NAV_HEIGHT,
+} from "./Views/Components/Shell/BottomNav";
+import useApprovalCount from "./Views/Components/Shell/useApprovalCount";
+import { titleForPath } from "./Views/Components/Shell/navConfig";
+import useResponsive from "./hooks/useResponsive";
 
-const DrawerHeader = styled("div")(({ theme }) => ({
-    display: "flex",
-    alignItems: "center",
-    padding: theme.spacing(0, 1),
-    minHeight: "102px",
-    paddingBottom: "5px",
-    paddingTop: "5px",
-    justifyContent: "flex-end",
-}));
+/**
+ * App shell.
+ *
+ * Layout is viewport-driven, not user-agent driven:
+ *   >= md   permanent sidebar, collapsible, content inset by NAV_WIDTH
+ *   <  md   sidebar becomes an overlay drawer; primary destinations move to a
+ *           fixed bottom bar, and the content area reserves room for it
+ *
+ * The sidebar, bottom bar and top bar all read from Shell/navConfig, so adding
+ * a page means touching one list plus Routes.js.
+ */
 
-function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function App() {
-    const [mode, setMode] = useState("light");
-    const [bannerText, setBannerText] = useState("Month Schedule");
-    const [loading, setLoading] = useState(false);
-    const [update, setUpdate] = useState(0);
-    const [selectedDate, setSelectedDate] = useState(new Date());
+function AppShell() {
+    const { isCompact } = useResponsive();
     const { isAuthenticated, setUser, login, user } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
-    const [open, setOpen] = useState(
-        isMobile ? false : isAuthenticated ? true : false,
-    );
 
-    const handleDrawerOpen = () => setOpen(true);
-    const handleDrawerClose = () => setOpen(false);
+    const [loading, setLoading] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [sidebarOpen, setSidebarOpen] = useState(!isCompact);
+    const { approvalCount } = useApprovalCount();
 
+    const title = titleForPath(location.pathname);
+
+    // Collapse the sidebar when the viewport narrows; restore it when it widens.
     useEffect(() => {
-        delay(120000).then(() => setUpdate((prev) => prev + 1));
-    }, [update]);
+        setSidebarOpen(!isCompact);
+    }, [isCompact]);
 
+    // Close the overlay drawer after navigating on a small screen.
+    useEffect(() => {
+        if (isCompact) setSidebarOpen(false);
+    }, [location.pathname, isCompact]);
+
+    // ---- Session restore / auth redirect (behavior preserved) -------------
     useEffect(() => {
         if (
             !isAuthenticated &&
@@ -60,26 +63,24 @@ function App() {
         ) {
             const fullPath = location.pathname + location.search;
             localStorage.setItem("lastLocation", fullPath);
-            // If approval link with meetingId, persist it early before redirect
+            // Persist the meeting id before redirecting, so an emailed approval
+            // link still resolves after the user signs in.
             if (location.pathname.startsWith("/approve") && location.search) {
                 try {
-                    const params = new URLSearchParams(location.search);
-                    const mid = params.get("meetingId");
-                    if (mid) {
-                        localStorage.setItem("approvalMeetingId", mid);
-                    }
+                    const mid = new URLSearchParams(location.search).get(
+                        "meetingId",
+                    );
+                    if (mid) localStorage.setItem("approvalMeetingId", mid);
                 } catch {}
             }
-            setOpen(false);
             navigate("/login");
         } else if (location.pathname === "") {
-            const user = JSON.parse(localStorage.getItem("user"));
+            const storedUser = JSON.parse(localStorage.getItem("user"));
             const token = localStorage.getItem("authToken");
-            if (user && token) {
-                setUser(user);
-                login(user, token);
+            if (storedUser && token) {
+                setUser(storedUser);
+                login(storedUser, token);
                 navigate("/equipment");
-                setOpen(isMobile ? false : true);
             }
         }
 
@@ -96,214 +97,191 @@ function App() {
             const userData = JSON.parse(storedUser);
             setUser(userData);
             login(userData, storedToken);
-            setOpen(isMobile ? false : true);
-            if (localStorage.getItem("lastLocation") === "/") {
-                navigate("/equipment");
-            } else {
-                navigate(localStorage.getItem("lastLocation"));
-            }
+            const last = localStorage.getItem("lastLocation");
+            navigate(!last || last === "/" ? "/equipment" : last);
         }
+        // Deliberately keyed to auth state only. Adding `location` would re-run
+        // the restore on every navigation and fight the router.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAuthenticated, user]);
 
-    // Check if we're on an embed route
-    const isEmbedRoute = location.pathname.includes("/embed");
+    const routes = (
+        <AppRoutes
+            setLoading={setLoading}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            loading={loading}
+            drawerOpen={sidebarOpen}
+            setDrawerOpen={setSidebarOpen}
+        />
+    );
 
-    // Render embed routes without layout
-    if (isEmbedRoute) {
+    // ---- Signed out: routes render full-bleed, no chrome -------------------
+    if (!isAuthenticated) {
         return (
-            <ThemeProvider theme={theme(mode)}>
-                <SnackbarProvider>
-                    <AppRoutes
-                        setLoading={setLoading}
-                        setBannerText={setBannerText}
-                        selectedDate={selectedDate}
-                        setSelectedDate={setSelectedDate}
-                        loading={loading}
-                        drawerOpen={false}
-                        setDrawerOpen={() => {}}
-                    />
-                </SnackbarProvider>
-            </ThemeProvider>
+            <Box
+                sx={{
+                    minHeight: "100dvh",
+                    display: "flex",
+                    flexDirection: "column",
+                }}
+            >
+                {routes}
+            </Box>
         );
     }
 
+    const sidebar = (
+        <NavSidebar
+            approvalCount={approvalCount}
+            onNavigate={() => isCompact && setSidebarOpen(false)}
+            onCollapse={() => setSidebarOpen(false)}
+            showCollapse={!isCompact}
+        />
+    );
+
     return (
-        <div
-            className="Equipment"
-            style={{
-                height: "100vh",
+        <Box
+            sx={{
+                height: "100dvh",
                 display: "flex",
-                flexDirection: "column",
-                overflow: isMobile ? "auto" : "visible",
-                WebkitOverflowScrolling: isMobile ? "touch" : "auto",
+                bgcolor: "background.default",
+                overflow: "hidden",
             }}
         >
-            <ThemeProvider theme={theme(mode)}>
-                <SnackbarProvider>
-                    <SocketProvider>
-                        <Box
-                            sx={{
-                                flexGrow: 1,
-                                display: "flex",
-                                flexDirection: "column",
-                                overflow: isMobile ? "visible" : "hidden",
-                                transition: (theme) =>
-                                    theme.transitions.create("margin", {
-                                        easing: theme.transitions.easing.sharp,
-                                        duration:
-                                            theme.transitions.duration.standard,
-                                    }),
-                                marginLeft: open ? `${drawerWidth}px` : 0, // key line
-                            }}
-                        >
-                            {/* Drawer */}
-                            {isAuthenticated && (
-                                <Drawer
-                                    variant="persistent"
-                                    anchor="left"
-                                    open={open}
-                                    sx={{
-                                        width: drawerWidth,
-                                        flexShrink: 0,
-                                        "& .MuiDrawer-paper": {
-                                            width: drawerWidth,
-                                            boxSizing: "border-box",
-                                            display: "flex",
-                                            flexDirection: "column", // required to divide header/body
-                                        },
-                                    }}
-                                >
-                                    {/* Static header: logo + close button */}
-                                    <Box sx={{ flexShrink: 0 }}>
-                                        <DrawerHeader>
-                                            <Stack
-                                                direction="row"
-                                                justifyContent="space-between"
-                                                sx={{ width: "100%" }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        flexGrow: 1,
-                                                        justifyContent:
-                                                            "center",
-                                                        alignItems: "center",
-                                                        padding: 1,
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={logo}
-                                                        alt="Logo"
-                                                        style={{
-                                                            height: "64px",
-                                                            width: "auto",
-                                                        }}
-                                                    />
-                                                </Box>
-                                                <IconButton
-                                                    onClick={handleDrawerClose}
-                                                >
-                                                    <ChevronLeftIcon />
-                                                </IconButton>
-                                            </Stack>
-                                        </DrawerHeader>
-                                        <Divider />
-                                    </Box>
+            {/* ---- Navigation ---- */}
+            {isCompact ? (
+                <Drawer
+                    variant="temporary"
+                    open={sidebarOpen}
+                    onClose={() => setSidebarOpen(false)}
+                    ModalProps={{ keepMounted: true }}
+                    sx={{
+                        "& .MuiDrawer-paper": {
+                            width: NAV_WIDTH,
+                            borderRight: "none",
+                            boxShadow: (t) => t.shadowTokens.xl,
+                        },
+                    }}
+                >
+                    {sidebar}
+                </Drawer>
+            ) : (
+                <Drawer
+                    variant="persistent"
+                    open={sidebarOpen}
+                    sx={{
+                        width: sidebarOpen ? NAV_WIDTH : 0,
+                        flexShrink: 0,
+                        transition: (t) =>
+                            t.transitions.create("width", {
+                                easing: t.transitions.easing.easeOut,
+                                duration: t.transitions.duration.standard,
+                            }),
+                        "& .MuiDrawer-paper": {
+                            width: NAV_WIDTH,
+                            boxSizing: "border-box",
+                        },
+                    }}
+                >
+                    {sidebar}
+                </Drawer>
+            )}
 
-                                    {/* Scrollable content: SideBar */}
-                                    <Box
-                                        sx={{ flexGrow: 1, overflowY: "auto" }}
-                                    >
-                                        <SideBar
-                                            setBannerText={setBannerText}
-                                            bannerText={bannerText}
-                                        />
-                                    </Box>
-                                </Drawer>
-                            )}
+            {/* ---- Content column ---- */}
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                }}
+            >
+                <TopBar
+                    title={title}
+                    loading={loading}
+                    showMenuButton={isCompact || !sidebarOpen}
+                    onOpenMenu={() => setSidebarOpen(true)}
+                />
 
-                            {/* Main Content */}
-                            <Box
-                                sx={{
-                                    flexGrow: 1,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    overflow: isMobile ? "visible" : "hidden",
-                                }}
-                            >
-                                {/* Banner (with drawer toggle) */}
-                                {isAuthenticated && (
-                                    <Banner
-                                        bannerText={bannerText}
-                                        loading={loading}
-                                        selectedDate={selectedDate}
-                                        setSelectedDate={setSelectedDate}
-                                        onOpenDrawer={handleDrawerOpen}
-                                        drawerOpen={open}
-                                    />
-                                )}
+                <Box
+                    component="div"
+                    sx={{
+                        flexGrow: 1,
+                        minHeight: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        overflowY: "auto",
+                        overflowX: "hidden",
+                        WebkitOverflowScrolling: "touch",
+                        overscrollBehaviorY: "contain",
+                        // Clear the fixed bottom bar on small screens.
+                        pb: isCompact ? `${BOTTOM_NAV_HEIGHT}px` : 0,
+                    }}
+                >
+                    {/* Keying on pathname replays the entrance animation on
+                        every route change, so navigation always has motion. */}
+                    <Box
+                        key={location.pathname}
+                        sx={{
+                            flexGrow: 1,
+                            minHeight: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            animation:
+                                "seaRiseIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both",
+                        }}
+                    >
+                        {routes}
+                    </Box>
+                </Box>
+            </Box>
 
-                                {/* Scrollable route area */}
-                                <Box
-                                    sx={{
-                                        flexGrow: 1,
-                                        overflowY: isMobile
-                                            ? "visible"
-                                            : "auto",
-                                        overflowX: isMobile
-                                            ? "visible"
-                                            : "auto",
-                                        WebkitOverflowScrolling: "touch",
-                                    }}
-                                >
-                                    {isAuthenticated ? (
-                                        <Box
-                                            sx={{
-                                                height: "100%",
-                                                flexGrow: 1,
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                minHeight: 0, // REQUIRED
-                                                overflow: "auto",
-                                            }}
-                                        >
-                                            <AppRoutes
-                                                setLoading={setLoading}
-                                                setBannerText={setBannerText}
-                                                selectedDate={selectedDate}
-                                                setSelectedDate={
-                                                    setSelectedDate
-                                                }
-                                                loading={loading}
-                                            />
-                                        </Box>
-                                    ) : (
-                                        <Stack
-                                            direction="column"
-                                            height="100%"
-                                            width="100%"
-                                        >
-                                            <AppRoutes
-                                                setLoading={setLoading}
-                                                setBannerText={setBannerText}
-                                                selectedDate={selectedDate}
-                                                setSelectedDate={
-                                                    setSelectedDate
-                                                }
-                                                loading={loading}
-                                                drawerOpen={open}
-                                                setDrawerOpen={setOpen}
-                                            />
-                                        </Stack>
-                                    )}
-                                </Box>
-                            </Box>
-                        </Box>
-                    </SocketProvider>
-                </SnackbarProvider>
-            </ThemeProvider>
-        </div>
+            {isCompact && <BottomNav approvalCount={approvalCount} />}
+        </Box>
     );
 }
 
-export default App;
+/**
+ * Embed routes (calendar iframes) render with no chrome at all — they're
+ * dropped into other sites, so a sidebar and top bar would be wrong.
+ */
+function EmbedShell() {
+    const [loading, setLoading] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+
+    return (
+        <AppRoutes
+            setLoading={setLoading}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            loading={loading}
+            drawerOpen={false}
+            setDrawerOpen={() => {}}
+        />
+    );
+}
+
+export default function App() {
+    const location = useLocation();
+    const isEmbedRoute = location.pathname.includes("/embed");
+
+    // Building the theme is not cheap; it must not happen on every render.
+    const appTheme = React.useMemo(() => theme("light"), []);
+
+    return (
+        <ThemeProvider theme={appTheme}>
+            <CssBaseline />
+            <SnackbarProvider>
+                {isEmbedRoute ? (
+                    <EmbedShell />
+                ) : (
+                    <SocketProvider>
+                        <AppShell />
+                    </SocketProvider>
+                )}
+            </SnackbarProvider>
+        </ThemeProvider>
+    );
+}

@@ -13,7 +13,6 @@ import EquipmentCalendar from "../Views/Pages/EquipmentCalendar";
 import EquipmentCalendarEmbed from "../Views/Pages/EquipmentCalendarEmbed";
 import EquipmentCompareCalendar from "../Views/Pages/EquipmentCompareCalendar";
 import EquipmentCompareCalendarEmbed from "../Views/Pages/EquipmentCompareCalendarEmbed";
-import { useMediaQuery } from "@mui/system";
 import AdminDashboard from "../Views/Pages/Admin/AdminDashboard";
 import DepreciationReports from "../Views/Pages/DepreciationReports/DepreciationReports";
 import UsageReport from "../Views/Pages/UsageReport/UsageReport";
@@ -22,7 +21,6 @@ const AppRoutes = ({
     setLoading,
     selectedDate,
     setSelectedDate,
-    setBannerText,
     loading,
     drawerOpen,
     setDrawerOpen,
@@ -30,63 +28,19 @@ const AppRoutes = ({
     const location = useLocation();
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
-    const matchSm = useMediaQuery((theme) => theme.breakpoints.down("md"));
 
+    // Page titles now come from Shell/navConfig via the top bar, so this effect
+    // only has to guard unauthenticated access.
     useEffect(() => {
-        // Determine the banner text based on the current path
-        // Skip auth redirect for embed routes
         if (
             !isAuthenticated &&
-            location.pathname != "/login" &&
-            location.pathname != "/signup" &&
+            location.pathname !== "/login" &&
+            location.pathname !== "/signup" &&
             !location.pathname.includes("/embed")
         ) {
             navigate("/login");
         }
-        const path = location.pathname;
-        let newBannerText = "";
-        if (path === "/") {
-            newBannerText = "Equipment";
-        } else if (path.startsWith("/equipment/compare")) {
-            newBannerText = `Compare Equipment Schedules`;
-        } else if (path.startsWith("/equipment/calendar")) {
-            newBannerText = `Equipment Schedule`;
-        } else if (path.match(/\/equipment\/\d+$/)) {
-            newBannerText = `Equipment Details`;
-        } else if (path.startsWith("/equipment")) {
-            newBannerText = `Equipment`;
-        } else if (path.startsWith("/reservations")) {
-            newBannerText = `My Reservations`;
-        } else if (path.startsWith("/approve")) {
-            newBannerText = `Approval Queue`;
-        } else if (path.startsWith("/account")) {
-            newBannerText = `My Account`;
-        } else if (
-            path.startsWith("/manage/users") &&
-            (user?.admin || user?.equipment_admin)
-        ) {
-            newBannerText = `Users`;
-        } else if (path.startsWith("/admin-dashboard") && user?.admin) {
-            newBannerText = `Admin Dashboard`;
-        } else if (
-            path.startsWith("/depreciation") &&
-            (user?.admin || user?.tax_admin)
-        ) {
-            newBannerText = `Depreciation Reports`;
-        } else if (
-            path.startsWith("/usage-report") &&
-            (user?.admin ||
-                user?.equipment_admin ||
-                user?.equipment_office_admin ||
-                user?.tax_admin)
-        ) {
-            newBannerText = `Usage Report`;
-        } else {
-            newBannerText = "Page Not Found"; // Default for undefined routes
-        }
-        // Update the banner text in the parent component
-        setBannerText(newBannerText);
-    }, [location, setBannerText]);
+    }, [location, isAuthenticated, navigate]);
 
     return (
         <Routes>
@@ -186,11 +140,13 @@ const AppRoutes = ({
             <Route
                 path="/admin-dashboard"
                 element={
-                    user?.admin && (
+                    user?.admin ? (
                         <AdminDashboard
                             setLoading={setLoading}
                             loading={loading}
                         />
+                    ) : (
+                        <NotFoundPage />
                     )
                 }
             />
