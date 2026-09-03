@@ -1,25 +1,47 @@
 const { CheckoutRecurrence, Checkout, Equipment, User } = require("../models");
 const { addDays, addWeeks, addMonths, isBefore, isAfter } = require("date-fns");
 
+const RECURRENCE_USER_INCLUDES = [
+    {
+        model: User,
+        as: "RecurrenceCreatedBy",
+        attributes: ["id", "first_name", "last_name", "email"],
+    },
+    {
+        model: User,
+        as: "RecurrenceUpdatedBy",
+        attributes: ["id", "first_name", "last_name", "email"],
+    },
+];
+
+/**
+ * The recurrence(s) belonging to a checkout.
+ *
+ * The foreign key points the other way -- `Equipment-Checkouts.recurrence_id`
+ * references the recurrence, and `Equipment-CheckoutRecurrences` has no
+ * `checkout_id` column at all. This used to filter on `checkout_id`, so every
+ * call was an "invalid column name" error from SQL Server and the endpoint had
+ * never worked. Resolve through the checkout instead.
+ *
+ * Still returns an array, since a recurrence can own more than one head row
+ * once a series has been split by a "this and following" edit.
+ */
 const GetByCheckoutId = async (req, res, next) => {
     try {
         const { checkoutId } = req.params;
-        const recurrences = await CheckoutRecurrence.findAll({
-            where: { checkout_id: checkoutId },
-            include: [
-                {
-                    model: User,
-                    as: "RecurrenceCreatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-                {
-                    model: User,
-                    as: "RecurrenceUpdatedBy",
-                    attributes: ["id", "first_name", "last_name", "email"],
-                },
-            ],
+
+        const checkout = await Checkout.findByPk(checkoutId, {
+            attributes: ["id", "recurrence_id"],
         });
-        res.json(recurrences);
+
+        if (!checkout?.recurrence_id) return res.json([]);
+
+        const recurrence = await CheckoutRecurrence.findByPk(
+            checkout.recurrence_id,
+            { include: RECURRENCE_USER_INCLUDES },
+        );
+
+        res.json(recurrence ? [recurrence] : []);
     } catch (err) {
         next(err);
     }
@@ -38,8 +60,10 @@ const Post = async (req, res, next) => {
             end_date,
         } = req.body;
 
+        // No `checkout_id` here: there is no such column, so Sequelize silently
+        // dropped it and the caller's checkout was never actually linked to the
+        // recurrence it had just created. The link lives on the checkout.
         const recurrence = await CheckoutRecurrence.create({
-            checkout_id,
             recurrence_pattern,
             separation_count: separation_count || 1,
             max_occurrences,
@@ -49,23 +73,17 @@ const Post = async (req, res, next) => {
             end_date,
         });
 
+        if (checkout_id) {
+            await Checkout.update(
+                { recurrence_id: recurrence.id, repeats: recurrence_pattern },
+                { where: { id: checkout_id } },
+            );
+        }
+
         // Fetch complete recurrence with associations
         const completeRecurrence = await CheckoutRecurrence.findByPk(
             recurrence.id,
-            {
-                include: [
-                    {
-                        model: User,
-                        as: "RecurrenceCreatedBy",
-                        attributes: ["id", "first_name", "last_name", "email"],
-                    },
-                    {
-                        model: User,
-                        as: "RecurrenceUpdatedBy",
-                        attributes: ["id", "first_name", "last_name", "email"],
-                    },
-                ],
-            },
+            { include: RECURRENCE_USER_INCLUDES },
         );
 
         res.status(201).json(completeRecurrence);

@@ -122,9 +122,31 @@ an admin for confirmation. Never auto-link on a fuzzy match; an equipment row
 wrongly bound to an Asset Panda asset will mirror reservations onto the wrong
 physical item.
 
-**Migration mechanics.** Hand-written idempotent `.sql` through the existing
-`runMigration.js`, matching `add-user-equipment-admin-columns.sql`. Don't
-introduce a migration framework as a side quest of this project.
+**Migration mechanics.** Write these as standalone idempotent **JS** scripts —
+`backend/migrations/<name>.js` calling `connectToDatabase()`, then guarded
+`sequelize.query()` per statement, then `sequelize.close()`; run with
+`node backend/migrations/<name>.js`. This is the pattern the meeting-room app
+settled on, and it is better than the `.sql` + `runMigration.js` pair here for
+three concrete reasons:
+
+- `IF COL_LENGTH('Table','col') IS NULL` is a one-line guard against the
+  five-line `INFORMATION_SCHEMA` subquery the existing `.sql` uses.
+- No homegrown `GO` splitting. `runMigration.js` splits on `/^\s*GO\s*$/im`,
+  which mis-splits a `GO` inside a string or comment.
+- Real logic between statements — reading `INFORMATION_SCHEMA` and deciding
+  what to alter. The adoption pass in this phase needs exactly that.
+
+**Use `DATETIMEOFFSET` for any new timestamp column**, matching the existing
+`Rooms-*` tables. `DATETIME` fails under Sequelize's mssql dialect, which emits
+`2026-07-31 10:48:06.123 +00:00`; SQL Server can't convert that, and because
+`findOrCreate` wraps its insert in a transaction the error surfaces as a
+completely misleading *"COMMIT TRANSACTION request has no corresponding BEGIN
+TRANSACTION"*. That trap has already cost time once on the other app.
+
+Leave `runMigration.js` and the applied `.sql` where they are — don't rewrite
+history — and don't introduce a migration framework as a side quest. Note that
+neither approach has a ledger: there is no applied-migrations table, so every
+script must be individually idempotent and someone has to remember to run it.
 
 ---
 
