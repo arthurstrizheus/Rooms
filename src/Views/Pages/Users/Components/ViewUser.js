@@ -1,263 +1,165 @@
-import {
-    darkenHexColorWithAplha,
-    hexToRgba,
-} from "../../../../Utilites/Functions/ColorFunctions";
-import { useTheme } from "@emotion/react";
-import { useAuth } from "../../../../Utilites/AuthContext";
-import { Grid, Stack, Typography, Button, Tooltip, Chip } from "@mui/material";
-import EventBusyIcon from "@mui/icons-material/EventBusyOutlined";
 import React from "react";
+import { Grid, Stack, Button, Box } from "@mui/material";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import { useAuth } from "../../../../Utilites/AuthContext";
+import SectionCard from "../../../Components/UI/SectionCard";
+import DetailField from "../../../Components/UI/DetailField";
+import RoleChips from "./RoleChips";
 
-const rowItem = (name, value, color) => {
-    return (
-        <Grid container direction="row" wrap="wrap">
-            <Grid item xs={4}>
-                <Typography
-                    color={color}
-                    variant="body2"
-                    whiteSpace="nowrap" // Prevents text from breaking onto the next line within its box
-                    overflow="hidden" // Ensures any overflow is hidden
-                    textOverflow="ellipsis" // Adds ellipsis if the text is too long
-                >
-                    {name}
-                </Typography>
-            </Grid>
-            <Grid item xs={8} display={"flex"}>
-                <Typography
-                    variant="body2"
-                    textAlign="left"
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                    whiteSpace="wrap"
-                >
-                    {value}
-                </Typography>
-            </Grid>
-        </Grid>
-    );
-};
-
+/**
+ * The expanded detail panel under a user row.
+ *
+ * Was two fixed 550px-wide panels side by side — which overflowed on anything
+ * narrower than a desktop. Now a responsive two-column grid that stacks.
+ */
 const ViewUser = ({ location, row, rowUser, setOpen, locations }) => {
-    const theme = useTheme();
     const { user } = useAuth();
 
+    if (!rowUser || !location || !row) return null;
+
+    const canEdit =
+        user?.admin ||
+        user?.equipment_admin ||
+        `${user?.equipment_office_admin}` === `${location?.officeid}`;
+
+    const lastLogin = rowUser?.last_login
+        ? new Date(rowUser.last_login).toLocaleDateString("en-US", {
+              hour: "numeric",
+              minute: "numeric",
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+          })
+        : "Has not logged in";
+
     return (
-        <React.Fragment>
-            {rowUser && location && row && (
-                <Grid
-                    sx={{
-                        height: "fit-content",
-                        padding: "10px",
-                        background:
-                            theme.palette.background.fill.light.lightHover,
-                    }}
-                >
-                    <Stack
-                        direction={"row"}
-                        sx={{ padding: "10px", display: "flex" }}
-                        justifyContent={"space-around"}
+        <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+            <Grid container spacing={{ xs: 1.5, sm: 2.5 }}>
+                <Grid item xs={12} md={6}>
+                    <SectionCard
+                        title="User details"
+                        icon={<BadgeOutlinedIcon />}
+                        action={
+                            canEdit && (
+                                <Button
+                                    size="small"
+                                    variant="outlined"
+                                    startIcon={
+                                        <EditOutlinedIcon
+                                            sx={{ fontSize: 16 }}
+                                        />
+                                    }
+                                    onClick={() => setOpen(rowUser, location)}
+                                >
+                                    Edit
+                                </Button>
+                            )
+                        }
                     >
-                        <Grid
-                            sx={{
-                                background: "white",
-                                borderRadius: "10px",
-                                minWidth: "550px",
-                                overflow: "hidden",
-                                display: "flex",
-                            }}
-                        >
-                            <Typography
-                                variant="h6"
-                                paddingLeft={"10px"}
-                                sx={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "space-between",
-                                    background: `linear-gradient(135deg, rgba(${hexToRgba(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        0.5,
-                                    )}) 0%, rgba(${darkenHexColorWithAplha(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        60,
-                                        0.5,
-                                    )}) 100%)`,
-                                }}
-                            >
-                                User Details
-                                {(user?.admin ||
-                                    user?.equipment_admin ||
-                                    user?.equipment_office_admin ==
-                                        location?.officeid) && (
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() =>
-                                            setOpen(rowUser, location)
+                        <Stack spacing={2}>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6}>
+                                    <DetailField
+                                        label="Name"
+                                        value={row.name}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DetailField
+                                        label="Email"
+                                        value={row.email}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DetailField
+                                        label="Last login"
+                                        value={lastLogin}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DetailField
+                                        label="Updated by"
+                                        value={
+                                            rowUser?.UserUpdatedBy
+                                                ? `${rowUser.UserUpdatedBy.first_name} ${rowUser.UserUpdatedBy.last_name}`
+                                                : null
                                         }
-                                        sx={{
-                                            display: "flex",
-                                            alignSelf: "start",
-                                            marginBottom: "5px",
-                                            textTransform: "none",
-                                            ":hover": {
-                                                backgroundColor:
-                                                    "rgba(255, 187, 0, .1)",
-                                            },
-                                        }}
-                                        startIcon={
-                                            <EventBusyIcon
-                                                sx={{ color: "orange" }}
+                                        hideEmpty
+                                    />
+                                </Grid>
+                                <Grid item xs={12}>
+                                    <DetailField label="Roles">
+                                        <Box sx={{ mt: 0.75 }}>
+                                            <RoleChips
+                                                row={row}
+                                                locations={locations}
+                                                // Roles are shown in full here
+                                                // rather than scoped to the
+                                                // office filter on the table.
+                                                filterLocation={{ officeid: 0 }}
                                             />
-                                        }
-                                    >
-                                        Edit
-                                    </Button>
-                                )}
-                            </Typography>
-                            <Stack
-                                width={"100%"}
-                                direction={"column"}
-                                sx={{
-                                    marginTop: "10px",
-                                    paddingLeft: "20px",
-                                    paddingBottom: "5px",
-                                }}
-                                spacing={2}
-                            >
-                                {rowItem(
-                                    "Name",
-                                    row.name,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Email",
-                                    row.email,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Admin",
-                                    row.admin ? "True" : "False",
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Equipment Office Admin",
-                                    row.equipment_office_admin
-                                        ? `${
-                                              locations?.find(
-                                                  (lc) =>
-                                                      lc.officeid ==
-                                                      row?.equipment_office_admin,
-                                              )?.Alias
-                                          }`
-                                        : "None",
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Equipment Admin",
-                                    row.equipment_admin ? "True" : "False",
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Last Login",
-                                    new Date(
-                                        rowUser?.last_login,
-                                    ).toLocaleDateString("en-US", {
-                                        hour: "numeric",
-                                        minute: "numeric",
-                                        weekday: "long",
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                    }),
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowUser?.UserUpdatedBy &&
-                                    rowItem(
-                                        "Updated By",
-                                        `${rowUser.UserUpdatedBy.first_name} ${rowUser.UserUpdatedBy.last_name}`,
-                                        theme.palette.primary.text.dark,
-                                    )}
-                            </Stack>
-                        </Grid>
-                        <Grid
-                            sx={{
-                                display: "flex",
-                                background: "white",
-                                borderRadius: "10px",
-                                minWidth: "550px",
-                                overflow: "hidden",
-                            }}
-                        >
-                            <Typography
-                                variant="h6"
-                                paddingLeft={"10px"}
-                                sx={{
-                                    background: `linear-gradient(135deg, rgba(${hexToRgba(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        0.5,
-                                    )}) 0%, rgba(${darkenHexColorWithAplha(
-                                        theme.palette.background.fill.light
-                                            .light,
-                                        60,
-                                        0.5,
-                                    )}) 100%)`,
-                                }}
-                            >
-                                User Location
-                            </Typography>
-                            <Stack
-                                width={"100%"}
-                                direction={"column"}
-                                sx={{
-                                    marginTop: "10px",
-                                    paddingLeft: "20px",
-                                    paddingBottom: "5px",
-                                }}
-                                spacing={2}
-                            >
-                                {rowItem(
-                                    "Alias",
-                                    location.Alias,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Number",
-                                    location.Number,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "City",
-                                    location.City,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "State",
-                                    location.state,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Zip",
-                                    location.Zip,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Address",
-                                    location.SAddress,
-                                    theme.palette.primary.text.dark,
-                                )}
-                                {rowItem(
-                                    "Airport",
-                                    location.Airport,
-                                    theme.palette.primary.text.dark,
-                                )}
-                            </Stack>
-                        </Grid>
-                    </Stack>
+                                        </Box>
+                                    </DetailField>
+                                </Grid>
+                            </Grid>
+                        </Stack>
+                    </SectionCard>
                 </Grid>
-            )}
-        </React.Fragment>
+
+                <Grid item xs={12} md={6}>
+                    <SectionCard
+                        title="Location"
+                        subtitle={location.Alias}
+                        icon={<PlaceOutlinedIcon />}
+                    >
+                        <Grid container spacing={2}>
+                            <Grid item xs={6} sm={4}>
+                                <DetailField
+                                    label="Alias"
+                                    value={location.Alias}
+                                />
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                                <DetailField
+                                    label="Number"
+                                    value={location.Number}
+                                />
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                                <DetailField
+                                    label="Airport"
+                                    value={location.Airport}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <DetailField
+                                    label="Address"
+                                    value={location.SAddress}
+                                />
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                                <DetailField
+                                    label="City"
+                                    value={location.City}
+                                />
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                                <DetailField
+                                    label="State"
+                                    value={location.state}
+                                />
+                            </Grid>
+                            <Grid item xs={6} sm={4}>
+                                <DetailField label="Zip" value={location.Zip} />
+                            </Grid>
+                        </Grid>
+                    </SectionCard>
+                </Grid>
+            </Grid>
+        </Box>
     );
 };
 

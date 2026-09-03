@@ -1,29 +1,42 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "@emotion/react";
 import {
     Stack,
     Typography,
     Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    FormControl,
-    InputLabel,
-    Select,
     MenuItem,
     Autocomplete,
     TextField,
     CircularProgress,
+    Box,
+    Avatar,
+    Grid,
 } from "@mui/material";
+import PersonAddAlt1OutlinedIcon from "@mui/icons-material/PersonAddAlt1Outlined";
+import axios from "axios";
+
 import {
     showError,
     showSuccess,
 } from "../../../../Utilites/Functions/ApiFunctions";
-import axios from "axios";
+import ResponsiveDialog from "../../../Components/UI/ResponsiveDialog";
+import DetailField from "../../../Components/UI/DetailField";
 
+const initialsOf = (name = "") =>
+    name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase();
+
+/**
+ * Provision a new app user from an Active Directory account.
+ *
+ * Once an AD user is picked, their details preview in a card so the admin can
+ * confirm they've got the right person before creating the account.
+ */
 const AddUserFromAD = ({ open, setOpen, locations, setUpdate }) => {
-    const theme = useTheme();
     const [selectedUser, setSelectedUser] = useState(null);
     const [location, setLocation] = useState("");
     const [adUsers, setAdUsers] = useState([]);
@@ -34,10 +47,10 @@ const AddUserFromAD = ({ open, setOpen, locations, setUpdate }) => {
         if (open) {
             fetchAdUsers();
         } else {
-            // Reset form when dialog closes
             setSelectedUser(null);
             setLocation("");
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     const fetchAdUsers = async () => {
@@ -45,9 +58,7 @@ const AddUserFromAD = ({ open, setOpen, locations, setUpdate }) => {
         try {
             const token = localStorage.getItem("authToken");
             const response = await axios.get(`/api/users/ad/all`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
             setAdUsers(response.data || []);
         } catch (error) {
@@ -60,9 +71,7 @@ const AddUserFromAD = ({ open, setOpen, locations, setUpdate }) => {
     };
 
     const handleClose = () => {
-        if (!submitting) {
-            setOpen(false);
-        }
+        if (!submitting) setOpen(false);
     };
 
     const handleSubmit = async () => {
@@ -80,11 +89,7 @@ const AddUserFromAD = ({ open, setOpen, locations, setUpdate }) => {
                     username: selectedUser.username,
                     location: location.officeid,
                 },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                },
+                { headers: { Authorization: `Bearer ${token}` } },
             );
 
             if (response.status === 201) {
@@ -94,161 +99,213 @@ const AddUserFromAD = ({ open, setOpen, locations, setUpdate }) => {
             }
         } catch (error) {
             console.error("Error creating user:", error);
-            const errorMessage =
-                error.response?.data?.message || "Failed to add user";
-            showError(errorMessage);
+            showError(error.response?.data?.message || "Failed to add user");
         } finally {
             setSubmitting(false);
         }
     };
 
     return (
-        <Dialog
+        <ResponsiveDialog
             open={open}
             onClose={handleClose}
+            title="Add user"
+            subtitle="Provision an account from Active Directory"
+            icon={<PersonAddAlt1OutlinedIcon />}
             maxWidth="sm"
-            fullWidth
             disableEscapeKeyDown={submitting}
-        >
-            <DialogTitle>Add User from Active Directory</DialogTitle>
-            <DialogContent>
-                <Stack spacing={3} sx={{ mt: 2 }}>
-                    <Autocomplete
-                        options={adUsers}
-                        getOptionLabel={(option) =>
-                            `${option.displayName} (${option.username})`
-                        }
-                        value={selectedUser}
-                        onChange={(event, newValue) => {
-                            setSelectedUser(newValue);
-                        }}
-                        loading={loading}
+            actions={
+                <>
+                    <Button
+                        onClick={handleClose}
+                        variant="outlined"
                         disabled={submitting}
-                        renderInput={(params) => (
-                            <TextField
-                                {...params}
-                                label="Select User"
-                                variant="outlined"
-                                required
-                                InputProps={{
-                                    ...params.InputProps,
-                                    endAdornment: (
-                                        <>
-                                            {loading ? (
-                                                <CircularProgress
-                                                    color="inherit"
-                                                    size={20}
-                                                />
-                                            ) : null}
-                                            {params.InputProps.endAdornment}
-                                        </>
-                                    ),
-                                }}
-                                helperText={
-                                    loading
-                                        ? "Loading users from Active Directory..."
-                                        : adUsers.length === 0 && !loading
-                                          ? "No available users found"
-                                          : "Search by name or username"
-                                }
-                            />
-                        )}
-                        renderOption={(props, option) => (
-                            <li {...props} key={option.username}>
-                                <Stack>
-                                    <Typography variant="body1">
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleSubmit}
+                        variant="contained"
+                        disabled={!selectedUser || !location || submitting}
+                        startIcon={
+                            submitting ? (
+                                <CircularProgress size={16} color="inherit" />
+                            ) : (
+                                <PersonAddAlt1OutlinedIcon />
+                            )
+                        }
+                    >
+                        {submitting ? "Adding…" : "Add user"}
+                    </Button>
+                </>
+            }
+        >
+            <Stack spacing={2.5}>
+                <Autocomplete
+                    options={adUsers}
+                    getOptionLabel={(option) =>
+                        `${option.displayName} (${option.username})`
+                    }
+                    value={selectedUser}
+                    onChange={(_, newValue) => setSelectedUser(newValue)}
+                    loading={loading}
+                    disabled={submitting}
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Active Directory user"
+                            required
+                            InputProps={{
+                                ...params.InputProps,
+                                endAdornment: (
+                                    <>
+                                        {loading && (
+                                            <CircularProgress
+                                                color="inherit"
+                                                size={18}
+                                            />
+                                        )}
+                                        {params.InputProps.endAdornment}
+                                    </>
+                                ),
+                            }}
+                            helperText={
+                                loading
+                                    ? "Loading users from Active Directory…"
+                                    : adUsers.length === 0
+                                      ? "No available users found"
+                                      : "Search by name or username"
+                            }
+                        />
+                    )}
+                    renderOption={(props, option) => (
+                        <Box component="li" {...props} key={option.username}>
+                            <Stack
+                                direction="row"
+                                spacing={1.25}
+                                alignItems="center"
+                                sx={{ minWidth: 0 }}
+                            >
+                                <Avatar
+                                    sx={{
+                                        width: 28,
+                                        height: 28,
+                                        fontSize: "0.6875rem",
+                                    }}
+                                >
+                                    {initialsOf(option.displayName)}
+                                </Avatar>
+                                <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" noWrap>
                                         {option.displayName}
                                     </Typography>
                                     <Typography
                                         variant="caption"
                                         color="text.secondary"
+                                        noWrap
                                     >
-                                        {option.username} • {option.email}
+                                        {option.username} · {option.email}
                                     </Typography>
-                                </Stack>
-                            </li>
-                        )}
-                        noOptionsText={
-                            loading
-                                ? "Loading..."
-                                : "No users available (all AD users may already be registered)"
-                        }
-                    />
-
-                    <FormControl
-                        variant="outlined"
-                        required
-                        disabled={submitting}
-                    >
-                        <InputLabel id="location-label">Location</InputLabel>
-                        <Select
-                            labelId="location-label"
-                            value={location?.officeid ?? ""}
-                            label="Location"
-                            onChange={(e) => {
-                                const selectedItem = locations?.find(
-                                    (itm) => itm.officeid === e.target.value,
-                                );
-                                setLocation(selectedItem);
-                            }}
-                        >
-                            {locations?.map((itm) => (
-                                <MenuItem
-                                    key={itm.officeid}
-                                    value={itm.officeid}
-                                >
-                                    {itm.Alias}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
-                    {selectedUser && (
-                        <Stack
-                            spacing={1}
-                            sx={{
-                                p: 2,
-                                bgcolor: "action.hover",
-                                borderRadius: 1,
-                            }}
-                        >
-                            <Typography
-                                variant="subtitle2"
-                                color="text.secondary"
-                            >
-                                User Details:
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Name:</strong> {selectedUser.firstName}{" "}
-                                {selectedUser.lastName}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Username:</strong>{" "}
-                                {selectedUser.username}
-                            </Typography>
-                            <Typography variant="body2">
-                                <strong>Email:</strong> {selectedUser.email}
-                            </Typography>
-                        </Stack>
+                                </Box>
+                            </Stack>
+                        </Box>
                     )}
-                </Stack>
-            </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-                <Button onClick={handleClose} disabled={submitting}>
-                    Cancel
-                </Button>
-                <Button
-                    onClick={handleSubmit}
-                    variant="contained"
-                    disabled={!selectedUser || !location || submitting}
-                    startIcon={
-                        submitting ? <CircularProgress size={16} /> : null
+                    noOptionsText={
+                        loading
+                            ? "Loading…"
+                            : "No users available — they may all be registered already"
                     }
+                />
+
+                <TextField
+                    select
+                    label="Location"
+                    required
+                    disabled={submitting}
+                    value={location?.officeid ?? ""}
+                    onChange={(e) =>
+                        setLocation(
+                            locations?.find(
+                                (itm) => itm.officeid === e.target.value,
+                            ),
+                        )
+                    }
+                    fullWidth
                 >
-                    {submitting ? "Adding..." : "Add User"}
-                </Button>
-            </DialogActions>
-        </Dialog>
+                    {locations?.map((itm) => (
+                        <MenuItem key={itm.officeid} value={itm.officeid}>
+                            {itm.Alias}
+                        </MenuItem>
+                    ))}
+                </TextField>
+
+                {selectedUser && (
+                    <Box
+                        sx={{
+                            p: 2,
+                            borderRadius: 2.5,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            bgcolor: "grey.50",
+                            animation:
+                                "seaRiseIn 320ms cubic-bezier(0.22,1,0.36,1) both",
+                        }}
+                    >
+                        <Stack
+                            direction="row"
+                            spacing={1.5}
+                            alignItems="center"
+                            sx={{ mb: 2 }}
+                        >
+                            <Avatar sx={{ width: 38, height: 38 }}>
+                                {initialsOf(selectedUser.displayName)}
+                            </Avatar>
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="subtitle2" noWrap>
+                                    {selectedUser.displayName}
+                                </Typography>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    noWrap
+                                >
+                                    Will be created in{" "}
+                                    {location?.Alias || "— select a location"}
+                                </Typography>
+                            </Box>
+                        </Stack>
+
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="First name"
+                                    value={selectedUser.firstName}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Last name"
+                                    value={selectedUser.lastName}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Username"
+                                    value={selectedUser.username}
+                                    mono
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Email"
+                                    value={selectedUser.email}
+                                />
+                            </Grid>
+                        </Grid>
+                    </Box>
+                )}
+            </Stack>
+        </ResponsiveDialog>
     );
 };
 

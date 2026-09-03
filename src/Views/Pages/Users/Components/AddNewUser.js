@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "@emotion/react";
 import {
     Stack,
     Typography,
@@ -7,17 +6,16 @@ import {
     InputAdornment,
     IconButton,
     Tooltip,
-    Dialog,
-    FormControl,
-    InputLabel,
-    Select,
-    Divider,
     TextField,
     MenuItem,
-    FormControlLabel,
     Switch,
+    Box,
+    Grid,
+    Divider,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+
 import {
     PostUser,
     UpdateUser,
@@ -27,8 +25,51 @@ import {
     showError,
     showSuccess,
 } from "../../../../Utilites/Functions/ApiFunctions";
+import ResponsiveDialog from "../../../Components/UI/ResponsiveDialog";
 
 const emailPattern = /^[^\s@]+(\.[^\s@]+)?@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * A permission row: label, description and a switch.
+ *
+ * The four permission toggles each carried their own 20-line `sx` block
+ * overriding the switch track color. The switch now uses the theme's brand
+ * styling, and the row explains what the permission grants.
+ */
+const PermissionToggle = ({ label, description, checked, onChange }) => (
+    <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        sx={{
+            px: 2,
+            py: 1.5,
+            borderRadius: 2.5,
+            border: "1px solid",
+            borderColor: checked ? "primary.100" : "divider",
+            bgcolor: checked ? "primary.50" : "transparent",
+            transition:
+                "background-color 200ms ease, border-color 200ms ease",
+        }}
+    >
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+                variant="body2"
+                sx={{ fontWeight: checked ? 650 : 550 }}
+            >
+                {label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+                {description}
+            </Typography>
+        </Box>
+        <Switch
+            checked={checked}
+            onChange={onChange}
+            inputProps={{ "aria-label": label }}
+        />
+    </Stack>
+);
 
 const AddNewUser = ({
     open,
@@ -37,13 +78,11 @@ const AddNewUser = ({
     selectedUser,
     locations,
     setUpdate,
-    filterLocation,
 }) => {
-    const theme = useTheme();
     const { user } = useAuth();
     const [admin, setAdmin] = useState(false);
-    const [first_name, setfirst_name] = useState("");
-    const [last_name, setlast_name] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
     const [location, setLocation] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -54,415 +93,295 @@ const AddNewUser = ({
 
     const onClose = () => {
         setOpen(false);
-        // if (!selectedUser) {
         setLocation("");
         setEmail("");
-        setfirst_name("");
+        setFirstName("");
         setPassword("");
-        setlast_name("");
+        setLastName("");
         setAdmin(false);
         setEquipmentOfficeAdmin("");
         setEquipmentAdmin(false);
         setTaxAdmin(false);
-        // }
     };
 
     const onSubmit = () => {
-        if (
-            first_name !== "" &&
-            last_name !== "" &&
+        const hasRequired =
+            firstName !== "" &&
+            lastName !== "" &&
             (location?.officeid || location?.officeid === 0) &&
-            email !== ""
-        ) {
-            if (!selectedUser?.id) {
-                PostUser({
-                    first_name: first_name,
-                    last_name: last_name,
-                    location: location.officeid,
-                    created_user_id: user?.id,
-                    email: email,
-                    password: password,
-                    admin: admin,
-                    active: true,
-                    equipment_office_admin:
-                        equipmentOfficeAdmin != ""
-                            ? equipmentOfficeAdmin
-                            : null,
-                    equipment_admin: equipmentAdmin || false,
-                    tax_admin: taxAdmin || false,
-                }).then((resp) => {
-                    if (resp) {
-                        showSuccess("User Created");
-                        setUpdate((prev) => prev + 1);
-                    }
-                });
-            } else {
-                UpdateUser(selectedUser?.id, {
-                    first_name: first_name,
-                    last_name: last_name,
-                    location: location.officeid,
-                    email: email,
-                    admin: admin,
-                    equipment_office_admin: equipmentOfficeAdmin,
-                    equipment_admin: equipmentAdmin || false,
-                    tax_admin: taxAdmin || false,
-                }).then((resp) => {
-                    if (resp) {
-                        showSuccess("User Updated");
-                        setUpdate((prev) => prev + 1);
-                    }
-                });
-            }
-            onClose();
-        } else {
+            email !== "";
+
+        if (!hasRequired) {
             showError("Fields cannot be empty");
+            return;
         }
+
+        if (!selectedUser?.id) {
+            PostUser({
+                first_name: firstName,
+                last_name: lastName,
+                location: location.officeid,
+                created_user_id: user?.id,
+                email,
+                password,
+                admin,
+                active: true,
+                equipment_office_admin:
+                    equipmentOfficeAdmin !== "" ? equipmentOfficeAdmin : null,
+                equipment_admin: equipmentAdmin || false,
+                tax_admin: taxAdmin || false,
+            }).then((resp) => {
+                if (resp) {
+                    showSuccess("User created");
+                    setUpdate((prev) => prev + 1);
+                }
+            });
+        } else {
+            UpdateUser(selectedUser?.id, {
+                first_name: firstName,
+                last_name: lastName,
+                location: location.officeid,
+                email,
+                admin,
+                equipment_office_admin: equipmentOfficeAdmin,
+                equipment_admin: equipmentAdmin || false,
+                tax_admin: taxAdmin || false,
+            }).then((resp) => {
+                if (resp) {
+                    showSuccess("User updated");
+                    setUpdate((prev) => prev + 1);
+                }
+            });
+        }
+        onClose();
     };
 
     useEffect(() => {
-        if (selectedUser) {
-            setLocation(userLocation);
-            setfirst_name(selectedUser?.first_name);
-            setlast_name(selectedUser?.last_name);
-            setEmail(selectedUser?.email);
-            setAdmin(selectedUser?.admin);
-            setEquipmentOfficeAdmin(selectedUser?.equipment_office_admin);
-            setEquipmentAdmin(selectedUser?.equipment_admin || false);
-            setTaxAdmin(selectedUser?.tax_admin || false);
-        }
+        if (!selectedUser) return;
+        setLocation(userLocation);
+        setFirstName(selectedUser?.first_name);
+        setLastName(selectedUser?.last_name);
+        setEmail(selectedUser?.email);
+        setAdmin(selectedUser?.admin);
+        setEquipmentOfficeAdmin(selectedUser?.equipment_office_admin);
+        setEquipmentAdmin(selectedUser?.equipment_admin || false);
+        setTaxAdmin(selectedUser?.tax_admin || false);
     }, [selectedUser, userLocation]);
 
-    return (
-        <Dialog open={!!open} onClose={onClose} maxWidth={false}>
-            <Stack
-                sx={{
-                    width: "550px",
-                    height: "100%",
-                }}
-            >
-                <Typography
-                    variant="h5"
-                    textAlign={"center"}
-                    width={"100%"}
-                    fontFamily={"Courier New, sans-serif"}
-                    marginBottom={1}
-                    marginTop={2}
-                >
-                    {selectedUser ? "Edit" : "Add"} User
-                </Typography>
-                <Divider width={"100%"} />
+    const emailInvalid = email !== "" && !emailPattern.test(email);
 
-                <Stack sx={{ padding: "20px", gap: 2.5 }}>
-                    {/* Basic Information Section */}
+    const canGrantOfficeAdmin =
+        user?.admin || user?.equipment_admin || user?.equipment_office_admin;
+
+    return (
+        <ResponsiveDialog
+            open={Boolean(open)}
+            onClose={onClose}
+            title={selectedUser ? "Edit user" : "Add user"}
+            subtitle={
+                selectedUser
+                    ? `${selectedUser.first_name} ${selectedUser.last_name}`
+                    : "Create an account and set permissions"
+            }
+            icon={<ManageAccountsOutlinedIcon />}
+            maxWidth="sm"
+            actions={
+                <>
+                    <Button variant="outlined" onClick={onClose}>
+                        Cancel
+                    </Button>
+                    <Button variant="contained" onClick={onSubmit}>
+                        {selectedUser ? "Save changes" : "Create user"}
+                    </Button>
+                </>
+            }
+        >
+            <Stack spacing={3} divider={<Divider flexItem />}>
+                {/* ---- Basic information ---- */}
+                <Box>
                     <Typography
-                        variant="subtitle1"
-                        fontWeight="bold"
-                        color="text.secondary"
+                        variant="overline"
+                        sx={{ color: "text.secondary", display: "block", mb: 1.5 }}
                     >
-                        Basic Information
+                        Basic information
                     </Typography>
 
-                    <Stack direction={"row"} spacing={2}>
-                        <TextField
-                            fullWidth
-                            value={first_name}
-                            onChange={(e) => setfirst_name(e.target.value)}
-                            label="First Name"
-                            variant="outlined"
-                            size="small"
-                            required
-                        />
-                        <TextField
-                            fullWidth
-                            value={last_name}
-                            onChange={(e) => setlast_name(e.target.value)}
-                            label="Last Name"
-                            variant="outlined"
-                            size="small"
-                            required
-                        />
-                    </Stack>
-
-                    <Stack direction={"row"} spacing={2}>
-                        <TextField
-                            fullWidth
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            error={!emailPattern.test(email) && email !== ""}
-                            variant="outlined"
-                            label="Email"
-                            size="small"
-                            required
-                            helperText={
-                                !emailPattern.test(email) && email !== ""
-                                    ? "Format: user@domain.com"
-                                    : ""
-                            }
-                        />
-                        <FormControl
-                            variant="outlined"
-                            size="small"
-                            fullWidth
-                            required
-                        >
-                            <InputLabel id="location-label">
-                                Location
-                            </InputLabel>
-                            <Select
-                                labelId="location-label"
-                                value={location?.officeid || ""}
-                                onChange={(e) => {
-                                    const selectedItem = locations?.find(
-                                        (itm) =>
-                                            itm.officeid === e.target.value,
-                                    );
-                                    setLocation(selectedItem);
-                                }}
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                label="First name"
+                                required
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                label="Last name"
+                                required
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                error={emailInvalid}
+                                label="Email"
+                                required
+                                helperText={
+                                    emailInvalid ? "Format: user@domain.com" : " "
+                                }
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                select
+                                fullWidth
+                                required
                                 label="Location"
+                                value={location?.officeid ?? ""}
+                                onChange={(e) =>
+                                    setLocation(
+                                        locations?.find(
+                                            (itm) =>
+                                                itm.officeid === e.target.value,
+                                        ),
+                                    )
+                                }
+                                helperText=" "
                             >
-                                {locations?.map((itm, index) => (
-                                    <MenuItem key={index} value={itm.officeid}>
+                                {locations?.map((itm) => (
+                                    <MenuItem
+                                        key={itm.officeid}
+                                        value={itm.officeid}
+                                    >
                                         {itm.Alias}
                                     </MenuItem>
                                 ))}
-                            </Select>
-                        </FormControl>
-                    </Stack>
+                            </TextField>
+                        </Grid>
 
-                    {!selectedUser?.id && (
-                        <TextField
-                            fullWidth
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            label="Password"
-                            type={viewPassword ? "text" : "password"}
-                            variant="outlined"
-                            size="small"
-                            required
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <Tooltip
-                                            title={
-                                                viewPassword
-                                                    ? "Hide password"
-                                                    : "Show password"
-                                            }
-                                        >
-                                            <IconButton
-                                                onClick={() =>
-                                                    setViewPassword(
-                                                        !viewPassword,
-                                                    )
-                                                }
-                                                edge="end"
-                                                size="small"
-                                            >
-                                                {viewPassword ? (
-                                                    <VisibilityOff fontSize="small" />
-                                                ) : (
-                                                    <Visibility fontSize="small" />
-                                                )}
-                                            </IconButton>
-                                        </Tooltip>
-                                    </InputAdornment>
-                                ),
-                            }}
-                        />
-                    )}
+                        {!selectedUser?.id && (
+                            <Grid item xs={12}>
+                                <TextField
+                                    fullWidth
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    label="Password"
+                                    type={viewPassword ? "text" : "password"}
+                                    required
+                                    InputProps={{
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <Tooltip
+                                                    title={
+                                                        viewPassword
+                                                            ? "Hide password"
+                                                            : "Show password"
+                                                    }
+                                                >
+                                                    <IconButton
+                                                        onClick={() =>
+                                                            setViewPassword(
+                                                                (v) => !v,
+                                                            )
+                                                        }
+                                                        edge="end"
+                                                        size="small"
+                                                    >
+                                                        {viewPassword ? (
+                                                            <VisibilityOff fontSize="small" />
+                                                        ) : (
+                                                            <Visibility fontSize="small" />
+                                                        )}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </InputAdornment>
+                                        ),
+                                    }}
+                                />
+                            </Grid>
+                        )}
+                    </Grid>
+                </Box>
 
-                    <Divider />
-
-                    {/* Permissions Section */}
+                {/* ---- Permissions ---- */}
+                <Box>
                     <Typography
-                        variant="subtitle1"
-                        fontWeight="bold"
-                        color="text.secondary"
+                        variant="overline"
+                        sx={{ color: "text.secondary", display: "block", mb: 1.5 }}
                     >
                         Permissions
                     </Typography>
 
-                    {user?.admin && (
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={admin}
-                                    onChange={(e) => setAdmin(e.target.checked)}
-                                    sx={{
-                                        "& .MuiSwitch-switchBase": {
-                                            "&.Mui-checked": {
-                                                color: "#fff",
-                                                "& + .MuiSwitch-track": {
-                                                    backgroundColor:
-                                                        theme.palette.mode ===
-                                                        "dark"
-                                                            ? "#2ECA45"
-                                                            : "#65C466",
-                                                    opacity: 1,
-                                                    border: 0,
-                                                },
-                                            },
-                                        },
-                                    }}
-                                />
-                            }
-                            label="System Administrator"
-                            sx={{
-                                "& .MuiFormControlLabel-label": {
-                                    fontWeight: admin ? "600" : "400",
-                                    color: admin ? "black" : "grey",
-                                },
-                            }}
-                        />
-                    )}
+                    <Stack spacing={1.25}>
+                        {user?.admin && (
+                            <PermissionToggle
+                                label="System administrator"
+                                description="Full access to every part of the application"
+                                checked={admin}
+                                onChange={(e) => setAdmin(e.target.checked)}
+                            />
+                        )}
 
-                    {(user?.admin || user?.equipment_admin) && (
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={equipmentAdmin}
-                                    onChange={(e) =>
-                                        setEquipmentAdmin(e.target.checked)
-                                    }
-                                    sx={{
-                                        "& .MuiSwitch-switchBase": {
-                                            "&.Mui-checked": {
-                                                color: "#fff",
-                                                "& + .MuiSwitch-track": {
-                                                    backgroundColor:
-                                                        theme.palette.mode ===
-                                                        "dark"
-                                                            ? "#2196f3"
-                                                            : "#64b5f6",
-                                                    opacity: 1,
-                                                    border: 0,
-                                                },
-                                            },
-                                        },
-                                    }}
-                                />
-                            }
-                            label="Equipment Administrator (All Offices)"
-                            sx={{
-                                "& .MuiFormControlLabel-label": {
-                                    fontWeight: equipmentAdmin ? "600" : "400",
-                                    color: equipmentAdmin ? "black" : "grey",
-                                },
-                            }}
-                        />
-                    )}
+                        {(user?.admin || user?.equipment_admin) && (
+                            <PermissionToggle
+                                label="Equipment administrator"
+                                description="Manage equipment across all offices"
+                                checked={equipmentAdmin}
+                                onChange={(e) =>
+                                    setEquipmentAdmin(e.target.checked)
+                                }
+                            />
+                        )}
 
-                    {(user?.admin || user?.tax_admin) && (
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={taxAdmin}
-                                    onChange={(e) =>
-                                        setTaxAdmin(e.target.checked)
-                                    }
-                                    sx={{
-                                        "& .MuiSwitch-switchBase": {
-                                            "&.Mui-checked": {
-                                                color: "#fff",
-                                                "& + .MuiSwitch-track": {
-                                                    backgroundColor:
-                                                        theme.palette.mode ===
-                                                        "dark"
-                                                            ? "#9c27b0"
-                                                            : "#ba68c8",
-                                                    opacity: 1,
-                                                    border: 0,
-                                                },
-                                            },
-                                        },
-                                    }}
-                                />
-                            }
-                            label="Tax Administrator"
-                            sx={{
-                                "& .MuiFormControlLabel-label": {
-                                    fontWeight: taxAdmin ? "600" : "400",
-                                    color: taxAdmin ? "black" : "grey",
-                                },
-                            }}
-                        />
-                    )}
+                        {(user?.admin || user?.tax_admin) && (
+                            <PermissionToggle
+                                label="Tax administrator"
+                                description="Access depreciation reports and tax rules"
+                                checked={taxAdmin}
+                                onChange={(e) => setTaxAdmin(e.target.checked)}
+                            />
+                        )}
 
-                    {(user?.admin ||
-                        user?.equipment_admin ||
-                        user?.equipment_office_admin) && (
-                        <FormControl variant="outlined" size="small" fullWidth>
-                            <InputLabel id="equipment-admin-label">
-                                Equipment Office Admin (Single Location)
-                            </InputLabel>
-                            <Select
-                                labelId="equipment-admin-label"
+                        {canGrantOfficeAdmin && (
+                            <TextField
+                                select
+                                fullWidth
+                                label="Equipment office admin"
                                 value={equipmentOfficeAdmin || ""}
-                                onChange={(e) => {
-                                    setEquipmentOfficeAdmin(e.target.value);
-                                }}
-                                label="Equipment Admin"
+                                onChange={(e) =>
+                                    setEquipmentOfficeAdmin(e.target.value)
+                                }
+                                helperText="Lets this user manage equipment for a single location"
+                                sx={{ mt: 0.5 }}
                             >
                                 <MenuItem value="">
                                     <em>None</em>
                                 </MenuItem>
                                 {locations
                                     ?.filter((lc) => lc.Alias !== "All")
-                                    ?.map((itm, index) => (
+                                    ?.map((itm) => (
                                         <MenuItem
-                                            key={index}
+                                            key={itm.officeid}
                                             value={itm.officeid}
                                         >
                                             {itm.Alias}
                                         </MenuItem>
                                     ))}
-                            </Select>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ mt: 0.5, ml: 1.5 }}
-                            >
-                                Allows user to manage equipment for the selected
-                                location
-                            </Typography>
-                        </FormControl>
-                    )}
-                </Stack>
-
-                <Divider />
-
-                {/* Action Buttons */}
-                <Stack
-                    direction="row"
-                    spacing={2}
-                    sx={{
-                        justifyContent: "flex-end",
-                        padding: "16px 20px",
-                    }}
-                >
-                    <Button
-                        variant="outlined"
-                        onClick={onClose}
-                        sx={{ minWidth: "100px" }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="contained"
-                        onClick={onSubmit}
-                        sx={{
-                            minWidth: "100px",
-                            backgroundColor: "#4caf50",
-                            ":hover": {
-                                backgroundColor: "#45a049",
-                            },
-                        }}
-                    >
-                        {selectedUser ? "Update" : "Create"}
-                    </Button>
-                </Stack>
+                            </TextField>
+                        )}
+                    </Stack>
+                </Box>
             </Stack>
-        </Dialog>
+        </ResponsiveDialog>
     );
 };
 
