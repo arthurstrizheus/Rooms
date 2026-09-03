@@ -1,13 +1,18 @@
 import React, { useRef, useEffect } from "react";
-import {
-    Box,
-    Typography,
-    IconButton,
-    useMediaQuery,
-    useTheme,
-} from "@mui/material";
+import { Box, Typography, IconButton, Stack, Fade } from "@mui/material";
 import { Delete, ChevronLeft, ChevronRight, ZoomIn } from "@mui/icons-material";
 
+/**
+ * Equipment photos: one large hero plus a thumbnail strip.
+ *
+ * The previous version showed a row of equally-sized thumbnails and required a
+ * double click within two seconds to enlarge — which meant most people never
+ * found the full-size view. Now a thumbnail selects and the hero enlarges, so
+ * each target does exactly one thing.
+ *
+ * Swipe works on the hero; arrows appear on hover on pointer devices and stay
+ * visible on touch.
+ */
 const ImageCarousel = ({
     imageFiles,
     currentImageIndex,
@@ -18,401 +23,254 @@ const ImageCarousel = ({
 }) => {
     const touchStartX = useRef(0);
     const touchEndX = useRef(0);
-    const containerRef = useRef(null);
-    const lastClickTime = useRef(0);
-    const lastClickIndex = useRef(null);
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+    const stripRef = useRef(null);
 
-    // Center the current image on mount and when currentImageIndex changes
+    const count = imageFiles.length;
+    // Guard against an index left over from a longer list.
+    const index = Math.min(currentImageIndex, Math.max(count - 1, 0));
+    const current = imageFiles[index];
+
+    // Keep the active thumbnail in view as the selection moves.
     useEffect(() => {
-        const timer = setTimeout(() => {
-            const element = document.getElementById(
-                `carousel-img-${currentImageIndex}`
-            );
-            const container = document.getElementById(
-                "carousel-scroll-container"
-            );
-            if (element && container) {
-                const scrollLeft =
-                    element.offsetLeft -
-                    container.clientWidth / 2 +
-                    element.offsetWidth / 2;
-                container.scrollTo({
-                    left: scrollLeft,
-                    behavior: "auto", // Instant scroll on mount
-                });
-            }
-        }, 200);
-        return () => clearTimeout(timer);
-    }, [currentImageIndex, imageFiles.length]);
+        const strip = stripRef.current;
+        const thumb = strip?.querySelector(`[data-thumb="${index}"]`);
+        if (!strip || !thumb) return;
+        strip.scrollTo({
+            left:
+                thumb.offsetLeft -
+                strip.clientWidth / 2 +
+                thumb.offsetWidth / 2,
+            behavior: "smooth",
+        });
+    }, [index, count]);
 
-    if (imageFiles.length === 0) return null;
+    if (count === 0) return null;
 
-    const handlePrevious = () => {
-        const newIndex =
-            currentImageIndex === 0
-                ? imageFiles.length - 1
-                : currentImageIndex - 1;
-        setCurrentImageIndex(newIndex);
-        setTimeout(() => {
-            const element = document.getElementById(`carousel-img-${newIndex}`);
-            const container = document.getElementById(
-                "carousel-scroll-container"
-            );
-            if (element && container) {
-                const scrollLeft =
-                    element.offsetLeft -
-                    container.clientWidth / 2 +
-                    element.offsetWidth / 2;
-                container.scrollTo({
-                    left: scrollLeft,
-                    behavior: "smooth",
-                });
-            }
-        }, 100);
-    };
-
-    const handleNext = () => {
-        const newIndex =
-            currentImageIndex === imageFiles.length - 1
-                ? 0
-                : currentImageIndex + 1;
-        setCurrentImageIndex(newIndex);
-        setTimeout(() => {
-            const element = document.getElementById(`carousel-img-${newIndex}`);
-            const container = document.getElementById(
-                "carousel-scroll-container"
-            );
-            if (element && container) {
-                const scrollLeft =
-                    element.offsetLeft -
-                    container.clientWidth / 2 +
-                    element.offsetWidth / 2;
-                container.scrollTo({
-                    left: scrollLeft,
-                    behavior: "smooth",
-                });
-            }
-        }, 100);
-    };
-
-    const handleTouchStart = (e) => {
-        touchStartX.current = e.touches[0].clientX;
-    };
-
-    const handleTouchMove = (e) => {
-        touchEndX.current = e.touches[0].clientX;
-    };
+    const goTo = (next) => setCurrentImageIndex((next + count) % count);
+    const handlePrevious = () => goTo(index - 1);
+    const handleNext = () => goTo(index + 1);
 
     const handleTouchEnd = () => {
-        const swipeThreshold = 50; // minimum distance for a swipe
-        const swipeDistance = touchStartX.current - touchEndX.current;
-
-        if (Math.abs(swipeDistance) > swipeThreshold) {
-            if (swipeDistance > 0) {
-                // Swiped left - go to next
-                handleNext();
-            } else {
-                // Swiped right - go to previous
-                handlePrevious();
-            }
-        }
+        const distance = touchStartX.current - touchEndX.current;
+        if (Math.abs(distance) < 50) return;
+        if (distance > 0) handleNext();
+        else handlePrevious();
     };
 
-    const handleImageClick = (file, index) => {
-        const now = Date.now();
-        const timeSinceLastClick = now - lastClickTime.current;
-
-        // If clicking the same image within 2 seconds, enlarge it
-        if (lastClickIndex.current === index && timeSinceLastClick < 2000) {
-            setEnlargedImage(file);
-            lastClickTime.current = 0; // Reset to prevent triple-click issues
-            lastClickIndex.current = null;
-        } else {
-            // First click or different image = select and center
-            lastClickTime.current = now;
-            lastClickIndex.current = index;
-            setCurrentImageIndex(index);
-
-            // Center the clicked image
-            setTimeout(() => {
-                const element = document.getElementById(
-                    `carousel-img-${index}`
-                );
-                const container = document.getElementById(
-                    "carousel-scroll-container"
-                );
-                if (element && container) {
-                    const scrollLeft =
-                        element.offsetLeft -
-                        container.clientWidth / 2 +
-                        element.offsetWidth / 2;
-                    container.scrollTo({
-                        left: scrollLeft,
-                        behavior: "smooth",
-                    });
-                }
-            }, 100);
-        }
+    const arrowSx = {
+        position: "absolute",
+        top: "50%",
+        transform: "translateY(-50%)",
+        width: 36,
+        height: 36,
+        bgcolor: "rgba(255,255,255,0.92)",
+        color: "text.primary",
+        boxShadow: (t) => t.shadowTokens.md,
+        backdropFilter: "blur(6px)",
+        opacity: { xs: 1, md: 0 },
+        transition: "opacity 200ms ease, background-color 160ms ease",
+        "&:hover": { bgcolor: "common.white" },
     };
 
     return (
-        <Box sx={{ mb: 1 }}>
+        <Box>
+            {/* ---- Hero ---- */}
             <Box
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                onTouchStart={(e) => {
+                    touchStartX.current = e.touches[0].clientX;
+                    touchEndX.current = e.touches[0].clientX;
                 }}
+                onTouchMove={(e) => {
+                    touchEndX.current = e.touches[0].clientX;
+                }}
+                onTouchEnd={handleTouchEnd}
+                sx={{
+                    position: "relative",
+                    width: "100%",
+                    aspectRatio: "16 / 10",
+                    bgcolor: "grey.100",
+                    overflow: "hidden",
+                    cursor: "zoom-in",
+                    touchAction: "pan-y",
+                    "&:hover .carousel-arrow": { opacity: 1 },
+                    "&:hover .carousel-zoom": { opacity: 1 },
+                }}
+                onClick={() => setEnlargedImage(current)}
             >
-                <Typography
-                    variant="subtitle2"
+                {/* Keyed so each photo cross-fades instead of snapping. */}
+                <Fade in key={current?.id} timeout={280}>
+                    <Box
+                        component="img"
+                        src={`/uploads/${current?.file_path}`}
+                        alt={current?.file_name || "Equipment photo"}
+                        sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                        }}
+                    />
+                </Fade>
+
+                {/* Zoom affordance */}
+                <Box
+                    className="carousel-zoom"
                     sx={{
-                        color: "text.secondary",
-                        fontWeight: 600,
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: "rgba(20,24,31,0.28)",
+                        opacity: 0,
+                        transition: "opacity 220ms ease",
+                        pointerEvents: "none",
                     }}
                 >
-                    Images ({currentImageIndex + 1} of {imageFiles.length})
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <ZoomIn sx={{ fontSize: 16, color: "text.secondary" }} />
-                    <Typography variant="caption" color="text.secondary">
-                        Click image to enlarge
+                    <ZoomIn sx={{ fontSize: 38, color: "common.white" }} />
+                </Box>
+
+                {/* Counter */}
+                <Box
+                    sx={{
+                        position: "absolute",
+                        left: 10,
+                        bottom: 10,
+                        px: 1,
+                        py: 0.25,
+                        borderRadius: 5,
+                        bgcolor: "rgba(20,24,31,0.62)",
+                        backdropFilter: "blur(6px)",
+                    }}
+                >
+                    <Typography
+                        variant="caption"
+                        sx={{
+                            color: "common.white",
+                            fontWeight: 700,
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        {index + 1} / {count}
                     </Typography>
                 </Box>
-            </Box>
 
-            <Box
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                }}
-            >
-                {!isMobile && (
+                {canEditDelete() && (
                     <IconButton
-                        onClick={handlePrevious}
-                        disabled={imageFiles.length <= 1}
+                        size="small"
+                        aria-label="Delete photo"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteFile(current.id);
+                        }}
                         sx={{
-                            flexShrink: 0,
-                            width: 44,
-                            height: 44,
-                            bgcolor: "primary.main",
-                            color: "white",
-                            boxShadow: 2,
-                            "&:hover": {
-                                bgcolor: "primary.dark",
-                                boxShadow: 4,
-                                transform: "scale(1.05)",
-                            },
-                            "&:active": {
-                                transform: "scale(0.95)",
-                            },
-                            "&.Mui-disabled": {
-                                bgcolor: "grey.300",
-                                color: "grey.500",
-                            },
-                            transition: "all 0.2s ease",
+                            position: "absolute",
+                            top: 10,
+                            right: 10,
+                            bgcolor: "rgba(20,24,31,0.62)",
+                            color: "common.white",
+                            backdropFilter: "blur(6px)",
+                            "&:hover": { bgcolor: "error.main" },
                         }}
                     >
-                        <ChevronLeft sx={{ fontSize: 28 }} />
+                        <Delete sx={{ fontSize: 17 }} />
                     </IconButton>
                 )}
 
-                <Box
-                    ref={containerRef}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
+                {count > 1 && (
+                    <>
+                        <IconButton
+                            className="carousel-arrow"
+                            aria-label="Previous photo"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrevious();
+                            }}
+                            sx={{ ...arrowSx, left: 10 }}
+                        >
+                            <ChevronLeft />
+                        </IconButton>
+                        <IconButton
+                            className="carousel-arrow"
+                            aria-label="Next photo"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleNext();
+                            }}
+                            sx={{ ...arrowSx, right: 10 }}
+                        >
+                            <ChevronRight />
+                        </IconButton>
+                    </>
+                )}
+            </Box>
+
+            {/* ---- Thumbnails ---- */}
+            {count > 1 && (
+                <Stack
+                    ref={stripRef}
+                    direction="row"
+                    spacing={1}
                     sx={{
-                        position: "relative",
-                        flex: 1,
-                        overflow: "hidden",
-                        height: 140,
-                        touchAction: "pan-y", // Allow vertical scrolling but handle horizontal
+                        px: 2,
+                        py: 1.5,
+                        overflowX: "auto",
+                        scrollSnapType: "x proximity",
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                        "&::-webkit-scrollbar": { display: "none" },
+                        scrollbarWidth: "none",
                     }}
                 >
-                    {/* Image container */}
-                    <Box
-                        id="carousel-scroll-container"
-                        sx={{
-                            display: "flex",
-                            gap: 1.5,
-                            overflowX: "auto",
-                            scrollBehavior: "smooth",
-                            height: "100%",
-                            alignItems: "center",
-                            "&::-webkit-scrollbar": {
-                                display: "none",
-                            },
-                            msOverflowStyle: "none",
-                            scrollbarWidth: "none",
-                        }}
-                    >
-                        {/* Spacer to allow first image to center */}
-                        <Box
-                            sx={{ flexShrink: 0, width: "calc(50% - 60px)" }}
-                        />
-
-                        {imageFiles.map((file, index) => {
-                            const isSelected = currentImageIndex === index;
-                            return (
+                    {imageFiles.map((file, i) => {
+                        const selected = i === index;
+                        return (
+                            <Box
+                                key={file.id}
+                                data-thumb={i}
+                                component="button"
+                                type="button"
+                                aria-label={`Show photo ${i + 1}`}
+                                aria-pressed={selected}
+                                onClick={() => setCurrentImageIndex(i)}
+                                sx={{
+                                    flexShrink: 0,
+                                    width: 56,
+                                    height: 56,
+                                    p: 0,
+                                    borderRadius: 2,
+                                    overflow: "hidden",
+                                    cursor: "pointer",
+                                    scrollSnapAlign: "center",
+                                    border: "2px solid",
+                                    borderColor: selected
+                                        ? "primary.main"
+                                        : "transparent",
+                                    opacity: selected ? 1 : 0.6,
+                                    transition:
+                                        "opacity 200ms ease, border-color 200ms ease, transform 200ms cubic-bezier(0.22,1,0.36,1)",
+                                    "&:hover": {
+                                        opacity: 1,
+                                        transform: "translateY(-2px)",
+                                    },
+                                }}
+                            >
                                 <Box
-                                    key={file.id}
-                                    id={`carousel-img-${index}`}
-                                    onClick={() =>
-                                        handleImageClick(file, index)
-                                    }
+                                    component="img"
+                                    src={`/uploads/${file.file_path}`}
+                                    alt=""
                                     sx={{
-                                        position: "relative",
-                                        flexShrink: 0,
-                                        width: isSelected ? 120 : 90,
-                                        height: isSelected ? 120 : 90,
-                                        border: isSelected
-                                            ? "3px solid"
-                                            : "2px solid",
-                                        borderColor: isSelected
-                                            ? "primary.main"
-                                            : "grey.300",
-                                        borderRadius: 2,
-                                        overflow: "hidden",
-                                        cursor: "pointer",
-                                        transition:
-                                            "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                                        opacity: isSelected ? 1 : 0.6,
-                                        transform: isSelected
-                                            ? "scale(1)"
-                                            : "scale(0.9)",
-                                        boxShadow: isSelected
-                                            ? "0 8px 24px rgba(25, 118, 210, 0.25)"
-                                            : "0 2px 8px rgba(0,0,0,0.1)",
-                                        bgcolor: "white",
-                                        "&:hover": {
-                                            opacity: 1,
-                                            transform: isSelected
-                                                ? "scale(1.02)"
-                                                : "scale(0.92)",
-                                            boxShadow: isSelected
-                                                ? "0 12px 32px rgba(25, 118, 210, 0.3)"
-                                                : "0 4px 16px rgba(0,0,0,0.15)",
-                                            borderColor: isSelected
-                                                ? "primary.dark"
-                                                : "grey.400",
-                                        },
-                                        "&:active": {
-                                            transform: "scale(0.98)",
-                                        },
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        display: "block",
                                     }}
-                                >
-                                    <img
-                                        src={`/uploads/${file.file_path}`}
-                                        alt={file.file_name}
-                                        style={{
-                                            width: "100%",
-                                            height: "100%",
-                                            objectFit: "cover",
-                                        }}
-                                    />
-                                    {isSelected && (
-                                        <Box
-                                            sx={{
-                                                position: "absolute",
-                                                top: 0,
-                                                left: 0,
-                                                right: 0,
-                                                bottom: 0,
-                                                bgcolor: "rgba(0, 0, 0, 0)",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                opacity: 0,
-                                                transition: "opacity 0.2s ease",
-                                                "&:hover": {
-                                                    opacity: 1,
-                                                    bgcolor:
-                                                        "rgba(0, 0, 0, 0.4)",
-                                                },
-                                            }}
-                                        >
-                                            <ZoomIn
-                                                sx={{
-                                                    fontSize: 40,
-                                                    color: "white",
-                                                    filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
-                                                }}
-                                            />
-                                        </Box>
-                                    )}
-                                    {canEditDelete() && isSelected && (
-                                        <IconButton
-                                            size="small"
-                                            sx={{
-                                                position: "absolute",
-                                                top: 6,
-                                                right: 6,
-                                                width: 32,
-                                                height: 32,
-                                                backgroundColor:
-                                                    "rgba(0, 0, 0, 0.7)",
-                                                color: "white",
-                                                boxShadow: 2,
-                                                "&:hover": {
-                                                    backgroundColor:
-                                                        "error.main",
-                                                    transform: "scale(1.1)",
-                                                },
-                                                transition: "all 0.2s ease",
-                                            }}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteFile(file.id);
-                                            }}
-                                        >
-                                            <Delete sx={{ fontSize: 18 }} />
-                                        </IconButton>
-                                    )}
-                                </Box>
-                            );
-                        })}
-
-                        {/* Spacer to allow last image to center */}
-                        <Box
-                            sx={{ flexShrink: 0, width: "calc(50% - 60px)" }}
-                        />
-                    </Box>
-                </Box>
-
-                {!isMobile && (
-                    <IconButton
-                        onClick={handleNext}
-                        disabled={imageFiles.length <= 1}
-                        sx={{
-                            flexShrink: 0,
-                            width: 44,
-                            height: 44,
-                            bgcolor: "primary.main",
-                            color: "white",
-                            boxShadow: 2,
-                            "&:hover": {
-                                bgcolor: "primary.dark",
-                                boxShadow: 4,
-                                transform: "scale(1.05)",
-                            },
-                            "&:active": {
-                                transform: "scale(0.95)",
-                            },
-                            "&.Mui-disabled": {
-                                bgcolor: "grey.300",
-                                color: "grey.500",
-                            },
-                            transition: "all 0.2s ease",
-                        }}
-                    >
-                        <ChevronRight sx={{ fontSize: 28 }} />
-                    </IconButton>
-                )}
-            </Box>
+                                />
+                            </Box>
+                        );
+                    })}
+                </Stack>
+            )}
         </Box>
     );
 };

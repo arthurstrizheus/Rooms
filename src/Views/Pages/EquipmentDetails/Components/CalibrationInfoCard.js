@@ -1,20 +1,58 @@
-import React, { useState } from "react";
+import React from "react";
 import {
-    Card,
-    CardContent,
     Typography,
-    Divider,
     Grid,
     Box,
     IconButton,
     Tooltip,
     Button,
+    Stack,
+    Divider,
 } from "@mui/material";
-import { Delete, Download, History } from "@mui/icons-material";
+import {
+    Delete,
+    Download,
+    History,
+    StraightenOutlined,
+    FolderOutlined,
+    InsertDriveFileOutlined,
+} from "@mui/icons-material";
 import { format } from "date-fns";
 import AlertDialog from "../../../../Components/AlertDialog";
 import useAlertDialog from "../../../../hooks/useAlertDialog";
-import { useAuth } from "../../../../Utilites/AuthContext";
+import SectionCard from "../../../Components/UI/SectionCard";
+import DetailField from "../../../Components/UI/DetailField";
+
+/**
+ * Calibration status plus the latest file in each document category.
+ *
+ * The three file groups (manuals, certificates, other) previously repeated the
+ * same ~150-line block three times with only the array swapped. They now share
+ * one `FileGroup`, so a change to the row layout happens in one place.
+ */
+
+const CALIBRATION_TONES = {
+    unknown: {
+        color: "text.secondary",
+        bg: "grey.100",
+        border: "rgba(20, 24, 31, 0.10)",
+    },
+    good: {
+        color: "success.dark",
+        bg: "success.light",
+        border: "rgba(30, 158, 82, 0.24)",
+    },
+    soon: {
+        color: "warning.dark",
+        bg: "warning.light",
+        border: "rgba(199, 119, 0, 0.24)",
+    },
+    overdue: {
+        color: "error.dark",
+        bg: "error.light",
+        border: "rgba(200, 16, 46, 0.24)",
+    },
+};
 
 const CalibrationInfoCard = ({
     equipment,
@@ -25,23 +63,16 @@ const CalibrationInfoCard = ({
     handleDeleteFile,
     onViewHistory,
 }) => {
-    const { user } = useAuth();
     const { showAlert, alertState, hideAlert } = useAlertDialog();
+
     const handleDownload = async (fileId, fileName) => {
         try {
             const token = localStorage.getItem("authToken");
             const response = await fetch(
                 `/api/equipment-files/download/${fileId}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                },
+                { headers: { Authorization: `Bearer ${token}` } },
             );
-
-            if (!response.ok) {
-                throw new Error("Download failed");
-            }
+            if (!response.ok) throw new Error("Download failed");
 
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -65,9 +96,7 @@ const CalibrationInfoCard = ({
         ) {
             return null;
         }
-        const lastCal = new Date(equipment.last_calibration_date);
-        const dueDate = new Date(lastCal);
-
+        const dueDate = new Date(equipment.last_calibration_date);
         switch (equipment.calibration_interval_unit) {
             case "days":
                 dueDate.setDate(
@@ -85,656 +114,287 @@ const CalibrationInfoCard = ({
                         equipment.calibration_interval_value,
                 );
                 break;
+            default:
+                break;
         }
         return dueDate;
     };
 
+    const dueDate = calculateDueDate();
+
     const getCalibrationStatus = () => {
-        const dueDate = calculateDueDate();
         if (!dueDate) {
             return {
-                status:
+                label:
                     !equipment.calibration_interval_value &&
                     equipment.last_calibration_date
-                        ? "No Calibration Interval Set"
-                        : "No Calibration Data",
-                color: "text.secondary",
-                backgroundColor: "#f5f5f5",
+                        ? "No calibration interval set"
+                        : "No calibration data",
+                tone: CALIBRATION_TONES.unknown,
             };
         }
 
         const now = new Date();
-        const twoMonthsFromNow = new Date();
-        twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+        const twoMonthsOut = new Date();
+        twoMonthsOut.setMonth(twoMonthsOut.getMonth() + 2);
 
         if (now > dueDate) {
             return {
-                status: "Out of Calibration",
-                color: "#d32f2f",
-                backgroundColor: "#ffebee",
-            };
-        } else if (dueDate <= twoMonthsFromNow) {
-            return {
-                status: "Calibration Due Soon",
-                color: "#ed6c02",
-                backgroundColor: "#fff3e0",
-            };
-        } else {
-            return {
-                status: "In Calibration",
-                color: "#2e7d32",
-                backgroundColor: "#e8f5e9",
+                label: "Out of calibration",
+                tone: CALIBRATION_TONES.overdue,
             };
         }
+        if (dueDate <= twoMonthsOut) {
+            return {
+                label: "Calibration due soon",
+                tone: CALIBRATION_TONES.soon,
+            };
+        }
+        return { label: "In calibration", tone: CALIBRATION_TONES.good };
     };
 
     const calibrationStatus = getCalibrationStatus();
-    const dueDate = calculateDueDate();
 
-    const calibrationItems = [
-        {
-            label: "Calibration Status",
-            value: calibrationStatus.status,
-            color: calibrationStatus.color,
-            backgroundColor: calibrationStatus.backgroundColor,
-            isStatus: true,
-        },
-        {
-            label: "Last Calibration Date",
-            value: equipment.last_calibration_date
-                ? format(new Date(equipment.last_calibration_date), "PPP")
-                : null,
-        },
-        {
-            label: "Calibration Due Date",
-            value: dueDate ? format(dueDate, "PPP") : null,
-        },
-        {
-            label: "Calibration Interval",
-            value: equipment.calibration_interval_value
-                ? `${equipment.calibration_interval_value} ${equipment.calibration_interval_unit}`
-                : null,
-        },
-    ];
+    // ---- One row, reused by every file group -----------------------------
+
+    const FileGroup = ({ label, files, historyTitle, showCalibrationDate }) => {
+        if (files.length === 0) return null;
+        const latest = files[0];
+
+        return (
+            <Box>
+                <Stack
+                    direction="row"
+                    alignItems="center"
+                    spacing={1}
+                    sx={{ mb: 1 }}
+                >
+                    <Typography
+                        variant="overline"
+                        sx={{ color: "primary.main", flexGrow: 1 }}
+                    >
+                        {label}
+                    </Typography>
+                    {files.length > 1 && (
+                        <Button
+                            size="small"
+                            variant="text"
+                            startIcon={<History sx={{ fontSize: 16 }} />}
+                            onClick={() => onViewHistory(historyTitle, files)}
+                        >
+                            All {files.length}
+                        </Button>
+                    )}
+                </Stack>
+
+                <Stack
+                    direction="row"
+                    spacing={1.25}
+                    alignItems="center"
+                    sx={{
+                        p: 1.25,
+                        borderRadius: 2.5,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        transition:
+                            "background-color 160ms ease, border-color 160ms ease",
+                        "&:hover": {
+                            bgcolor: "grey.50",
+                            borderColor: "grey.300",
+                        },
+                    }}
+                >
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 30,
+                            height: 30,
+                            borderRadius: 1.75,
+                            flexShrink: 0,
+                            bgcolor: "grey.100",
+                            color: "text.secondary",
+                        }}
+                    >
+                        <InsertDriveFileOutlined sx={{ fontSize: 16 }} />
+                    </Box>
+
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+                            {latest.file_name}
+                        </Typography>
+                        {latest.description && (
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: "block", fontStyle: "italic" }}
+                                noWrap
+                            >
+                                {latest.description}
+                            </Typography>
+                        )}
+                        <Typography
+                            variant="caption"
+                            color="text.disabled"
+                            sx={{ display: "block" }}
+                        >
+                            {showCalibrationDate && latest.calibration_date
+                                ? `Calibrated ${new Date(
+                                      latest.calibration_date,
+                                  ).toLocaleDateString()}`
+                                : `Uploaded ${new Date(
+                                      latest.upload_date,
+                                  ).toLocaleDateString()}`}
+                        </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                        <Tooltip title="Download">
+                            <IconButton
+                                size="small"
+                                aria-label={`Download ${latest.file_name}`}
+                                onClick={() =>
+                                    handleDownload(latest.id, latest.file_name)
+                                }
+                            >
+                                <Download sx={{ fontSize: 18 }} />
+                            </IconButton>
+                        </Tooltip>
+                        {canEditDelete && canEditDelete() && (
+                            <Tooltip title="Delete">
+                                <IconButton
+                                    size="small"
+                                    aria-label={`Delete ${latest.file_name}`}
+                                    onClick={() => handleDeleteFile(latest.id)}
+                                    sx={{ color: "error.main" }}
+                                >
+                                    <Delete sx={{ fontSize: 18 }} />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Stack>
+                </Stack>
+            </Box>
+        );
+    };
+
+    const hasFiles =
+        manualFiles.length > 0 ||
+        certFiles.length > 0 ||
+        otherFiles.length > 0;
 
     return (
         <>
-            <Grid container mt={0} mr={0} ml={0} spacing={3} width={"100%"}>
-                <Grid width={"100%"}>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                                Calibration Information
-                            </Typography>
-                            <Divider sx={{ mb: 2 }} />
-
-                            <Grid container spacing={2}>
-                                {calibrationItems.map(
-                                    (item, index) =>
-                                        item?.value && (
-                                            <Grid
-                                                item
-                                                xs={12}
-                                                sm={6}
-                                                key={index}
-                                            >
-                                                <Grid>
-                                                    <Typography
-                                                        variant={"body2"}
-                                                        color="text.secondary"
-                                                    >
-                                                        {item.label}
-                                                    </Typography>
-                                                </Grid>
-                                                <Grid>
-                                                    {item.isStatus ? (
-                                                        <Box
-                                                            sx={{
-                                                                mt: 0.5,
-                                                                display:
-                                                                    "inline-block",
-                                                                px: 1.5,
-                                                                py: 0.5,
-                                                                borderRadius: 1,
-                                                                backgroundColor:
-                                                                    item.backgroundColor,
-                                                            }}
-                                                        >
-                                                            <Typography
-                                                                variant={
-                                                                    "body1"
-                                                                }
-                                                                sx={{
-                                                                    color: item.color,
-                                                                    fontWeight: 600,
-                                                                }}
-                                                            >
-                                                                {item.value}
-                                                            </Typography>
-                                                        </Box>
-                                                    ) : (
-                                                        <Typography
-                                                            variant={"body1"}
-                                                            sx={{ mt: 0.5 }}
-                                                        >
-                                                            {item.value}
-                                                        </Typography>
-                                                    )}
-                                                </Grid>
-                                                {item.caption && (
-                                                    <Grid>
-                                                        <Typography
-                                                            variant={"caption"}
-                                                            color="text.secondary"
-                                                        >
-                                                            {item.caption}
-                                                        </Typography>
-                                                    </Grid>
-                                                )}
-                                            </Grid>
-                                        ),
-                                )}
-                            </Grid>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                {(manualFiles.length > 0 ||
-                    certFiles.length > 0 ||
-                    otherFiles.length > 0) && (
-                    <Grid mt={3} width={"100%"}>
-                        <Card width={"100%"}>
-                            <CardContent width={"100%"}>
-                                <Typography
-                                    variant="h6"
-                                    gutterBottom
-                                    width={"100%"}
+            <Stack spacing={{ xs: 2, md: 2.5 }}>
+                <SectionCard
+                    title="Calibration"
+                    icon={<StraightenOutlined />}
+                    accent={calibrationStatus.tone.color}
+                >
+                    <Grid container spacing={2.5}>
+                        <Grid item xs={12} sm={6}>
+                            <DetailField label="Calibration status">
+                                <Box
+                                    sx={{
+                                        mt: 0.5,
+                                        display: "inline-flex",
+                                        px: 1.25,
+                                        py: 0.5,
+                                        borderRadius: 5,
+                                        bgcolor: calibrationStatus.tone.bg,
+                                        border: "1px solid",
+                                        borderColor:
+                                            calibrationStatus.tone.border,
+                                    }}
                                 >
-                                    Files & Documents
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
-                                {/* Files & Documents */}
-                                {(manualFiles.length > 0 ||
-                                    certFiles.length > 0 ||
-                                    otherFiles.length > 0) && (
-                                    <Box
+                                    <Typography
+                                        variant="body2"
                                         sx={{
-                                            mt: 3,
-                                            width: "100%",
+                                            color: calibrationStatus.tone.color,
+                                            fontWeight: 650,
                                         }}
                                     >
-                                        {manualFiles.length > 0 && (
-                                            <Box sx={{ mb: 2 }}>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        justifyContent:
-                                                            "space-between",
-                                                        alignItems: "center",
-                                                        mb: 1,
-                                                    }}
-                                                >
-                                                    <Typography
-                                                        variant="subtitle2"
-                                                        color="primary"
-                                                        sx={{ fontWeight: 600 }}
-                                                    >
-                                                        Manuals
-                                                    </Typography>
-                                                    {manualFiles.length > 1 && (
-                                                        <Button
-                                                            size="small"
-                                                            startIcon={
-                                                                <History />
-                                                            }
-                                                            onClick={() =>
-                                                                onViewHistory(
-                                                                    "Manuals",
-                                                                    manualFiles,
-                                                                )
-                                                            }
-                                                            variant="outlined"
-                                                        >
-                                                            View All (
-                                                            {manualFiles.length}
-                                                            )
-                                                        </Button>
-                                                    )}
-                                                </Box>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        justifyContent:
-                                                            "space-between",
-                                                        alignItems: "center",
-                                                        py: 1,
-                                                        borderBottom:
-                                                            "1px solid",
-                                                        borderColor: "divider",
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            flex: 1,
-                                                            minWidth: 0,
-                                                        }}
-                                                    >
-                                                        <Typography
-                                                            variant="body2"
-                                                            noWrap
-                                                        >
-                                                            {
-                                                                manualFiles[0]
-                                                                    .file_name
-                                                            }
-                                                        </Typography>
-                                                        {manualFiles[0]
-                                                            .description && (
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="text.secondary"
-                                                                sx={{
-                                                                    fontStyle:
-                                                                        "italic",
-                                                                }}
-                                                            >
-                                                                {
-                                                                    manualFiles[0]
-                                                                        .description
-                                                                }
-                                                            </Typography>
-                                                        )}
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            display="block"
-                                                        >
-                                                            Uploaded:{" "}
-                                                            {new Date(
-                                                                manualFiles[0]
-                                                                    .upload_date,
-                                                            ).toLocaleDateString()}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            gap: 1,
-                                                            ml: 1,
-                                                        }}
-                                                    >
-                                                        <Tooltip title="Download">
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() =>
-                                                                    handleDownload(
-                                                                        manualFiles[0]
-                                                                            .id,
-                                                                        manualFiles[0]
-                                                                            .file_name,
-                                                                    )
-                                                                }
-                                                                sx={{
-                                                                    bgcolor:
-                                                                        "primary.main",
-                                                                    color: "white",
-                                                                    "&:hover": {
-                                                                        bgcolor:
-                                                                            "primary.dark",
-                                                                    },
-                                                                }}
-                                                            >
-                                                                <Download fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                        {canEditDelete &&
-                                                            canEditDelete() && (
-                                                                <Tooltip title="Delete">
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        onClick={() =>
-                                                                            handleDeleteFile(
-                                                                                manualFiles[0]
-                                                                                    .id,
-                                                                            )
-                                                                        }
-                                                                        sx={{
-                                                                            bgcolor:
-                                                                                "error.main",
-                                                                            color: "white",
-                                                                            "&:hover":
-                                                                                {
-                                                                                    bgcolor:
-                                                                                        "error.dark",
-                                                                                },
-                                                                        }}
-                                                                    >
-                                                                        <Delete fontSize="small" />
-                                                                    </IconButton>
-                                                                </Tooltip>
-                                                            )}
-                                                    </Box>
-                                                </Box>
-                                            </Box>
-                                        )}
+                                        {calibrationStatus.label}
+                                    </Typography>
+                                </Box>
+                            </DetailField>
+                        </Grid>
 
-                                        {certFiles.length > 0 && (
-                                            <Box sx={{ mb: 2 }}>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        justifyContent:
-                                                            "space-between",
-                                                        alignItems: "center",
-                                                        mb: 1,
-                                                    }}
-                                                >
-                                                    <Typography
-                                                        variant="subtitle2"
-                                                        color="primary"
-                                                        sx={{ fontWeight: 600 }}
-                                                    >
-                                                        Calibration Certificates
-                                                    </Typography>
-                                                    {certFiles.length > 1 && (
-                                                        <Button
-                                                            size="small"
-                                                            startIcon={
-                                                                <History />
-                                                            }
-                                                            onClick={() =>
-                                                                onViewHistory(
-                                                                    "Calibration Certificates",
-                                                                    certFiles,
-                                                                )
-                                                            }
-                                                            variant="outlined"
-                                                        >
-                                                            View All (
-                                                            {certFiles.length})
-                                                        </Button>
-                                                    )}
-                                                </Box>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        justifyContent:
-                                                            "space-between",
-                                                        alignItems: "center",
-                                                        py: 1,
-                                                        borderBottom:
-                                                            "1px solid",
-                                                        borderColor: "divider",
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            flex: 1,
-                                                            minWidth: 0,
-                                                        }}
-                                                    >
-                                                        <Typography
-                                                            variant="body2"
-                                                            noWrap
-                                                        >
-                                                            {
-                                                                certFiles[0]
-                                                                    .file_name
-                                                            }
-                                                        </Typography>
-                                                        {certFiles[0]
-                                                            .description && (
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="text.secondary"
-                                                                sx={{
-                                                                    fontStyle:
-                                                                        "italic",
-                                                                }}
-                                                            >
-                                                                {
-                                                                    certFiles[0]
-                                                                        .description
-                                                                }
-                                                            </Typography>
-                                                        )}
-                                                        {certFiles[0]
-                                                            .calibration_date && (
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="text.secondary"
-                                                                display="block"
-                                                            >
-                                                                Calibration
-                                                                Date:{" "}
-                                                                {new Date(
-                                                                    certFiles[0]
-                                                                        .calibration_date,
-                                                                ).toLocaleDateString()}
-                                                            </Typography>
-                                                        )}
-                                                    </Box>
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            gap: 1,
-                                                            ml: 1,
-                                                        }}
-                                                    >
-                                                        <Tooltip title="Download">
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() =>
-                                                                    handleDownload(
-                                                                        certFiles[0]
-                                                                            .id,
-                                                                        certFiles[0]
-                                                                            .file_name,
-                                                                    )
-                                                                }
-                                                                sx={{
-                                                                    bgcolor:
-                                                                        "primary.main",
-                                                                    color: "white",
-                                                                    "&:hover": {
-                                                                        bgcolor:
-                                                                            "primary.dark",
-                                                                    },
-                                                                }}
-                                                            >
-                                                                <Download fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                        {canEditDelete &&
-                                                            canEditDelete() && (
-                                                                <Tooltip title="Delete">
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        onClick={() =>
-                                                                            handleDeleteFile(
-                                                                                certFiles[0]
-                                                                                    .id,
-                                                                            )
-                                                                        }
-                                                                        sx={{
-                                                                            bgcolor:
-                                                                                "error.main",
-                                                                            color: "white",
-                                                                            "&:hover":
-                                                                                {
-                                                                                    bgcolor:
-                                                                                        "error.dark",
-                                                                                },
-                                                                        }}
-                                                                    >
-                                                                        <Delete fontSize="small" />
-                                                                    </IconButton>
-                                                                </Tooltip>
-                                                            )}
-                                                    </Box>
-                                                </Box>
-                                            </Box>
-                                        )}
+                        <Grid item xs={12} sm={6}>
+                            <DetailField
+                                label="Last calibration"
+                                value={
+                                    equipment.last_calibration_date
+                                        ? format(
+                                              new Date(
+                                                  equipment.last_calibration_date,
+                                              ),
+                                              "PPP",
+                                          )
+                                        : null
+                                }
+                                hideEmpty
+                            />
+                        </Grid>
 
-                                        {otherFiles.length > 0 && (
-                                            <Box>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        justifyContent:
-                                                            "space-between",
-                                                        alignItems: "center",
-                                                        mb: 1,
-                                                    }}
-                                                >
-                                                    <Typography
-                                                        variant="subtitle2"
-                                                        color="primary"
-                                                        sx={{ fontWeight: 600 }}
-                                                    >
-                                                        Other Files
-                                                    </Typography>
-                                                    {otherFiles.length > 1 && (
-                                                        <Button
-                                                            size="small"
-                                                            startIcon={
-                                                                <History />
-                                                            }
-                                                            onClick={() =>
-                                                                onViewHistory(
-                                                                    "Other Files",
-                                                                    otherFiles,
-                                                                )
-                                                            }
-                                                            variant="outlined"
-                                                        >
-                                                            View All (
-                                                            {otherFiles.length})
-                                                        </Button>
-                                                    )}
-                                                </Box>
-                                                <Box
-                                                    sx={{
-                                                        display: "flex",
-                                                        justifyContent:
-                                                            "space-between",
-                                                        alignItems: "center",
-                                                        py: 1,
-                                                        borderBottom:
-                                                            "1px solid",
-                                                        borderColor: "divider",
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            flex: 1,
-                                                            minWidth: 0,
-                                                        }}
-                                                    >
-                                                        <Typography
-                                                            variant="body2"
-                                                            noWrap
-                                                        >
-                                                            {
-                                                                otherFiles[0]
-                                                                    .file_name
-                                                            }
-                                                        </Typography>
-                                                        {otherFiles[0]
-                                                            .description && (
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="text.secondary"
-                                                                sx={{
-                                                                    fontStyle:
-                                                                        "italic",
-                                                                }}
-                                                            >
-                                                                {
-                                                                    otherFiles[0]
-                                                                        .description
-                                                                }
-                                                            </Typography>
-                                                        )}
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                            display="block"
-                                                        >
-                                                            Uploaded:{" "}
-                                                            {new Date(
-                                                                otherFiles[0]
-                                                                    .upload_date,
-                                                            ).toLocaleDateString()}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Box
-                                                        sx={{
-                                                            display: "flex",
-                                                            gap: 1,
-                                                            ml: 1,
-                                                        }}
-                                                    >
-                                                        <Tooltip title="Download">
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={() =>
-                                                                    handleDownload(
-                                                                        otherFiles[0]
-                                                                            .id,
-                                                                        otherFiles[0]
-                                                                            .file_name,
-                                                                    )
-                                                                }
-                                                                sx={{
-                                                                    bgcolor:
-                                                                        "primary.main",
-                                                                    color: "white",
-                                                                    "&:hover": {
-                                                                        bgcolor:
-                                                                            "primary.dark",
-                                                                    },
-                                                                }}
-                                                            >
-                                                                <Download fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                        {canEditDelete &&
-                                                            canEditDelete() && (
-                                                                <Tooltip title="Delete">
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        onClick={() =>
-                                                                            handleDeleteFile(
-                                                                                otherFiles[0]
-                                                                                    .id,
-                                                                            )
-                                                                        }
-                                                                        sx={{
-                                                                            bgcolor:
-                                                                                "error.main",
-                                                                            color: "white",
-                                                                            "&:hover":
-                                                                                {
-                                                                                    bgcolor:
-                                                                                        "error.dark",
-                                                                                },
-                                                                        }}
-                                                                    >
-                                                                        <Delete fontSize="small" />
-                                                                    </IconButton>
-                                                                </Tooltip>
-                                                            )}
-                                                    </Box>
-                                                </Box>
-                                            </Box>
-                                        )}
-                                    </Box>
-                                )}
-                            </CardContent>
-                        </Card>
+                        <Grid item xs={12} sm={6}>
+                            <DetailField
+                                label="Due date"
+                                value={dueDate ? format(dueDate, "PPP") : null}
+                                hideEmpty
+                            />
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
+                            <DetailField
+                                label="Interval"
+                                value={
+                                    equipment.calibration_interval_value
+                                        ? `${equipment.calibration_interval_value} ${equipment.calibration_interval_unit}`
+                                        : null
+                                }
+                                hideEmpty
+                            />
+                        </Grid>
                     </Grid>
+                </SectionCard>
+
+                {hasFiles && (
+                    <SectionCard
+                        title="Files & documents"
+                        icon={<FolderOutlined />}
+                    >
+                        {/* Filtered before rendering so Stack's dividers only
+                            land between groups that actually have files. */}
+                        <Stack spacing={2.5} divider={<Divider flexItem />}>
+                            {[
+                                {
+                                    label: "Manuals",
+                                    historyTitle: "Manuals",
+                                    files: manualFiles,
+                                },
+                                {
+                                    label: "Calibration certificates",
+                                    historyTitle: "Calibration Certificates",
+                                    files: certFiles,
+                                    showCalibrationDate: true,
+                                },
+                                {
+                                    label: "Other files",
+                                    historyTitle: "Other Files",
+                                    files: otherFiles,
+                                },
+                            ]
+                                .filter((group) => group.files.length > 0)
+                                .map((group) => (
+                                    <FileGroup key={group.label} {...group} />
+                                ))}
+                        </Stack>
+                    </SectionCard>
                 )}
-            </Grid>
+            </Stack>
+
             <AlertDialog
                 open={alertState.open}
                 onClose={hideAlert}

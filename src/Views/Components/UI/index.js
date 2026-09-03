@@ -9,6 +9,7 @@ export { default as StatusChip, statusTone, statusLabel } from "./StatusChip";
 export { default as EmptyState } from "./EmptyState";
 export { default as ResponsiveDialog } from "./ResponsiveDialog";
 export { default as FilterBar } from "./FilterBar";
+export { default as DetailField } from "./DetailField";
 
 export {
     RiseIn,

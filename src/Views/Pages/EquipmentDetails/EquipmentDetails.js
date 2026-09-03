@@ -4,20 +4,15 @@ import {
     Typography,
     Button,
     Grid,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     TextField,
     MenuItem,
     Menu,
     Autocomplete,
-    useMediaQuery,
-    useTheme,
-    Card,
-    CardContent,
+    Stack,
+    Chip,
+    ListItemIcon,
+    ListItemText,
     Divider,
-    Link,
 } from "@mui/material";
 import {
     Edit,
@@ -27,11 +22,15 @@ import {
     NotificationsActive,
     CompareArrows,
     MoreVert,
+    AttachFileOutlined,
+    ReceiptLongOutlined,
+    EventAvailableOutlined,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
+
 import { useAuth } from "../../../Utilites/AuthContext";
 import { useSocket } from "../../../Contexts/SocketContext";
-import axios from "axios";
 import ImageCarousel from "./Components/ImageCarousel";
 import CalibrationInfoCard from "./Components/CalibrationInfoCard";
 import CheckoutHistoryCard from "./Components/CheckoutHistoryCard";
@@ -46,14 +45,28 @@ import EquipmentDialog from "../Equipment/EquipmentDialog";
 import ReservationDialog from "./Components/ReservationDialog";
 import EquipmentInfoCard from "./Components/EquipmentInfoCard";
 import EquipmentDetailsCard from "./Components/EquipmentDetailsCard";
+import {
+    PageHeader,
+    PageContainer,
+    SectionCard,
+    ResponsiveDialog,
+    DetailSkeleton,
+    StatusChip,
+    RiseIn,
+} from "../../Components/UI";
+
+const FILE_CATEGORIES = [
+    { value: "photo", label: "Photo" },
+    { value: "manual", label: "Manual" },
+    { value: "calibration_cert", label: "Calibration Certificate" },
+    { value: "other", label: "Other" },
+];
 
 const EquipmentDetails = ({ setLoading, loading }) => {
     const { equipmentId } = useParams();
     const { user } = useAuth();
     const { socket } = useSocket();
     const navigate = useNavigate();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
     const { showAlert, alertState, hideAlert } = useAlertDialog();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
 
@@ -65,39 +78,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [openEditDialog, setOpenEditDialog] = useState(false);
     const [locations, setLocations] = useState([]);
     const [users, setUsers] = useState([]);
-    const [formData, setFormData] = useState({
-        name: "",
-        description: "",
-        serial_number: "",
-        asset_number: "",
-        cost: "",
-        location: "",
-        contact_person: "",
-        contact_person_id: null,
-        status: "available",
-        requires_approval: false,
-        brand_name: "",
-        billing_rate: "",
-        billing_code: "",
-        date_of_purchase: "",
-        can_book: true,
-        calibration_interval_value: "",
-        calibration_interval_unit: "days",
-        last_calibration_date: "",
-        // Depreciation fields
-        placed_in_service_date: "",
-        cost_basis: "",
-        property_class: "5yr",
-        method: "MACRS",
-        bonus_eligible: true,
-        section179_elected: "",
-        vehicle_class: "UNKNOWN",
-        convention: "half-year",
-        // Disposal tracking
-        disposal_date: "",
-        sale_proceeds: "",
-        disposal_method: "",
-    });
     const [openUploadDialog, setOpenUploadDialog] = useState(false);
     const [uploadFormData, setUploadFormData] = useState({
         category: "other",
@@ -117,10 +97,42 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const [openCompareDialog, setOpenCompareDialog] = useState(false);
     const [allEquipment, setAllEquipment] = useState([]);
     const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
-    const [selectedCompareEquipment, setSelectedCompareEquipment] = useState(
-        [],
-    );
+    const [selectedCompareEquipment, setSelectedCompareEquipment] = useState([]);
     const [openReserveDialog, setOpenReserveDialog] = useState(false);
+
+    const [formData, setFormData] = useState({
+        name: "",
+        description: "",
+        serial_number: "",
+        asset_number: "",
+        cost: "",
+        location: "",
+        contact_person: "",
+        contact_person_id: null,
+        status: "available",
+        requires_approval: false,
+        brand_name: "",
+        billing_rate: "",
+        billing_code: "",
+        date_of_purchase: "",
+        can_book: true,
+        calibration_interval_value: "",
+        calibration_interval_unit: "days",
+        last_calibration_date: "",
+        placed_in_service_date: "",
+        cost_basis: "",
+        property_class: "5yr",
+        method: "MACRS",
+        bonus_eligible: true,
+        section179_elected: "",
+        vehicle_class: "UNKNOWN",
+        convention: "half-year",
+        disposal_date: "",
+        sale_proceeds: "",
+        disposal_method: "",
+    });
+
+    // ---- Data -------------------------------------------------------------
 
     useEffect(() => {
         fetchEquipment();
@@ -131,54 +143,41 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         fetchUsers();
         fetchAllEquipment();
         fetchActiveCheckouts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [equipmentId]);
 
-    // Auto-refresh active checkouts every minute to update status in real-time
     useEffect(() => {
-        const interval = setInterval(() => {
-            fetchActiveCheckouts();
-        }, 60000); // 60 seconds
-
+        const interval = setInterval(fetchActiveCheckouts, 60000);
         return () => clearInterval(interval);
     }, []);
 
-    // Socket listener for real-time updates
     useEffect(() => {
-        if (!socket?.connected) return;
+        if (!socket?.connected) return undefined;
 
         const handleMessage = (payload) => {
             const { message, data } = payload;
+            const id = parseInt(equipmentId, 10);
 
             switch (message) {
                 case "equipment_updated":
-                    // Refresh equipment details if it's this equipment
-                    if (data?.equipment?.id === parseInt(equipmentId)) {
-                        fetchEquipment();
-                    }
+                    if (data?.equipment?.id === id) fetchEquipment();
                     break;
                 case "calibration_added":
                 case "calibration_updated":
                 case "calibration_deleted":
-                    // Refresh calibration history if it belongs to this equipment
-                    if (data?.equipment_id === parseInt(equipmentId)) {
-                        fetchCalibrationHistory();
-                    }
+                    if (data?.equipment_id === id) fetchCalibrationHistory();
                     break;
                 case "equipment_file_created":
                 case "file_updated":
                 case "file_deleted":
-                    // Refresh files if they belong to this equipment
-                    if (data?.equipment_id === parseInt(equipmentId)) {
-                        fetchFiles();
-                    }
+                    if (data?.equipment_id === id) fetchFiles();
                     break;
                 case "checkout_created":
                 case "checkout_updated":
                 case "checkout_approved":
-                    // Refresh checkout history if it belongs to this equipment
                     if (
-                        data?.equipment_id === parseInt(equipmentId) ||
-                        data?.checkout?.equipment_id === parseInt(equipmentId)
+                        data?.equipment_id === id ||
+                        data?.checkout?.equipment_id === id
                     ) {
                         fetchCheckoutHistory();
                         fetchActiveCheckouts();
@@ -191,29 +190,28 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
         socket.on("message", handleMessage);
         return () => socket.off("message", handleMessage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [socket, equipmentId]);
 
+    // Arrow keys page the carousel; Escape closes the lightbox.
     useEffect(() => {
-        const imageFiles = files
-            .filter(
-                (f) =>
-                    f.file_type === "photo" ||
-                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i),
-            )
-            .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
+        const imageCount = files.filter(
+            (f) =>
+                f.file_type === "photo" ||
+                f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i),
+        ).length;
 
         const handleKeyDown = (e) => {
-            if (imageFiles.length === 0) return;
-
+            if (imageCount === 0) return;
             if (e.key === "ArrowLeft") {
                 e.preventDefault();
                 setCurrentImageIndex((prev) =>
-                    prev === 0 ? imageFiles.length - 1 : prev - 1,
+                    prev === 0 ? imageCount - 1 : prev - 1,
                 );
             } else if (e.key === "ArrowRight") {
                 e.preventDefault();
                 setCurrentImageIndex((prev) =>
-                    prev === imageFiles.length - 1 ? 0 : prev + 1,
+                    prev === imageCount - 1 ? 0 : prev + 1,
                 );
             } else if (e.key === "Escape" && enlargedImage) {
                 setEnlargedImage(null);
@@ -224,13 +222,17 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [files, enlargedImage]);
 
+    const authHeaders = () => ({
+        headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+    });
+
     const fetchEquipment = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get(`/api/equipment/${equipmentId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await axios.get(
+                `/api/equipment/${equipmentId}`,
+                authHeaders(),
+            );
             setEquipment(response.data);
         } catch (error) {
             console.error("Error fetching equipment:", error);
@@ -241,10 +243,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const fetchFiles = async () => {
         try {
-            const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/equipment/${equipmentId}/files`,
-                { headers: { Authorization: `Bearer ${token}` } },
+                authHeaders(),
             );
             setFiles(response.data);
         } catch (error) {
@@ -254,10 +255,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const fetchCalibrationHistory = async () => {
         try {
-            const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/calibrations/equipment/${equipmentId}`,
-                { headers: { Authorization: `Bearer ${token}` } },
+                authHeaders(),
             );
             setCalibrationHistory(response.data);
         } catch (error) {
@@ -267,10 +267,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const fetchCheckoutHistory = async () => {
         try {
-            const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/checkouts/equipment/${equipmentId}`,
-                { headers: { Authorization: `Bearer ${token}` } },
+                authHeaders(),
             );
             setCheckoutHistory(response.data);
         } catch (error) {
@@ -280,10 +279,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const fetchLocations = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get(`/api/locations`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await axios.get(`/api/locations`, authHeaders());
             setLocations(response.data);
         } catch (error) {
             console.error("Error fetching locations:", error);
@@ -292,10 +288,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const fetchUsers = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get(`/api/users`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await axios.get(`/api/users`, authHeaders());
             setUsers(response.data);
         } catch (error) {
             console.error("Error fetching users:", error);
@@ -304,25 +297,37 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const fetchAllEquipment = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get(`/api/equipment`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            // Filter out current equipment
+            const response = await axios.get(`/api/equipment`, authHeaders());
             setAllEquipment(
-                response.data.filter((eq) => eq.id !== parseInt(equipmentId)),
+                response.data.filter(
+                    (eq) => eq.id !== parseInt(equipmentId, 10),
+                ),
             );
         } catch (error) {
             console.error("Error fetching all equipment:", error);
         }
     };
 
+    const fetchActiveCheckouts = async () => {
+        try {
+            const now = new Date().toISOString();
+            const response = await axios.get(
+                `/api/checkouts?start=${now}&end=${now}`,
+                authHeaders(),
+            );
+            setActiveCheckouts(response.data);
+        } catch (error) {
+            console.error("Error fetching active checkouts:", error);
+        }
+    };
+
+    // ---- Actions ----------------------------------------------------------
+
     const handleOpenEditDialog = () => {
         setFormData({
             name: equipment.name,
             description: equipment.description || "",
             serial_number: equipment.serial_number || "",
-            asset_number: equipment.asset_number || "",
             asset_number: equipment.asset_number || "",
             cost: equipment.cost || "",
             location: equipment.location || "",
@@ -348,7 +353,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                       .toISOString()
                       .split("T")[0]
                 : "",
-            // Depreciation fields
             placed_in_service_date: equipment.AssetTaxMeta
                 ?.placed_in_service_date
                 ? new Date(equipment.AssetTaxMeta.placed_in_service_date)
@@ -374,30 +378,21 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         setOpenEditDialog(true);
     };
 
-    const handleCloseEditDialog = () => {
-        setOpenEditDialog(false);
-    };
-
     const handleSubmit = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem("authToken");
-            await axios.put(`/api/equipment/${equipmentId}`, formData, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            handleCloseEditDialog();
+            await axios.put(
+                `/api/equipment/${equipmentId}`,
+                formData,
+                authHeaders(),
+            );
+            setOpenEditDialog(false);
             fetchEquipment();
         } catch (error) {
             console.error("Error updating equipment:", error);
-
-            // Display validation errors to user
-            if (
-                error.response?.status === 400 &&
-                error.response?.data?.errors
-            ) {
-                const errorMessages = error.response.data.errors.join("\n\n");
+            if (error.response?.status === 400 && error.response?.data?.errors) {
                 showAlert(
-                    errorMessages,
+                    error.response.data.errors.join("\n\n"),
                     "error",
                     "Section 179 Validation Error",
                 );
@@ -414,35 +409,25 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () =>
         showConfirm(
             "Are you sure you want to delete this equipment? This will also delete all associated reservations, files, and calibration records.",
-            async () => {
-                await deleteEquipment();
-            },
+            deleteEquipment,
             "warning",
             "Delete Equipment",
             "Delete",
         );
-    };
 
     const deleteEquipment = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem("authToken");
-            await axios.delete(`/api/equipment/${equipmentId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await axios.delete(`/api/equipment/${equipmentId}`, authHeaders());
             navigate("/equipment");
         } catch (error) {
             console.error("Error deleting equipment:", error);
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleOpenUploadDialog = () => {
-        setOpenUploadDialog(true);
     };
 
     const handleCloseUploadDialog = () => {
@@ -455,19 +440,11 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         });
     };
 
-    const handleFileChange = (e) => {
-        setUploadFormData({
-            ...uploadFormData,
-            file: e.target.files[0],
-        });
-    };
-
-    const handleUploadInputChange = (e) => {
+    const handleUploadInputChange = (e) =>
         setUploadFormData({
             ...uploadFormData,
             [e.target.name]: e.target.value,
         });
-    };
 
     const handleFileUpload = async () => {
         if (!uploadFormData.file) {
@@ -477,26 +454,25 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
         try {
             setLoading(true);
-            const token = localStorage.getItem("authToken");
-            const formData = new FormData();
-            formData.append("file", uploadFormData.file);
-            formData.append("equipment_id", equipmentId);
-            formData.append("category", uploadFormData.category);
-            formData.append("description", uploadFormData.description);
-            formData.append("uploaded_by_user_id", user.id);
+            const payload = new FormData();
+            payload.append("file", uploadFormData.file);
+            payload.append("equipment_id", equipmentId);
+            payload.append("category", uploadFormData.category);
+            payload.append("description", uploadFormData.description);
+            payload.append("uploaded_by_user_id", user.id);
             if (
                 uploadFormData.category === "calibration_cert" &&
                 uploadFormData.calibration_date
             ) {
-                formData.append(
+                payload.append(
                     "calibration_date",
                     uploadFormData.calibration_date,
                 );
             }
 
-            await axios.post("/api/equipment-files", formData, {
+            await axios.post("/api/equipment-files", payload, {
                 headers: {
-                    Authorization: `Bearer ${token}`,
+                    Authorization: `Bearer ${localStorage.getItem("authToken")}`,
                     "Content-Type": "multipart/form-data",
                 },
             });
@@ -512,47 +488,28 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         }
     };
 
-    const handleDeleteFile = async (fileId) => {
+    const handleDeleteFile = (fileId) =>
         showConfirm(
             "Are you sure you want to delete this file?",
-            async () => {
-                await deleteFile(fileId);
-            },
+            () => deleteFile(fileId),
             "warning",
             "Delete File",
             "Delete",
         );
-    };
 
     const deleteFile = async (fileId) => {
         try {
             setLoading(true);
-            const token = localStorage.getItem("authToken");
-            await axios.delete(`/api/equipment-files/${fileId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            await axios.delete(
+                `/api/equipment-files/${fileId}`,
+                authHeaders(),
+            );
             await fetchFiles();
             await fetchEquipment();
         } catch (error) {
             console.error("Error deleting file:", error);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const fetchActiveCheckouts = async () => {
-        try {
-            const token = localStorage.getItem("authToken");
-            const now = new Date().toISOString();
-            const response = await axios.get(
-                `/api/checkouts?start=${now}&end=${now}`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
-            setActiveCheckouts(response.data);
-        } catch (error) {
-            console.error("Error fetching active checkouts:", error);
         }
     };
 
@@ -575,349 +532,349 @@ const EquipmentDetails = ({ setLoading, loading }) => {
 
     const isCalibrationDueSoon = (dueDate) => {
         if (!dueDate) return false;
-        const due = new Date(dueDate);
-        const now = new Date();
-        const daysUntilDue = Math.floor((due - now) / (1000 * 60 * 60 * 24));
+        const daysUntilDue = Math.floor(
+            (new Date(dueDate) - new Date()) / (1000 * 60 * 60 * 24),
+        );
         return daysUntilDue <= 30 && daysUntilDue >= 0;
     };
 
     const canEditDelete = () => {
         if (!equipment) return false;
-        if (user?.admin) return true;
-        if (user?.equipment_admin) return true;
-        if (user?.tax_admin) return true;
-        if (
+        if (user?.admin || user?.equipment_admin || user?.tax_admin) return true;
+        return Boolean(
             user?.equipment_office_admin &&
-            equipment.location === user.location
-        ) {
-            return true;
-        }
-        return false;
+                equipment.location === user.location,
+        );
     };
 
+    // ---- File buckets -----------------------------------------------------
+
+    const isImage = (f) =>
+        f.file_type?.includes("image/") ||
+        f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i);
+
+    const byUploadDesc = (a, b) =>
+        new Date(b.upload_date) - new Date(a.upload_date);
+
     const imageFiles = files
-        .filter(
-            (f) =>
-                // Only include files explicitly categorized as photo, or files with no category that are images
-                (f.category === "photo" || !f.category) &&
-                (f.file_type?.includes("image/") ||
-                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i)),
-        )
-        .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
+        .filter((f) => (f.category === "photo" || !f.category) && isImage(f))
+        .sort(byUploadDesc);
+
     const manualFiles = files
         .filter((f) => f.category === "manual")
-        .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
+        .sort(byUploadDesc);
+
     const certFiles = files
         .filter((f) => f.category === "calibration_cert")
         .sort((a, b) => {
-            // Sort by calibration_date if available, otherwise by upload_date
-            const dateA = a.calibration_date
-                ? new Date(a.calibration_date)
-                : new Date(a.upload_date);
-            const dateB = b.calibration_date
-                ? new Date(b.calibration_date)
-                : new Date(b.upload_date);
+            const dateA = new Date(a.calibration_date || a.upload_date);
+            const dateB = new Date(b.calibration_date || b.upload_date);
             return dateB - dateA;
         });
+
     const otherFiles = files
         .filter((f) => {
-            // Include files with category "other" or no category, but exclude images without category (they go to carousel)
             if (f.category === "other") return true;
-            if (!f.category) {
-                // Only include if it's NOT an image
-                const isImage =
-                    f.file_type?.includes("image/") ||
-                    f.file_name?.match(/\.(jpg|jpeg|png|gif)$/i);
-                return !isImage;
-            }
+            if (!f.category) return !isImage(f);
             return false;
         })
-        .sort((a, b) => new Date(b.upload_date) - new Date(a.upload_date));
+        .sort(byUploadDesc);
+
+    // ---- Rendering --------------------------------------------------------
 
     if (!equipment) {
         return (
-            <Box sx={{ p: 3 }}>
-                <Typography>Loading...</Typography>
-            </Box>
+            <>
+                <PageHeader title="Equipment" subtitle="Loading details…" back />
+                <PageContainer>
+                    <DetailSkeleton />
+                </PageContainer>
+            </>
         );
     }
 
-    return (
-        <Box sx={{ p: 3 }}>
-            {/* Header */}
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 3,
-                    flexDirection: isMobile ? "column" : "row",
-                    gap: 2,
-                }}
-            >
-                <Typography variant="h4">{equipment.name}</Typography>
-                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+    const bookable = equipment.can_book !== false;
+    const hasBilling =
+        equipment.billing_rate ||
+        equipment.billing_code ||
+        equipment.asset_number;
+
+    const headerActions = [
+        bookable && {
+            key: "reserve",
+            label: "Reserve",
+            icon: <EventAvailableOutlined />,
+            primary: true,
+            onClick: () => setOpenReserveDialog(true),
+        },
+        bookable && {
+            key: "calendar",
+            label: "Calendar",
+            icon: <CalendarMonth />,
+            onClick: () => navigate(`/equipment/calendar/${equipmentId}`),
+        },
+        bookable && {
+            key: "compare",
+            label: "Compare",
+            icon: <CompareArrows />,
+            onClick: () => setOpenCompareDialog(true),
+        },
+        {
+            key: "subscribe",
+            label: "Alerts",
+            icon: <NotificationsActive />,
+            onClick: () => setOpenSubscribeDialog(true),
+        },
+        canEditDelete() && {
+            key: "manage",
+            render: (
+                <>
                     <Button
                         variant="outlined"
-                        startIcon={<NotificationsActive />}
-                        onClick={() => setOpenSubscribeDialog(true)}
-                        color="primary"
+                        onClick={(e) => setActionMenuAnchor(e.currentTarget)}
+                        sx={{ minWidth: 44, px: 1.25 }}
+                        aria-label="Manage equipment"
                     >
-                        Subscribe to Alerts
+                        <MoreVert fontSize="small" />
                     </Button>
-                    {equipment.can_book !== false && (
-                        <>
-                            <Button
-                                variant="outlined"
-                                startIcon={<CalendarMonth />}
-                                onClick={() =>
-                                    navigate(
-                                        `/equipment/calendar/${equipmentId}`,
-                                    )
-                                }
-                            >
-                                Calendar
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                startIcon={<CompareArrows />}
-                                onClick={() => setOpenCompareDialog(true)}
-                            >
-                                Compare
-                            </Button>
-                            <Button
-                                variant="contained"
-                                sx={{
-                                    backgroundColor: "lightgreen",
-                                    color: "black",
-                                    ":hover": {
-                                        backgroundColor: "green",
-                                        color: "white",
-                                    },
-                                }}
-                                startIcon={<CalendarMonth />}
-                                onClick={() => setOpenReserveDialog(true)}
-                            >
-                                Reserve
-                            </Button>
-                        </>
-                    )}
-                    {canEditDelete() && (
-                        <>
-                            <Button
-                                variant="contained"
-                                startIcon={<MoreVert />}
-                                onClick={(e) =>
-                                    setActionMenuAnchor(e.currentTarget)
-                                }
-                                sx={{
-                                    color: "white",
-                                    ":hover": { color: "white" },
-                                }}
-                            >
-                                Actions
-                            </Button>
-                            <Menu
-                                anchorEl={actionMenuAnchor}
-                                open={Boolean(actionMenuAnchor)}
-                                onClose={() => setActionMenuAnchor(null)}
-                            >
-                                <MenuItem
-                                    onClick={() => {
-                                        setActionMenuAnchor(null);
-                                        handleOpenUploadDialog();
-                                    }}
-                                >
-                                    <UploadFile sx={{ mr: 1 }} />
-                                    Upload File
-                                </MenuItem>
-                                <MenuItem
-                                    onClick={() => {
-                                        setActionMenuAnchor(null);
-                                        handleOpenEditDialog();
-                                    }}
-                                >
-                                    <Edit sx={{ mr: 1 }} />
-                                    Edit
-                                </MenuItem>
-                                <MenuItem
-                                    onClick={() => {
-                                        setActionMenuAnchor(null);
-                                        handleDelete();
-                                    }}
+                    <Menu
+                        anchorEl={actionMenuAnchor}
+                        open={Boolean(actionMenuAnchor)}
+                        onClose={() => setActionMenuAnchor(null)}
+                        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                        transformOrigin={{ vertical: "top", horizontal: "right" }}
+                    >
+                        <MenuItem
+                            onClick={() => {
+                                setActionMenuAnchor(null);
+                                setOpenUploadDialog(true);
+                            }}
+                        >
+                            <ListItemIcon>
+                                <UploadFile fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Upload file</ListItemText>
+                        </MenuItem>
+                        <MenuItem
+                            onClick={() => {
+                                setActionMenuAnchor(null);
+                                handleOpenEditDialog();
+                            }}
+                        >
+                            <ListItemIcon>
+                                <Edit fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Edit details</ListItemText>
+                        </MenuItem>
+                        <Divider sx={{ my: 0.5 }} />
+                        <MenuItem
+                            onClick={() => {
+                                setActionMenuAnchor(null);
+                                handleDelete();
+                            }}
+                        >
+                            <ListItemIcon>
+                                <Delete
+                                    fontSize="small"
                                     sx={{ color: "error.main" }}
+                                />
+                            </ListItemIcon>
+                            <ListItemText
+                                primaryTypographyProps={{ color: "error.main" }}
+                            >
+                                Delete equipment
+                            </ListItemText>
+                        </MenuItem>
+                    </Menu>
+                </>
+            ),
+        },
+    ].filter(Boolean);
+
+    return (
+        <>
+            <PageHeader
+                back="/equipment"
+                breadcrumbs={[
+                    { label: "Equipment", to: "/equipment" },
+                    { label: equipment.name },
+                ]}
+                title={equipment.name}
+                subtitle={
+                    [
+                        equipment.serial_number &&
+                            `Serial ${equipment.serial_number}`,
+                        equipment.location,
+                        equipment.brand_name,
+                    ]
+                        .filter(Boolean)
+                        .join(" · ") || undefined
+                }
+                renderActions={
+                    <Stack direction="row" spacing={1} alignItems="center">
+                        {!bookable && (
+                            <Chip
+                                label="Not bookable"
+                                size="small"
+                                variant="outlined"
+                            />
+                        )}
+                        <StatusChip status={equipment.status} />
+                    </Stack>
+                }
+                actions={headerActions}
+            />
+
+            <PageContainer>
+                <Grid container spacing={{ xs: 2, md: 2.5 }}>
+                    {/* ---- Left column ---- */}
+                    <Grid item xs={12} md={6}>
+                        <Stack spacing={{ xs: 2, md: 2.5 }}>
+                            <RiseIn>
+                                <SectionCard
+                                    title="Equipment information"
+                                    icon={<AttachFileOutlined />}
+                                    disablePadding
                                 >
-                                    <Delete sx={{ mr: 1 }} />
-                                    Delete
-                                </MenuItem>
-                            </Menu>
-                        </>
-                    )}
-                </Box>
-            </Box>
+                                    <ImageCarousel
+                                        imageFiles={imageFiles}
+                                        currentImageIndex={currentImageIndex}
+                                        setCurrentImageIndex={
+                                            setCurrentImageIndex
+                                        }
+                                        setEnlargedImage={setEnlargedImage}
+                                        canEditDelete={canEditDelete}
+                                        handleDeleteFile={handleDeleteFile}
+                                    />
+                                    <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+                                        <EquipmentInfoCard
+                                            equipment={equipment}
+                                            isCalibrationDueSoon={
+                                                isCalibrationDueSoon
+                                            }
+                                            activeCheckouts={activeCheckouts}
+                                            user={user}
+                                        />
+                                    </Box>
+                                </SectionCard>
+                            </RiseIn>
 
-            {/* Equipment Details */}
-            <Grid container spacing={3}>
-                {/* Equipment Info with Images */}
-                <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                                Equipment Information
-                            </Typography>
-                            <Divider />
-
-                            {/* Image Carousel */}
-                            <ImageCarousel
-                                imageFiles={imageFiles}
-                                currentImageIndex={currentImageIndex}
-                                setCurrentImageIndex={setCurrentImageIndex}
-                                setEnlargedImage={setEnlargedImage}
-                                canEditDelete={canEditDelete}
-                                handleDeleteFile={handleDeleteFile}
-                            />
-
-                            {/* Equipment Info Grid */}
-                            <EquipmentInfoCard
-                                equipment={equipment}
-                                isCalibrationDueSoon={isCalibrationDueSoon}
-                                activeCheckouts={activeCheckouts}
-                                user={user}
-                            />
-                        </CardContent>
-                    </Card>
-                    {/* Equipment Details Grid */}
-                    <Grid item sx={{ mt: 3 }}>
-                        <EquipmentDetailsCard equipment={equipment} />
+                            <RiseIn delay={70}>
+                                <EquipmentDetailsCard equipment={equipment} />
+                            </RiseIn>
+                        </Stack>
                     </Grid>
-                </Grid>
 
-                {/* Calibration Info */}
-                <Grid item xs={12} md={6}>
-                    <CalibrationInfoCard
-                        equipment={equipment}
-                        manualFiles={manualFiles}
-                        certFiles={certFiles}
-                        otherFiles={otherFiles}
-                        canEditDelete={canEditDelete}
-                        handleDeleteFile={handleDeleteFile}
-                        onViewHistory={(title, files) =>
-                            setFileHistoryDialog({
-                                open: true,
-                                title,
-                                files,
-                            })
-                        }
-                    />
-                    {(equipment.billing_rate || equipment.billing_code) && (
-                        <Grid mt={3}>
-                            <Card width={"100%"}>
-                                <CardContent width={"100%"}>
-                                    <Typography
-                                        variant="h6"
-                                        gutterBottom
-                                        width={"100%"}
-                                    >
-                                        Billing
-                                    </Typography>
-                                    <Divider sx={{ mb: 2 }} />
-                                    <Box
-                                        sx={{
-                                            mt: 0,
-                                            width: "100%",
-                                        }}
+                    {/* ---- Right column ---- */}
+                    <Grid item xs={12} md={6}>
+                        <Stack spacing={{ xs: 2, md: 2.5 }}>
+                            <RiseIn delay={40}>
+                                <CalibrationInfoCard
+                                    equipment={equipment}
+                                    manualFiles={manualFiles}
+                                    certFiles={certFiles}
+                                    otherFiles={otherFiles}
+                                    canEditDelete={canEditDelete}
+                                    handleDeleteFile={handleDeleteFile}
+                                    onViewHistory={(title, historyFiles) =>
+                                        setFileHistoryDialog({
+                                            open: true,
+                                            title,
+                                            files: historyFiles,
+                                        })
+                                    }
+                                />
+                            </RiseIn>
+
+                            {hasBilling && (
+                                <RiseIn delay={110}>
+                                    <SectionCard
+                                        title="Billing"
+                                        icon={<ReceiptLongOutlined />}
                                     >
                                         <Grid container spacing={2}>
-                                            {equipment?.billing_rate && (
-                                                <Grid item xs={6}>
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
+                                            {[
+                                                {
+                                                    label: "Billing rate",
+                                                    value: equipment.billing_rate,
+                                                },
+                                                {
+                                                    label: "Billing code",
+                                                    value: equipment.billing_code,
+                                                },
+                                                {
+                                                    label: "Asset number",
+                                                    value: equipment.asset_number,
+                                                },
+                                            ]
+                                                .filter((f) => f.value)
+                                                .map((f) => (
+                                                    <Grid
+                                                        item
+                                                        xs={6}
+                                                        key={f.label}
                                                     >
-                                                        Billing Rate
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body1"
-                                                        sx={{ mt: 0.5 }}
-                                                    >
-                                                        {
-                                                            equipment?.billing_rate
-                                                        }
-                                                    </Typography>
-                                                </Grid>
-                                            )}
-                                            {equipment?.billing_code && (
-                                                <Grid item xs={6}>
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
-                                                    >
-                                                        Billing Code
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body1"
-                                                        sx={{ mt: 0.5 }}
-                                                    >
-                                                        {
-                                                            equipment?.billing_code
-                                                        }
-                                                    </Typography>
-                                                </Grid>
-                                            )}
-                                            {equipment?.asset_number && (
-                                                <Grid item xs={6}>
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
-                                                    >
-                                                        Asset Number
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body1"
-                                                        sx={{ mt: 0.5 }}
-                                                    >
-                                                        {
-                                                            equipment?.asset_number
-                                                        }
-                                                    </Typography>
-                                                </Grid>
-                                            )}
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            sx={{
+                                                                display: "block",
+                                                            }}
+                                                        >
+                                                            {f.label}
+                                                        </Typography>
+                                                        <Typography
+                                                            variant="body1"
+                                                            sx={{
+                                                                mt: 0.25,
+                                                                fontWeight: 550,
+                                                            }}
+                                                        >
+                                                            {f.value}
+                                                        </Typography>
+                                                    </Grid>
+                                                ))}
                                         </Grid>
-                                    </Box>
-                                </CardContent>
-                            </Card>
+                                    </SectionCard>
+                                </RiseIn>
+                            )}
+                        </Stack>
+                    </Grid>
+
+                    {/* ---- Full width ---- */}
+                    <Grid item xs={12}>
+                        <RiseIn delay={140}>
+                            <AlertsCard
+                                equipmentId={equipmentId}
+                                canBook={equipment?.can_book}
+                                openDialog={openSubscribeDialog}
+                                setOpenDialog={setOpenSubscribeDialog}
+                                onSubscribeSuccess={() =>
+                                    setAlertsRefresh((prev) => prev + 1)
+                                }
+                            />
+                        </RiseIn>
+                    </Grid>
+
+                    {equipment?.can_book && (
+                        <Grid item xs={12}>
+                            <RiseIn delay={180}>
+                                <CheckoutHistoryCard
+                                    checkoutHistory={checkoutHistory}
+                                    getCheckoutStatusColor={
+                                        getCheckoutStatusColor
+                                    }
+                                />
+                            </RiseIn>
                         </Grid>
                     )}
                 </Grid>
+            </PageContainer>
 
-                {/* Alert Subscriptions */}
-                <Grid item xs={12}>
-                    <AlertsCard
-                        equipmentId={equipmentId}
-                        canBook={equipment?.can_book}
-                        openDialog={openSubscribeDialog}
-                        setOpenDialog={setOpenSubscribeDialog}
-                        onSubscribeSuccess={() =>
-                            setAlertsRefresh((prev) => prev + 1)
-                        }
-                    />
-                </Grid>
-
-                {/* Checkout History - Only show if equipment can be booked */}
-                {equipment?.can_book && (
-                    <Grid item xs={12}>
-                        <CheckoutHistoryCard
-                            checkoutHistory={checkoutHistory}
-                            getCheckoutStatusColor={getCheckoutStatusColor}
-                        />
-                    </Grid>
-                )}
-            </Grid>
-
-            {/* Edit Dialog */}
+            {/* ---- Dialogs ---- */}
             <EquipmentDialog
                 open={openEditDialog}
-                onClose={handleCloseEditDialog}
+                onClose={() => setOpenEditDialog(false)}
                 selectedEquipment={equipment}
                 formData={formData}
                 setFormData={setFormData}
@@ -927,98 +884,139 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 showAlert={showAlert}
             />
 
-            {/* Upload Dialog */}
-            <Dialog
+            <ResponsiveDialog
                 open={openUploadDialog}
                 onClose={handleCloseUploadDialog}
+                title="Upload file"
+                subtitle={equipment.name}
+                icon={<UploadFile />}
                 maxWidth="sm"
-                fullWidth
-                fullScreen={isMobile}
+                actions={
+                    <>
+                        <Button onClick={handleCloseUploadDialog} variant="outlined">
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleFileUpload}
+                            variant="contained"
+                            disabled={!uploadFormData.file}
+                            startIcon={<UploadFile />}
+                        >
+                            Upload
+                        </Button>
+                    </>
+                }
             >
-                <DialogTitle>Upload File</DialogTitle>
-                <DialogContent>
+                <Stack spacing={2}>
+                    {/* Drop target doubles as the file picker. */}
                     <Box
+                        component="label"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                            e.preventDefault();
+                            const dropped = e.dataTransfer?.files?.[0];
+                            if (dropped) {
+                                setUploadFormData((prev) => ({
+                                    ...prev,
+                                    file: dropped,
+                                }));
+                            }
+                        }}
                         sx={{
                             display: "flex",
                             flexDirection: "column",
-                            gap: 2,
-                            pt: 1,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 1,
+                            py: 4,
+                            px: 2,
+                            borderRadius: 3,
+                            border: "1.5px dashed",
+                            borderColor: uploadFormData.file
+                                ? "primary.main"
+                                : "grey.300",
+                            bgcolor: uploadFormData.file
+                                ? "primary.50"
+                                : "grey.50",
+                            cursor: "pointer",
+                            textAlign: "center",
+                            transition:
+                                "border-color 200ms ease, background-color 200ms ease",
+                            "&:hover": {
+                                borderColor: "primary.main",
+                                bgcolor: "primary.50",
+                            },
                         }}
                     >
-                        <TextField
-                            name="category"
-                            label="File Category"
-                            value={uploadFormData.category}
-                            onChange={handleUploadInputChange}
-                            select
-                            fullWidth
-                            required
-                        >
-                            <MenuItem key="category-photo" value="photo">
-                                Photo
-                            </MenuItem>
-                            <MenuItem key="category-manual" value="manual">
-                                Manual
-                            </MenuItem>
-                            <MenuItem
-                                key="category-calibration_cert"
-                                value="calibration_cert"
-                            >
-                                Calibration Certificate
-                            </MenuItem>
-                            <MenuItem key="category-other" value="other">
-                                Other
-                            </MenuItem>
-                        </TextField>
-
-                        <TextField
-                            name="description"
-                            label="Description"
-                            value={uploadFormData.description}
-                            onChange={handleUploadInputChange}
-                            fullWidth
-                            multiline
-                            rows={2}
+                        <UploadFile
+                            sx={{
+                                fontSize: 30,
+                                color: uploadFormData.file
+                                    ? "primary.main"
+                                    : "text.disabled",
+                            }}
                         />
-
-                        {uploadFormData.category === "calibration_cert" && (
-                            <TextField
-                                name="calibration_date"
-                                label="Calibration Date"
-                                type="date"
-                                value={uploadFormData.calibration_date}
-                                onChange={handleUploadInputChange}
-                                fullWidth
-                                InputLabelProps={{ shrink: true }}
-                            />
-                        )}
-
-                        <Button variant="outlined" component="label" fullWidth>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             {uploadFormData.file
                                 ? uploadFormData.file.name
-                                : "Select File"}
-                            <input
-                                type="file"
-                                hidden
-                                onChange={handleFileChange}
-                                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                            />
-                        </Button>
+                                : "Choose a file or drop it here"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Images, PDF, Word or Excel
+                        </Typography>
+                        <input
+                            type="file"
+                            hidden
+                            onChange={(e) =>
+                                setUploadFormData({
+                                    ...uploadFormData,
+                                    file: e.target.files[0],
+                                })
+                            }
+                            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                        />
                     </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseUploadDialog}>Cancel</Button>
-                    <Button
-                        onClick={handleFileUpload}
-                        variant="contained"
-                        disabled={!uploadFormData.file}
-                    >
-                        Upload
-                    </Button>
-                </DialogActions>
-            </Dialog>
 
-            {/* Enlarged Image Dialog */}
+                    <TextField
+                        name="category"
+                        label="File category"
+                        value={uploadFormData.category}
+                        onChange={handleUploadInputChange}
+                        select
+                        fullWidth
+                        required
+                    >
+                        {FILE_CATEGORIES.map((c) => (
+                            <MenuItem key={c.value} value={c.value}>
+                                {c.label}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+
+                    <TextField
+                        name="description"
+                        label="Description"
+                        value={uploadFormData.description}
+                        onChange={handleUploadInputChange}
+                        fullWidth
+                        multiline
+                        rows={2}
+                    />
+
+                    {uploadFormData.category === "calibration_cert" && (
+                        <TextField
+                            name="calibration_date"
+                            label="Calibration date"
+                            type="date"
+                            value={uploadFormData.calibration_date}
+                            onChange={handleUploadInputChange}
+                            fullWidth
+                            InputLabelProps={{ shrink: true }}
+                        />
+                    )}
+                </Stack>
+            </ResponsiveDialog>
+
             <EnlargedImageDialog
                 enlargedImage={enlargedImage}
                 setEnlargedImage={setEnlargedImage}
@@ -1027,7 +1025,6 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 setCurrentImageIndex={setCurrentImageIndex}
             />
 
-            {/* File History Dialog */}
             <FileHistoryDialog
                 open={fileHistoryDialog.open}
                 onClose={() =>
@@ -1038,6 +1035,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 canEditDelete={canEditDelete}
                 handleDeleteFile={handleDeleteFile}
             />
+
             <AlertDialog
                 open={alertState.open}
                 onClose={hideAlert}
@@ -1046,6 +1044,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 severity={alertState.severity}
                 confirmText={alertState.confirmText}
             />
+
             <ConfirmDialog
                 open={confirmState.open}
                 onConfirm={confirmState.onConfirm}
@@ -1057,131 +1056,117 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 cancelText={confirmState.cancelText}
             />
 
-            {/* Compare Equipment Dialog */}
-            <Dialog
+            <ResponsiveDialog
                 open={openCompareDialog}
                 onClose={() => {
                     setOpenCompareDialog(false);
                     setSelectedCompareEquipment([]);
                 }}
+                title="Compare schedules"
+                subtitle="Pick other equipment to overlay on one calendar."
+                icon={<CompareArrows />}
                 maxWidth="sm"
-                fullWidth
-            >
-                <DialogTitle>Compare Equipment Schedules</DialogTitle>
-                <DialogContent>
-                    <Box sx={{ pt: 2 }}>
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{ mb: 2 }}
+                actions={
+                    <>
+                        <Button
+                            variant="outlined"
+                            onClick={() => {
+                                setOpenCompareDialog(false);
+                                setSelectedCompareEquipment([]);
+                            }}
                         >
-                            Select one or more equipment to view all schedules
-                            on one calendar
-                        </Typography>
-                        <Autocomplete
-                            multiple
-                            options={allEquipment.filter(
-                                (eq) =>
-                                    eq.can_book !== false &&
-                                    eq.id !== equipment?.id,
-                            )}
-                            getOptionLabel={(option) =>
-                                `${option.name}${option.serial_number ? ` (${option.serial_number})` : ""}`
-                            }
-                            filterOptions={(options, { inputValue }) => {
-                                if (!inputValue) return options;
-                                const searchTerm = inputValue.toLowerCase();
-                                return options.filter((option) => {
-                                    return (
-                                        option.name
-                                            ?.toLowerCase()
-                                            .includes(searchTerm) ||
-                                        option.serial_number
-                                            ?.toLowerCase()
-                                            .includes(searchTerm) ||
-                                        option.asset_number
-                                            ?.toLowerCase()
-                                            .includes(searchTerm) ||
-                                        option.description
-                                            ?.toLowerCase()
-                                            .includes(searchTerm) ||
-                                        option.location
-                                            ?.toLowerCase()
-                                            .includes(searchTerm)
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (selectedCompareEquipment?.length > 0) {
+                                    const equipmentIds = [
+                                        equipmentId,
+                                        ...selectedCompareEquipment.map(
+                                            (e) => e.id,
+                                        ),
+                                    ].join(",");
+                                    navigate(
+                                        `/equipment/compare?ids=${equipmentIds}`,
+                                        {
+                                            state: {
+                                                fromEquipmentId: equipmentId,
+                                            },
+                                        },
                                     );
-                                });
+                                }
                             }}
-                            value={selectedCompareEquipment}
-                            onChange={(event, newValue) => {
-                                setSelectedCompareEquipment(newValue);
-                            }}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="Select Equipment"
-                                    placeholder="Search by name, serial, asset number, description, or location"
-                                />
-                            )}
-                            renderOption={(props, option) => (
-                                <Box component="li" {...props}>
-                                    <Box>
-                                        <Typography variant="body1">
-                                            {option.name}
-                                        </Typography>
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                        >
-                                            {option.serial_number ||
-                                                "No serial number"}{" "}
-                                            • {option.location || "No location"}
-                                        </Typography>
-                                    </Box>
-                                </Box>
-                            )}
+                            variant="contained"
+                            disabled={!selectedCompareEquipment?.length}
+                            startIcon={<CompareArrows />}
+                        >
+                            Compare
+                        </Button>
+                    </>
+                }
+            >
+                <Autocomplete
+                    multiple
+                    options={allEquipment.filter(
+                        (eq) =>
+                            eq.can_book !== false && eq.id !== equipment?.id,
+                    )}
+                    getOptionLabel={(option) =>
+                        `${option.name}${
+                            option.serial_number
+                                ? ` (${option.serial_number})`
+                                : ""
+                        }`
+                    }
+                    filterOptions={(options, { inputValue }) => {
+                        if (!inputValue) return options;
+                        const term = inputValue.toLowerCase();
+                        return options.filter(
+                            (option) =>
+                                option.name?.toLowerCase().includes(term) ||
+                                option.serial_number
+                                    ?.toLowerCase()
+                                    .includes(term) ||
+                                option.asset_number
+                                    ?.toLowerCase()
+                                    .includes(term) ||
+                                option.description
+                                    ?.toLowerCase()
+                                    .includes(term) ||
+                                option.location?.toLowerCase().includes(term),
+                        );
+                    }}
+                    value={selectedCompareEquipment}
+                    onChange={(_, newValue) =>
+                        setSelectedCompareEquipment(newValue)
+                    }
+                    renderInput={(params) => (
+                        <TextField
+                            {...params}
+                            label="Equipment"
+                            placeholder="Search name, serial, asset, location"
                         />
-                    </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        onClick={() => {
-                            setOpenCompareDialog(false);
-                            setSelectedCompareEquipment([]);
-                        }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={() => {
-                            if (
-                                selectedCompareEquipment &&
-                                selectedCompareEquipment.length > 0
-                            ) {
-                                const equipmentIds = [
-                                    equipmentId,
-                                    ...selectedCompareEquipment.map(
-                                        (e) => e.id,
-                                    ),
-                                ].join(",");
-                                navigate(
-                                    `/equipment/compare?ids=${equipmentIds}`,
-                                    { state: { fromEquipmentId: equipmentId } },
-                                );
-                            }
-                        }}
-                        variant="contained"
-                        disabled={
-                            !selectedCompareEquipment ||
-                            selectedCompareEquipment.length === 0
-                        }
-                        startIcon={<CompareArrows />}
-                    >
-                        Compare Schedules
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                    )}
+                    renderOption={(props, option) => (
+                        <Box component="li" {...props}>
+                            <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" noWrap>
+                                    {option.name}
+                                </Typography>
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    noWrap
+                                >
+                                    {option.serial_number || "No serial number"}{" "}
+                                    · {option.location || "No location"}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+                />
+            </ResponsiveDialog>
 
-            {/* Reserve Dialog */}
             <ReservationDialog
                 open={openReserveDialog}
                 onClose={() => setOpenReserveDialog(false)}
@@ -1197,7 +1182,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                 setLoading={setLoading}
                 showAlert={showAlert}
             />
-        </Box>
+        </>
     );
 };
 

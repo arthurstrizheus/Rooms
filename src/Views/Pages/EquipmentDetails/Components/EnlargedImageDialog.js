@@ -1,6 +1,15 @@
 import React from "react";
-import { Dialog, DialogContent, Box, IconButton } from "@mui/material";
+import { Dialog, Box, IconButton, Typography, Fade } from "@mui/material";
+import { Close, ChevronLeft, ChevronRight } from "@mui/icons-material";
+import { FadeTransition } from "../../../Components/UI/motion";
 
+/**
+ * Full-size photo lightbox.
+ *
+ * Chromeless by design: the image sits on a dimmed backdrop with the controls
+ * floating over it, rather than inside a white dialog card. Arrow keys are
+ * handled by the parent page.
+ */
 const EnlargedImageDialog = ({
     enlargedImage,
     setEnlargedImage,
@@ -8,127 +17,126 @@ const EnlargedImageDialog = ({
     currentImageIndex,
     setCurrentImageIndex,
 }) => {
-    const handlePrevious = () => {
-        const newIndex =
-            currentImageIndex === 0
-                ? imageFiles.length - 1
-                : currentImageIndex - 1;
-        setCurrentImageIndex(newIndex);
-        setEnlargedImage(imageFiles[newIndex]);
+    const step = (delta) => {
+        const next =
+            (currentImageIndex + delta + imageFiles.length) % imageFiles.length;
+        setCurrentImageIndex(next);
+        setEnlargedImage(imageFiles[next]);
     };
 
-    const handleNext = () => {
-        const newIndex =
-            currentImageIndex === imageFiles.length - 1
-                ? 0
-                : currentImageIndex + 1;
-        setCurrentImageIndex(newIndex);
-        setEnlargedImage(imageFiles[newIndex]);
+    const controlSx = {
+        position: "absolute",
+        bgcolor: "rgba(20,24,31,0.55)",
+        color: "common.white",
+        backdropFilter: "blur(8px)",
+        "&:hover": { bgcolor: "rgba(20,24,31,0.78)" },
     };
 
     return (
         <Dialog
-            open={!!enlargedImage}
+            open={Boolean(enlargedImage)}
             onClose={() => setEnlargedImage(null)}
-            maxWidth="lg"
-            fullWidth
+            maxWidth={false}
+            TransitionComponent={FadeTransition}
+            PaperProps={{
+                sx: {
+                    bgcolor: "transparent",
+                    boxShadow: "none",
+                    m: { xs: 1, sm: 3 },
+                    maxWidth: "min(1400px, 96vw)",
+                    maxHeight: "94vh",
+                    overflow: "visible",
+                    "&::before": { display: "none" },
+                },
+            }}
+            slotProps={{
+                backdrop: {
+                    sx: {
+                        bgcolor: "rgba(10,12,16,0.88)",
+                        backdropFilter: "blur(6px)",
+                    },
+                },
+            }}
         >
-            <DialogContent sx={{ p: 0, position: "relative" }}>
-                {enlargedImage && (
-                    <Box sx={{ position: "relative" }}>
-                        <img
+            {enlargedImage && (
+                <Box sx={{ position: "relative", lineHeight: 0 }}>
+                    <Fade in key={enlargedImage.id} timeout={240}>
+                        <Box
+                            component="img"
                             src={`/uploads/${enlargedImage.file_path}`}
                             alt={enlargedImage.file_name}
-                            style={{
+                            sx={{
+                                display: "block",
                                 width: "100%",
                                 height: "auto",
-                                display: "block",
+                                maxHeight: "90vh",
+                                objectFit: "contain",
+                                borderRadius: 2,
                             }}
                         />
-                        <IconButton
-                            sx={{
-                                position: "absolute",
-                                top: 8,
-                                right: 8,
-                                backgroundColor: "rgba(0, 0, 0, 0.6)",
-                                color: "white",
-                                "&:hover": {
-                                    backgroundColor: "rgba(0, 0, 0, 0.8)",
-                                },
-                            }}
-                            onClick={() => setEnlargedImage(null)}
-                        >
-                            <Box component="span" sx={{ fontSize: "1.5rem" }}>
-                                ×
-                            </Box>
-                        </IconButton>
-                        {imageFiles.length > 1 && (
-                            <>
-                                <IconButton
+                    </Fade>
+
+                    <IconButton
+                        aria-label="Close"
+                        onClick={() => setEnlargedImage(null)}
+                        sx={{ ...controlSx, top: 10, right: 10 }}
+                    >
+                        <Close />
+                    </IconButton>
+
+                    {imageFiles.length > 1 && (
+                        <>
+                            <IconButton
+                                aria-label="Previous photo"
+                                onClick={() => step(-1)}
+                                sx={{
+                                    ...controlSx,
+                                    left: 10,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                }}
+                            >
+                                <ChevronLeft sx={{ fontSize: 26 }} />
+                            </IconButton>
+                            <IconButton
+                                aria-label="Next photo"
+                                onClick={() => step(1)}
+                                sx={{
+                                    ...controlSx,
+                                    right: 10,
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                }}
+                            >
+                                <ChevronRight sx={{ fontSize: 26 }} />
+                            </IconButton>
+
+                            <Box
+                                sx={{
+                                    ...controlSx,
+                                    bottom: 14,
+                                    left: "50%",
+                                    transform: "translateX(-50%)",
+                                    px: 1.5,
+                                    py: 0.5,
+                                    borderRadius: 5,
+                                }}
+                            >
+                                <Typography
+                                    variant="caption"
                                     sx={{
-                                        position: "absolute",
-                                        left: 8,
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                        backgroundColor: "rgba(0, 0, 0, 0.6)",
-                                        color: "white",
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "rgba(0, 0, 0, 0.8)",
-                                        },
-                                    }}
-                                    onClick={handlePrevious}
-                                >
-                                    <Box
-                                        component="span"
-                                        sx={{ fontSize: "2rem" }}
-                                    >
-                                        ‹
-                                    </Box>
-                                </IconButton>
-                                <IconButton
-                                    sx={{
-                                        position: "absolute",
-                                        right: 8,
-                                        top: "50%",
-                                        transform: "translateY(-50%)",
-                                        backgroundColor: "rgba(0, 0, 0, 0.6)",
-                                        color: "white",
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "rgba(0, 0, 0, 0.8)",
-                                        },
-                                    }}
-                                    onClick={handleNext}
-                                >
-                                    <Box
-                                        component="span"
-                                        sx={{ fontSize: "2rem" }}
-                                    >
-                                        ›
-                                    </Box>
-                                </IconButton>
-                                <Box
-                                    sx={{
-                                        position: "absolute",
-                                        bottom: 16,
-                                        left: "50%",
-                                        transform: "translateX(-50%)",
-                                        backgroundColor: "rgba(0, 0, 0, 0.6)",
-                                        color: "white",
-                                        padding: "4px 12px",
-                                        borderRadius: 1,
-                                        fontSize: "0.875rem",
+                                        fontWeight: 700,
+                                        fontVariantNumeric: "tabular-nums",
                                     }}
                                 >
                                     {currentImageIndex + 1} /{" "}
                                     {imageFiles.length}
-                                </Box>
-                            </>
-                        )}
-                    </Box>
-                )}
-            </DialogContent>
+                                </Typography>
+                            </Box>
+                        </>
+                    )}
+                </Box>
+            )}
         </Dialog>
     );
 };
