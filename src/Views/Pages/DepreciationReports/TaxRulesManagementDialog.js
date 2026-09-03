@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     Button,
     TextField,
     MenuItem,
@@ -24,9 +20,14 @@ import {
     Paper,
     IconButton,
     Tooltip,
+    Stack,
 } from "@mui/material";
-import { Add, Close, Info } from "@mui/icons-material";
+import { Add, Close, Info, Gavel } from "@mui/icons-material";
 import axios from "axios";
+
+import ResponsiveDialog from "../../Components/UI/ResponsiveDialog";
+import { RowSkeleton } from "../../Components/UI/Skeletons";
+import useResponsive from "../../../hooks/useResponsive";
 
 const TaxRulesManagementDialog = ({
     open,
@@ -35,6 +36,7 @@ const TaxRulesManagementDialog = ({
     officeName,
     onRulesUpdated,
 }) => {
+    const { isCompact } = useResponsive();
     const [activeStep, setActiveStep] = useState(0);
     const [officeRules, setOfficeRules] = useState(null);
     const [ruleTypes, setRuleTypes] = useState([]);
@@ -993,98 +995,118 @@ const TaxRulesManagementDialog = ({
     };
 
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-            <DialogTitle>
-                Manage Tax Rules - {officeName}
-                <Typography
-                    variant="caption"
-                    display="block"
-                    color="text.secondary"
+        <ResponsiveDialog
+            open={open}
+            onClose={onClose}
+            title="Manage tax rules"
+            subtitle={`${officeName} — state depreciation rules by year range`}
+            icon={<Gavel />}
+            maxWidth="md"
+            actions={
+                <Stack
+                    direction={{ xs: "column-reverse", sm: "row" }}
+                    spacing={1}
+                    sx={{ width: "100%", justifyContent: "flex-end" }}
                 >
-                    Configure state depreciation tax rules with year ranges
-                </Typography>
-            </DialogTitle>
-            <DialogContent>
-                <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-                    {steps.map((label) => (
-                        <Step key={label}>
-                            <StepLabel>{label}</StepLabel>
-                        </Step>
-                    ))}
-                </Stepper>
-
-                {error && (
-                    <Alert
-                        severity="error"
-                        sx={{ mb: 2 }}
-                        onClose={() => setError(null)}
-                    >
-                        {error}
-                    </Alert>
-                )}
-
-                {success && (
-                    <Alert
-                        severity="success"
-                        sx={{ mb: 2 }}
-                        onClose={() => setSuccess(null)}
-                    >
-                        {success}
-                    </Alert>
-                )}
-
-                {loading ? (
-                    <Typography>Loading...</Typography>
-                ) : (
-                    <>
-                        {activeStep === 0 && renderCurrentRules()}
-                        {activeStep === 1 && renderAddRule()}
-                        {activeStep === 2 && renderCloseRange()}
-                    </>
-                )}
-            </DialogContent>
-            <DialogActions>
-                <Button
-                    onClick={() => setActiveStep(Math.max(0, activeStep - 1))}
-                    disabled={activeStep === 0}
-                >
-                    Back
-                </Button>
-                {activeStep < steps.length - 1 && (
+                    <Button onClick={onClose} variant="text">
+                        Close
+                    </Button>
                     <Button
                         onClick={() =>
-                            setActiveStep(
-                                Math.min(steps.length - 1, activeStep + 1),
-                            )
+                            setActiveStep(Math.max(0, activeStep - 1))
                         }
-                        disabled={activeStep === 1 && !newRule.ruleType}
+                        disabled={activeStep === 0}
+                        variant="outlined"
                     >
-                        Next
+                        Back
                     </Button>
-                )}
-                {activeStep === 1 && (
-                    <Button
-                        onClick={handleAddRule}
-                        variant="contained"
-                        disabled={loading || !newRule.ruleType}
-                    >
-                        Add Rule
-                    </Button>
-                )}
-                {activeStep === 2 && (
-                    <Button
-                        onClick={handleCloseRange}
-                        variant="contained"
-                        disabled={
-                            loading || !closeRangeForm.effectiveFromTaxYear
-                        }
-                    >
-                        Close Range
-                    </Button>
-                )}
-                <Button onClick={onClose}>Close</Button>
-            </DialogActions>
-        </Dialog>
+                    {activeStep < steps.length - 1 && (
+                        <Button
+                            variant="outlined"
+                            onClick={() =>
+                                setActiveStep(
+                                    Math.min(steps.length - 1, activeStep + 1),
+                                )
+                            }
+                            disabled={activeStep === 1 && !newRule.ruleType}
+                        >
+                            Next
+                        </Button>
+                    )}
+                    {activeStep === 1 && (
+                        <Button
+                            onClick={handleAddRule}
+                            variant="contained"
+                            disabled={loading || !newRule.ruleType}
+                        >
+                            Add rule
+                        </Button>
+                    )}
+                    {activeStep === 2 && (
+                        <Button
+                            onClick={handleCloseRange}
+                            variant="contained"
+                            disabled={
+                                loading || !closeRangeForm.effectiveFromTaxYear
+                            }
+                        >
+                            Close range
+                        </Button>
+                    )}
+                </Stack>
+            }
+        >
+            {/* The step labels don't fit side by side on a phone, so the
+                stepper switches to a vertical "Step n of 3" summary there. */}
+            <Stepper
+                activeStep={activeStep}
+                alternativeLabel={!isCompact}
+                orientation={isCompact ? "vertical" : "horizontal"}
+                sx={{ mb: 3 }}
+            >
+                {steps.map((label) => (
+                    <Step key={label}>
+                        <StepLabel>{label}</StepLabel>
+                    </Step>
+                ))}
+            </Stepper>
+
+            {error && (
+                <Alert
+                    severity="error"
+                    sx={{ mb: 2 }}
+                    onClose={() => setError(null)}
+                >
+                    {error}
+                </Alert>
+            )}
+
+            {success && (
+                <Alert
+                    severity="success"
+                    sx={{ mb: 2 }}
+                    onClose={() => setSuccess(null)}
+                >
+                    {success}
+                </Alert>
+            )}
+
+            {loading ? (
+                <RowSkeleton count={4} height={48} />
+            ) : (
+                <Box
+                    key={activeStep}
+                    sx={{
+                        animation:
+                            "seaRiseIn 300ms cubic-bezier(0.22,1,0.36,1) both",
+                    }}
+                >
+                    {activeStep === 0 && renderCurrentRules()}
+                    {activeStep === 1 && renderAddRule()}
+                    {activeStep === 2 && renderCloseRange()}
+                </Box>
+            )}
+        </ResponsiveDialog>
     );
 };
 
