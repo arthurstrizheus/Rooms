@@ -6,52 +6,39 @@ import {
     Button,
     Chip,
     Card,
-    CardContent,
-    useMediaQuery,
-    useTheme,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
     TextField,
-    FormControl,
-    InputLabel,
-    Select,
     MenuItem,
     Checkbox,
     FormControlLabel,
-    FormLabel,
     Autocomplete,
+    Stack,
+    Collapse,
+    Grid,
 } from "@mui/material";
-import { ArrowBack, CalendarMonth } from "@mui/icons-material";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import EventAvailableOutlinedIcon from "@mui/icons-material/EventAvailableOutlined";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import axios from "axios";
+
 import { useAuth } from "../../Utilites/AuthContext";
 import { useSocket } from "../../Contexts/SocketContext";
-import axios from "axios";
 import DisplayCheckout from "../Components/DisplayCheckout/DisplayCheckout";
 import AlertDialog from "../../Components/AlertDialog";
 import useAlertDialog from "../../hooks/useAlertDialog";
+import useResponsive from "../../hooks/useResponsive";
+import {
+    PageHeader,
+    PageContainer,
+    ResponsiveDialog,
+} from "../Components/UI";
+import "../Components/UI/fullcalendar.css";
 
-// Color palette for multiple equipment
-const COLOR_PALETTE = [
-    "#667eea", // Purple
-    "#f093fb", // Pink
-    "#4facfe", // Blue
-    "#43e97b", // Green
-    "#fa709a", // Rose
-    "#fee140", // Yellow
-    "#30cfd0", // Cyan
-    "#a8edea", // Mint
-    "#ff9a56", // Orange
-    "#b490ca", // Lavender
-    "#f5576c", // Red
-    "#4fd1c5", // Teal
-];
+// Shared with the embeddable compare view so the same equipment gets the same
+// color in both.
+import { EQUIPMENT_PALETTE as COLOR_PALETTE } from "../Components/UI/equipmentPalette";
 
 const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     const [searchParams] = useSearchParams();
@@ -59,8 +46,8 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
     const location = useLocation();
     const { user } = useAuth();
     const { socket } = useSocket();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    const { isCompact: isMobile } = useResponsive();
+    const [selectedEquipment, setSelectedEquipment] = useState(null);
     const calendarRef = useRef(null);
 
     // Parse equipment IDs from query params
@@ -269,13 +256,20 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
 
     const handleEventClick = (info) => {
         const checkout = info.event.extendedProps.checkoutData;
+        // DisplayCheckout needs the equipment as well as the checkout; the
+        // event carries the equipment id, so resolve it from the loaded list.
+        const equipment = equipmentList.find(
+            (eq) => `${eq.id}` === `${info.event.extendedProps.equipmentId}`,
+        );
         setSelectedCheckout(checkout);
+        setSelectedEquipment(equipment || null);
         setOpenCheckoutDialog(true);
     };
 
     const handleCloseCheckoutDialog = () => {
         setOpenCheckoutDialog(false);
         setSelectedCheckout(null);
+        setSelectedEquipment(null);
     };
 
     const handleDateSelect = (selectInfo) => {
@@ -378,77 +372,56 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
         }
     };
 
-    const handleBack = () => {
-        navigate(`/equipment/${fromEquipmentId}`);
-    };
+    // Back returns to the equipment the comparison was started from, when we
+    // know it; otherwise to the catalog.
+    const backTarget = fromEquipmentId
+        ? `/equipment/${fromEquipmentId}`
+        : "/equipment";
 
     return (
-        <Box sx={{ p: isMobile ? 1 : 3 }}>
-            {/* Header */}
-            <Box
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    mb: 3,
-                    flexWrap: "wrap",
-                }}
+        <>
+            <PageHeader
+                back={backTarget}
+                breadcrumbs={[
+                    { label: "Equipment", to: "/equipment" },
+                    ...(fromEquipmentId
+                        ? [{ label: "Details", to: backTarget }]
+                        : []),
+                    { label: "Compare schedules" },
+                ]}
+                title="Compare schedules"
+                subtitle={`${equipmentList.length} item${
+                    equipmentList.length === 1 ? "" : "s"
+                } on one calendar — look for gaps where they're all free.`}
             >
-                <Button
-                    startIcon={<ArrowBack />}
-                    onClick={handleBack}
-                    variant="outlined"
+                {/* Legend doubles as the removal control. */}
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ flexWrap: "wrap", gap: 1 }}
                 >
-                    Back
-                </Button>
-                <CalendarMonth sx={{ fontSize: 32, color: "primary.main" }} />
-                <Typography variant="h5" sx={{ flexGrow: 1 }}>
-                    Compare Equipment Schedules
-                </Typography>
-            </Box>
-
-            {/* Equipment Legend */}
-            <Card sx={{ mb: 3 }}>
-                <CardContent>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
-                        Comparing {equipmentList.length} Equipment
-                    </Typography>
-                    <Box
-                        sx={{
-                            display: "flex",
-                            gap: 1.5,
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                        }}
-                    >
-                        {equipmentList.map((equipment, index) => (
+                    {equipmentList.map((equipment, index) => {
+                        const color =
+                            COLOR_PALETTE[index % COLOR_PALETTE.length];
+                        return (
                             <Chip
                                 key={equipment.id}
-                                label={
+                                icon={
                                     <Box
+                                        component="span"
                                         sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 1,
+                                            width: 10,
+                                            height: 10,
+                                            borderRadius: "3px",
+                                            bgcolor: color,
+                                            ml: "10px !important",
+                                            mr: "-2px !important",
+                                            flexShrink: 0,
                                         }}
-                                    >
-                                        <Box
-                                            sx={{
-                                                width: 16,
-                                                height: 16,
-                                                backgroundColor:
-                                                    COLOR_PALETTE[
-                                                        index %
-                                                            COLOR_PALETTE.length
-                                                    ],
-                                                borderRadius: 1,
-                                            }}
-                                        />
-                                        <Typography variant="body2">
-                                            {equipment?.name || "Loading..."}
-                                        </Typography>
-                                    </Box>
+                                    />
                                 }
+                                label={equipment?.name || "Loading…"}
+                                variant="outlined"
                                 onDelete={
                                     equipmentList.length > 1
                                         ? () => {
@@ -467,7 +440,6 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                                       },
                                                   );
                                               } else {
-                                                  // If no equipment left, go back
                                                   navigate(
                                                       `/equipment/${fromEquipmentId}`,
                                                   );
@@ -475,29 +447,20 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                           }
                                         : undefined
                                 }
-                                sx={{
-                                    pl: 1,
-                                    pr: equipmentList.length > 1 ? 1 : 2,
-                                    py: 2,
-                                }}
+                                sx={{ fontWeight: 600 }}
                             />
-                        ))}
-                    </Box>
-                    <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ mt: 2, display: "block" }}
-                    >
-                        View all equipment schedules on one calendar to find
-                        overlapping availability. Click the X to remove
-                        equipment from comparison.
-                    </Typography>
-                </CardContent>
-            </Card>
+                        );
+                    })}
+                </Stack>
+            </PageHeader>
 
-            {/* Calendar */}
-            <Card>
-                <CardContent>
+            <PageContainer disableGutters={isMobile}>
+                <Card
+                    sx={{
+                        p: { xs: 1, sm: 2 },
+                        borderRadius: { xs: 0, sm: 3.5 },
+                    }}
+                >
                     <FullCalendar
                         ref={calendarRef}
                         plugins={[
@@ -528,110 +491,161 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         selectable={true}
                         selectMirror={true}
                     />
-                </CardContent>
-            </Card>
+                </Card>
+            </PageContainer>
 
-            {/* Checkout Details Dialog */}
-            {selectedCheckout && (
-                <DisplayCheckout
-                    open={openCheckoutDialog}
-                    handleClose={handleCloseCheckoutDialog}
-                    checkout={selectedCheckout}
-                    user={user}
-                    setUpdate={() => {
-                        if (dateRange.start && dateRange.end) {
-                            fetchCheckouts(dateRange.start, dateRange.end);
+            {/* ---- Reservation details ---- */}
+            <ResponsiveDialog
+                open={openCheckoutDialog}
+                onClose={handleCloseCheckoutDialog}
+                maxWidth="sm"
+                hideClose
+                title={null}
+                padded={false}
+            >
+                {selectedCheckout && selectedEquipment && (
+                    <DisplayCheckout
+                        checkout={selectedCheckout}
+                        equipment={selectedEquipment}
+                        handleExit={handleCloseCheckoutDialog}
+                        setUpdate={() => {
+                            if (dateRange.start && dateRange.end) {
+                                fetchCheckouts(dateRange.start, dateRange.end);
+                            }
+                        }}
+                        setUpdateMode={() => {}}
+                        // Editing lives on the equipment's own calendar, which
+                        // has the edit form; send the user there.
+                        handleUpdateEvent={() =>
+                            navigate(
+                                `/equipment/calendar/${selectedEquipment.id}`,
+                            )
                         }
-                    }}
-                    fromCalendar={true}
-                />
-            )}
+                    />
+                )}
+            </ResponsiveDialog>
 
-            {/* Booking Dialog */}
-            <Dialog
+            {/* ---- Create reservation ---- */}
+            <ResponsiveDialog
                 open={openBookingDialog}
                 onClose={handleCloseBookingDialog}
+                title="New reservation"
+                subtitle="Book one or more of the compared items"
+                icon={<EventAvailableOutlinedIcon />}
                 maxWidth="sm"
-                fullWidth
+                actions={
+                    <>
+                        <Button
+                            onClick={handleCloseBookingDialog}
+                            variant="outlined"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleCreateCheckout}
+                            variant="contained"
+                            startIcon={<EventAvailableOutlinedIcon />}
+                            disabled={
+                                !selectedSlot?.start ||
+                                !selectedSlot?.end ||
+                                selectedBookingEquipment.length === 0
+                            }
+                        >
+                            Create reservation
+                        </Button>
+                    </>
+                }
             >
-                <DialogTitle>Create Reservation</DialogTitle>
-                <DialogContent>
                     <Box
                         sx={{
                             display: "flex",
                             flexDirection: "column",
                             gap: 2,
-                            mt: 1,
                         }}
                     >
                         {/* Equipment Selection */}
-                        <FormControl component="fieldset">
-                            <FormLabel component="legend">
-                                Which equipment do you want to reserve?
-                            </FormLabel>
-                            <Box
+                        <Box>
+                            <Typography
+                                variant="overline"
                                 sx={{
-                                    mt: 1,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 1,
+                                    color: "text.secondary",
+                                    display: "block",
+                                    mb: 1,
                                 }}
                             >
-                                {equipmentList.map((equipment, index) => (
-                                    <FormControlLabel
-                                        key={equipment.id}
-                                        control={
-                                            <Checkbox
-                                                checked={selectedBookingEquipment.includes(
-                                                    equipment.id,
-                                                )}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
+                                Which equipment?
+                            </Typography>
+                            <Stack spacing={0.5}>
+                                {equipmentList.map((equipment, index) => {
+                                    const color =
+                                        COLOR_PALETTE[
+                                            index % COLOR_PALETTE.length
+                                        ];
+                                    const checked =
+                                        selectedBookingEquipment.includes(
+                                            equipment.id,
+                                        );
+                                    return (
+                                        <FormControlLabel
+                                            key={equipment.id}
+                                            sx={{
+                                                m: 0,
+                                                px: 1.5,
+                                                py: 0.5,
+                                                borderRadius: 2.5,
+                                                border: "1px solid",
+                                                borderColor: checked
+                                                    ? "primary.100"
+                                                    : "divider",
+                                                bgcolor: checked
+                                                    ? "primary.50"
+                                                    : "transparent",
+                                                transition:
+                                                    "background-color 180ms ease, border-color 180ms ease",
+                                            }}
+                                            control={
+                                                <Checkbox
+                                                    checked={checked}
+                                                    onChange={(e) =>
                                                         setSelectedBookingEquipment(
-                                                            [
-                                                                ...selectedBookingEquipment,
-                                                                equipment.id,
-                                                            ],
-                                                        );
-                                                    } else {
-                                                        setSelectedBookingEquipment(
-                                                            selectedBookingEquipment.filter(
-                                                                (id) =>
-                                                                    id !==
-                                                                    equipment.id,
-                                                            ),
-                                                        );
+                                                            e.target.checked
+                                                                ? [
+                                                                      ...selectedBookingEquipment,
+                                                                      equipment.id,
+                                                                  ]
+                                                                : selectedBookingEquipment.filter(
+                                                                      (id) =>
+                                                                          id !==
+                                                                          equipment.id,
+                                                                  ),
+                                                        )
                                                     }
-                                                }}
-                                            />
-                                        }
-                                        label={
-                                            <Box
-                                                sx={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: 1,
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        width: 16,
-                                                        height: 16,
-                                                        backgroundColor:
-                                                            COLOR_PALETTE[
-                                                                index %
-                                                                    COLOR_PALETTE.length
-                                                            ],
-                                                        borderRadius: 1,
-                                                    }}
                                                 />
-                                                {equipment?.name}
-                                            </Box>
-                                        }
-                                    />
-                                ))}
-                            </Box>
-                        </FormControl>
+                                            }
+                                            label={
+                                                <Stack
+                                                    direction="row"
+                                                    alignItems="center"
+                                                    spacing={1}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            width: 10,
+                                                            height: 10,
+                                                            borderRadius: "3px",
+                                                            bgcolor: color,
+                                                        }}
+                                                    />
+                                                    <Typography variant="body2">
+                                                        {equipment?.name}
+                                                    </Typography>
+                                                </Stack>
+                                            }
+                                        />
+                                    );
+                                })}
+                            </Stack>
+                        </Box>
 
                         {/* Time Selection */}
                         <TextField
@@ -698,22 +712,28 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                         {/* Optional Fields Toggle */}
                         <Button
                             size="small"
-                            startIcon={
-                                showOptionalFields ? (
-                                    <RemoveIcon />
-                                ) : (
-                                    <AddIcon />
-                                )
+                            variant="text"
+                            endIcon={
+                                <ExpandMoreIcon
+                                    sx={{
+                                        transition:
+                                            "transform 240ms cubic-bezier(0.22,1,0.36,1)",
+                                        transform: showOptionalFields
+                                            ? "rotate(180deg)"
+                                            : "none",
+                                    }}
+                                />
                             }
                             onClick={() =>
                                 setShowOptionalFields(!showOptionalFields)
                             }
+                            sx={{ alignSelf: "flex-start", ml: -1 }}
                         >
-                            Optional Fields
+                            More options
                         </Button>
 
-                        {showOptionalFields && (
-                            <>
+                        <Collapse in={showOptionalFields} timeout={300}>
+                            <Stack spacing={2}>
                                 <TextField
                                     label="Notes"
                                     value={formData.notes}
@@ -770,8 +790,8 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                     }
                                     fullWidth
                                 />
-                            </>
-                        )}
+                            </Stack>
+                        </Collapse>
 
                         <FormControlLabel
                             control={
@@ -785,50 +805,76 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                     }
                                 />
                             }
-                            label="Repeat Reservation"
+                            label={
+                                <Typography variant="body2">
+                                    Repeat this reservation
+                                </Typography>
+                            }
+                            sx={{ ml: -0.5 }}
                         />
 
-                        {formData.isRecurring && (
-                            <>
-                                <FormControl fullWidth>
-                                    <InputLabel>Repeat Pattern</InputLabel>
-                                    <Select
-                                        value={formData.recurrencePattern}
-                                        label="Repeat Pattern"
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                recurrencePattern:
-                                                    e.target.value,
-                                            })
-                                        }
-                                    >
-                                        <MenuItem value="daily">Daily</MenuItem>
-                                        <MenuItem value="weekly">
-                                            Weekly
-                                        </MenuItem>
-                                        <MenuItem value="monthly">
-                                            Monthly
-                                        </MenuItem>
-                                    </Select>
-                                </FormControl>
+                        <Collapse in={formData.isRecurring} timeout={280}>
+                            <Stack
+                                spacing={2}
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 2.5,
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    bgcolor: "grey.50",
+                                }}
+                            >
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            select
+                                            label="Repeat pattern"
+                                            value={formData.recurrencePattern}
+                                            onChange={(e) =>
+                                                setFormData({
+                                                    ...formData,
+                                                    recurrencePattern:
+                                                        e.target.value,
+                                                })
+                                            }
+                                            fullWidth
+                                        >
+                                            <MenuItem value="daily">
+                                                Daily
+                                            </MenuItem>
+                                            <MenuItem value="weekly">
+                                                Weekly
+                                            </MenuItem>
+                                            <MenuItem value="monthly">
+                                                Monthly
+                                            </MenuItem>
+                                        </TextField>
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                        <TextField
+                                            label="Repeat every"
+                                            type="number"
+                                            value={formData.recurrenceInterval}
+                                            onChange={(e) =>
+                                                setFormData({
+                                                    ...formData,
+                                                    recurrenceInterval:
+                                                        parseInt(
+                                                            e.target.value,
+                                                            10,
+                                                        ) || 1,
+                                                })
+                                            }
+                                            InputProps={{
+                                                inputProps: { min: 1 },
+                                            }}
+                                            fullWidth
+                                        />
+                                    </Grid>
+                                </Grid>
+
                                 <TextField
-                                    label="Repeat Every"
-                                    type="number"
-                                    value={formData.recurrenceInterval}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            recurrenceInterval: parseInt(
-                                                e.target.value,
-                                            ),
-                                        })
-                                    }
-                                    InputProps={{ inputProps: { min: 1 } }}
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="End Date"
+                                    label="End date"
                                     type="date"
                                     value={formData.recurrenceEndDate}
                                     onChange={(e) =>
@@ -838,35 +884,13 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                                         })
                                     }
                                     InputLabelProps={{ shrink: true }}
+                                    helperText="Leave empty to repeat indefinitely"
                                     fullWidth
                                 />
-                            </>
-                        )}
+                            </Stack>
+                        </Collapse>
                     </Box>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseBookingDialog}>Cancel</Button>
-                    <Button
-                        onClick={handleCreateCheckout}
-                        variant="contained"
-                        disabled={
-                            !selectedSlot?.start ||
-                            !selectedSlot?.end ||
-                            selectedBookingEquipment.length === 0
-                        }
-                        sx={{
-                            backgroundColor: "lightgreen",
-                            color: "black",
-                            ":hover": {
-                                backgroundColor: "green",
-                                color: "white",
-                            },
-                        }}
-                    >
-                        Create Reservation
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            </ResponsiveDialog>
 
             <AlertDialog
                 open={alertState.open}
@@ -876,7 +900,7 @@ const EquipmentCompareCalendar = ({ setLoading, loading }) => {
                 severity={alertState.severity}
                 confirmText={alertState.confirmText}
             />
-        </Box>
+        </>
     );
 };
 

@@ -1,0 +1,243 @@
+/* ==========================================================================
+   FullCalendar theme
+   --------------------------------------------------------------------------
+   FullCalendar ships its own visual language, which otherwise reads as a
+   third-party widget dropped into the page. These variables and overrides pull
+   it onto the app's palette, radii, type scale and motion.
+
+   Imported by the calendar pages, not globally, so the CSS only loads on the
+   routes that render a calendar.
+   ========================================================================== */
+
+.fc {
+    /* Palette */
+    --fc-border-color: #e5e7eb;
+    --fc-page-bg-color: #ffffff;
+    --fc-neutral-bg-color: #f7f8fa;
+    --fc-neutral-text-color: #565e6c;
+
+    --fc-today-bg-color: rgba(200, 16, 46, 0.04);
+
+    --fc-event-bg-color: #c8102e;
+    --fc-event-border-color: #c8102e;
+    --fc-event-text-color: #ffffff;
+    --fc-event-selected-overlay-color: rgba(20, 24, 31, 0.18);
+
+    --fc-highlight-color: rgba(200, 16, 46, 0.1);
+    --fc-non-business-color: #f7f8fa;
+
+    --fc-button-text-color: #3b424e;
+    --fc-button-bg-color: #ffffff;
+    --fc-button-border-color: #d3d7de;
+    --fc-button-hover-bg-color: #f1f2f5;
+    --fc-button-hover-border-color: #a6adba;
+    --fc-button-active-bg-color: #c8102e;
+    --fc-button-active-border-color: #c8102e;
+
+    font-family: inherit;
+    font-size: 0.875rem;
+}
+
+/* --- Toolbar -------------------------------------------------------------- */
+
+.fc .fc-toolbar {
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fc .fc-toolbar-title {
+    font-size: 1.0625rem;
+    font-weight: 650;
+    letter-spacing: -0.012em;
+    color: #14181f;
+}
+
+.fc .fc-button {
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: none;
+    box-shadow: none !important;
+    transition:
+        background-color 160ms ease,
+        border-color 160ms ease,
+        color 160ms ease,
+        transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fc .fc-button:focus {
+    box-shadow: 0 0 0 3px #fce4e7 !important;
+}
+
+.fc .fc-button:active,
+.fc .fc-button:not(:disabled):active {
+    transform: scale(0.97);
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    color: #ffffff;
+}
+
+.fc .fc-button-primary:disabled {
+    background-color: #f1f2f5;
+    border-color: #e5e7eb;
+    color: #a6adba;
+    opacity: 1;
+}
+
+/* Button groups read as one segmented control. */
+.fc .fc-button-group > .fc-button:not(:first-child) {
+    margin-left: -1px;
+}
+
+.fc .fc-today-button {
+    text-transform: capitalize;
+}
+
+/* --- Grid ----------------------------------------------------------------- */
+
+.fc .fc-scrollgrid {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid-section > * {
+    border-color: var(--fc-border-color);
+}
+
+.fc .fc-col-header-cell {
+    background-color: #f7f8fa;
+    padding: 8px 4px;
+}
+
+.fc .fc-col-header-cell-cushion {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #565e6c;
+    padding: 4px;
+}
+
+.fc .fc-daygrid-day-number {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #3b424e;
+    padding: 6px 8px;
+}
+
+.fc .fc-day-today .fc-daygrid-day-number {
+    color: #c8102e;
+    font-weight: 750;
+}
+
+.fc .fc-day-other .fc-daygrid-day-number {
+    color: #a6adba;
+}
+
+.fc .fc-daygrid-day {
+    transition: background-color 160ms ease;
+}
+
+@media (hover: hover) {
+    .fc .fc-daygrid-day:hover {
+        background-color: #fcfcfd;
+    }
+}
+
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-timegrid-axis-cushion {
+    font-size: 0.6875rem;
+    color: #78808f;
+}
+
+/* --- Events --------------------------------------------------------------- */
+
+.fc .fc-event {
+    border-radius: 6px;
+    border: none;
+    padding: 1px 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(20, 24, 31, 0.08);
+    transition:
+        transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 160ms ease,
+        filter 160ms ease;
+}
+
+@media (hover: hover) {
+    .fc .fc-event:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(20, 24, 31, 0.14);
+        filter: saturate(1.1);
+    }
+}
+
+.fc .fc-event:active {
+    transform: scale(0.98);
+}
+
+.fc .fc-event-title,
+.fc .fc-event-time {
+    padding: 1px 3px;
+}
+
+.fc .fc-daygrid-event-dot {
+    border-color: currentColor;
+}
+
+.fc .fc-more-link {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #c8102e;
+}
+
+/* Events fade in as the view's data lands, rather than snapping. */
+.fc .fc-event-harness {
+    animation: seaFadeIn 220ms ease both;
+}
+
+/* --- Small screens -------------------------------------------------------- */
+
+@media (max-width: 899.95px) {
+    .fc .fc-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .fc .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+    }
+
+    .fc .fc-button {
+        /* Comfortable tap targets. */
+        min-height: 38px;
+        padding: 6px 14px;
+    }
+
+    .fc .fc-col-header-cell-cushion {
+        font-size: 0.625rem;
+    }
+}
+
+/* --- Reduced motion ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .fc .fc-event,
+    .fc .fc-button,
+    .fc .fc-event-harness {
+        transition: none;
+        animation: none;
+    }
+}

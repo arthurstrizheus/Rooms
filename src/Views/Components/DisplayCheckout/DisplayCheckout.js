@@ -1,36 +1,190 @@
-import { useTheme } from "@emotion/react";
-import { useMediaQuery } from "@mui/material";
+import { useState, useEffect } from "react";
 import {
-    formatDate,
-    getAmPm,
-} from "../../../Utilites/Functions/CommonFunctions";
-import {
-    Grid,
     Stack,
     Typography,
     Button,
-    Dialog,
     Divider,
-    Tooltip,
     Box,
     Chip,
+    IconButton,
+    Grid,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import CategoryIcon from "@mui/icons-material/Category";
-import PersonIcon from "@mui/icons-material/Person";
-import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
-import { useAuth } from "../../../Utilites/AuthContext";
-import { useState, useEffect } from "react";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import RepeatIcon from "@mui/icons-material/Repeat";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import DoNotDisturbIcon from "@mui/icons-material/DoNotDisturb";
 import RemoveRoadIcon from "@mui/icons-material/RemoveRoad";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import EditRoadIcon from "@mui/icons-material/EditRoad";
+import EditCalendarOutlinedIcon from "@mui/icons-material/EditCalendarOutlined";
+import axios from "axios";
+
+import { useAuth } from "../../../Utilites/AuthContext";
 import ImageViewer from "../../../Components/ImageViewer";
 import AddToCalendarButton from "../../../Components/AddToCalendarButton";
-import axios from "axios";
+import StatusChip from "../UI/StatusChip";
+import DetailField from "../UI/DetailField";
+import ResponsiveDialog from "../UI/ResponsiveDialog";
+import useResponsive from "../../../hooks/useResponsive";
+
+/**
+ * Reservation detail card, shown from the calendars.
+ *
+ * Rendered inside a chromeless dialog, so it draws its own header and footer.
+ *
+ * Editing or cancelling a recurring reservation first asks which occurrences
+ * to affect. Those two prompts used to be two separate near-identical inline
+ * dialogs; they now share `RecurrenceScopeDialog`.
+ */
+
+const SCOPE_OPTIONS = {
+    cancel: {
+        title: "Cancel recurring reservation",
+        subtitle: "Which occurrences should be cancelled?",
+        icon: <DeleteSweepIcon />,
+        accent: "error",
+        options: [
+            {
+                key: "all",
+                label: "All occurrences",
+                hint: "Cancels the whole series, past and future",
+                icon: <DeleteSweepIcon />,
+            },
+            {
+                key: "following",
+                label: "This and all following",
+                hint: "Keeps earlier occurrences, cancels the rest",
+                icon: <RemoveRoadIcon />,
+            },
+            {
+                key: "this",
+                label: "This occurrence only",
+                hint: "Leaves the rest of the series alone",
+                icon: <DoNotDisturbIcon />,
+            },
+        ],
+    },
+    edit: {
+        title: "Edit recurring reservation",
+        subtitle: "Which occurrences should the changes apply to?",
+        icon: <EditCalendarOutlinedIcon />,
+        accent: "primary",
+        options: [
+            {
+                key: "all",
+                label: "All occurrences",
+                hint: "Applies the change to the whole series",
+                icon: <EditRoadIcon />,
+            },
+            {
+                key: "following",
+                label: "This and all following",
+                hint: "Leaves earlier occurrences unchanged",
+                icon: <EditRoadIcon />,
+            },
+            {
+                key: "this",
+                label: "This occurrence only",
+                hint: "Splits this one out of the series",
+                icon: <EditNoteIcon />,
+            },
+        ],
+    },
+};
+
+function RecurrenceScopeDialog({ open, onClose, mode, onSelect, context }) {
+    const config = SCOPE_OPTIONS[mode];
+
+    return (
+        <ResponsiveDialog
+            open={open}
+            onClose={onClose}
+            title={config.title}
+            subtitle={config.subtitle}
+            icon={config.icon}
+            accent={config.accent}
+            maxWidth="xs"
+            fullScreen={false}
+            actions={
+                <Button onClick={onClose} variant="outlined" fullWidth>
+                    Never mind
+                </Button>
+            }
+        >
+            {context && (
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                >
+                    {context}
+                </Typography>
+            )}
+
+            <Stack spacing={1}>
+                {config.options.map((option) => (
+                    <Box
+                        key={option.key}
+                        component="button"
+                        type="button"
+                        onClick={() => onSelect(option.key)}
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1.5,
+                            width: "100%",
+                            textAlign: "left",
+                            font: "inherit",
+                            cursor: "pointer",
+                            px: 2,
+                            py: 1.5,
+                            borderRadius: 2.5,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            bgcolor: "background.paper",
+                            transition:
+                                "border-color 160ms ease, background-color 160ms ease, transform 160ms ease",
+                            "&:hover": {
+                                borderColor: `${config.accent}.main`,
+                                bgcolor: `${config.accent}.50`,
+                            },
+                            "&:active": { transform: "scale(0.99)" },
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: "flex",
+                                color: `${config.accent}.main`,
+                                "& svg": { fontSize: 20 },
+                            }}
+                        >
+                            {option.icon}
+                        </Box>
+                        <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 650 }}
+                            >
+                                {option.label}
+                            </Typography>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                            >
+                                {option.hint}
+                            </Typography>
+                        </Box>
+                    </Box>
+                ))}
+            </Stack>
+        </ResponsiveDialog>
+    );
+}
 
 const DisplayCheckout = ({
     checkout,
@@ -40,38 +194,32 @@ const DisplayCheckout = ({
     setUpdateMode,
     handleUpdateEvent,
 }) => {
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { user } = useAuth();
-    const [showWarning, setShowWarning] = useState(false);
-    const [showParentWarning, setShowParentWarning] = useState(false);
+    const { isCompact } = useResponsive();
+    const [cancelScopeOpen, setCancelScopeOpen] = useState(false);
+    const [editScopeOpen, setEditScopeOpen] = useState(false);
     const [equipmentImage, setEquipmentImage] = useState(null);
     const [bookerInfo, setBookerInfo] = useState(null);
 
     useEffect(() => {
-        // Fetch equipment image if available
-        if (equipment?.image_url) {
-            fetchEquipmentImage();
-        }
-
-        // Fetch booker information
-        if (checkout?.user_id) {
-            fetchBookerInfo();
-        }
+        if (equipment?.image_url) fetchEquipmentImage();
+        if (checkout?.user_id) fetchBookerInfo();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [equipment, checkout]);
+
+    const authHeaders = () => ({
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+    });
 
     const fetchEquipmentImage = async () => {
         try {
-            const token = localStorage.getItem("authToken");
             const response = await axios.get(
                 `/api/equipment/${equipment.id}/image`,
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                    responseType: "blob",
-                },
+                { ...authHeaders(), responseType: "blob" },
             );
-            const imageUrl = URL.createObjectURL(response.data);
-            setEquipmentImage(imageUrl);
+            setEquipmentImage(URL.createObjectURL(response.data));
         } catch (error) {
             console.error("Error fetching equipment image:", error);
         }
@@ -79,1001 +227,386 @@ const DisplayCheckout = ({
 
     const fetchBookerInfo = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const response = await axios.get(`/api/users/${checkout.user_id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            const response = await axios.get(
+                `/api/users/${checkout.user_id}`,
+                authHeaders(),
+            );
             setBookerInfo(response.data);
         } catch (error) {
             console.error("Error fetching booker info:", error);
         }
     };
 
-    if (!checkout || !equipment) {
-        console.log("No checkout or equipment");
-        return <></>;
-    }
+    if (!checkout || !equipment) return null;
 
-    const start = new Date(checkout?.start_time);
-    const end = new Date(checkout?.end_time);
-    const statusColor =
-        {
-            pending: theme.palette.warning.main,
-            approved: theme.palette.success.main,
-            reserved: theme.palette.info.main,
-            returned: theme.palette.grey[500],
-            cancelled: theme.palette.error.main,
-        }[checkout?.status] || theme.palette.grey[400];
+    const start = new Date(checkout.start_time);
+    const end = new Date(checkout.end_time);
+
+    const timeLabel = (date) =>
+        date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+        });
+
+    // ---- Mutations --------------------------------------------------------
+
+    const cancelWithScope = async (updateMode) => {
+        try {
+            const body = {
+                status: "cancelled",
+                user_id: user?.id,
+            };
+            // "this" is the plain single-occurrence cancel the API already does.
+            if (updateMode && updateMode !== "this") {
+                body.updateMode = updateMode;
+                body.occurrence_start_time =
+                    checkout.start_time || checkout.start;
+            }
+
+            await axios.put(
+                `/api/checkouts/${checkout.id}`,
+                body,
+                authHeaders(),
+            );
+            setUpdate((prev) => prev + 1);
+            handleExit();
+        } catch (error) {
+            console.error("Error cancelling reservation:", error);
+        } finally {
+            setCancelScopeOpen(false);
+        }
+    };
+
+    const handleCancel = () => {
+        if (checkout.recurrence_id) setCancelScopeOpen(true);
+        else cancelWithScope(null);
+    };
 
     const handleEdit = () => {
         if (checkout.recurrence_id) {
-            setShowParentWarning(true);
+            setEditScopeOpen(true);
         } else {
             setUpdateMode(null);
             handleUpdateEvent();
         }
     };
 
-    const handleCancel = async () => {
-        if (checkout.recurrence_id) {
-            setShowWarning(true);
-        } else {
-            try {
-                const token = localStorage.getItem("authToken");
-                await axios.put(
-                    `/api/checkouts/${checkout.id}`,
-                    {
-                        status: "cancelled",
-                        user_id: user?.id,
-                    },
-                    {
-                        headers: { Authorization: `Bearer ${token}` },
-                    },
-                );
-                setUpdate((prev) => prev + 1);
-                handleExit();
-            } catch (error) {
-                console.error("Error cancelling checkout:", error);
-            }
-            setShowWarning(false);
-        }
-    };
-
-    const handleCancelAll = async () => {
-        try {
-            const token = localStorage.getItem("authToken");
-            await axios.put(
-                `/api/checkouts/${checkout.id}`,
-                {
-                    status: "cancelled",
-                    updateMode: "all",
-                    occurrence_start_time:
-                        checkout.start_time || checkout.start,
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
-            setUpdate((prev) => prev + 1);
-            handleExit();
-        } catch (error) {
-            console.error("Error cancelling all checkouts:", error);
-        }
-        setShowWarning(false);
-    };
-
-    const handleCancelAllNext = async () => {
-        try {
-            const token = localStorage.getItem("authToken");
-            await axios.put(
-                `/api/checkouts/${checkout.id}`,
-                {
-                    status: "cancelled",
-                    updateMode: "following",
-                    occurrence_start_time:
-                        checkout.start_time || checkout.start,
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
-            setUpdate((prev) => prev + 1);
-            handleExit();
-        } catch (error) {
-            console.error("Error cancelling following checkouts:", error);
-        }
-        setShowWarning(false);
-    };
-
-    const handleCancelOnlyParent = async () => {
-        try {
-            const token = localStorage.getItem("authToken");
-            await axios.put(
-                `/api/checkouts/${checkout.id}`,
-                {
-                    status: "cancelled",
-                    user_id: user?.id,
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                },
-            );
-            setUpdate((prev) => prev + 1);
-            handleExit();
-        } catch (error) {
-            console.error("Error cancelling checkout:", error);
-        }
-        setShowWarning(false);
-    };
-
-    const handleEditOnlyParent = () => {
-        setUpdateMode("current");
-        setShowParentWarning(false);
+    const applyEditScope = (scope) => {
+        // The edit form speaks "current" / "next" / "all".
+        const modeByScope = { this: "current", following: "next", all: "all" };
+        setUpdateMode(modeByScope[scope]);
+        setEditScopeOpen(false);
         handleUpdateEvent();
     };
 
-    const handleEditFollowingParent = () => {
-        setUpdateMode("next");
-        setShowParentWarning(false);
-        handleUpdateEvent();
-    };
+    const canManage =
+        user?.admin || user?.equipment_admin || user?.id === checkout.user_id;
 
-    const handleEditALL = () => {
-        setUpdateMode("all");
-        setShowParentWarning(false);
-        handleUpdateEvent();
-    };
+    const bookerName = bookerInfo
+        ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
+        : null;
 
     return (
-        <Box sx={{ display: "flex", flexGrow: 1 }}>
-            {/* Delete/Cancel Parent Warning Dialog*/}
-            <Dialog
-                open={showWarning}
-                onClose={() => setShowWarning(false)}
-                maxWidth={"md"}
-            >
-                <Grid
-                    container
-                    height={"100%"}
+        <>
+            <RecurrenceScopeDialog
+                open={cancelScopeOpen}
+                onClose={() => setCancelScopeOpen(false)}
+                mode="cancel"
+                onSelect={cancelWithScope}
+                context={`${equipment?.name} · ${start.toLocaleDateString()}`}
+            />
+
+            <RecurrenceScopeDialog
+                open={editScopeOpen}
+                onClose={() => setEditScopeOpen(false)}
+                mode="edit"
+                onSelect={applyEditScope}
+                context={`${equipment?.name} · ${start.toLocaleDateString()}`}
+            />
+
+            <Box sx={{ display: "flex", flexDirection: "column" }}>
+                {/* ---- Header ---- */}
+                <Box
                     sx={{
-                        minWidth: isMobile ? "280px" : "315px",
-                        minHeight: "320px",
-                        width: isMobile ? "95vw" : "410px",
-                        overflow: "hidden",
+                        position: "relative",
+                        px: { xs: 2, sm: 3 },
+                        pt: { xs: 2.5, sm: 3 },
+                        pb: 2.5,
+                        bgcolor: "grey.50",
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
                     }}
                 >
-                    <CloseIcon
+                    <IconButton
+                        aria-label="Close"
+                        onClick={handleExit}
+                        size="small"
                         sx={{
                             position: "absolute",
-                            top: 1,
-                            right: 1,
-                            borderRadius: "50%",
-                            width: "25px",
-                            height: "25px",
-                            color: "black",
-                            background: "#f5f5f5",
-                            ":hover": {
-                                background: "#e8e8e8",
-                                cursor: "pointer",
-                                transform: "scale(1.1)",
-                            },
-                        }}
-                        onClick={() => setShowWarning(false)}
-                    />
-                    <Grid
-                        item
-                        sx={{
-                            width: "100%",
-                            height: "100%",
-                            borderBottom: `5px solid ${statusColor}`,
-                            padding: isMobile
-                                ? "15px 15px 10px 15px"
-                                : "15px 20px 10px 20px",
-                            background: "#f2eeed",
+                            top: 10,
+                            right: 10,
+                            color: "text.secondary",
                         }}
                     >
-                        <Stack
-                            direction={"column"}
-                            spacing={"-5px"}
-                            sx={{ paddingLeft: "5px" }}
-                        >
-                            <Typography variant="h5">
-                                {equipment?.name}
-                            </Typography>
-                            <Typography
-                                variant="caption"
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                {new Date(
-                                    checkout.start_time,
-                                ).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                            </Typography>
-                        </Stack>
-                        <Divider sx={{ paddingTop: "5px" }} />
-                        <Stack
-                            direction={"column"}
-                            sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-                            spacing={"-8px"}
-                        >
-                            <Typography
-                                variant="h6"
-                                fontSize={18}
-                                letterSpacing={1}
-                                color={theme.palette.secondary.main}
-                            >
-                                {start.getHours() > 12
-                                    ? start.getHours() - 12
-                                    : start.getHours() < 1
-                                      ? "12"
-                                      : start.getHours()}
-                                :{String(start.getMinutes()).padStart(2, "0")}
-                                {getAmPm(start)} -{" "}
-                                {end.getHours() > 12
-                                    ? end.getHours() - 12
-                                    : end.getHours() < 1
-                                      ? "12"
-                                      : end.getHours()}
-                                :{String(end.getMinutes()).padStart(2, "0")}
-                                {getAmPm(end)}
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                {equipment?.location || "Equipment Location"}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-                    <Grid
-                        item
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            width: "100%",
-                            height: "100%",
-                            padding: isMobile
-                                ? "15px 15px 10px 15px"
-                                : "15px 20px 10px 20px",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Typography paddingTop={"10px"}>
-                            This checkout is recurring {checkout.repeats}.
-                        </Typography>
-                        <Typography paddingTop={"10px"}>
-                            What would you like to do?
-                        </Typography>
-                    </Grid>
-                    <Grid padding={"5px"}></Grid>
-                    <Stack
-                        position={"relative"}
-                        bottom={0}
-                        direction={isMobile ? "column" : "row"}
-                        width={"100%"}
-                        sx={{
-                            marginBottom: "-5px",
-                            paddingRight: "5px",
-                            paddingTop: "5px",
-                            paddingLeft: "5px",
-                            height: isMobile ? "auto" : "35px",
-                            borderTop: "1px solid #dedede",
-                        }}
-                        spacing={1}
-                    >
-                        <Tooltip
-                            title={"Cancel all recurring reservations"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem",
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                    padding: "5px",
-                                }}
-                                onClick={handleCancelAll}
-                                startIcon={
-                                    <DeleteSweepIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Cancel All
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={"Cancel all following reservations"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem",
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleCancelAllNext}
-                                startIcon={
-                                    <RemoveRoadIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Cancel Next
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={"Cancel this reservation"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem",
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                    padding: "5px",
-                                }}
-                                onClick={handleCancelOnlyParent}
-                                startIcon={
-                                    <DoNotDisturbIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Cancel Current
-                            </Button>
-                        </Tooltip>
-                    </Stack>
-                </Grid>
-            </Dialog>
+                        <CloseIcon fontSize="small" />
+                    </IconButton>
 
-            {/* Edit Parent Warning Dialog*/}
-            <Dialog
-                open={showParentWarning}
-                onClose={() => setShowParentWarning(false)}
-            >
-                <Grid
-                    container
-                    height={"100%"}
-                    sx={{
-                        minWidth: isMobile ? "280px" : "320px",
-                        minHeight: "320px",
-                        width: isMobile ? "95vw" : "400px",
-                        overflow: "hidden",
-                    }}
-                >
-                    <CloseIcon
-                        sx={{
-                            position: "absolute",
-                            top: 1,
-                            right: 1,
-                            borderRadius: "50%",
-                            width: "25px",
-                            height: "25px",
-                            color: "black",
-                            background: "#f5f5f5",
-                            ":hover": {
-                                background: "#e8e8e8",
-                                cursor: "pointer",
-                                transform: "scale(1.1)",
-                            },
-                        }}
-                        onClick={() => setShowParentWarning(false)}
-                    />
-                    <Grid
-                        item
-                        sx={{
-                            width: "100%",
-                            height: "100%",
-                            borderBottom: `5px solid ${statusColor}`,
-                            padding: isMobile
-                                ? "15px 15px 10px 15px"
-                                : "15px 20px 10px 20px",
-                            background: "#f2eeed",
-                        }}
-                    >
-                        <Stack
-                            direction={"column"}
-                            spacing={"-5px"}
-                            sx={{ paddingLeft: "5px" }}
-                        >
-                            <Typography variant="h5">
-                                {equipment?.name}
-                            </Typography>
-                            <Typography
-                                variant="caption"
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                {new Date(
-                                    checkout.start_time,
-                                ).toLocaleDateString("en-US", {
-                                    weekday: "long",
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                })}
-                            </Typography>
-                        </Stack>
-                        <Divider sx={{ paddingTop: "5px" }} />
-                        <Stack
-                            direction={"column"}
-                            sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-                            spacing={"-8px"}
-                        >
-                            <Typography
-                                variant="h6"
-                                fontSize={18}
-                                letterSpacing={1}
-                                color={theme.palette.secondary.main}
-                            >
-                                {start.getHours() > 12
-                                    ? start.getHours() - 12
-                                    : start.getHours() < 1
-                                      ? "12"
-                                      : start.getHours()}
-                                :{String(start.getMinutes()).padStart(2, "0")}
-                                {getAmPm(start)} -{" "}
-                                {end.getHours() > 12
-                                    ? end.getHours() - 12
-                                    : end.getHours() < 1
-                                      ? "12"
-                                      : end.getHours()}
-                                :{String(end.getMinutes()).padStart(2, "0")}
-                                {getAmPm(end)}
-                            </Typography>
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                                fontSize={14}
-                                paddingLeft={"3px"}
-                            >
-                                {equipment?.location || "Equipment Location"}
-                            </Typography>
-                        </Stack>
-                    </Grid>
-                    <Grid
-                        item
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            width: "100%",
-                            height: "100%",
-                            padding: isMobile
-                                ? "15px 15px 10px 15px"
-                                : "15px 20px 10px 20px",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Typography paddingTop={"10px"}>
-                            This checkout is recurring {checkout.repeats}.
-                        </Typography>
-                        <Typography paddingTop={"10px"}>
-                            What would you like to do?
-                        </Typography>
-                    </Grid>
-                    <Grid padding={"5px"}></Grid>
                     <Stack
-                        position={"relative"}
-                        bottom={0}
-                        direction={isMobile ? "column" : "row"}
-                        width={"100%"}
-                        sx={{
-                            marginBottom: "-5px",
-                            paddingRight: "5px",
-                            paddingTop: "5px",
-                            paddingLeft: "5px",
-                            height: isMobile ? "auto" : "35px",
-                            borderTop: "1px solid #dedede",
-                        }}
-                        spacing={1}
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={2}
+                        alignItems={{ xs: "flex-start", sm: "center" }}
                     >
-                        <Tooltip
-                            title={"Update all future reservations"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem",
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleEditALL}
-                                startIcon={
-                                    <EditNoteIcon sx={{ color: "error" }} />
-                                }
-                            >
-                                Edit All
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={
-                                "Update all the next reservations after this point"
-                            }
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem",
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleEditFollowingParent}
-                                startIcon={
-                                    <EditRoadIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Edit Next
-                            </Button>
-                        </Tooltip>
-                        <Tooltip
-                            title={"Update this reservation"}
-                            componentsProps={{
-                                tooltip: {
-                                    sx: {
-                                        fontSize: ".8rem",
-                                    },
-                                },
-                            }}
-                        >
-                            <Button
-                                variant={"outlined"}
-                                style={{ fontSize: "12px" }}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleEditOnlyParent}
-                                startIcon={
-                                    <EditIcon
-                                        sx={{
-                                            color: theme.palette.secondary
-                                                .light,
-                                        }}
-                                    />
-                                }
-                            >
-                                Edit Current
-                            </Button>
-                        </Tooltip>
-                    </Stack>
-                </Grid>
-            </Dialog>
-
-            {/* Normal Dialog*/}
-            <Grid
-                container
-                height={"100%"}
-                sx={{
-                    minWidth: isMobile ? "280px" : "300px",
-                    minHeight: "300px",
-                    overflow: "hidden",
-                    paddingBottom: "5px",
-                }}
-            >
-                <CloseIcon
-                    sx={{
-                        position: "absolute",
-                        top: 1,
-                        right: 1,
-                        borderRadius: "50%",
-                        width: "25px",
-                        height: "25px",
-                        color: "black",
-                        background: "#f5f5f5",
-                        ":hover": {
-                            background: "#e8e8e8",
-                            cursor: "pointer",
-                            transform: "scale(1.1)",
-                        },
-                    }}
-                    onClick={handleExit}
-                />
-                <Grid
-                    item
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        borderBottom: `5px solid ${statusColor}`,
-                        padding: isMobile
-                            ? "15px 15px 10px 15px"
-                            : "15px 20px 10px 20px",
-                        background:
-                            theme.palette.background.fill.light.lightHover,
-                    }}
-                >
-                    <Stack
-                        direction={"column"}
-                        spacing={"-5px"}
-                        sx={{ paddingLeft: "5px" }}
-                    >
-                        <Stack
-                            direction={isMobile ? "column" : "row"}
-                            sx={{
-                                justifyContent: "space-between",
-                                alignItems: isMobile ? "flex-start" : "center",
-                            }}
-                            spacing={isMobile ? 1 : 0}
-                        >
-                            <Typography variant="h5">
-                                {equipment?.name}
-                            </Typography>
-                            {equipment?.image_url && equipmentImage && (
-                                <ImageViewer
-                                    src={equipmentImage}
-                                    alt={`${equipment?.name} image`}
-                                    style={{
-                                        maxWidth: isMobile ? "100%" : "100px",
-                                        maxHeight: isMobile ? "80px" : "60px",
-                                        objectFit: "cover",
-                                        borderRadius: "4px",
-                                        border: "1px solid #ddd",
-                                    }}
-                                />
-                            )}
-                        </Stack>
-
-                        <Typography
-                            variant="caption"
-                            fontSize={14}
-                            paddingLeft={"3px"}
-                        >
-                            {new Date(checkout.start_time).toLocaleDateString(
-                                "en-US",
-                                {
-                                    weekday: "long",
-                                    month: "short",
-                                    day: "numeric",
-                                    year: "numeric",
-                                },
-                            )}
-                        </Typography>
-                    </Stack>
-                    <Divider sx={{ paddingTop: "5px" }} />
-                    <Stack
-                        direction={"column"}
-                        sx={{ paddingTop: "5px", paddingLeft: "5px" }}
-                        spacing={"-8px"}
-                    >
-                        <Typography
-                            variant="h6"
-                            fontSize={18}
-                            letterSpacing={1}
-                            color={theme.palette.secondary.main}
-                        >
-                            {start.getHours() > 12
-                                ? start.getHours() - 12
-                                : start.getHours() < 1
-                                  ? "12"
-                                  : start.getHours()}
-                            :{String(start.getMinutes()).padStart(2, "0")}
-                            {getAmPm(start)} -{" "}
-                            {end.getHours() > 12
-                                ? end.getHours() - 12
-                                : end.getHours() < 1
-                                  ? "12"
-                                  : end.getHours()}
-                            :{String(end.getMinutes()).padStart(2, "0")}
-                            {getAmPm(end)}
-                        </Typography>
-                        <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={0.5}
-                            sx={{ paddingLeft: "3px" }}
-                        >
-                            <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
-                                fontSize={14}
-                            >
-                                {equipment?.location || "Equipment Location"}
-                            </Typography>
-                        </Stack>
-                    </Stack>
-
-                    {/* Equipment Information */}
-                    {equipment && (
-                        <Box sx={{ mt: 1, ml: 1 }}>
+                        <Box sx={{ flexGrow: 1, minWidth: 0, pr: 4 }}>
                             <Stack
                                 direction="row"
                                 spacing={1}
-                                sx={{ flexWrap: "wrap", gap: 0.5 }}
+                                alignItems="center"
+                                sx={{ mb: 0.5, flexWrap: "wrap", gap: 0.75 }}
                             >
-                                {/* Status Chip */}
-                                {/* <Chip
-                                    label={checkout.status?.toUpperCase()}
-                                    size="small"
-                                    sx={{
-                                        height: 22,
-                                        backgroundColor: statusColor,
-                                        color: "white",
-                                        "& .MuiChip-label": {
-                                            fontSize: "0.7rem",
-                                            fontWeight: "bold",
-                                        },
-                                    }}
-                                /> */}
-
-                                {/* Serial Number */}
-                                {equipment.serial_number && (
+                                <StatusChip status={checkout.status} />
+                                {checkout.recurrence_id && (
                                     <Chip
-                                        icon={<CategoryIcon />}
-                                        label={`SN: ${equipment.serial_number}`}
                                         size="small"
+                                        icon={
+                                            <RepeatIcon
+                                                sx={{
+                                                    fontSize:
+                                                        "14px !important",
+                                                }}
+                                            />
+                                        }
+                                        label="Recurring"
                                         variant="outlined"
-                                        sx={{
-                                            height: 22,
-                                            "& .MuiChip-label": {
-                                                fontSize: "0.7rem",
-                                            },
-                                            "& .MuiChip-icon": {
-                                                fontSize: "0.8rem",
-                                            },
-                                        }}
-                                    />
-                                )}
-                                {/* Asset Number */}
-                                {equipment.asset_number && (
-                                    <Chip
-                                        icon={<CategoryIcon />}
-                                        label={`AN: ${equipment.asset_number}`}
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{
-                                            height: 22,
-                                            "& .MuiChip-label": {
-                                                fontSize: "0.7rem",
-                                            },
-                                            "& .MuiChip-icon": {
-                                                fontSize: "0.8rem",
-                                            },
-                                        }}
                                     />
                                 )}
                             </Stack>
-                        </Box>
-                    )}
-                </Grid>
-                <Grid
-                    item
-                    sx={{
-                        width: "100%",
-                        height: "100%",
-                        padding: isMobile
-                            ? "15px 15px 10px 15px"
-                            : "15px 20px 10px 20px",
-                    }}
-                >
-                    <Stack
-                        direction={isMobile ? "column" : "row"}
-                        sx={{ paddingLeft: "5px" }}
-                        spacing={isMobile ? 1 : 3}
-                    >
-                        <Stack direction={"column"} spacing={1}>
+
+                            <Typography variant="h4" sx={{ lineHeight: 1.25 }}>
+                                {equipment?.name}
+                            </Typography>
+
                             <Typography
-                                variant="body1"
-                                color={theme.palette.primary.text.dark}
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 0.25 }}
                             >
-                                {checkout.scheduled_on_behalf_of
-                                    ? "Reserved on behalf of:"
-                                    : "Reserved by:"}
+                                {start.toLocaleDateString("en-US", {
+                                    weekday: "long",
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                })}
                             </Typography>
-                            {checkout.scheduled_on_behalf_of && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Reserved by:
-                                </Typography>
-                            )}
-                            {checkout.notes && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    notes:
-                                </Typography>
-                            )}
-                            {checkout.repeats && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Repeats:
-                                </Typography>
-                            )}
-                            {checkout.approved_by_user_id && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Approved By:
-                                </Typography>
-                            )}
-                            {checkout.CheckoutCreatedBy && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Created By:
-                                </Typography>
-                            )}
-                            {checkout.CheckoutUpdatedBy && (
-                                <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                >
-                                    Updated By:
-                                </Typography>
-                            )}
-                        </Stack>
-                        <Stack direction={"column"} spacing={1}>
-                            <Typography variant="body1">
-                                {checkout.scheduled_on_behalf_of ||
-                                    (bookerInfo
-                                        ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
-                                        : "Loading...")}
-                            </Typography>
-                            {checkout.scheduled_on_behalf_of && (
-                                <Typography variant="body1">
-                                    {bookerInfo
-                                        ? `${bookerInfo.first_name} ${bookerInfo.last_name}`
-                                        : "Loading..."}
-                                </Typography>
-                            )}
-                            {checkout.notes && (
-                                <Typography variant="body1">
-                                    {checkout.notes}
-                                </Typography>
-                            )}
-                            {checkout.repeats && (
-                                <Typography variant="body1">
-                                    {checkout.repeats}
-                                </Typography>
-                            )}
-                            {checkout.approved_by_user_id && (
-                                <Typography variant="body1">
-                                    Approved
-                                </Typography>
-                            )}
-                            {checkout.CheckoutCreatedBy && (
-                                <Typography variant="body1">
-                                    {`${checkout.CheckoutCreatedBy.first_name} ${checkout.CheckoutCreatedBy.last_name}`}
-                                </Typography>
-                            )}
-                            {checkout.CheckoutUpdatedBy && (
-                                <Typography variant="body1">
-                                    {`${checkout.CheckoutUpdatedBy.first_name} ${checkout.CheckoutUpdatedBy.last_name}`}
-                                </Typography>
-                            )}
-                        </Stack>
+                        </Box>
+
+                        {equipment?.image_url && equipmentImage && (
+                            <ImageViewer
+                                src={equipmentImage}
+                                alt={`${equipment?.name}`}
+                                style={{
+                                    width: isCompact ? "100%" : 96,
+                                    height: isCompact ? 96 : 64,
+                                    objectFit: "cover",
+                                    borderRadius: 10,
+                                }}
+                            />
+                        )}
                     </Stack>
-                    {checkout.notes && <Divider sx={{ paddingTop: "5px" }} />}
-                    {checkout?.notes != "" &&
-                        checkout?.notes != null &&
-                        checkout?.notes != undefined && (
-                            <Stack
-                                direction={"column"}
-                                sx={{ paddingLeft: "5px" }}
+
+                    <Stack
+                        direction="row"
+                        spacing={2}
+                        sx={{ mt: 2, flexWrap: "wrap", gap: 1.5 }}
+                    >
+                        <Stack
+                            direction="row"
+                            spacing={0.75}
+                            alignItems="center"
+                        >
+                            <ScheduleOutlinedIcon
+                                sx={{ fontSize: 17, color: "primary.main" }}
+                            />
+                            <Typography
+                                variant="subtitle1"
+                                sx={{ letterSpacing: "0.01em" }}
                             >
+                                {timeLabel(start)} – {timeLabel(end)}
+                            </Typography>
+                        </Stack>
+
+                        {equipment?.location && (
+                            <Stack
+                                direction="row"
+                                spacing={0.75}
+                                alignItems="center"
+                            >
+                                <PlaceOutlinedIcon
+                                    sx={{ fontSize: 17, color: "text.disabled" }}
+                                />
                                 <Typography
-                                    variant="body1"
-                                    color={theme.palette.primary.text.dark}
-                                    sx={{ marginBottom: "-15px" }}
+                                    variant="body2"
+                                    color="text.secondary"
                                 >
-                                    Notes:
-                                </Typography>
-                                <Typography paddingTop={"10px"}>
-                                    {checkout.notes}
+                                    {equipment.location}
                                 </Typography>
                             </Stack>
                         )}
-                </Grid>
-                <Grid padding={"5px"}></Grid>
+                    </Stack>
+
+                    {(equipment.serial_number || equipment.asset_number) && (
+                        <Stack
+                            direction="row"
+                            spacing={0.75}
+                            sx={{ mt: 1.5, flexWrap: "wrap", gap: 0.75 }}
+                        >
+                            {equipment.serial_number && (
+                                <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    icon={
+                                        <CategoryIcon
+                                            sx={{ fontSize: "13px !important" }}
+                                        />
+                                    }
+                                    label={`SN ${equipment.serial_number}`}
+                                />
+                            )}
+                            {equipment.asset_number && (
+                                <Chip
+                                    size="small"
+                                    variant="outlined"
+                                    icon={
+                                        <CategoryIcon
+                                            sx={{ fontSize: "13px !important" }}
+                                        />
+                                    }
+                                    label={`AN ${equipment.asset_number}`}
+                                />
+                            )}
+                        </Stack>
+                    )}
+                </Box>
+
+                {/* ---- Details ---- */}
+                <Box sx={{ px: { xs: 2, sm: 3 }, py: 2.5 }}>
+                    <Grid container spacing={2.5}>
+                        <Grid item xs={12} sm={6}>
+                            <DetailField
+                                label={
+                                    checkout.scheduled_on_behalf_of
+                                        ? "Scheduled for"
+                                        : "Booked by"
+                                }
+                                value={
+                                    checkout.scheduled_on_behalf_of ||
+                                    bookerName
+                                }
+                            />
+                        </Grid>
+
+                        {checkout.scheduled_on_behalf_of && bookerName && (
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Booked by"
+                                    value={bookerName}
+                                />
+                            </Grid>
+                        )}
+
+                        <Grid item xs={12} sm={6}>
+                            <DetailField
+                                label="Project number"
+                                value={checkout.project_number}
+                                hideEmpty
+                            />
+                        </Grid>
+
+                        {checkout.repeats && (
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Repeats"
+                                    value={checkout.repeats}
+                                />
+                            </Grid>
+                        )}
+
+                        {checkout.approved_by_user_id && (
+                            <Grid item xs={12} sm={6}>
+                                <DetailField label="Approval" value="Approved" />
+                            </Grid>
+                        )}
+
+                        {checkout.CheckoutCreatedBy && (
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Created by"
+                                    value={`${checkout.CheckoutCreatedBy.first_name} ${checkout.CheckoutCreatedBy.last_name}`}
+                                />
+                            </Grid>
+                        )}
+
+                        {checkout.CheckoutUpdatedBy && (
+                            <Grid item xs={12} sm={6}>
+                                <DetailField
+                                    label="Updated by"
+                                    value={`${checkout.CheckoutUpdatedBy.first_name} ${checkout.CheckoutUpdatedBy.last_name}`}
+                                />
+                            </Grid>
+                        )}
+                    </Grid>
+
+                    {checkout.notes && (
+                        <>
+                            <Divider sx={{ my: 2.5 }} />
+                            <DetailField
+                                label="Notes"
+                                value={checkout.notes}
+                            />
+                        </>
+                    )}
+                </Box>
+
+                {/* ---- Actions ---- */}
+                <Divider />
                 <Stack
-                    position={"relative"}
-                    bottom={0}
-                    direction={isMobile ? "column" : "row"}
-                    width={"100%"}
-                    sx={{
-                        padding: "5px",
-                        height: isMobile ? "auto" : "35px",
-                        borderTop: "1px solid #dedede",
-                    }}
+                    direction={{ xs: "column-reverse", sm: "row" }}
                     spacing={1}
+                    sx={{
+                        px: { xs: 2, sm: 3 },
+                        py: 2,
+                        pb: {
+                            xs: "calc(16px + env(safe-area-inset-bottom))",
+                            sm: 2,
+                        },
+                        justifyContent: "flex-end",
+                        "& .MuiButton-root": {
+                            width: { xs: "100%", sm: "auto" },
+                        },
+                    }}
                 >
-                    <AddToCalendarButton
-                        checkout={checkout}
-                        sx={{ width: "100%", color: "black" }}
-                    />
-                    {(user?.admin ||
-                        user?.equipment_admin ||
-                        user?.id === checkout.user_id) && (
+                    <AddToCalendarButton checkout={checkout} />
+                    {canManage && (
                         <>
                             <Button
-                                variant={"outlined"}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
+                                variant="outlined"
+                                color="error"
+                                onClick={handleCancel}
+                                startIcon={<DeleteOutlineIcon />}
+                            >
+                                Cancel reservation
+                            </Button>
+                            <Button
+                                variant="contained"
                                 onClick={handleEdit}
                                 startIcon={<EditIcon />}
                             >
                                 Edit
                             </Button>
-                            <Button
-                                variant={"outlined"}
-                                sx={{
-                                    width: "100%",
-                                    color: "black",
-                                }}
-                                onClick={handleCancel}
-                                startIcon={<DeleteOutlineIcon />}
-                            >
-                                Cancel
-                            </Button>
                         </>
                     )}
                 </Stack>
-            </Grid>
-        </Box>
+            </Box>
+        </>
     );
 };
 

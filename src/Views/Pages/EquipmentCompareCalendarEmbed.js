@@ -1,41 +1,35 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Box, Typography, useMediaQuery, useTheme, Chip } from "@mui/material";
+import { Box, Typography, Stack, Chip, Alert } from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import axios from "axios";
 
-// Color palette for multiple equipment
-const COLOR_PALETTE = [
-    "#667eea", // Purple
-    "#f093fb", // Pink
-    "#4facfe", // Blue
-    "#43e97b", // Green
-    "#fa709a", // Rose
-    "#fee140", // Yellow
-    "#30cfd0", // Cyan
-    "#a8edea", // Mint
-    "#ff9a56", // Orange
-    "#b490ca", // Lavender
-    "#f5576c", // Red
-    "#4fd1c5", // Teal
-];
+import useResponsive from "../../hooks/useResponsive";
+import { equipmentColor } from "../Components/UI/equipmentPalette";
+import "../Components/UI/fullcalendar.css";
 
+/**
+ * Read-only comparison calendar for embedding elsewhere.
+ *
+ * Unlike the in-app version this has no controls — but it does now show a
+ * legend, since without one the event colors are unreadable to someone who
+ * didn't build the URL.
+ */
 const EquipmentCompareCalendarEmbed = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+    const { isCompact } = useResponsive();
 
-    // Parse equipment IDs from query params
     const equipmentIds =
         searchParams
             .get("ids")
             ?.split(",")
-            .map((id) => parseInt(id))
-            .filter((id) => !isNaN(id)) || [];
+            .map((id) => parseInt(id, 10))
+            .filter((id) => !Number.isNaN(id)) || [];
 
     const [equipmentList, setEquipmentList] = useState([]);
     const [checkouts, setCheckouts] = useState([]);
@@ -43,92 +37,95 @@ const EquipmentCompareCalendarEmbed = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Check if user is authenticated
-        const token = localStorage.getItem("authToken");
-        if (!token) {
-            setError("Authentication required. Please log in first.");
-            // Redirect to login after 2 seconds
-            setTimeout(() => navigate("/login"), 2000);
-        } else if (equipmentIds.length === 0) {
-            setError("No equipment selected for comparison");
-        } else {
-            fetchAllEquipment();
+        if (!localStorage.getItem("authToken")) {
+            setError("Authentication required — please sign in first.");
+            const timer = setTimeout(() => navigate("/login"), 2000);
+            return () => clearTimeout(timer);
         }
+        if (equipmentIds.length === 0) {
+            setError("No equipment selected for comparison.");
+            return undefined;
+        }
+        fetchAllEquipment();
+        return undefined;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate, searchParams]);
 
-    // Refetch checkouts when equipment list changes
     useEffect(() => {
         if (equipmentList.length > 0 && dateRange.start && dateRange.end) {
             fetchCheckouts(dateRange.start, dateRange.end);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [equipmentList]);
+
+    const authHeaders = () => ({
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+    });
 
     const fetchAllEquipment = async () => {
         try {
-            const token = localStorage.getItem("authToken");
-            const promises = equipmentIds.map((id) =>
-                axios.get(`/api/equipment/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                }),
+            const responses = await Promise.all(
+                equipmentIds.map((id) =>
+                    axios.get(`/api/equipment/${id}`, authHeaders()),
+                ),
             );
-            const responses = await Promise.all(promises);
-            // Filter out equipment where can_book is false
-            const validEquipment = responses
-                .map((r) => r.data)
-                .filter((eq) => eq.can_book !== false);
-            setEquipmentList(validEquipment);
-        } catch (error) {
-            console.error("Error fetching equipment:", error);
-            setError("Failed to load equipment data");
+            setEquipmentList(
+                responses.map((r) => r.data).filter((eq) => eq.can_book !== false),
+            );
+        } catch (err) {
+            console.error("Error fetching equipment:", err);
+            setError("Failed to load equipment data.");
         }
     };
 
     const fetchCheckouts = async (start, end) => {
         try {
-            const token = localStorage.getItem("authToken");
-
-            // Build query params
             const params = {};
             if (start) params.start = start;
             if (end) params.end = end;
 
-            // Fetch checkouts for all equipment
-            const promises = equipmentIds.map((id) =>
-                axios.get(`/api/checkouts/equipment/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    params,
-                }),
+            const responses = await Promise.all(
+                equipmentIds.map((id) =>
+                    axios.get(`/api/checkouts/equipment/${id}`, {
+                        ...authHeaders(),
+                        params,
+                    }),
+                ),
             );
 
-            const responses = await Promise.all(promises);
+            setCheckouts(
+                responses.flatMap((response, index) => {
+                    const equipmentId = equipmentIds[index];
+                    const equipment = equipmentList[index];
+                    const color = equipmentColor(index);
 
-            // Combine and color-code events
-            const allEvents = responses.flatMap((response, index) => {
-                const equipmentId = equipmentIds[index];
-                const equipment = equipmentList[index];
-                const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
+                    return response.data
+                        .filter((c) => c.status !== "cancelled")
+                        .map((checkout) => {
+                            const who =
+                                checkout.scheduled_on_behalf_of ||
+                                (checkout.User
+                                    ? `${checkout.User.first_name} ${checkout.User.last_name}`
+                                    : "Checkout");
 
-                return response.data
-                    .filter((c) => c.status !== "cancelled")
-                    .map((checkout) => ({
-                        id: `eq${equipmentId}-${checkout.id}`,
-                        title: `${equipment?.name || `Equipment ${index + 1}`}: ${
-                            checkout.scheduled_on_behalf_of ||
-                            (checkout.User
-                                ? `${checkout.User.first_name} ${checkout.User.last_name}`
-                                : "Checkout")
-                        }${checkout.isRecurring ? " ↻" : ""}`,
-                        start: checkout.start_time,
-                        end: checkout.end_time,
-                        backgroundColor: color,
-                        borderColor: color,
-                    }));
-            });
-
-            setCheckouts(allEvents);
-        } catch (error) {
-            console.error("Error fetching checkouts:", error);
-            setError("Failed to load checkout data");
+                            return {
+                                id: `eq${equipmentId}-${checkout.id}`,
+                                title: `${
+                                    equipment?.name || `Equipment ${index + 1}`
+                                }: ${who}${checkout.isRecurring ? " ↻" : ""}`,
+                                start: checkout.start_time,
+                                end: checkout.end_time,
+                                backgroundColor: color,
+                                borderColor: color,
+                            };
+                        });
+                }),
+            );
+        } catch (err) {
+            console.error("Error fetching checkouts:", err);
+            setError("Failed to load reservation data.");
         }
     };
 
@@ -136,15 +133,22 @@ const EquipmentCompareCalendarEmbed = () => {
         return (
             <Box
                 sx={{
-                    width: "100vw",
-                    height: "100vh",
+                    minHeight: "100dvh",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "white",
+                    p: 3,
+                    bgcolor: "background.default",
                 }}
             >
-                <Typography color="error">{error}</Typography>
+                <Stack alignItems="center" spacing={2}>
+                    <LockOutlinedIcon
+                        sx={{ fontSize: 36, color: "text.disabled" }}
+                    />
+                    <Alert severity="error" sx={{ boxShadow: "none" }}>
+                        <Typography variant="body2">{error}</Typography>
+                    </Alert>
+                </Stack>
             </Box>
         );
     }
@@ -152,29 +156,58 @@ const EquipmentCompareCalendarEmbed = () => {
     return (
         <Box
             sx={{
-                width: "100vw",
-                height: "100vh",
-                overflow: "hidden",
-                backgroundColor: "white",
+                minHeight: "100dvh",
+                p: { xs: 1, sm: 2 },
+                bgcolor: "background.paper",
             }}
         >
-            {/* Calendar Only - No Legend */}
+            {equipmentList.length > 0 && (
+                <Stack
+                    direction="row"
+                    spacing={0.75}
+                    sx={{ mb: 1.5, flexWrap: "wrap", gap: 0.75 }}
+                >
+                    {equipmentList.map((equipment, index) => (
+                        <Chip
+                            key={equipment.id}
+                            size="small"
+                            variant="outlined"
+                            icon={
+                                <Box
+                                    component="span"
+                                    sx={{
+                                        width: 9,
+                                        height: 9,
+                                        borderRadius: "3px",
+                                        bgcolor: equipmentColor(index),
+                                        ml: "9px !important",
+                                        mr: "-3px !important",
+                                        flexShrink: 0,
+                                    }}
+                                />
+                            }
+                            label={equipment.name}
+                        />
+                    ))}
+                </Stack>
+            )}
+
             <FullCalendar
                 key={checkouts.length}
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView={isMobile ? "timeGridDay" : "dayGridMonth"}
+                initialView={isCompact ? "timeGridDay" : "dayGridMonth"}
                 headerToolbar={{
                     left: "prev,next today",
                     center: "title",
-                    right: isMobile
+                    right: isCompact
                         ? "timeGridDay"
                         : "dayGridMonth,timeGridWeek,timeGridDay",
                 }}
                 editable={false}
                 selectable={false}
                 selectMirror={false}
-                dayMaxEvents={true}
-                weekends={true}
+                dayMaxEvents
+                weekends
                 events={checkouts}
                 datesSet={(dateInfo) => {
                     const start = dateInfo.start.toISOString();
@@ -182,16 +215,13 @@ const EquipmentCompareCalendarEmbed = () => {
                     setDateRange({ start, end });
                     fetchCheckouts(start, end);
                 }}
-                height="100%"
+                height="auto"
                 slotMinTime="06:00:00"
                 slotMaxTime="22:00:00"
                 eventMinHeight={20}
-                slotEventOverlap={true}
+                slotEventOverlap
                 allDaySlot={false}
-                eventClick={(info) => {
-                    // Prevent default action
-                    info.jsEvent.preventDefault();
-                }}
+                eventClick={(info) => info.jsEvent.preventDefault()}
             />
         </Box>
     );

@@ -1,127 +1,122 @@
 import React, { useState } from "react";
-import {
-    Dialog,
-    DialogContent,
-    IconButton,
-    Box,
-    Stack,
-    useMediaQuery,
-} from "@mui/material";
+import { Dialog, IconButton, Box } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import { FadeTransition } from "../Views/Components/UI/motion";
 
+/**
+ * An image that opens full size in a lightbox when clicked.
+ *
+ * Matches the equipment photo lightbox: the enlarged image sits on a dimmed
+ * backdrop with a floating close button, rather than inside a white card.
+ */
 const ImageViewer = ({ src, alt, style, clickable = true }) => {
     const [dialogOpen, setDialogOpen] = useState(false);
-    const downMD = useMediaQuery((theme) => theme.breakpoints.down("md"));
-
-    const handleImageClick = () => {
-        if (clickable) {
-            setDialogOpen(true);
-        }
-    };
-
-    const handleDialogClose = () => {
-        setDialogOpen(false);
-    };
-
-    const handleBackdropClick = (event) => {
-        if (event.target === event.currentTarget) {
-            setDialogOpen(false);
-        }
-    };
 
     return (
         <>
-            <img
-                src={src}
-                alt={alt}
-                style={{
-                    ...style,
-                    cursor: clickable ? "pointer" : "default",
-                    transition: clickable ? "opacity 0.2s" : "none",
+            <Box
+                sx={{
+                    position: "relative",
+                    display: "inline-flex",
+                    overflow: "hidden",
+                    cursor: clickable ? "zoom-in" : "default",
+                    "&:hover .image-viewer-overlay": { opacity: 1 },
                 }}
-                onClick={handleImageClick}
-                onMouseEnter={
-                    clickable
-                        ? (e) => (e.target.style.opacity = "0.8")
-                        : undefined
-                }
-                onMouseLeave={
-                    clickable
-                        ? (e) => (e.target.style.opacity = "1")
-                        : undefined
-                }
-            />
+                onClick={() => clickable && setDialogOpen(true)}
+            >
+                <Box
+                    component="img"
+                    src={src}
+                    alt={alt}
+                    sx={{
+                        display: "block",
+                        transition: "transform 320ms cubic-bezier(0.22,1,0.36,1)",
+                        ...(clickable && {
+                            "&:hover": { transform: "scale(1.02)" },
+                        }),
+                        ...style,
+                    }}
+                />
+
+                {clickable && (
+                    <Box
+                        className="image-viewer-overlay"
+                        sx={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            bgcolor: "rgba(20,24,31,0.28)",
+                            opacity: 0,
+                            transition: "opacity 220ms ease",
+                            pointerEvents: "none",
+                        }}
+                    >
+                        <ZoomInIcon
+                            sx={{ fontSize: 28, color: "common.white" }}
+                        />
+                    </Box>
+                )}
+            </Box>
 
             {clickable && (
                 <Dialog
                     open={dialogOpen}
-                    onClose={handleDialogClose}
-                    maxWidth="md"
-                    fullWidth
+                    onClose={() => setDialogOpen(false)}
+                    maxWidth={false}
+                    TransitionComponent={FadeTransition}
                     PaperProps={{
-                        style: {
-                            backgroundColor: "transparent",
+                        sx: {
+                            bgcolor: "transparent",
                             boxShadow: "none",
+                            m: { xs: 1, sm: 3 },
+                            maxWidth: "min(1200px, 96vw)",
+                            maxHeight: "94vh",
+                            overflow: "visible",
+                            "&::before": { display: "none" },
+                        },
+                    }}
+                    slotProps={{
+                        backdrop: {
+                            sx: {
+                                bgcolor: "rgba(10,12,16,0.88)",
+                                backdropFilter: "blur(6px)",
+                            },
                         },
                     }}
                 >
-                    <DialogContent
-                        sx={{
-                            padding: 2,
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            overflow: "hidden",
-                        }}
-                        onClick={handleBackdropClick}
-                    >
-                        <Stack direction={"column"}>
-                            <IconButton
-                                onClick={handleDialogClose}
-                                size="small"
-                                sx={{
-                                    right: 0,
-                                    top: 10,
-                                    color: "white",
-                                    backgroundColor: "rgba(0, 0, 0, 0.7)",
-                                    width: 24,
-                                    height: 24,
-                                    zIndex: 1,
-                                    justifySelf: "right",
-                                    "&:hover": {
-                                        backgroundColor: "rgba(0, 0, 0, 0.9)",
-                                    },
-                                }}
-                            >
-                                <CloseIcon fontSize="small" />
-                            </IconButton>
-                            <Box
-                                sx={{
-                                    backgroundColor: "white",
-                                    borderRadius: "8px",
-                                    padding: "16px",
-                                    minWidth: downMD ? "70vw" : "30vw",
-                                    minHeight: downMD ? "70vw" : "30vh",
-                                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <img
-                                    src={src}
-                                    alt={`${alt} - full size`}
-                                    style={{
-                                        width: "100%",
-                                        height: "auto",
-                                        maxWidth: "80vw",
-                                        maxHeight: "75vh",
-                                        objectFit: "contain",
-                                        borderRadius: "4px",
-                                        display: "block",
-                                    }}
-                                />
-                            </Box>
-                        </Stack>
-                    </DialogContent>
+                    <Box sx={{ position: "relative", lineHeight: 0 }}>
+                        <Box
+                            component="img"
+                            src={src}
+                            alt={`${alt} — full size`}
+                            sx={{
+                                display: "block",
+                                width: "100%",
+                                height: "auto",
+                                maxHeight: "90vh",
+                                objectFit: "contain",
+                                borderRadius: 2,
+                            }}
+                        />
+                        <IconButton
+                            aria-label="Close"
+                            onClick={() => setDialogOpen(false)}
+                            sx={{
+                                position: "absolute",
+                                top: 10,
+                                right: 10,
+                                bgcolor: "rgba(20,24,31,0.55)",
+                                color: "common.white",
+                                backdropFilter: "blur(8px)",
+                                "&:hover": { bgcolor: "rgba(20,24,31,0.78)" },
+                            }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
                 </Dialog>
             )}
         </>
