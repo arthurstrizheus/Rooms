@@ -666,9 +666,14 @@ export default function Users({ setLoading }) {
                 </Table>
             </TableContainer>
 
-            <Divider />
+            <Divider sx={{ flexShrink: 0 }} />
+            {/* `flexShrink: 0` is load-bearing. MuiTablePagination-root sets
+                `overflow: auto`, which gives it an automatic flex minimum of
+                zero -- so as a sibling of a very tall table it absorbed part
+                of the shrink and got clipped off the bottom of the card. */}
             <TablePagination
                 component="div"
+                sx={{ flexShrink: 0 }}
                 count={rows.length}
                 rowsPerPage={rowsPerPage}
                 page={page}

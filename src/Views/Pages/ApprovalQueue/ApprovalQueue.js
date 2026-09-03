@@ -530,9 +530,13 @@ export default function ApprovalQueue({ setLoading }) {
                 </Table>
             </TableContainer>
 
-            <Divider />
+            <Divider sx={{ flexShrink: 0 }} />
+            {/* MuiTablePagination-root is `overflow: auto`, so its automatic
+                flex minimum is zero and it will happily be squashed off the
+                bottom of the card by the table above it. */}
             <TablePagination
                 component="div"
+                sx={{ flexShrink: 0 }}
                 count={checkouts.length}
                 rowsPerPage={rowsPerPage}
                 page={page}

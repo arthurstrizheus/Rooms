@@ -27,6 +27,14 @@ import { PageHeader, PageContainer, SectionCard, RiseIn } from "../../Components
 // Password management lives in Active Directory — the local change-password
 // form that used to sit here was already commented out and has been removed.
 
+// Named, because the identity banner's layout is arithmetic between them: the
+// avatar is positioned against the banner, and the content below is inset to
+// clear the avatar. Changing one without the others is what makes these
+// headers drift out of alignment.
+const BANNER_HEIGHT = 76;
+const AVATAR_SIZE = 76;
+const AVATAR_OVERLAP = 38; // how far the avatar rides up onto the banner
+
 const ROLES = [
     { key: "admin", label: "Administrator" },
     { key: "equipment_admin", label: "Equipment Admin" },
@@ -142,36 +150,57 @@ const MyAccount = ({ setLoading }) => {
                         <Box
                             aria-hidden
                             sx={{
-                                height: 76,
+                                height: BANNER_HEIGHT,
                                 background: (t) =>
                                     `linear-gradient(120deg, ${t.palette.primary.main} 0%, ${t.palette.primary.dark} 100%)`,
                             }}
                         />
+
+                        {/* Positioned rather than pulled up with a negative
+                            margin on the whole row. Bottom-aligning the text to
+                            an avatar that overlaps the banner put the name's
+                            top ABOVE the banner's edge -- the taller the name,
+                            the further it rode up into the red. Taking the
+                            avatar out of flow lets the text start cleanly below
+                            the banner at every size. */}
+                        <Avatar
+                            sx={{
+                                position: "absolute",
+                                top: BANNER_HEIGHT - AVATAR_OVERLAP,
+                                left: { xs: 16, sm: 24 },
+                                width: AVATAR_SIZE,
+                                height: AVATAR_SIZE,
+                                fontSize: "1.5rem",
+                                fontWeight: 700,
+                                border: "3px solid",
+                                borderColor: "background.paper",
+                                bgcolor: "primary.50",
+                                color: "primary.dark",
+                                boxShadow: (t) => t.shadowTokens.md,
+                                animation:
+                                    "seaScaleIn 460ms cubic-bezier(0.34,1.56,0.64,1) both",
+                            }}
+                        >
+                            {initials || "?"}
+                        </Avatar>
+
                         <Stack
                             direction={{ xs: "column", sm: "row" }}
                             spacing={2}
-                            alignItems={{ xs: "flex-start", sm: "flex-end" }}
-                            sx={{ px: { xs: 2, sm: 3 }, pb: 2.5, mt: -4.5 }}
+                            alignItems={{ xs: "flex-start", sm: "center" }}
+                            sx={{
+                                px: { xs: 2, sm: 3 },
+                                // Stacked below the avatar on a phone; beside it
+                                // from sm up, where the left inset clears it.
+                                pt: {
+                                    xs: `${AVATAR_SIZE - AVATAR_OVERLAP + 12}px`,
+                                    sm: 2,
+                                },
+                                pl: { sm: `${24 + AVATAR_SIZE + 16}px` },
+                                pb: 2.5,
+                            }}
                         >
-                            <Avatar
-                                sx={{
-                                    width: 76,
-                                    height: 76,
-                                    fontSize: "1.5rem",
-                                    fontWeight: 700,
-                                    border: "3px solid",
-                                    borderColor: "background.paper",
-                                    bgcolor: "primary.50",
-                                    color: "primary.dark",
-                                    boxShadow: (t) => t.shadowTokens.md,
-                                    animation:
-                                        "seaScaleIn 460ms cubic-bezier(0.34,1.56,0.64,1) both",
-                                }}
-                            >
-                                {initials || "?"}
-                            </Avatar>
-
-                            <Box sx={{ flexGrow: 1, minWidth: 0, pb: 0.5 }}>
+                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                                 <Typography variant="h4" noWrap>
                                     {user?.first_name} {user?.last_name}
                                 </Typography>
@@ -200,7 +229,7 @@ const MyAccount = ({ setLoading }) => {
                             <Stack
                                 direction="row"
                                 spacing={0.75}
-                                sx={{ flexWrap: "wrap", gap: 0.75, pb: 0.5 }}
+                                sx={{ flexWrap: "wrap", gap: 0.75 }}
                             >
                                 {activeRoles.length > 0 ? (
                                     activeRoles.map((role) => (
@@ -367,42 +396,49 @@ const MyAccount = ({ setLoading }) => {
                         animationDelay: "150ms",
                     }}
                 >
-                    <Stack
-                        divider={<Divider flexItem />}
-                        sx={{ "& > *": { py: 1.25 }, "& > *:first-of-type": { pt: 0 } }}
-                    >
-                        {ROLES.map((role) => (
-                            <Stack
-                                key={role.key}
-                                direction="row"
-                                alignItems="center"
-                                spacing={1.5}
-                            >
-                                <Typography
-                                    variant="body2"
-                                    sx={{ flexGrow: 1, fontWeight: 550 }}
+                    {/* Only what this person actually has. Listing every role
+                        with a dash beside it made the section read as a list of
+                        things they were missing, which is not what anyone came
+                        here to find out. */}
+                    {activeRoles.length > 0 ? (
+                        <Stack
+                            divider={<Divider flexItem />}
+                            sx={{
+                                "& > *": { py: 1.25 },
+                                "& > *:first-of-type": { pt: 0 },
+                            }}
+                        >
+                            {activeRoles.map((role) => (
+                                <Stack
+                                    key={role.key}
+                                    direction="row"
+                                    alignItems="center"
+                                    spacing={1.5}
                                 >
-                                    {role.label}
-                                </Typography>
-                                <Chip
-                                    size="small"
-                                    label={user?.[role.key] ? "Granted" : "—"}
-                                    sx={
-                                        user?.[role.key]
-                                            ? {
-                                                  bgcolor: "success.light",
-                                                  color: "success.dark",
-                                                  fontWeight: 600,
-                                              }
-                                            : {
-                                                  bgcolor: "grey.100",
-                                                  color: "text.disabled",
-                                              }
-                                    }
-                                />
-                            </Stack>
-                        ))}
-                    </Stack>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ flexGrow: 1, fontWeight: 550 }}
+                                    >
+                                        {role.label}
+                                    </Typography>
+                                    <Chip
+                                        size="small"
+                                        label="Granted"
+                                        sx={{
+                                            bgcolor: "success.light",
+                                            color: "success.dark",
+                                            fontWeight: 600,
+                                        }}
+                                    />
+                                </Stack>
+                            ))}
+                        </Stack>
+                    ) : (
+                        <Typography variant="body2" color="text.secondary">
+                            You have standard access: browse equipment, make
+                            reservations and manage your own bookings.
+                        </Typography>
+                    )}
                     <Typography
                         variant="caption"
                         color="text.secondary"
