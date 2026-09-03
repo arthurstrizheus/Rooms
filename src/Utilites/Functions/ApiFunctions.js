@@ -419,3 +419,50 @@ export async function CreateSupportTicket(payload) {
         };
     }
 }
+
+// ------------------ ACTIVE DIRECTORY ------------------------
+/**
+ * Search Active Directory groups by name.
+ *
+ * Fails silently on purpose: this runs from a debounced keystroke handler, so a
+ * snackbar per failed lookup would bury the screen. The caller shows the empty
+ * result as "no groups match" instead.
+ *
+ * `signal` lets the caller abort a superseded request — the server returns the
+ * whole matching set, so a slow early query is pure waste once it is stale.
+ *
+ * @param {string} search  at least 2 characters; the server returns [] below that
+ * @param {{signal?: AbortSignal}} options
+ * @returns {Promise<Array<{name: string, dn: string, description: string}>>}
+ */
+export async function SearchAdGroups(search, { signal } = {}) {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.get(`/api/users/ad/groups`, {
+            params: { search },
+            headers: { Authorization: `Bearer ${token}` },
+            signal,
+        });
+        const errorCheck = handleApiResponseError(resp);
+        if (errorCheck.isError) return { configured: true, groups: [] };
+
+        // The endpoint answers with { configured, groups }; a bare array is
+        // accepted too so this keeps working either way.
+        //
+        // `configured` is passed through rather than discarded: without it, a
+        // server with no LDAP set up is indistinguishable from a search that
+        // simply matched nothing, and the picker would tell an admin "no
+        // groups match" forever while they tried different spellings.
+        if (Array.isArray(resp.data)) {
+            return { configured: true, groups: resp.data };
+        }
+        return {
+            configured: resp.data?.configured !== false,
+            groups: Array.isArray(resp.data?.groups) ? resp.data.groups : [],
+        };
+    } catch (err) {
+        // A failed call is not evidence the directory is unconfigured, so
+        // don't claim it is — that would be a misleading message on a blip.
+        return { configured: true, groups: [] };
+    }
+}

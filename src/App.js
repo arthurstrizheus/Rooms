@@ -125,6 +125,7 @@ function AppShell() {
             loading={loading}
             drawerOpen={sidebarOpen}
             setDrawerOpen={setSidebarOpen}
+            approvalCount={approvalCount}
         />
     );
 

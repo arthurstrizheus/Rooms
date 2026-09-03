@@ -153,6 +153,25 @@ export function itemForPath(pathname, user, ctx = {}) {
     return visibleItems(user, ctx).find((item) => item.match(pathname));
 }
 
+/**
+ * May this user open this path?
+ *
+ * Routes.js calls this instead of restating each item's `can`, which is the
+ * only way the two actually stay in step — a hand-copied guard drifted almost
+ * immediately, and the divergence hid the approval queue from exactly the
+ * people who had something waiting in it.
+ *
+ * Unknown paths are permitted: this answers "is this item hidden from you",
+ * and pages with no nav entry (equipment detail, calendars) are not.
+ */
+export function canAccessPath(pathname, user, ctx = {}) {
+    const item = NAV_SECTIONS.flatMap((section) => section.items).find((i) =>
+        i.match(pathname),
+    );
+    if (!item) return true;
+    return item.can ? Boolean(item.can(user, ctx)) : true;
+}
+
 // ---------------------------------------------------------------------------
 // Page titles
 // ---------------------------------------------------------------------------

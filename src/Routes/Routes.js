@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../Utilites/AuthContext";
+import { canAccessPath } from "../Views/Components/Shell/navConfig";
 import LogIn from "../Views/Pages/Login/Login";
 import MyCheckouts from "../Views/Pages/MyCheckouts/index";
 import MyAccount from "../Views/Pages/MyAccount/MyAccount";
@@ -24,6 +25,7 @@ const AppRoutes = ({
     loading,
     drawerOpen,
     setDrawerOpen,
+    approvalCount = 0,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
@@ -121,10 +123,25 @@ const AppRoutes = ({
                     <MyAccount setLoading={setLoading} loading={loading} />
                 }
             />
+            {/* Guarded through navConfig rather than by restating the roles,
+                so the route and the nav entry cannot disagree. They already
+                had: a named approver who is not an administrator sees the
+                item and the badge, and a hand-written role check here would
+                404 them out of the queue they were told to look at. Now that
+                the pending-approvals endpoint is scoped, a non-zero count
+                means "you have something to approve" and is a real
+                credential. */}
             <Route
                 path="/approve"
                 element={
-                    <ApprovalQueue setLoading={setLoading} loading={loading} />
+                    canAccessPath("/approve", user, { approvalCount }) ? (
+                        <ApprovalQueue
+                            setLoading={setLoading}
+                            loading={loading}
+                        />
+                    ) : (
+                        <NotFoundPage />
+                    )
                 }
             />
             <Route

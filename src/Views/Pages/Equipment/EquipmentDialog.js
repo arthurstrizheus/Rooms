@@ -14,10 +14,12 @@ import {
     Stack,
     Divider,
     Alert,
+    Collapse,
 } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 import ResponsiveDialog from "../../Components/UI/ResponsiveDialog";
+import ApproverPicker from "../../Components/Equipment/ApproverPicker";
 
 // ---------------------------------------------------------------------------
 // State tax resources
@@ -400,6 +402,68 @@ const EquipmentDialog = ({
                                     rows={2}
                                     fullWidth
                                 />
+                            </Grid>
+                        </Grid>
+                    </FormSection>
+
+                    {/* ---- Approval ---- */}
+                    <FormSection
+                        title="Approval"
+                        hint="Who signs off before a reservation of this item is confirmed."
+                    >
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={4}>
+                                <TextField
+                                    select
+                                    label="Needs approval"
+                                    // Older rows predate the column, so the
+                                    // value can arrive null — coerce it or the
+                                    // Select flips from uncontrolled on first
+                                    // edit.
+                                    value={!!formData.requires_approval}
+                                    required
+                                    onChange={(e) => {
+                                        clearFieldError("requires_approval");
+                                        set({
+                                            requires_approval: e.target.value,
+                                        });
+                                    }}
+                                    fullWidth
+                                    error={!!fieldErrors.requires_approval}
+                                    helperText={
+                                        fieldErrors.requires_approval
+                                            ? "Required."
+                                            : "Reservations wait for sign-off"
+                                    }
+                                    SelectProps={{
+                                        inputProps: {
+                                            name: "requires_approval",
+                                            "data-label": "Needs Approval",
+                                        },
+                                    }}
+                                >
+                                    <MenuItem value={true}>Yes</MenuItem>
+                                    <MenuItem value={false}>No</MenuItem>
+                                </TextField>
+                            </Grid>
+
+                            <Grid item xs={12}>
+                                {/* Kept mounted so the picker's in-flight AD
+                                    search and typed text survive a toggle. */}
+                                <Collapse
+                                    in={!!formData.requires_approval}
+                                    timeout={280}
+                                >
+                                    <Box sx={{ pt: 0.5 }}>
+                                        <ApproverPicker
+                                            value={formData.approvers || []}
+                                            onChange={(approvers) =>
+                                                set({ approvers })
+                                            }
+                                            users={users}
+                                        />
+                                    </Box>
+                                </Collapse>
                             </Grid>
                         </Grid>
                     </FormSection>

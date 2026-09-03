@@ -1,6 +1,8 @@
 const {
+    sequelize,
     Equipment,
     EquipmentFile,
+    EquipmentApprover,
     Checkout,
     User,
     AssetTaxMeta,
@@ -8,6 +10,10 @@ const {
 const path = require("path");
 const fs = require("fs");
 const { GetSubscribers } = require("./equipmentAlertController");
+const {
+    ValidateApproverInput,
+    ReplaceApproversForEquipment,
+} = require("./equipmentApproverController");
 const { sendEquipmentStatusChangeEmail } = require("./mailController");
 const {
     validateSection179,
@@ -18,6 +24,11 @@ const {
 
 const GetAll = async (req, res, next) => {
     try {
+        // Approvers are deliberately NOT included here. This is the whole
+        // equipment list and nothing on the list screen renders them; joining
+        // two more tables (and a second User alias) onto every row to hydrate
+        // a form that only ever opens for one item is not worth it. The edit
+        // form gets them from GetById.
         const equipment = await Equipment.findAll({
             include: [
                 {
@@ -58,6 +69,24 @@ const GetById = async (req, res, next) => {
                     model: AssetTaxMeta,
                     as: "AssetTaxMeta",
                 },
+                // So the edit form can hydrate its approver picker in one call.
+                {
+                    model: EquipmentApprover,
+                    as: "Approvers",
+                    include: [
+                        {
+                            model: User,
+                            as: "ApproverUser",
+                            attributes: [
+                                "id",
+                                "first_name",
+                                "last_name",
+                                "email",
+                                "username",
+                            ],
+                        },
+                    ],
+                },
             ],
         });
 
@@ -74,6 +103,27 @@ const GetById = async (req, res, next) => {
 const Post = async (req, res, next) => {
     try {
         const equipmentData = req.body;
+
+        // Pulled off BEFORE the create: there is no field allow-list here, so
+        // an `approvers` array would otherwise go straight to Sequelize as if
+        // it were a column. `undefined` means "the caller didn't mention
+        // approvers", which is different from an empty array meaning "clear
+        // them" — so the key's presence is what decides whether we touch them.
+        const hasApproverInput =
+            Object.prototype.hasOwnProperty.call(equipmentData, "approvers");
+        const approverInput = equipmentData.approvers;
+        delete equipmentData.approvers;
+
+        // Validated before the equipment row exists, so a bad approver list is
+        // a plain 400 rather than an orphaned piece of equipment to clean up.
+        let validatedApprovers = null;
+        if (hasApproverInput) {
+            const validated = await ValidateApproverInput(approverInput);
+            if (validated.error) {
+                return res.status(400).json({ message: validated.error });
+            }
+            validatedApprovers = validated.approvers;
+        }
 
         // Clean up empty string date fields (set to null)
         if (equipmentData.last_calibration_date === "") {
@@ -197,6 +247,20 @@ const Post = async (req, res, next) => {
             });
         }
 
+        // Persisted after the tax validation above, which can still destroy
+        // the equipment we just created. The approver rows get their own
+        // transaction rather than sharing one with the create: the create is
+        // already committed by this point and the surrounding tax logic
+        // returns early from several branches, so bracketing the whole handler
+        // would change more control flow than it would protect.
+        if (validatedApprovers) {
+            await ReplaceApproversForEquipment(
+                equipment.id,
+                validatedApprovers,
+                req.user?.id,
+            );
+        }
+
         // Create uploads subdirectory for this equipment
         const equipmentDir = path.join(
             __dirname,
@@ -223,6 +287,24 @@ const Update = async (req, res, next) => {
     try {
         const { id } = req.params;
         const updates = req.body;
+
+        // Same reasoning as Post: no field allow-list, so `approvers` has to
+        // come off the body before it reaches `equipment.update`.
+        const hasApproverInput = Object.prototype.hasOwnProperty.call(
+            updates,
+            "approvers",
+        );
+        const approverInput = updates.approvers;
+        delete updates.approvers;
+
+        let validatedApprovers = null;
+        if (hasApproverInput) {
+            const validated = await ValidateApproverInput(approverInput);
+            if (validated.error) {
+                return res.status(400).json({ message: validated.error });
+            }
+            validatedApprovers = validated.approvers;
+        }
 
         // Clean up empty string fields (set to null)
         const stringFieldsToClean = [
@@ -297,7 +379,29 @@ const Update = async (req, res, next) => {
         // Track old status for comparison
         const oldStatus = equipment.status;
 
-        await equipment.update(updates);
+        if (validatedApprovers) {
+            // One transaction, so the equipment and the people allowed to
+            // approve it can never disagree — half-applied, a piece of
+            // equipment could be marked requires_approval with the previous
+            // owner's approvers still attached.
+            //
+            // Note that turning requires_approval OFF does not delete the
+            // approver rows. They are configuration, and losing them silently
+            // means rebuilding the list by hand the moment the flag goes back
+            // on. Rows only change when the caller explicitly sends
+            // `approvers`.
+            await sequelize.transaction(async (t) => {
+                await equipment.update(updates, { transaction: t });
+                await ReplaceApproversForEquipment(
+                    equipment.id,
+                    validatedApprovers,
+                    req.user?.id,
+                    t,
+                );
+            });
+        } else {
+            await equipment.update(updates);
+        }
 
         // Update or create AssetTaxMeta if depreciation fields provided
         const taxMetaFields = {

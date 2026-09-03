@@ -50,6 +50,7 @@ import useAlertDialog from "../../../hooks/useAlertDialog";
 import useLocalStorage from "../../../hooks/useLocalStorage";
 import useResponsive from "../../../hooks/useResponsive";
 import EquipmentDialog from "./EquipmentDialog";
+import { toApproverFormValues } from "../../Components/Equipment/ApproverPicker";
 import {
     PageHeader,
     PageContainer,
@@ -140,6 +141,7 @@ const Equipment = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        approvers: [],
         billing_rate: "",
         billing_code: "",
         date_of_purchase: "",
@@ -281,6 +283,20 @@ const Equipment = ({ setLoading, loading }) => {
         }
     };
 
+    /** The approver set for one item, in the shape the edit form posts back. */
+    const fetchApprovers = async (equipmentId) => {
+        try {
+            const token = localStorage.getItem("authToken");
+            const response = await axios.get(`/api/equipment/${equipmentId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            return toApproverFormValues(response.data?.Approvers);
+        } catch (error) {
+            console.error("Error fetching equipment approvers:", error);
+            return [];
+        }
+    };
+
     const isEquipmentCurrentlyCheckedOut = (equipmentId) => {
         const now = new Date();
         return activeCheckouts.some((checkout) => {
@@ -313,11 +329,12 @@ const Equipment = ({ setLoading, loading }) => {
         }
     };
 
-    const handleOpenDialog = (item = null) => {
+    const handleOpenDialog = async (item = null) => {
         if (item) {
             setSelectedEquipment(item);
             setFormData({
                 ...item,
+                approvers: toApproverFormValues(item.Approvers),
                 last_calibration_date: item.last_calibration_date
                     ? new Date(item.last_calibration_date)
                           .toISOString()
@@ -343,36 +360,47 @@ const Equipment = ({ setLoading, loading }) => {
                     : "",
                 brand_name: item?.brand_name || "",
             });
-        } else {
-            setSelectedEquipment(null);
-            setFormData({
-                name: "",
-                description: "",
-                asset_number: "",
-                serial_number: "",
-                cost: "",
-                location: "",
-                contact_person: "",
-                contact_person_id: null,
-                status: "available",
-                requires_approval: false,
-                billing_rate: "",
-                billing_code: "",
-                date_of_purchase: "",
-                brand_name: "",
-                can_book: true,
-                last_calibration_date: "",
-                calibration_interval_value: "",
-                calibration_interval_unit: "days",
-                placed_in_service_date: "",
-                cost_basis: "",
-                property_class: "5yr",
-                method: "MACRS",
-                bonus_eligible: true,
-                section179_elected: "",
-                vehicle_class: "UNKNOWN",
-            });
+            setOpenDialog(true);
+
+            // The list payload is trimmed and need not carry Approvers; only
+            // the detail record is contracted to. Without this top-up, saving
+            // from the list would post an empty set and wipe the approvers.
+            if (!Array.isArray(item.Approvers)) {
+                const approvers = await fetchApprovers(item.id);
+                setFormData((prev) => ({ ...prev, approvers }));
+            }
+            return;
         }
+
+        setSelectedEquipment(null);
+        setFormData({
+            name: "",
+            description: "",
+            asset_number: "",
+            serial_number: "",
+            cost: "",
+            location: "",
+            contact_person: "",
+            contact_person_id: null,
+            status: "available",
+            requires_approval: false,
+            approvers: [],
+            billing_rate: "",
+            billing_code: "",
+            date_of_purchase: "",
+            brand_name: "",
+            can_book: true,
+            last_calibration_date: "",
+            calibration_interval_value: "",
+            calibration_interval_unit: "days",
+            placed_in_service_date: "",
+            cost_basis: "",
+            property_class: "5yr",
+            method: "MACRS",
+            bonus_eligible: true,
+            section179_elected: "",
+            vehicle_class: "UNKNOWN",
+        });
         setOpenDialog(true);
     };
 

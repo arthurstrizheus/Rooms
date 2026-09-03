@@ -16,12 +16,20 @@ const {
 } = require("./checkoutRecurrenceController");
 const { GetSubscribers } = require("./equipmentAlertController");
 const {
+    GetApproverEmails,
+    CanUserApprove,
+    FilterApprovableEquipmentIds,
+} = require("./equipmentApproverController");
+const {
     sendCheckoutCreatedEmail,
     sendEquipmentCheckedOutEmail,
     sendEquipmentReturnedEmail,
     sendEquipmentAvailableEmail,
     sendCheckoutCancelledEmail,
     sendScheduledOnBehalfEmail,
+    sendCheckoutApprovalRequestEmail,
+    sendCheckoutApprovedEmail,
+    sendCheckoutDeclinedEmail,
 } = require("./mailController");
 
 // Helper function to check if two time ranges overlap
@@ -222,6 +230,108 @@ const toConflictWindow = (existing) => ({
     start_time: existing.start_time,
     end_time: existing.end_time,
 });
+
+/**
+ * Was this reservation booked on behalf of the given user?
+ *
+ * `scheduled_on_behalf_of` is a free-text name rather than a user id, so the
+ * only way to answer is to match the name back to a row. Extracted because the
+ * cancel path in Delete and the status path in Update both need exactly this
+ * question and had drifted to only one of them asking it.
+ */
+const isScheduledOnBehalfOfUser = async (checkout, userId) => {
+    if (!checkout?.scheduled_on_behalf_of || !userId) return false;
+
+    const nameParts = checkout.scheduled_on_behalf_of.split(" ");
+    if (nameParts.length < 2) return false;
+
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ");
+
+    // Op.iLike is PostgreSQL-only and threw against this MSSQL connection.
+    // MSSQL collations are case-insensitive by default, so Op.like already
+    // gives the intended match.
+    const scheduledForUser = await User.findOne({
+        where: {
+            first_name: { [Sequelize.Op.like]: firstName },
+            last_name: { [Sequelize.Op.like]: lastName },
+        },
+    });
+
+    return Boolean(scheduledForUser && scheduledForUser.id === userId);
+};
+
+/**
+ * Approval notifications.
+ *
+ * Deliberately fire-and-forget, matching how the rest of this controller sends
+ * mail after responding: a slow mail server must not hold the HTTP response,
+ * and a dead one must not fail a decision that has already been written.
+ *
+ * All three of these emails were written, exported and then never called from
+ * anywhere. Until now a reservation could sit pending with nobody told it
+ * existed, and be approved or declined with nobody told the outcome.
+ */
+const notifyApprovalRequested = (checkout, equipment) => {
+    (async () => {
+        try {
+            const recipients = await GetApproverEmails(equipment);
+            if (!recipients?.length) {
+                // Worth a log rather than silence: it means a reservation is
+                // sitting in a queue that nobody is looking at.
+                console.warn(
+                    `No approvers resolved for equipment ${equipment?.id} — approval request not sent`,
+                );
+                return;
+            }
+            // One email addressed to all of them, as the subscriber emails
+            // already do. They are colleagues on the same equipment.
+            await sendCheckoutApprovalRequestEmail(
+                checkout,
+                equipment,
+                recipients,
+            );
+        } catch (err) {
+            console.error(
+                "Error sending approval request email:",
+                err?.message || err,
+            );
+        }
+    })();
+};
+
+const notifyApprovalDecision = (checkout, equipment, decision, reason) => {
+    (async () => {
+        try {
+            let requesterEmail = checkout?.User?.email;
+            if (!requesterEmail && checkout?.user_id) {
+                const requester = await User.findByPk(checkout.user_id);
+                requesterEmail = requester?.email;
+            }
+            if (!requesterEmail) return;
+
+            if (decision === "approved") {
+                await sendCheckoutApprovedEmail(
+                    checkout,
+                    equipment,
+                    requesterEmail,
+                );
+            } else {
+                await sendCheckoutDeclinedEmail(
+                    checkout,
+                    equipment,
+                    requesterEmail,
+                    reason,
+                );
+            }
+        } catch (err) {
+            console.error(
+                `Error sending checkout ${decision} email:`,
+                err?.message || err,
+            );
+        }
+    })();
+};
 
 // Helper function to check for conflicts - reusable for both Post and Update
 const checkConflicts = async (
@@ -452,6 +562,18 @@ const GetByEquipmentId = async (req, res, next) => {
     }
 };
 
+/**
+ * The reservations this user can actually act on.
+ *
+ * This used to return every pending reservation in the system to anyone who
+ * asked -- no role check, no scoping, no reference to `req.user` at all. It
+ * also drives the sidebar badge and the nav guard, so every user saw a badge
+ * counting everyone else's requests and a queue full of decisions that were
+ * not theirs to make.
+ *
+ * Scoping here fixes all three at once, because the badge and the nav item are
+ * both derived from this one response.
+ */
 const GetPendingApprovals = async (req, res, next) => {
     try {
         const checkouts = await Checkout.findAll({
@@ -467,6 +589,7 @@ const GetPendingApprovals = async (req, res, next) => {
                         "serial_number",
                         "asset_number",
                         "requires_approval",
+                        "location",
                     ],
                 },
                 {
@@ -483,7 +606,22 @@ const GetPendingApprovals = async (req, res, next) => {
             ],
             order: [["start_time", "ASC"]],
         });
-        res.json(checkouts);
+
+        // One pass over the distinct equipment ids rather than a check per
+        // reservation -- a directory round trip per row would be slow and
+        // mostly repeated, since a queue is usually a handful of items spread
+        // over fewer pieces of equipment.
+        const equipmentIds = [
+            ...new Set(checkouts.map((c) => c.equipment_id).filter(Boolean)),
+        ];
+        const approvable = await FilterApprovableEquipmentIds(
+            req.user,
+            equipmentIds,
+        );
+
+        res.json(
+            checkouts.filter((c) => approvable.has(Number(c.equipment_id))),
+        );
     } catch (err) {
         next(err);
     }
@@ -716,6 +854,14 @@ const Post = async (req, res, next) => {
 
         res.status(201).json(completeCheckout);
 
+        // A reservation that needs approval is useless until somebody knows it
+        // is waiting, so this goes to the equipment's own approvers -- not to
+        // every administrator, and not to the alert subscribers below, who are
+        // watching the equipment rather than gatekeeping it.
+        if (equipment.requires_approval) {
+            notifyApprovalRequested(completeCheckout, equipment);
+        }
+
         // Send email notifications to subscribers
         (async () => {
             try {
@@ -822,17 +968,6 @@ const Update = async (req, res, next) => {
         // Get the authenticated user from request (set by auth middleware)
         const userId = req.user?.id;
         const isAdmin = req.user?.admin;
-        const isEquipmentAdmin = req.user?.equipment_admin;
-
-        // Non-admin users can only change status to "cancelled", not other statuses
-        if (
-            !isAdmin &&
-            !isEquipmentAdmin &&
-            updates.status &&
-            updates.status !== "cancelled"
-        ) {
-            delete updates.status;
-        }
 
         // Check if this is a virtual occurrence ID (e.g., "4_3").
         // `occurrenceIndex` is the occurrence's position in the series, and it
@@ -874,6 +1009,53 @@ const Update = async (req, res, next) => {
 
         if (!checkout) {
             return res.status(404).json({ message: "Checkout not found" });
+        }
+
+        // Captured before any write, because whether a cancellation is a
+        // decline depends on what the reservation was before it changed.
+        const statusBeforeUpdate = checkout.status;
+
+        // ---- Status changes are the approval decision -------------------
+        //
+        // This is the route the approval queue actually uses, and its old rule
+        // was "non-admins may only set cancelled". Declining IS setting
+        // cancelled, so that let any signed-in user decline anyone else's
+        // reservation. It also silently deleted a disallowed status instead of
+        // refusing, so the queue reported "approved" for requests where
+        // nothing had happened.
+        //
+        // Approving is now the equipment's own approver test. Cancelling stays
+        // open to the people who could always cancel -- the booker and whoever
+        // it was booked on behalf of -- plus its approvers.
+        if (updates.status) {
+            const equipment = await Equipment.findByPk(checkout.equipment_id);
+            const canApprove = await CanUserApprove(req.user, equipment);
+            const isCancelling = updates.status === "cancelled";
+
+            let permitted = canApprove;
+
+            if (isCancelling && !permitted) {
+                permitted =
+                    checkout.user_id === userId ||
+                    (await isScheduledOnBehalfOfUser(checkout, userId));
+            }
+
+            if (!permitted) {
+                return res.status(403).json({
+                    message: isCancelling
+                        ? "You cannot cancel this reservation."
+                        : "You are not an approver for this equipment.",
+                });
+            }
+
+            // The decider is whoever holds the session. It used to be read
+            // from the body, so the queue could attribute a decision to anyone.
+            if (!isCancelling) {
+                updates.approved_by_user_id = userId;
+                updates.approved_at = new Date();
+            } else {
+                delete updates.approved_by_user_id;
+            }
         }
 
         // Handle recurring checkout edits
@@ -1502,8 +1684,40 @@ const Update = async (req, res, next) => {
 
         res.json(completeCheckout);
 
+        // Cancelling something that was still PENDING, by someone other than
+        // the person who asked for it, is a decline -- and a decline needs its
+        // own wording, because "your reservation was cancelled" reads as an
+        // administrative accident rather than a decision. The generic cancelled
+        // mail below still covers every other case.
+        const wasDeclined =
+            updates.status === "cancelled" &&
+            statusBeforeUpdate === "pending" &&
+            checkout.user_id !== userId;
+
+        // The approval queue decides through this route rather than through
+        // PUT /:id/approve, so the requester has to be told from here too --
+        // otherwise approving from the queue notifies nobody.
+        const wasApproved =
+            statusBeforeUpdate === "pending" &&
+            (updates.status === "auto-approved" ||
+                updates.status === "approved");
+
+        if (wasDeclined || wasApproved) {
+            (async () => {
+                const equipment = await Equipment.findByPk(
+                    checkout.equipment_id,
+                );
+                notifyApprovalDecision(
+                    completeCheckout,
+                    equipment,
+                    wasApproved ? "approved" : "declined",
+                    updates.approval_notes || updates.notes,
+                );
+            })();
+        }
+
         // Send email notifications based on status change
-        if (updates.status === "cancelled") {
+        if (updates.status === "cancelled" && !wasDeclined) {
             (async () => {
                 try {
                     const equipment = await Equipment.findByPk(
@@ -1579,7 +1793,12 @@ const Update = async (req, res, next) => {
 const Approve = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { approved_by_user_id, approval_notes } = req.body;
+        // `approved_by_user_id` used to be read from the body. Combined with
+        // there being no authorization check at all on this route, that meant
+        // any signed-in user could approve any reservation and attribute the
+        // decision to somebody else. The approver is whoever holds the session.
+        const { approval_notes } = req.body;
+        const approved_by_user_id = req.user?.id;
 
         // A calendar hands back the virtual id of whichever occurrence was
         // clicked, which used to reach findByPk verbatim and blow up with an
@@ -1599,6 +1818,18 @@ const Approve = async (req, res, next) => {
             return res
                 .status(400)
                 .json({ message: "Checkout is not pending approval" });
+        }
+
+        // Who may approve is a property of the equipment, not of the person's
+        // job title: whoever is named on Equipment-Approvers, or a member of
+        // an AD group named there. Administrators always can, and are the
+        // fallback when nobody is named.
+        const equipment = await Equipment.findByPk(checkout.equipment_id);
+        if (!(await CanUserApprove(req.user, equipment))) {
+            return res.status(403).json({
+                message:
+                    "You are not an approver for this equipment.",
+            });
         }
 
         await checkout.update({
@@ -1657,6 +1888,12 @@ const Approve = async (req, res, next) => {
                 data: completeCheckout,
             });
         }
+
+        // Tell the requester. This email has existed and been exported since
+        // the feature was written and was never once called, so until now a
+        // reservation could be approved and the person waiting on it would
+        // find out only by going back and looking.
+        notifyApprovalDecision(completeCheckout, equipment, "approved");
     } catch (err) {
         next(err);
     }
@@ -1702,32 +1939,10 @@ const Delete = async (req, res, next) => {
 
         // Authorization: Only the creator, admin, or scheduled-on-behalf-of user can delete
         const isCreator = checkout.user_id === userId;
-        let isScheduledOnBehalfOf = false;
-
-        // Check if current user matches the scheduled_on_behalf_of name
-        if (checkout.scheduled_on_behalf_of) {
-            const nameParts = checkout.scheduled_on_behalf_of.split(" ");
-            if (nameParts.length >= 2) {
-                const firstName = nameParts[0];
-                const lastName = nameParts.slice(1).join(" ");
-
-                // Op.iLike is PostgreSQL-only and threw on this MSSQL
-                // connection, so this authorization check never completed --
-                // the scheduled-on-behalf-of user got a 500 instead of being
-                // allowed to cancel. MSSQL collations are case-insensitive by
-                // default, so Op.like gives the intended match.
-                const scheduledForUser = await User.findOne({
-                    where: {
-                        first_name: { [Sequelize.Op.like]: firstName },
-                        last_name: { [Sequelize.Op.like]: lastName },
-                    },
-                });
-
-                if (scheduledForUser && scheduledForUser.id === userId) {
-                    isScheduledOnBehalfOf = true;
-                }
-            }
-        }
+        const isScheduledOnBehalfOf = await isScheduledOnBehalfOfUser(
+            checkout,
+            userId,
+        );
 
         if (!isAdmin && !isCreator && !isScheduledOnBehalfOf) {
             return res.status(403).json({

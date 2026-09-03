@@ -1,16 +1,39 @@
-const { User, GroupUser } = require("../models");
+const { User } = require("../models");
 const bcrypt = require("bcrypt");
 const ActiveDirectory = require("activedirectory2");
 const ldapConfig = require("../ldapConfig");
 const ad = new ActiveDirectory(ldapConfig);
 const util = require("util");
 const jwt = require("jsonwebtoken");
+const activeDirectory = require("../services/activeDirectory");
 
 // Promisify the callback-based functions
 const findUserAsync = util.promisify(ad.findUser.bind(ad));
 const authenticateAsync = util.promisify(ad.authenticate.bind(ad));
 
 const saltRounds = 10;
+
+/**
+ * Guard for the endpoints that reach into Active Directory.
+ *
+ * Enumerating the corporate directory or provisioning an account is not
+ * something an ordinary signed-in user should be able to do, and none of the
+ * /ad/ handlers checked for it. Identity comes from req.user (set by
+ * middleware/auth.js from the verified JWT) — never from the body, which the
+ * caller controls.
+ *
+ * Responds with the 403 itself and returns false, so callers can simply
+ * `if (!requireDirectoryAccess(req, res)) return;`.
+ */
+const requireDirectoryAccess = (req, res) => {
+    if (req.user?.admin || req.user?.equipment_admin) {
+        return true;
+    }
+    res.status(403).json({
+        message: "Administrator privileges required for directory access.",
+    });
+    return false;
+};
 
 async function hashPassword(plainPassword) {
     try {
@@ -145,15 +168,13 @@ const Post = async (req, res) => {
             created_user_id: created_user_id ? created_user_id : null,
         });
 
-        await GroupUser.create({
-            user_id: newResource.id,
-            group_id: 12,
-        });
-
-        await GroupUser.create({
-            user_id: newResource.id,
-            group_id: 13,
-        });
+        // Two `GroupUser.create` calls used to sit here, adding the new user to
+        // hardcoded group ids 12 and 13. There is no GroupUser model and no
+        // groups table in this app -- both are meeting-room concepts that came
+        // across with the shared user table -- so `GroupUser` was undefined and
+        // this threw a TypeError on every call. Creating a user by hand has
+        // been returning a 500 (after writing the row) for as long as the code
+        // has looked like this.
 
         const userWithoutPassword = {
             ...newResource.get(),
@@ -690,6 +711,10 @@ const Activate = async (req, res) => {
 
 const GetAllAdUsers = async (req, res) => {
     try {
+        if (!requireDirectoryAccess(req, res)) {
+            return;
+        }
+
         // Query AD for all users
         const findAllUsers = util.promisify(ad.findUsers.bind(ad));
         const adUsers = await findAllUsers();
@@ -786,6 +811,10 @@ const GetAllAdUsers = async (req, res) => {
 
 const CreateFromAd = async (req, res) => {
     try {
+        if (!requireDirectoryAccess(req, res)) {
+            return;
+        }
+
         const { username, location } = req.body;
 
         if (!username || !location) {
@@ -864,6 +893,48 @@ const CreateFromAd = async (req, res) => {
     }
 };
 
+/**
+ * GET /api/users/ad/groups?search=<term>
+ *
+ * Backs the AD group picker on the equipment approver form. Always answers
+ * with { configured, groups } so the frontend can tell "LDAP isn't set up
+ * here" apart from "that search matched nothing".
+ */
+const SearchAdGroups = async (req, res) => {
+    try {
+        if (!requireDirectoryAccess(req, res)) {
+            return;
+        }
+
+        const search =
+            typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+        // A one-character term against a corporate directory returns thousands
+        // of groups slowly and is useless as a picker, so it returns nothing
+        // rather than everything.
+        if (search.length < 2) {
+            return res.json({
+                configured: activeDirectory.isConfigured(),
+                groups: [],
+            });
+        }
+
+        const groups = await activeDirectory.findGroups(search);
+
+        res.json({
+            configured: activeDirectory.isConfigured(),
+            groups,
+        });
+    } catch (error) {
+        console.error("Error searching AD groups:", error);
+        res.status(500).json({
+            message: "Failed to search Active Directory groups",
+            configured: false,
+            groups: [],
+        });
+    }
+};
+
 module.exports = {
     GetAll,
     GetById,
@@ -879,4 +950,5 @@ module.exports = {
     userExistsInAd,
     GetAllAdUsers,
     CreateFromAd,
+    SearchAdGroups,
 };

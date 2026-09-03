@@ -26,6 +26,9 @@ import {
     AttachFileOutlined,
     ReceiptLongOutlined,
     EventAvailableOutlined,
+    VerifiedUserOutlined,
+    GroupsOutlined,
+    PersonOutline,
 } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -47,6 +50,7 @@ import EquipmentDialog from "../Equipment/EquipmentDialog";
 import ReservationDialog from "./Components/ReservationDialog";
 import EquipmentInfoCard from "./Components/EquipmentInfoCard";
 import EquipmentDetailsCard from "./Components/EquipmentDetailsCard";
+import { toApproverFormValues } from "../../Components/Equipment/ApproverPicker";
 import {
     PageHeader,
     PageContainer,
@@ -56,6 +60,34 @@ import {
     StatusChip,
     RiseIn,
 } from "../../Components/UI";
+
+/**
+ * One approver's two display lines, from the API's read shape.
+ *
+ * Requesters need to know who they're waiting on, so a group falls back to its
+ * DN and a person to their username rather than rendering a blank row.
+ */
+const approverLines = (approver) => {
+    if (approver.approver_type === "ad_group") {
+        return {
+            isGroup: true,
+            primary: approver.ad_group_name || "Unnamed group",
+            secondary: approver.ad_group_dn || "Active Directory group",
+        };
+    }
+
+    const person = approver.ApproverUser;
+    const name = [person?.first_name, person?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+    return {
+        isGroup: false,
+        primary: name || person?.username || "Unknown user",
+        secondary: person?.email || person?.username || "No email on file",
+    };
+};
 
 const FILE_CATEGORIES = [
     { value: "photo", label: "Photo" },
@@ -114,6 +146,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
         contact_person_id: null,
         status: "available",
         requires_approval: false,
+        approvers: [],
         brand_name: "",
         billing_rate: "",
         billing_code: "",
@@ -346,6 +379,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                       .split("T")[0]
                 : "",
             requires_approval: equipment.requires_approval,
+            approvers: toApproverFormValues(equipment.Approvers),
             can_book: equipment.can_book !== false,
             calibration_interval_value:
                 equipment.calibration_interval_value || "",
@@ -580,6 +614,9 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     }
 
     const bookable = equipment.can_book !== false;
+    const approvers = Array.isArray(equipment.Approvers)
+        ? equipment.Approvers
+        : [];
     const hasBilling =
         equipment.billing_rate ||
         equipment.billing_code ||
@@ -833,6 +870,96 @@ const EquipmentDetails = ({ setLoading, loading }) => {
                                                     </Grid>
                                                 ))}
                                         </Grid>
+                                    </SectionCard>
+                                </RiseIn>
+                            )}
+
+                            {/* Requesters otherwise have no way to tell who
+                                their reservation is sitting with. */}
+                            {equipment.requires_approval && (
+                                <RiseIn delay={150}>
+                                    <SectionCard
+                                        title="Approval"
+                                        subtitle="Reservations need sign-off before they are confirmed"
+                                        icon={<VerifiedUserOutlined />}
+                                    >
+                                        {approvers.length === 0 ? (
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                            >
+                                                No approvers are named, so
+                                                administrators approve
+                                                reservations of this item.
+                                            </Typography>
+                                        ) : (
+                                            <Stack spacing={1}>
+                                                {approvers.map((approver) => {
+                                                    const row =
+                                                        approverLines(approver);
+                                                    return (
+                                                        <Stack
+                                                            key={approver.id}
+                                                            direction="row"
+                                                            spacing={1.25}
+                                                            alignItems="center"
+                                                            sx={{ minWidth: 0 }}
+                                                        >
+                                                            <Box
+                                                                sx={{
+                                                                    display:
+                                                                        "flex",
+                                                                    flexShrink: 0,
+                                                                    color: "text.disabled",
+                                                                }}
+                                                            >
+                                                                {row.isGroup ? (
+                                                                    <GroupsOutlined
+                                                                        sx={{
+                                                                            fontSize: 18,
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <PersonOutline
+                                                                        sx={{
+                                                                            fontSize: 18,
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </Box>
+                                                            <Box
+                                                                sx={{
+                                                                    minWidth: 0,
+                                                                }}
+                                                            >
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    sx={{
+                                                                        fontWeight: 550,
+                                                                    }}
+                                                                    noWrap
+                                                                >
+                                                                    {row.primary}
+                                                                </Typography>
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        display:
+                                                                            "block",
+                                                                    }}
+                                                                    noWrap
+                                                                >
+                                                                    {
+                                                                        row.secondary
+                                                                    }
+                                                                </Typography>
+                                                            </Box>
+                                                        </Stack>
+                                                    );
+                                                })}
+                                            </Stack>
+                                        )}
                                     </SectionCard>
                                 </RiseIn>
                             )}
