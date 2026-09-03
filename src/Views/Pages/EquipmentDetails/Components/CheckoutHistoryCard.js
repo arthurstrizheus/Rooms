@@ -148,7 +148,9 @@ const CheckoutHistoryCard = ({ checkoutHistory }) => {
 
     // ---- One row shape, both sections -------------------------------------
 
-    const MobileCard = ({ checkout, recurring }) => (
+    // Render functions, not inner components: a component declared in the
+    // render body is a new type on every render, so React remounts the rows.
+    const renderMobileCard = (checkout, recurring) => (
         <Card
             onClick={() => setSelectedCheckout(checkout)}
             sx={{
@@ -228,7 +230,13 @@ const CheckoutHistoryCard = ({ checkoutHistory }) => {
         </Card>
     );
 
-    const HistorySection = ({ title, icon, checkouts, recurring, defaultExpanded }) => {
+    const renderHistorySection = ({
+        title,
+        icon,
+        checkouts,
+        recurring,
+        defaultExpanded,
+    }) => {
         if (checkouts.length === 0) return null;
 
         return (
@@ -245,11 +253,9 @@ const CheckoutHistoryCard = ({ checkoutHistory }) => {
                     {isCompact ? (
                         <Stagger step={35} max={10}>
                             {checkouts.map((checkout) => (
-                                <MobileCard
-                                    key={checkout.id}
-                                    checkout={checkout}
-                                    recurring={recurring}
-                                />
+                                <React.Fragment key={checkout.id}>
+                                    {renderMobileCard(checkout, recurring)}
+                                </React.Fragment>
                             ))}
                         </Stagger>
                     ) : (
@@ -449,21 +455,21 @@ const CheckoutHistoryCard = ({ checkoutHistory }) => {
                     />
                 ) : (
                     <Stack spacing={1}>
-                        <HistorySection
-                            title="Recurring reservations"
-                            icon={<RepeatIcon sx={{ fontSize: 17 }} />}
-                            checkouts={filteredRecurring}
-                            recurring
-                            defaultExpanded
-                        />
-                        <HistorySection
-                            title="One-time reservations"
-                            icon={
+                        {renderHistorySection({
+                            title: "Recurring reservations",
+                            icon: <RepeatIcon sx={{ fontSize: 17 }} />,
+                            checkouts: filteredRecurring,
+                            recurring: true,
+                            defaultExpanded: true,
+                        })}
+                        {renderHistorySection({
+                            title: "One-time reservations",
+                            icon: (
                                 <EventNoteOutlinedIcon sx={{ fontSize: 17 }} />
-                            }
-                            checkouts={filteredNonRecurring}
-                            defaultExpanded={filteredRecurring.length === 0}
-                        />
+                            ),
+                            checkouts: filteredNonRecurring,
+                            defaultExpanded: filteredRecurring.length === 0,
+                        })}
                     </Stack>
                 )}
             </SectionCard>

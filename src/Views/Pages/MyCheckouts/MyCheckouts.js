@@ -97,6 +97,10 @@ const MyCheckouts = ({ setLoading, loading }) => {
     const [editedCheckout, setEditedCheckout] = useState({});
     const [users, setUsers] = useState([]);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
+    const [openSections, setOpenSections] = useState({
+        recurring: true,
+        oneTime: true,
+    });
 
     const { meatRain, higgyRain, handleSearchChange } = useEasterEggs();
     const { user } = useAuth();
@@ -404,7 +408,11 @@ const MyCheckouts = ({ setLoading, loading }) => {
 
     // ---- Rendering --------------------------------------------------------
 
-    const MobileCard = ({ checkout, recurring }) => (
+    // Plain render functions rather than components declared in the render
+    // body: an inner component gets a fresh identity every render, so React
+    // remounts the whole subtree — which reset the accordions' open state on
+    // every keystroke in the search field.
+    const renderMobileCard = (checkout, recurring) => (
         <Card
             onClick={() => handleOpenDetails(checkout)}
             sx={{
@@ -480,20 +488,25 @@ const MyCheckouts = ({ setLoading, loading }) => {
         </TableCell>
     );
 
-    const ReservationSection = ({
+    // Open state lives in the page rather than inside the section, so it
+    // survives re-renders and stays correct while filtering.
+    const renderReservationSection = ({
+        id,
         title,
         icon,
         checkouts: rows,
         recurring,
-        defaultExpanded,
     }) => {
-        const [expanded, setExpanded] = useState(defaultExpanded);
         if (rows.length === 0) return null;
+        const expanded = openSections[id];
 
         return (
             <Accordion
+                key={id}
                 expanded={expanded}
-                onChange={() => setExpanded((v) => !v)}
+                onChange={() =>
+                    setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }))
+                }
             >
                 <AccordionSummary expandIcon={<ExpandMore />}>
                     <Stack direction="row" spacing={1} alignItems="center">
@@ -507,11 +520,9 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     {isCompact ? (
                         <Stagger step={35} max={10}>
                             {rows.map((checkout) => (
-                                <MobileCard
-                                    key={checkout.id}
-                                    checkout={checkout}
-                                    recurring={recurring}
-                                />
+                                <React.Fragment key={checkout.id}>
+                                    {renderMobileCard(checkout, recurring)}
+                                </React.Fragment>
                             ))}
                         </Stagger>
                     ) : (
@@ -1196,19 +1207,19 @@ const MyCheckouts = ({ setLoading, loading }) => {
                     />
                 ) : (
                     <Stack spacing={1}>
-                        <ReservationSection
-                            title="Recurring reservations"
-                            icon={<Repeat sx={{ fontSize: 17 }} />}
-                            checkouts={recurringCheckouts}
-                            recurring
-                            defaultExpanded
-                        />
-                        <ReservationSection
-                            title="One-time reservations"
-                            icon={<CalendarMonth sx={{ fontSize: 17 }} />}
-                            checkouts={nonRecurringCheckouts}
-                            defaultExpanded
-                        />
+                        {renderReservationSection({
+                            id: "recurring",
+                            title: "Recurring reservations",
+                            icon: <Repeat sx={{ fontSize: 17 }} />,
+                            checkouts: recurringCheckouts,
+                            recurring: true,
+                        })}
+                        {renderReservationSection({
+                            id: "oneTime",
+                            title: "One-time reservations",
+                            icon: <CalendarMonth sx={{ fontSize: 17 }} />,
+                            checkouts: nonRecurringCheckouts,
+                        })}
                     </Stack>
                 )}
             </PageContainer>

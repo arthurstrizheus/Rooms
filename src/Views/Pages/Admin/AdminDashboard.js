@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
     Grid,
     Typography,
@@ -300,7 +300,7 @@ const AdminDashboard = () => {
         },
     ];
 
-    const MobileUserCard = ({ connectedUser }) => (
+    const renderMobileUserCard = (connectedUser) => (
         <Card sx={{ p: 2, mb: 1.5 }}>
             <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 <Avatar sx={{ width: 34, height: 34 }}>
@@ -456,10 +456,9 @@ const AdminDashboard = () => {
                 ) : isCompact ? (
                     <Stagger step={35} max={12}>
                         {connectedUsers.map((connectedUser) => (
-                            <MobileUserCard
-                                key={connectedUser.id}
-                                connectedUser={connectedUser}
-                            />
+                            <React.Fragment key={connectedUser.id}>
+                                {renderMobileUserCard(connectedUser)}
+                            </React.Fragment>
                         ))}
                     </Stagger>
                 ) : (

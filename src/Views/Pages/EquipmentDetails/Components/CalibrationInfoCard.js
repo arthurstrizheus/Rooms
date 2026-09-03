@@ -157,7 +157,14 @@ const CalibrationInfoCard = ({
 
     // ---- One row, reused by every file group -----------------------------
 
-    const FileGroup = ({ label, files, historyTitle, showCalibrationDate }) => {
+    // A render function rather than an inner component, so the rows aren't
+    // remounted every time the parent re-renders.
+    const renderFileGroup = ({
+        label,
+        files,
+        historyTitle,
+        showCalibrationDate,
+    }) => {
         if (files.length === 0) return null;
         const latest = files[0];
 
@@ -388,7 +395,9 @@ const CalibrationInfoCard = ({
                             ]
                                 .filter((group) => group.files.length > 0)
                                 .map((group) => (
-                                    <FileGroup key={group.label} {...group} />
+                                    <React.Fragment key={group.label}>
+                                        {renderFileGroup(group)}
+                                    </React.Fragment>
                                 ))}
                         </Stack>
                     </SectionCard>

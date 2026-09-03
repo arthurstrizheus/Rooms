@@ -77,6 +77,11 @@ jest.mock("@fullcalendar/react", () => ({
 const appTheme = theme("light");
 const noop = () => {};
 
+// The first test to pull in a page drags its whole module graph — the page,
+// its dialogs, and a few hundred MUI icons — through Babel. That transform, not
+// the render, is what blows past Jest's 5s default.
+jest.setTimeout(30000);
+
 function renderRoute(ui, { path = "/", route = "/" } = {}) {
     return render(
         <MemoryRouter initialEntries={[route]}>

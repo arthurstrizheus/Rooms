@@ -558,7 +558,10 @@ const Equipment = ({ setLoading, loading }) => {
 
     // ---- Rendering --------------------------------------------------------
 
-    const EquipmentCard = ({ item }) => {
+    // A plain function, not a component. Declaring a component inside the
+    // render body gives it a new identity every render, which makes React
+    // unmount and rebuild every card on each keystroke in the search field.
+    const renderEquipmentCard = (item) => {
         const status = getDisplayStatus(item);
         const calDue = isCalibrationDueSoon(calculateDueDate(item));
         const hue = tileHue(item.name || "");
@@ -925,7 +928,7 @@ const Equipment = ({ setLoading, loading }) => {
                     >
                         {filteredEquipment.map((item) => (
                             <Grid item xs={12} sm={6} md={4} lg={3} key={item.id}>
-                                <EquipmentCard item={item} />
+                                {renderEquipmentCard(item)}
                             </Grid>
                         ))}
                     </Stagger>

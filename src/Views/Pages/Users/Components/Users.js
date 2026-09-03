@@ -353,7 +353,7 @@ export default function Users({ setLoading }) {
         </TableCell>
     );
 
-    const ActiveChip = ({ value }) => (
+    const renderActiveChip = (value) => (
         <Chip
             size="small"
             label={value === "True" ? "Active" : "Inactive"}
@@ -418,7 +418,7 @@ export default function Users({ setLoading }) {
                                     >
                                         {row.name}
                                     </Typography>
-                                    <ActiveChip value={row.active} />
+                                    {renderActiveChip(row.active)}
                                 </Stack>
 
                                 <Typography
@@ -588,7 +588,7 @@ export default function Users({ setLoading }) {
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            <ActiveChip value={row.active} />
+                                            {renderActiveChip(row.active)}
                                         </TableCell>
                                         <TableCell
                                             sx={{
