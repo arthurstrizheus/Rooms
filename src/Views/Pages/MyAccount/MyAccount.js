@@ -1,464 +1,419 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "../../../Utilites/AuthContext";
-import { useTheme } from "@emotion/react";
-import { openSnackbar } from "../../../Utilites/SnackbarContext";
+import { useEffect, useMemo, useState } from "react";
 import {
     Grid,
     Stack,
     Typography,
     Button,
-    FormControl,
-    Select,
-    InputLabel,
     MenuItem,
     TextField,
     Box,
-    Tab,
-    Tabs,
-    useMediaQuery,
+    Avatar,
+    Chip,
+    Divider,
+    Card,
 } from "@mui/material";
-import { GetLocations } from "../../../Utilites/Functions/ApiFunctions";
-import {
-    AuthenticatePassword,
-    UpdateUserDetails,
-    UpdateUserPassword,
-    AuthenticateUser,
-} from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
+import BadgeOutlinedIcon from "@mui/icons-material/BadgeOutlined";
+import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import MailOutlineIcon from "@mui/icons-material/MailOutline";
+import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 
-function a11yProps(index) {
-    return {
-        id: `simple-tab-${index}`,
-        "aria-controls": `simple-tabpanel-${index}`,
-    };
-}
+import { useAuth } from "../../../Utilites/AuthContext";
+import { openSnackbar } from "../../../Utilites/SnackbarContext";
+import { GetLocations } from "../../../Utilites/Functions/ApiFunctions";
+import { UpdateUserDetails } from "../../../Utilites/Functions/ApiFunctions/UserFunctions";
+import { PageHeader, PageContainer, SectionCard, RiseIn } from "../../Components/UI";
+
+// Password management lives in Active Directory — the local change-password
+// form that used to sit here was already commented out and has been removed.
+
+const ROLES = [
+    { key: "admin", label: "Administrator" },
+    { key: "equipment_admin", label: "Equipment Admin" },
+    { key: "equipment_office_admin", label: "Office Admin" },
+    { key: "tax_admin", label: "Tax Admin" },
+];
 
 const MyAccount = ({ setLoading }) => {
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down("md"));
     const { user, setUser } = useAuth();
+
     const [email, setEmail] = useState("");
-    const [password1, setPassword1] = useState("");
-    const [password2, setPassword2] = useState("");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
     const [location, setLocation] = useState("");
     const [locations, setLocations] = useState([]);
-    const [first_name, setfirst_name] = useState("");
-    const [last_name, setlast_name] = useState("");
-    const [currentPassword, setCurrentPassword] = useState("");
-    const [passwordBorder, setPasswordBorder] = useState(false);
-    const [accountBorder, setAccountBorder] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [update, setUpdate] = useState(0);
 
-    const onSavePassword = () => {
-        if (password1.length < 5) {
-            openSnackbar("Character greater less than 5", {
-                severity: "error",
-                autoHideDuration: 4000,
-                anchorOrigin: { vertical: "top", horizontal: "center" },
-                alertProps: { variant: "filled" },
-                transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
-            });
-            setPassword1("");
-            setPassword2("");
-            setPasswordBorder(true);
-        } else if (password1 !== password2) {
-            openSnackbar("Passwords do not match", {
-                severity: "error",
-                autoHideDuration: 4000,
-                anchorOrigin: { vertical: "top", horizontal: "center" },
-                alertProps: { variant: "filled" },
-                transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
-            });
-            setPassword1("");
-            setPassword2("");
-            setPasswordBorder(true);
-        } else {
-            AuthenticateUser({
-                email: user?.email,
-                password: currentPassword,
-            }).then((resp1) => {
-                if (resp1?.id) {
-                    AuthenticatePassword({
-                        email: user?.email,
-                        password: password1,
-                    }).then((resp) => {
-                        if (resp?.id) {
-                            openSnackbar("Password is the same as current", {
-                                severity: "error",
-                                autoHideDuration: 4000,
-                                anchorOrigin: {
-                                    vertical: "top",
-                                    horizontal: "center",
-                                },
-                                alertProps: { variant: "filled" },
-                                transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
-                            });
-                            setPassword1("");
-                            setPassword2("");
-                            setPasswordBorder(true);
-                        } else {
-                            UpdateUserPassword(user?.id, {
-                                password: password1,
-                            });
-                            setPasswordBorder(false);
-                        }
-                    });
-                }
-            });
-        }
-    };
-    const onSaveDetails = () => {
-        if (first_name == "" || last_name == "") {
-            openSnackbar("First or last name cannot be blank", {
-                severity: "error",
-                autoHideDuration: 4000,
-                anchorOrigin: { vertical: "top", horizontal: "center" },
-                alertProps: { variant: "filled" },
-                transition: "grow", // Just pass the string 'grow', 'slide', 'fade', 'zoom', etc.
-            });
-            setAccountBorder(true);
-        } else {
-            setLoading(true);
-            UpdateUserDetails(user?.id, {
-                first_name: first_name,
-                last_name: last_name,
-                location: location.officeid,
-            })
-                .then(() =>
-                    setUser({
-                        ...user,
-                        first_name: first_name,
-                        last_name: last_name,
-                        location: location.officeid,
-                    })
-                )
-                .then(() => setUpdate((prev) => prev + 1));
-            setAccountBorder(false);
-            setPassword1("");
-            setPassword2("");
-            setPasswordBorder(true);
-            setCurrentPassword("");
-        }
-    };
-
     useEffect(() => {
-        if (user?.id) {
-            setLoading(true);
-            GetLocations()
-                .then((lcs) => setLocations(lcs))
-                .then(() => setLoading(false));
-            setfirst_name(user?.first_name);
-            setlast_name(user?.last_name);
-            setEmail(user?.email);
-        }
+        if (!user?.id) return;
+        setLoading(true);
+        GetLocations()
+            .then((lcs) => setLocations(lcs))
+            .finally(() => setLoading(false));
+        setFirstName(user?.first_name || "");
+        setLastName(user?.last_name || "");
+        setEmail(user?.email || "");
     }, [update, user, setLoading]);
 
     useEffect(() => {
         setLocation(locations?.find((lc) => lc.officeid === user?.location));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [locations]);
 
+    const dirty =
+        firstName !== (user?.first_name || "") ||
+        lastName !== (user?.last_name || "") ||
+        location?.officeid !== user?.location;
+
+    const onSaveDetails = () => {
+        if (!firstName.trim() || !lastName.trim()) {
+            openSnackbar("First and last name cannot be blank", {
+                severity: "error",
+                autoHideDuration: 4000,
+                anchorOrigin: { vertical: "top", horizontal: "center" },
+                alertProps: { variant: "filled" },
+                transition: "grow",
+            });
+            return;
+        }
+
+        setLoading(true);
+        setSaving(true);
+        UpdateUserDetails(user?.id, {
+            first_name: firstName,
+            last_name: lastName,
+            location: location?.officeid,
+        })
+            .then(() =>
+                setUser({
+                    ...user,
+                    first_name: firstName,
+                    last_name: lastName,
+                    location: location?.officeid,
+                }),
+            )
+            .then(() => {
+                openSnackbar("Account details saved", {
+                    severity: "success",
+                    autoHideDuration: 3000,
+                    transition: "grow",
+                });
+                setUpdate((prev) => prev + 1);
+            })
+            .catch(() =>
+                openSnackbar("Couldn't save your details. Please try again.", {
+                    severity: "error",
+                    autoHideDuration: 4000,
+                    alertProps: { variant: "filled" },
+                }),
+            )
+            .finally(() => {
+                setLoading(false);
+                setSaving(false);
+            });
+    };
+
+    const initials = useMemo(
+        () =>
+            `${user?.first_name?.[0] || ""}${user?.last_name?.[0] || ""}`.toUpperCase(),
+        [user?.first_name, user?.last_name],
+    );
+
+    const activeRoles = ROLES.filter((role) => user?.[role.key]);
+
     return (
-        <Grid sx={{ width: "100%", height: "100%" }}>
-            <Stack direction={"column"} sx={{ width: "100%", height: "100%" }}>
-                <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-                    <Tabs value={0} aria-label="basic tabs example">
-                        <Tab label="Details" {...a11yProps(0)} />
-                    </Tabs>
-                </Box>
-                <Stack
-                    sx={{
-                        display: "flex",
-                        width: "100%",
-                        height: "100%",
-                        justifyContent: "space-between",
-                        paddingTop: isMobile ? "20px" : "50px",
-                        paddingBottom: isMobile ? "20px" : "50px",
-                        paddingLeft: isMobile ? "10px" : "0",
-                        paddingRight: isMobile ? "10px" : "0",
-                        backgroundColor:
-                            theme.palette.background.fill.light.lightHover,
-                    }}
-                    direction={"row"}
-                >
-                    <Grid
+        <>
+            <PageHeader
+                title="My Account"
+                subtitle="Your profile details and access level."
+            />
+
+            <PageContainer maxWidth={1000}>
+                {/* ---- Identity banner ---- */}
+                <RiseIn>
+                    <Card
                         sx={{
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            justifyContent: "center",
+                            position: "relative",
+                            overflow: "hidden",
+                            mb: 2.5,
                         }}
                     >
-                        <Grid
+                        <Box
+                            aria-hidden
                             sx={{
-                                width: "fit-content",
-                                height: "fit-content",
-                                padding: "20px",
-                                borderRadius: "20px",
-                                background: theme.palette.secondary.lightHover,
-                                border: !accountBorder
-                                    ? "4px, solid rgba(0,0,0, .01 )"
-                                    : "4px, solid rgba(255,0,0, .2)",
+                                height: 76,
+                                background: (t) =>
+                                    `linear-gradient(120deg, ${t.palette.primary.main} 0%, ${t.palette.primary.dark} 100%)`,
                             }}
+                        />
+                        <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            spacing={2}
+                            alignItems={{ xs: "flex-start", sm: "flex-end" }}
+                            sx={{ px: { xs: 2, sm: 3 }, pb: 2.5, mt: -4.5 }}
                         >
-                            <Typography
-                                width={"100%"}
-                                textAlign={"center"}
-                                color={theme.palette.primary.main}
-                            >
-                                Account Details
-                            </Typography>
-                            <Stack
-                                direction={isMobile ? "column" : "row"}
-                                spacing={2}
+                            <Avatar
                                 sx={{
-                                    width: "100%",
-                                    height: "100%",
-                                    justifyContent: "center",
-                                    marginTop: "15px",
+                                    width: 76,
+                                    height: 76,
+                                    fontSize: "1.5rem",
+                                    fontWeight: 700,
+                                    border: "3px solid",
+                                    borderColor: "background.paper",
+                                    bgcolor: "primary.50",
+                                    color: "primary.dark",
+                                    boxShadow: (t) => t.shadowTokens.md,
+                                    animation:
+                                        "seaScaleIn 460ms cubic-bezier(0.34,1.56,0.64,1) both",
                                 }}
                             >
-                                <Stack spacing={2}>
-                                    <Typography
-                                        sx={{
-                                            alignItems: "center",
-                                            display: "flex",
-                                            height: "38px",
-                                        }}
-                                    >
-                                        First name
-                                    </Typography>
-                                    <Typography
-                                        sx={{
-                                            alignItems: "center",
-                                            display: "flex",
-                                            height: "38px",
-                                        }}
-                                    >
-                                        Last name
-                                    </Typography>
-                                    <Typography
-                                        sx={{
-                                            alignItems: "center",
-                                            display: "flex",
-                                            height: "38px",
-                                        }}
-                                    >
-                                        Email
-                                    </Typography>
-                                    <Typography
-                                        sx={{
-                                            alignItems: "center",
-                                            display: "flex",
-                                            height: "38px",
-                                        }}
-                                    >
-                                        Location
-                                    </Typography>
-                                </Stack>
+                                {initials || "?"}
+                            </Avatar>
+
+                            <Box sx={{ flexGrow: 1, minWidth: 0, pb: 0.5 }}>
+                                <Typography variant="h4" noWrap>
+                                    {user?.first_name} {user?.last_name}
+                                </Typography>
                                 <Stack
-                                    spacing={2}
-                                    sx={{ width: isMobile ? "100%" : "400px" }}
+                                    direction="row"
+                                    spacing={0.75}
+                                    alignItems="center"
+                                    sx={{ mt: 0.5 }}
                                 >
-                                    <TextField
-                                        label={"First Name"}
-                                        value={first_name}
+                                    <MailOutlineIcon
                                         sx={{
-                                            width: "100%",
-                                            backgroundColor: "white",
+                                            fontSize: 15,
+                                            color: "text.disabled",
                                         }}
-                                        onChange={(e) =>
-                                            setfirst_name(e.target.value)
-                                        }
-                                        size="small"
                                     />
-                                    <TextField
-                                        label={"Last Name"}
-                                        value={last_name}
-                                        sx={{
-                                            width: "100%",
-                                            backgroundColor: "white",
-                                        }}
-                                        onChange={(e) =>
-                                            setlast_name(e.target.value)
-                                        }
-                                        size="small"
-                                    />
-                                    <TextField
-                                        label={"Email"}
-                                        value={email}
-                                        sx={{
-                                            width: "100%",
-                                            backgroundColor: "white",
-                                        }}
-                                        disabled={true}
-                                        size="small"
-                                    />
-                                    <FormControl
-                                        variant="outlined"
-                                        size="small"
-                                        sx={{ width: "100%" }}
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        noWrap
                                     >
-                                        <InputLabel id="demo-simple-select-standard-label">
-                                            Location
-                                        </InputLabel>
-                                        <Select
-                                            sx={{
-                                                width: "100%",
-                                                backgroundColor: "white",
-                                            }}
-                                            labelId="demo-simple-select-standard-label"
-                                            id="demo-simple-select-standard"
-                                            label="Location"
-                                            value={location?.officeid || ""}
-                                            onChange={(e) => {
-                                                const selectedItem =
-                                                    locations?.find(
-                                                        (itm) =>
-                                                            itm.officeid ===
-                                                            e.target.value
-                                                    );
-                                                setLocation(selectedItem); // Return the entire object
-                                            }}
-                                        >
-                                            {locations?.map((itm, index) => (
-                                                <MenuItem
-                                                    key={index}
-                                                    value={itm.officeid}
-                                                >
-                                                    {itm.Alias}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+                                        {user?.email}
+                                    </Typography>
                                 </Stack>
-                                <Button
-                                    sx={{
-                                        width: "fit-content",
-                                        height: "fit-content",
-                                        background: "#f7dcdc",
-                                        ":hover": { background: "#fccaca" },
-                                        textTransform: "none",
-                                    }}
-                                    onClick={onSaveDetails}
-                                >
-                                    Save Changes
-                                </Button>
+                            </Box>
+
+                            <Stack
+                                direction="row"
+                                spacing={0.75}
+                                sx={{ flexWrap: "wrap", gap: 0.75, pb: 0.5 }}
+                            >
+                                {activeRoles.length > 0 ? (
+                                    activeRoles.map((role) => (
+                                        <Chip
+                                            key={role.key}
+                                            size="small"
+                                            label={role.label}
+                                            icon={
+                                                <VerifiedUserOutlinedIcon
+                                                    sx={{
+                                                        fontSize: "14px !important",
+                                                    }}
+                                                />
+                                            }
+                                            sx={{
+                                                bgcolor: "primary.50",
+                                                color: "primary.dark",
+                                                border: "1px solid",
+                                                borderColor: "primary.100",
+                                                "& .MuiChip-icon": {
+                                                    color: "primary.main",
+                                                },
+                                            }}
+                                        />
+                                    ))
+                                ) : (
+                                    <Chip
+                                        size="small"
+                                        label="Member"
+                                        variant="outlined"
+                                    />
+                                )}
                             </Stack>
+                        </Stack>
+                    </Card>
+                </RiseIn>
+
+                {/* ---- Editable details ---- */}
+                <SectionCard
+                    title="Account details"
+                    subtitle="Your name and home office."
+                    icon={<BadgeOutlinedIcon />}
+                    sx={{
+                        animation:
+                            "seaRiseIn 380ms cubic-bezier(0.22,1,0.36,1) both",
+                        animationDelay: "80ms",
+                    }}
+                    footer={
+                        <Stack
+                            direction="row"
+                            spacing={1.5}
+                            alignItems="center"
+                            justifyContent="flex-end"
+                        >
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{
+                                    mr: "auto",
+                                    opacity: dirty ? 1 : 0,
+                                    transition: "opacity 200ms ease",
+                                }}
+                            >
+                                You have unsaved changes
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                startIcon={<SaveOutlinedIcon />}
+                                onClick={onSaveDetails}
+                                disabled={!dirty || saving}
+                            >
+                                Save changes
+                            </Button>
+                        </Stack>
+                    }
+                >
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="First name"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                fullWidth
+                                required
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Last name"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                fullWidth
+                                required
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                label="Email"
+                                value={email}
+                                fullWidth
+                                disabled
+                                helperText="Managed by Active Directory"
+                                InputProps={{
+                                    startAdornment: (
+                                        <MailOutlineIcon
+                                            sx={{
+                                                fontSize: 18,
+                                                mr: 1,
+                                                color: "text.disabled",
+                                            }}
+                                        />
+                                    ),
+                                }}
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                select
+                                label="Location"
+                                value={location?.officeid || ""}
+                                onChange={(e) =>
+                                    setLocation(
+                                        locations?.find(
+                                            (itm) =>
+                                                itm.officeid === e.target.value,
+                                        ),
+                                    )
+                                }
+                                fullWidth
+                                InputProps={{
+                                    startAdornment: (
+                                        <PlaceOutlinedIcon
+                                            sx={{
+                                                fontSize: 18,
+                                                mr: 1,
+                                                color: "text.disabled",
+                                            }}
+                                        />
+                                    ),
+                                }}
+                            >
+                                {locations?.map((itm) => (
+                                    <MenuItem
+                                        key={itm.officeid}
+                                        value={itm.officeid}
+                                    >
+                                        {itm.Alias}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
                         </Grid>
                     </Grid>
+                </SectionCard>
 
-                    {/* <Divider orientation="vertical" sx={{ height: "50%" }} />
-
-          <Grid
-            sx={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <Grid
-              sx={{
-                width: "fit-content",
-                height: "fit-content",
-                padding: "20px",
-                borderRadius: "20px",
-                background: theme.palette.secondary.lightHover,
-                border: !passwordBorder
-                  ? "4px, solid rgba(0,0,0, .01 )"
-                  : "4px, solid rgba(255,0,0, .2 )",
-              }}
-            >
-              <Typography
-                width={"100%"}
-                textAlign={"center"}
-                color={theme.palette.primary.main}
-              >
-                Athentication
-              </Typography>
-              <Stack
-                direction={"row"}
-                spacing={2}
-                sx={{
-                  width: "100%",
-                  height: "100%",
-                  justifyContent: "center",
-                  marginTop: "15px",
-                  minHeight: "220px",
-                }}
-              >
-                <Stack spacing={2}>
-                  <Typography
+                {/* ---- Access ---- */}
+                <SectionCard
+                    title="Access"
+                    subtitle="What you can do in this application."
+                    icon={<VerifiedUserOutlinedIcon />}
                     sx={{
-                      alignItems: "center",
-                      display: "flex",
-                      height: "38px",
+                        mt: 2.5,
+                        animation:
+                            "seaRiseIn 380ms cubic-bezier(0.22,1,0.36,1) both",
+                        animationDelay: "150ms",
                     }}
-                  >
-                    Current
-                  </Typography>
-                  <Typography
-                    sx={{
-                      alignItems: "center",
-                      display: "flex",
-                      height: "38px",
-                    }}
-                  >
-                    New
-                  </Typography>
-                  <Typography
-                    sx={{
-                      alignItems: "center",
-                      display: "flex",
-                      height: "38px",
-                    }}
-                  >
-                    Confirm
-                  </Typography>
-                </Stack>
-                <Stack spacing={2}>
-                  <TextField
-                    label={"Current Password"}
-                    value={currentPassword}
-                    sx={{ width: "400px", backgroundColor: "white" }}
-                    type={"password"}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    size="small"
-                  />
-                  <TextField
-                    label={"New Password"}
-                    value={password1}
-                    sx={{ width: "400px", backgroundColor: "white" }}
-                    type={"password"}
-                    onChange={(e) => setPassword1(e.target.value)}
-                    size="small"
-                  />
-                  <TextField
-                    label={"Confirm New Password"}
-                    value={password2}
-                    sx={{ width: "400px", backgroundColor: "white" }}
-                    type={"password"}
-                    onChange={(e) => setPassword2(e.target.value)}
-                    size="small"
-                  />
-                </Stack>
-                <Button
-                  sx={{
-                    width: "fit-content",
-                    height: "fit-content",
-                    background: "#f7dcdc",
-                    ":hover": { background: "#fccaca" },
-                    textTransform: "none",
-                  }}
-                  onClick={onSavePassword}
                 >
-                  Save Changes
-                </Button>
-              </Stack>
-            </Grid>
-          </Grid> */}
-                </Stack>
-            </Stack>
-        </Grid>
+                    <Stack
+                        divider={<Divider flexItem />}
+                        sx={{ "& > *": { py: 1.25 }, "& > *:first-of-type": { pt: 0 } }}
+                    >
+                        {ROLES.map((role) => (
+                            <Stack
+                                key={role.key}
+                                direction="row"
+                                alignItems="center"
+                                spacing={1.5}
+                            >
+                                <Typography
+                                    variant="body2"
+                                    sx={{ flexGrow: 1, fontWeight: 550 }}
+                                >
+                                    {role.label}
+                                </Typography>
+                                <Chip
+                                    size="small"
+                                    label={user?.[role.key] ? "Granted" : "—"}
+                                    sx={
+                                        user?.[role.key]
+                                            ? {
+                                                  bgcolor: "success.light",
+                                                  color: "success.dark",
+                                                  fontWeight: 600,
+                                              }
+                                            : {
+                                                  bgcolor: "grey.100",
+                                                  color: "text.disabled",
+                                              }
+                                    }
+                                />
+                            </Stack>
+                        ))}
+                    </Stack>
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block", mt: 2 }}
+                    >
+                        Roles are assigned by an administrator. Contact your
+                        equipment admin if something looks wrong.
+                    </Typography>
+                </SectionCard>
+            </PageContainer>
+        </>
     );
 };
 
