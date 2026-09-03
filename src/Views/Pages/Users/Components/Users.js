@@ -502,7 +502,10 @@ export default function Users({ setLoading }) {
                             {sortHeader("email", "Email")}
                             {sortHeader("location", "Location")}
                             <TableCell>Roles</TableCell>
-                            {sortHeader("active", "Active")}
+                            {/* Header reads "Status"; the cell chip says
+                                Active/Inactive, so "Active/Active" doesn't
+                                appear twice down the column. */}
+                            {sortHeader("active", "Status")}
                             {sortHeader("last_login", "Last login")}
                             <TableCell padding="checkbox" />
                         </TableRow>

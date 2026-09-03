@@ -292,9 +292,11 @@ const DisplayCheckout = ({
     };
 
     const applyEditScope = (scope) => {
-        // The edit form speaks "current" / "next" / "all".
-        const modeByScope = { this: "current", following: "next", all: "all" };
-        setUpdateMode(modeByScope[scope]);
+        // "this" / "following" / "all" — the same vocabulary the edit form's
+        // scope selector uses, so the chosen scope shows up pre-selected there.
+        // (This used to send "current" / "next", which the API also accepts but
+        // which left that selector rendering blank.)
+        setUpdateMode(scope);
         setEditScopeOpen(false);
         handleUpdateEvent();
     };

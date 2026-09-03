@@ -274,3 +274,191 @@ describe("pages render", () => {
         await expectHeading("We can't find that page");
     });
 });
+
+// ---------------------------------------------------------------------------
+// With data
+// ---------------------------------------------------------------------------
+// The tests above only reach the empty states. These feed real-shaped payloads
+// so the row and card renderers actually run.
+
+/** Routes axios.get by URL so a page can get different data per endpoint. */
+function mockEndpoints(map) {
+    const axios = require("axios");
+    axios.get.mockImplementation((url) => {
+        const match = Object.keys(map).find((key) => url.startsWith(key));
+        return Promise.resolve({ data: match ? map[match] : [] });
+    });
+}
+
+const EQUIPMENT_FIXTURE = [
+    {
+        id: 1,
+        name: "Thermal Camera",
+        serial_number: "TC-9001",
+        asset_number: "A-1",
+        location: "Columbus",
+        contact_person: "Dana Reed",
+        status: "available",
+        can_book: true,
+        last_calibration_date: "2025-01-01T00:00:00.000Z",
+        calibration_interval_value: 12,
+        calibration_interval_unit: "months",
+    },
+    {
+        id: 2,
+        name: "Impact Hammer",
+        serial_number: "IH-4402",
+        location: "Columbus",
+        status: "retired",
+        can_book: false,
+    },
+];
+
+describe("list pages with data", () => {
+    it("renders equipment cards", async () => {
+        mockEndpoints({
+            "/api/equipment": EQUIPMENT_FIXTURE,
+            "/api/locations": [{ officeid: 0, Alias: "All", state: "OH" }],
+            "/api/checkouts": [],
+            "/api/users": [],
+        });
+
+        const Equipment = require("./Views/Pages/Equipment/index").default;
+        renderRoute(<Equipment setLoading={noop} loading={false} />);
+
+        await waitFor(() =>
+            expect(screen.getByText("Thermal Camera")).toBeInTheDocument(),
+        );
+        expect(screen.getByText("Impact Hammer")).toBeInTheDocument();
+        // Bookable items show a status pill; non-bookable ones don't.
+        expect(screen.getByText("Available")).toBeInTheDocument();
+        expect(screen.getByText("TC-9001")).toBeInTheDocument();
+    });
+
+    it("renders reservations grouped into recurring and one-time", async () => {
+        mockEndpoints({
+            "/api/checkouts/user/": [
+                {
+                    id: 10,
+                    start_time: "2026-02-02T15:00:00.000Z",
+                    end_time: "2026-02-02T17:00:00.000Z",
+                    status: "auto-approved",
+                    project_number: "P-100",
+                    Equipment: EQUIPMENT_FIXTURE[0],
+                },
+                {
+                    id: 11,
+                    start_time: "2026-02-09T15:00:00.000Z",
+                    end_time: "2026-02-09T17:00:00.000Z",
+                    status: "pending",
+                    recurrence_id: 5,
+                    Recurrence: {
+                        recurrence_pattern: "weekly",
+                        separation_count: 1,
+                    },
+                    Equipment: EQUIPMENT_FIXTURE[0],
+                },
+            ],
+            "/api/users": [],
+        });
+
+        const MyCheckouts = require("./Views/Pages/MyCheckouts/index").default;
+        renderRoute(<MyCheckouts setLoading={noop} loading={false} />);
+
+        await waitFor(() =>
+            expect(
+                screen.getByText(/Recurring reservations \(1\)/),
+            ).toBeInTheDocument(),
+        );
+        expect(
+            screen.getByText(/One-time reservations \(1\)/),
+        ).toBeInTheDocument();
+        // Stat row reflects the loaded set.
+        expect(screen.getByText("Total")).toBeInTheDocument();
+    });
+
+    it("renders the approval queue with pending rows", async () => {
+        const api = require("./Utilites/Functions/ApiFunctions");
+        api.GetCheckoutApprovals.mockResolvedValue([
+            {
+                id: 21,
+                equipment_id: 1,
+                user_id: 2,
+                start_time: "2026-03-01T14:00:00.000Z",
+                end_time: "2026-03-01T16:00:00.000Z",
+                status: "pending",
+                notes: "Site survey",
+            },
+        ]);
+        mockEndpoints({
+            "/api/equipment": EQUIPMENT_FIXTURE,
+            "/api/users": [
+                { id: 2, first_name: "Sam", last_name: "Ortiz" },
+            ],
+        });
+
+        const ApprovalQueue =
+            require("./Views/Pages/ApprovalQueue/index").default;
+        renderRoute(<ApprovalQueue setLoading={noop} loading={false} />);
+
+        await waitFor(() =>
+            expect(screen.getByText("Thermal Camera")).toBeInTheDocument(),
+        );
+        expect(screen.getByText("Sam Ortiz")).toBeInTheDocument();
+        expect(screen.getByText("Site survey")).toBeInTheDocument();
+    });
+
+    it("renders the user table with role badges", async () => {
+        const api = require("./Utilites/Functions/ApiFunctions");
+        api.GetUsers.mockResolvedValue([
+            {
+                id: 2,
+                first_name: "Sam",
+                last_name: "Ortiz",
+                email: "sam@sealimited.com",
+                location: 0,
+                active: true,
+                admin: true,
+                tax_admin: true,
+            },
+        ]);
+        api.GetLocations.mockResolvedValue([
+            { officeid: 0, Alias: "All", state: "OH" },
+        ]);
+
+        const Users = require("./Views/Pages/Users/index").default;
+        renderRoute(<Users setLoading={noop} />);
+
+        await waitFor(() =>
+            expect(screen.getByText("Sam Ortiz")).toBeInTheDocument(),
+        );
+        expect(screen.getByText("Admin")).toBeInTheDocument();
+        expect(screen.getByText("Tax Admin")).toBeInTheDocument();
+        expect(screen.getByText("sam@sealimited.com")).toBeInTheDocument();
+        expect(screen.getByText("Active")).toBeInTheDocument();
+    });
+
+    it("renders equipment details for a loaded item", async () => {
+        mockEndpoints({
+            "/api/equipment/1/files": [],
+            "/api/equipment/1": EQUIPMENT_FIXTURE[0],
+            "/api/equipment": EQUIPMENT_FIXTURE,
+            "/api/calibrations": [],
+            "/api/checkouts": [],
+            "/api/locations": [],
+            "/api/users": [],
+            "/api/equipment-alerts": [],
+        });
+
+        const EquipmentDetails =
+            require("./Views/Pages/EquipmentDetails/EquipmentDetails").default;
+        renderRoute(<EquipmentDetails setLoading={noop} loading={false} />, {
+            path: "/equipment/:equipmentId",
+            route: "/equipment/1",
+        });
+
+        await expectHeading("Thermal Camera");
+        expect(screen.getByText("TC-9001")).toBeInTheDocument();
+        expect(screen.getByText("Calibration")).toBeInTheDocument();
+    });
+});
