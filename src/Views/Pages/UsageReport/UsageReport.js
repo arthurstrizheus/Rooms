@@ -416,8 +416,11 @@ const UsageReport = () => {
     );
 
     const resultsTable = (
-        <Card sx={{ overflow: "hidden" }}>
-            <TableContainer sx={{ maxHeight: "calc(100dvh - 460px)" }}>
+        <Card sx={{ overflow: "hidden", flexShrink: 0 }}>
+            {/* No height cap. The parameters and summary cards above make this a
+                stacked page, so the page body owns the scrolling — capping the
+                table here just produced a second scrollbar inside the first. */}
+            <TableContainer>
                 <Table stickyHeader size="small">
                     <TableHead>
                         <TableRow>

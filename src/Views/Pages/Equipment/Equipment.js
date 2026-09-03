@@ -898,10 +898,17 @@ const Equipment = ({ setLoading, loading }) => {
                 </FilterBar>
             </PageHeader>
 
-            <PageContainer>
+            {/* The table sizes itself to the page and scrolls internally; the
+                card grid is free-flowing, so the page body scrolls instead. */}
+            <PageContainer fill={effectiveView === "table"}>
                 <Typography
                     variant="caption"
-                    sx={{ color: "text.disabled", mb: 2, display: "block" }}
+                    sx={{
+                        color: "text.disabled",
+                        mb: 2,
+                        display: "block",
+                        flexShrink: 0,
+                    }}
                 >
                     The full equipment listing is also available on the{" "}
                     <Link
@@ -933,8 +940,16 @@ const Equipment = ({ setLoading, loading }) => {
                         ))}
                     </Stagger>
                 ) : (
-                    <Card sx={{ overflow: "hidden" }}>
-                        <TableContainer sx={{ maxHeight: "calc(100dvh - 300px)" }}>
+                    <Card
+                        sx={{
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                            flexGrow: 1,
+                            minHeight: 0,
+                        }}
+                    >
+                        <TableContainer sx={{ flexGrow: 1, minHeight: 0 }}>
                             <Table stickyHeader size="small">
                                 <TableHead>
                                     <TableRow>

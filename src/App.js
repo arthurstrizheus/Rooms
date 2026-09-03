@@ -208,6 +208,9 @@ function AppShell() {
                     onOpenMenu={() => setSidebarOpen(true)}
                 />
 
+                {/* The window never scrolls. Pages get exactly the height left
+                    over here and scroll their own body, so page headers,
+                    filters and action bars stay fixed. See PageContainer. */}
                 <Box
                     component="div"
                     sx={{
@@ -215,27 +218,21 @@ function AppShell() {
                         minHeight: 0,
                         display: "flex",
                         flexDirection: "column",
-                        overflowY: "auto",
-                        overflowX: "hidden",
-                        WebkitOverflowScrolling: "touch",
-                        overscrollBehaviorY: "contain",
+                        overflow: "hidden",
                         // Clear the fixed bottom bar on small screens.
                         pb: isCompact ? `${BOTTOM_NAV_HEIGHT}px` : 0,
                     }}
                 >
                     {/* Keying on pathname replays the entrance animation on
                         every route change, so navigation always has motion. */}
-                    {/* No `minHeight: 0` here: this is the page wrapper, not a
-                        scroll viewport. Clamping it to 0 made every page
-                        exactly viewport-tall, so tall pages were clipped
-                        instead of scrolling. `flexGrow` still stretches short
-                        pages to fill the window. */}
                     <Box
                         key={location.pathname}
                         sx={{
                             flexGrow: 1,
+                            minHeight: 0,
                             display: "flex",
                             flexDirection: "column",
+                            overflow: "hidden",
                             animation:
                                 "seaRiseIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both",
                         }}

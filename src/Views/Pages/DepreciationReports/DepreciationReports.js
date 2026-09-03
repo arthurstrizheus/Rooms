@@ -388,8 +388,9 @@ const DepreciationReports = ({ setLoading }) => {
     };
 
     const assetTable = (
-        <Card sx={{ overflow: "hidden" }}>
-            <TableContainer sx={{ maxHeight: "calc(100dvh - 460px)" }}>
+        <Card sx={{ overflow: "hidden", flexShrink: 0 }}>
+            {/* Stacked page — the page body scrolls, so no height cap here. */}
+            <TableContainer>
                 <Table stickyHeader size="small">
                     <TableHead>
                         <TableRow>

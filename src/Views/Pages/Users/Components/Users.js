@@ -477,8 +477,18 @@ export default function Users({ setLoading }) {
     );
 
     const desktopTable = (
-        <Card sx={{ overflow: "hidden" }}>
-            <TableContainer sx={{ maxHeight: "calc(100dvh - 340px)" }}>
+        <Card
+            sx={{
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                flexGrow: 1,
+                minHeight: 0,
+            }}
+        >
+            {/* Sized by flexbox, not by guessing how tall the chrome above is.
+                The pagination row below stays pinned while the body scrolls. */}
+            <TableContainer sx={{ flexGrow: 1, minHeight: 0 }}>
                 <Table stickyHeader size="small" aria-label="Users">
                     <TableHead>
                         <TableRow>
@@ -750,6 +760,7 @@ export default function Users({ setLoading }) {
             </PageHeader>
 
             <PageContainer
+                fill={!isCompact}
                 sx={{ pb: selected.length > 0 ? { xs: 14, sm: 12 } : undefined }}
             >
                 {!fetched ? (

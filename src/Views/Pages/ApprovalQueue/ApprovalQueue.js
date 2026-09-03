@@ -380,8 +380,16 @@ export default function ApprovalQueue({ setLoading }) {
     );
 
     const desktopTable = (
-        <Card sx={{ overflow: "hidden" }}>
-            <TableContainer sx={{ maxHeight: "calc(100dvh - 290px)" }}>
+        <Card
+            sx={{
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+                flexGrow: 1,
+                minHeight: 0,
+            }}
+        >
+            <TableContainer sx={{ flexGrow: 1, minHeight: 0 }}>
                 <Table stickyHeader size="small" aria-label="Pending approvals">
                     <TableHead>
                         <TableRow>
@@ -568,6 +576,7 @@ export default function ApprovalQueue({ setLoading }) {
             />
 
             <PageContainer
+                fill={!isCompact}
                 sx={{
                     // Room for the floating action bar so the last row is never
                     // hidden behind it.
