@@ -22,6 +22,7 @@ import BottomNav, {
     BOTTOM_NAV_HEIGHT,
 } from "./Views/Components/Shell/BottomNav";
 import useApprovalCount from "./Views/Components/Shell/useApprovalCount";
+import { SupportProvider } from "./Views/Components/Support/SupportContext";
 import { titleForPath } from "./Views/Components/Shell/navConfig";
 import useResponsive from "./hooks/useResponsive";
 
@@ -314,7 +315,12 @@ export default function App() {
                     <EmbedShell />
                 ) : (
                     <SocketProvider>
-                        <AppShell />
+                        {/* Inside SocketProvider so the help dialog is only
+                            mounted for a signed-in session — a ticket is filed
+                            as the current user and there isn't one otherwise. */}
+                        <SupportProvider>
+                            <AppShell />
+                        </SupportProvider>
                     </SocketProvider>
                 )}
             </SnackbarProvider>

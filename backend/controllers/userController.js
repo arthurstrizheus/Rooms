@@ -432,7 +432,15 @@ const userExistsInAd = async (req, res) => {
             },
         });
 
-        res.json({ exists, accountCreated: !!userAcc || !userAcc.location });
+        // `accountCreated` tells Login.js whether it still needs to ask for a
+        // location, so it is true only when a row exists AND already has one.
+        //
+        // This was `!!userAcc || !userAcc.location`, which threw on the case
+        // the endpoint exists to serve: for a real AD user who has never
+        // logged in, `userAcc` is null, so `||` went on to dereference it. The
+        // catch below then reported `exists: false` — the endpoint claimed a
+        // genuine AD account was not in AD, and first-time sign-in was stuck.
+        res.json({ exists, accountCreated: !!userAcc && !!userAcc.location });
     } catch (error) {
         console.error("Error checking user in AD:", error);
         res.status(500).json({

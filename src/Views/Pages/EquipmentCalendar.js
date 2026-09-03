@@ -542,7 +542,15 @@ const EquipmentCalendar = ({ setLoading, loading }) => {
                         editable={false}
                         selectable={!isCompact}
                         selectMirror
-                        dayMaxEvents
+                        // A NUMBER, not `true`. `dayMaxEvents: true` caps by
+                        // measured cell height, and daygrid throws that cap away
+                        // when rows can't expand -- `if (limitViaBalanced &&
+                        // !expandRows) { dayMaxEvents = null }`. `height="auto"`
+                        // below is exactly that case (`expandRows: !isHeightAuto`),
+                        // so `true` here meant no cap at all and a busy day grew
+                        // the row without bound. A numeric cap isn't balanced, so
+                        // it survives.
+                        dayMaxEvents={3}
                         weekends
                         events={checkouts}
                         select={isCompact ? undefined : handleDateSelect}

@@ -18,7 +18,9 @@ import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import AccountBoxOutlinedIcon from "@mui/icons-material/AccountBoxOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
 import { useAuth } from "../../../Utilites/AuthContext";
+import { useSupport } from "../Support/SupportContext";
 import { visibleSections } from "./navConfig";
 import logo from "../../../Assets/Images/sea-logo.png";
 
@@ -39,6 +41,7 @@ export default function NavSidebar({
     showCollapse = false,
 }) {
     const { user, logout, setUser } = useAuth();
+    const { enabled: supportEnabled, openSupport } = useSupport();
     const location = useLocation();
     const navigate = useNavigate();
     const [userMenu, setUserMenu] = React.useState(null);
@@ -400,6 +403,23 @@ export default function NavSidebar({
                         </ListItemIcon>
                         <ListItemText>My Account</ListItemText>
                     </MenuItem>
+
+                    {/* Hidden unless the server has the help desk configured,
+                        so this is never a button that can only fail. */}
+                    {supportEnabled && (
+                        <MenuItem
+                            onClick={() => {
+                                setUserMenu(null);
+                                openSupport();
+                            }}
+                        >
+                            <ListItemIcon>
+                                <SupportAgentOutlinedIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Get help</ListItemText>
+                        </MenuItem>
+                    )}
+
                     <Divider sx={{ my: 0.5 }} />
                     <MenuItem onClick={handleLogout}>
                         <ListItemIcon>

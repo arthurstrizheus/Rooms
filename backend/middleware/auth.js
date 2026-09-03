@@ -7,16 +7,20 @@ const publicRoutes = [
     "/api/users/loginAd",
     "/api/users/adhasuser",
     "/api/locations",
-    "/api/mattermanager/full",
     "/uploads",
     // Add more public routes as needed
 ];
 
 const authenticateUser = async (req, res, next) => {
     try {
-        // Check if the current route is public
+        // A bare `startsWith` makes every route that merely SHARES A PREFIX
+        // public too: `/api/locations` also exempted a hypothetical
+        // `/api/locations-admin`, and `/uploads` exempted `/uploads-private`.
+        // Require a path-segment boundary so only the route itself and things
+        // genuinely beneath it match.
         const isPublicRoute = publicRoutes.some(
-            (route) => req.path === route || req.path.startsWith(route),
+            (route) =>
+                req.path === route || req.path.startsWith(`${route}/`),
         );
 
         console.log(
@@ -50,6 +54,20 @@ const authenticateUser = async (req, res, next) => {
             console.log("❌ User not found in database");
             return res.status(401).json({
                 message: "Invalid token. User not found.",
+            });
+        }
+
+        // Deactivating a user had no effect until their token expired, which is
+        // 7 days. `active` was read onto req.user below and then never checked
+        // by anything, so an offboarded account kept full API access for a week.
+        //
+        // Tested against an explicit false/0 rather than falsiness: rows
+        // predating the column have NULL here, and treating those as
+        // deactivated would lock out everyone who hasn't been touched since.
+        if (user.active === false || user.active === 0) {
+            console.log(`⛔ Deactivated account rejected: ${user.username}`);
+            return res.status(401).json({
+                message: "This account has been deactivated.",
             });
         }
 

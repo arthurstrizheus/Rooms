@@ -2159,4 +2159,7 @@ module.exports = {
     sendEquipmentCheckedOutEmail,
     sendEquipmentStatusChangeEmail,
     sendScheduledOnBehalfEmail,
+    // Exported so anything else building HTML from user-supplied text escapes
+    // it the same way, rather than growing a second copy that drifts.
+    escapeHtml,
 };

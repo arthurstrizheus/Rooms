@@ -158,12 +158,28 @@ const generateRecurringCheckouts = (
     endDate,
 ) => {
     const occurrences = [];
-    const checkoutDuration =
-        new Date(baseCheckout.end_time) - new Date(baseCheckout.start_time);
 
-    let currentDate = new Date(baseCheckout.start_time);
+    // Both ends are stepped by the same calendar arithmetic rather than the
+    // start being stepped and the end derived from a fixed millisecond
+    // duration. date-fns keeps the local wall-clock time, so a 9:00-17:00
+    // booking stays 9:00-17:00 across a DST boundary instead of drifting to
+    // 9:00-16:00 for half the year.
+    let currentStart = new Date(baseCheckout.start_time);
+    let currentEnd = new Date(baseCheckout.end_time);
+
+    // `count` is the occurrence's index within the series, and it is also what
+    // names the virtual id below, so it must keep counting from the series
+    // start no matter which window is being asked for.
     let count = 0;
-    const maxCount = recurrence.max_occurrences || 365; // Default max for ~1 year of daily events
+
+    // `max_occurrences` is the series' own budget -- what the user booked.
+    // A loop guard is a different thing, and conflating the two was a bug: the
+    // old `max_occurrences || 365` bound the loop by the STEP count, which
+    // increments even for steps that fall before the requested window. Any
+    // daily series older than a year exhausted it before reaching today and
+    // silently vanished from the calendar.
+    const seriesLimit = recurrence.max_occurrences || Number.POSITIVE_INFINITY;
+    const MAX_STEPS = 5000;
 
     // If no date range specified, generate from base checkout for next year
     const rangeStart = startDate
@@ -171,65 +187,54 @@ const generateRecurringCheckouts = (
         : new Date(baseCheckout.start_time);
     const rangeEnd = endDate ? new Date(endDate) : addDays(new Date(), 365);
 
-    while (count < maxCount) {
+    // `recurrence_pattern` is an unconstrained STRING with no validation, so
+    // an empty or null one is storable. Reading `.toLowerCase()` off it threw
+    // inside the calendar fetch and took down the whole equipment view.
+    const pattern = recurrence.recurrence_pattern?.toLowerCase();
+    const separation = recurrence.separation_count || 1;
+
+    const step = {
+        daily: addDays,
+        weekly: addWeeks,
+        monthly: addMonths,
+    }[pattern];
+
+    if (!step) return occurrences; // unknown, empty or null pattern
+
+    while (count < seriesLimit && count < MAX_STEPS) {
         // Check if we've passed the recurrence end date
         if (
             recurrence.end_date &&
-            isAfter(currentDate, new Date(recurrence.end_date))
+            isAfter(currentStart, new Date(recurrence.end_date))
         ) {
             break;
         }
 
-        const occurrenceEnd = new Date(
-            currentDate.getTime() + checkoutDuration,
-        );
+        // Nothing further can fall inside the window.
+        if (isAfter(currentStart, rangeEnd)) break;
 
         // Include occurrence if it overlaps with requested range
         const occurrenceStartsBeforeRangeEnd =
-            isBefore(currentDate, rangeEnd) ||
-            currentDate.getTime() === rangeEnd.getTime();
+            isBefore(currentStart, rangeEnd) ||
+            currentStart.getTime() === rangeEnd.getTime();
         const occurrenceEndsAfterRangeStart =
-            isAfter(occurrenceEnd, rangeStart) ||
-            occurrenceEnd.getTime() === rangeStart.getTime();
+            isAfter(currentEnd, rangeStart) ||
+            currentEnd.getTime() === rangeStart.getTime();
 
         if (occurrenceStartsBeforeRangeEnd && occurrenceEndsAfterRangeStart) {
             occurrences.push({
                 ...baseCheckout.toJSON(),
                 id: `${baseCheckout.id}_${count}`,
-                start_time: currentDate.toISOString(),
-                end_time: occurrenceEnd.toISOString(),
+                start_time: currentStart.toISOString(),
+                end_time: currentEnd.toISOString(),
                 isRecurring: true,
                 recurrence_id: recurrence.id,
             });
         }
 
-        // Calculate next occurrence based on pattern
-        switch (recurrence.recurrence_pattern.toLowerCase()) {
-            case "daily":
-                currentDate = addDays(currentDate, recurrence.separation_count);
-                break;
-            case "weekly":
-                currentDate = addWeeks(
-                    currentDate,
-                    recurrence.separation_count,
-                );
-                break;
-            case "monthly":
-                currentDate = addMonths(
-                    currentDate,
-                    recurrence.separation_count,
-                );
-                break;
-            default:
-                return occurrences; // Unknown pattern
-        }
-
+        currentStart = step(currentStart, separation);
+        currentEnd = step(currentEnd, separation);
         count++;
-
-        // Safety check for date range
-        if (endDate && isAfter(currentDate, new Date(endDate))) {
-            break;
-        }
     }
 
     return occurrences;

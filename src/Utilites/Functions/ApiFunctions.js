@@ -367,3 +367,55 @@ export async function UpdateAlert(alertId, enabled, notificationDaysBefore) {
         return null;
     }
 }
+
+// ------------------ SUPPORT ------------------------
+/**
+ * Is the help desk integration configured on the server?
+ *
+ * The support entry points stay hidden when it is not, so nobody is offered a
+ * button whose only possible outcome is an error.
+ */
+export async function GetSupportStatus() {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.get(`/api/support/status`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        return Boolean(resp?.data?.enabled);
+    } catch (err) {
+        // Not reachable means not usable. Fail quiet: this runs on mount and a
+        // snackbar about a feature the user hasn't asked for is just noise.
+        return false;
+    }
+}
+
+/**
+ * File a help desk ticket.
+ *
+ * Unlike its neighbours this returns the server's own message instead of
+ * swallowing it, because every failure here is one the user needs the specifics
+ * of: how long the rate limit has left, or that the help desk itself is down
+ * and they should send an email instead.
+ *
+ * @returns {Promise<{ok: boolean, message: string, ticketId?: number}>}
+ */
+export async function CreateSupportTicket(payload) {
+    try {
+        const token = localStorage.getItem("authToken");
+        const resp = await axios.post(`/api/support/ticket`, payload, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        return {
+            ok: true,
+            message: resp?.data?.message || "Your request has been sent.",
+            ticketId: resp?.data?.ticketId,
+        };
+    } catch (err) {
+        return {
+            ok: false,
+            message:
+                err?.response?.data?.message ||
+                "Could not send your request. Please check your connection and try again.",
+        };
+    }
+}

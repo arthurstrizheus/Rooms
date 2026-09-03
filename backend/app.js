@@ -42,6 +42,7 @@ const bonusRatesRouter = require("./routes/bonusRates");
 const section179LimitsRouter = require("./routes/section179Limits");
 const passengerAutoLimitsRouter = require("./routes/passengerAutoLimits");
 const usageReportsRouter = require("./routes/usageReports");
+const supportRouter = require("./routes/support");
 const errorHandler = require("./middleware/errorHandler");
 const { ensureIndexes } = require("./migrations/ensureIndexes");
 const { initCalibrationAlertsScheduler } = require("./jobs/calibrationAlerts");
@@ -169,6 +170,7 @@ app.use("/api/bonus-rates", bonusRatesRouter);
 app.use("/api/section179-limits", section179LimitsRouter);
 app.use("/api/passenger-auto-limits", passengerAutoLimitsRouter);
 app.use("/api/usage-reports", usageReportsRouter);
+app.use("/api/support", supportRouter);
 
 // Initialize WebSocket handlers
 handleSocketConnection(io);

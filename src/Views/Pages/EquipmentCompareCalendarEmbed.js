@@ -206,7 +206,9 @@ const EquipmentCompareCalendarEmbed = () => {
                 editable={false}
                 selectable={false}
                 selectMirror={false}
-                dayMaxEvents
+                // Numeric, not `true` — daygrid discards a height-measured cap
+                // when rows can't expand, which `height="auto"` guarantees.
+                dayMaxEvents={3}
                 weekends
                 events={checkouts}
                 datesSet={(dateInfo) => {

@@ -20,6 +20,7 @@ import {
     CalendarMonth,
     UploadFile,
     NotificationsActive,
+    ReportProblemOutlined,
     CompareArrows,
     MoreVert,
     AttachFileOutlined,
@@ -41,6 +42,7 @@ import AlertDialog from "../../../Components/AlertDialog";
 import useAlertDialog from "../../../hooks/useAlertDialog";
 import ConfirmDialog from "../../../Components/ConfirmDialog";
 import useConfirmDialog from "../../../hooks/useConfirmDialog";
+import { useSupport } from "../../Components/Support/SupportContext";
 import EquipmentDialog from "../Equipment/EquipmentDialog";
 import ReservationDialog from "./Components/ReservationDialog";
 import EquipmentInfoCard from "./Components/EquipmentInfoCard";
@@ -69,6 +71,7 @@ const EquipmentDetails = ({ setLoading, loading }) => {
     const navigate = useNavigate();
     const { showAlert, alertState, hideAlert } = useAlertDialog();
     const { showConfirm, confirmState, hideConfirm } = useConfirmDialog();
+    const { enabled: supportEnabled, openSupport } = useSupport();
 
     const [equipment, setEquipment] = useState(null);
     const [files, setFiles] = useState([]);
@@ -607,6 +610,18 @@ const EquipmentDetails = ({ setLoading, loading }) => {
             label: "Alerts",
             icon: <NotificationsActive />,
             onClick: () => setOpenSubscribeDialog(true),
+        },
+        // Only when the help desk is actually configured server-side.
+        supportEnabled && {
+            key: "report",
+            label: "Report a problem",
+            icon: <ReportProblemOutlined />,
+            onClick: () =>
+                openSupport({
+                    equipmentId: equipment.id,
+                    equipmentName: equipment.name,
+                    category: "equipment-issue",
+                }),
         },
         canEditDelete() && {
             key: "manage",
