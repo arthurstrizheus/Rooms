@@ -1,4 +1,5 @@
 const { Checkout, Equipment, User, CheckoutRecurrence } = require("../models");
+const { sequelize } = require("../config/database");
 const { Sequelize } = require("sequelize");
 const {
     startOfDay,
@@ -52,6 +53,29 @@ const getIntervalDays = (pattern, separation) => {
         default:
             return separation;
     }
+};
+
+// The calendar arithmetic a recurrence pattern actually advances by. This is
+// the same table `generateRecurringCheckouts` expands a series with, so
+// anything that has to land ON the series' own phase has to use it too.
+const RECURRENCE_STEPS = {
+    daily: addDays,
+    weekly: addWeeks,
+    monthly: addMonths,
+};
+
+// Advance a series' base time by whole recurrence intervals.
+// date-fns keeps the LOCAL wall-clock time, so a 9:00 booking is still a 9:00
+// booking on the far side of a DST boundary; adding a fixed number of
+// milliseconds would slide it by an hour for half the year.
+const stepOccurrence = (date, pattern, separation, intervals) => {
+    // recurrence_pattern is an unvalidated STRING, so an empty or unknown one
+    // is storable. A series with such a pattern expands to nothing, so we can
+    // never legitimately be splitting one -- fall back to days rather than
+    // returning an Invalid Date into a NOT NULL column.
+    const step =
+        RECURRENCE_STEPS[String(pattern || "").toLowerCase()] || addDays;
+    return step(new Date(date), (separation || 1) * intervals);
 };
 
 // Mathematical check if two recurring patterns will ever overlap
@@ -161,6 +185,44 @@ const singleConflictsWithRecurring = (
     return true;
 };
 
+// Occurrences of a recurring reservation exist only in memory: there is one
+// head row, and generateRecurringCheckouts hands every expanded occurrence a
+// virtual id of the form "{headId}_{index}". Handing one of those straight to
+// findByPk produced `WHERE id = '4_3'` against an INTEGER primary key, which
+// MSSQL rejects with a conversion error, so anything reached by a virtual id
+// has to resolve it to the head first.
+const parseCheckoutId = (id) => {
+    const isVirtualOccurrence = typeof id === "string" && id.includes("_");
+
+    if (!isVirtualOccurrence) {
+        return {
+            isVirtualOccurrence,
+            baseCheckoutId: Number(id),
+            occurrenceIndex: null,
+        };
+    }
+
+    const [rawBaseId, rawOccurrenceIndex] = id.split("_");
+
+    return {
+        isVirtualOccurrence,
+        // Numbers, not strings: these ids end up in an Op.ne against an
+        // INTEGER column as well as in findByPk.
+        baseCheckoutId: Number(rawBaseId),
+        occurrenceIndex: Number(rawOccurrenceIndex),
+    };
+};
+
+// A 409 goes back to whoever is trying to book, who usually has nothing to do
+// with the booking they collided with. We used to hand back the whole Checkout
+// row -- notes, project_number, scheduled_on_behalf_of and the booker -- which
+// leaked one team's reservation details to anyone who happened to pick an
+// overlapping time. All the caller can act on is WHEN the equipment is taken.
+const toConflictWindow = (existing) => ({
+    start_time: existing.start_time,
+    end_time: existing.end_time,
+});
+
 // Helper function to check for conflicts - reusable for both Post and Update
 const checkConflicts = async (
     equipmentId,
@@ -267,7 +329,7 @@ const checkConflicts = async (
             status: 409,
             message:
                 "Time conflict: Equipment is already booked for this time period",
-            conflicts,
+            conflicts: conflicts.map(toConflictWindow),
         };
     }
 };
@@ -568,7 +630,7 @@ const Post = async (req, res, next) => {
             return res.status(409).json({
                 message:
                     "Time conflict: Equipment is already booked for this time period",
-                conflicts,
+                conflicts: conflicts.map(toConflictWindow),
             });
         }
 
@@ -697,12 +759,18 @@ const Post = async (req, res, next) => {
                         const firstName = nameParts[0];
                         const lastName = nameParts.slice(1).join(" ");
 
+                        // Op.iLike is PostgreSQL-only; against this MSSQL
+                        // connection it threw, so the on-behalf-of recipient
+                        // was never looked up and the email never went out.
+                        // MSSQL collations are case-insensitive by default,
+                        // so a plain Op.like is already the case-insensitive
+                        // match this was reaching for.
                         const scheduledForUser = await User.findOne({
                             where: {
                                 first_name: {
-                                    [Sequelize.Op.iLike]: firstName,
+                                    [Sequelize.Op.like]: firstName,
                                 },
-                                last_name: { [Sequelize.Op.iLike]: lastName },
+                                last_name: { [Sequelize.Op.like]: lastName },
                             },
                         });
 
@@ -766,14 +834,23 @@ const Update = async (req, res, next) => {
             delete updates.status;
         }
 
-        // Check if this is a virtual occurrence ID (e.g., "4_3")
-        const isVirtualOccurrence = typeof id === "string" && id.includes("_");
-        let baseCheckoutId = id;
+        // Check if this is a virtual occurrence ID (e.g., "4_3").
+        // `occurrenceIndex` is the occurrence's position in the series, and it
+        // is the only thing that tells a split where the series' own phase is.
+        const { isVirtualOccurrence, baseCheckoutId, occurrenceIndex } =
+            parseCheckoutId(id);
         let occurrenceDate = null;
 
         if (isVirtualOccurrence) {
-            // Parse the virtual ID to get base checkout ID and occurrence date
-            [baseCheckoutId] = id.split("_");
+            if (
+                !Number.isInteger(baseCheckoutId) ||
+                !Number.isInteger(occurrenceIndex) ||
+                occurrenceIndex < 0
+            ) {
+                return res.status(400).json({
+                    message: "Malformed recurring occurrence id",
+                });
+            }
 
             // The updates should contain the occurrence start_time for this specific occurrence
             if (!updates.occurrence_start_time) {
@@ -799,17 +876,6 @@ const Update = async (req, res, next) => {
             return res.status(404).json({ message: "Checkout not found" });
         }
 
-        console.log("=== UPDATE CHECKOUT DEBUG ===");
-        console.log("ID received:", id);
-        console.log("isVirtualOccurrence:", isVirtualOccurrence);
-        console.log("baseCheckoutId:", baseCheckoutId);
-        console.log("updateMode:", updateMode);
-        console.log(
-            "checkout.Recurrence:",
-            checkout.Recurrence ? "EXISTS" : "NULL",
-        );
-        console.log("updates:", updates);
-
         // Handle recurring checkout edits
         if (checkout.Recurrence && isVirtualOccurrence) {
             const recurrence = checkout.Recurrence;
@@ -818,187 +884,217 @@ const Update = async (req, res, next) => {
                 // Edit single occurrence:
                 // 1. End current recurrence the day before this occurrence
                 // 2. Create new single checkout for this edited occurrence
-                // 3. Create new recurrence starting the day after with original pattern
-                console.log("=== EDIT THIS MODE ===");
-                console.log("Base checkout ID:", checkout.id);
-                console.log(
-                    "Original checkout start_time:",
-                    checkout.start_time,
-                );
-                console.log("Original checkout end_time:", checkout.end_time);
-                console.log("Occurrence date being edited:", occurrenceDate);
-                console.log("Updates received:", updates);
-
+                // 3. Continue the series from the NEXT occurrence with the
+                //    original pattern
                 const dayBefore = addDays(occurrenceDate, -1);
-                console.log("Setting recurrence end_date to:", dayBefore);
 
                 // Store original end_date before modifying
                 const originalEndDate = recurrence.end_date;
 
+                // This occurrence's own end time. The expander steps both ends
+                // of the head row by the same calendar arithmetic, so that is
+                // how we rebuild it here. The old fallback --
+                // addDays(occurrenceDate, durationInMilliseconds / oneDay) --
+                // handed addDays a fraction, which date-fns truncates to 0, so
+                // any booking shorter than a day that did not send an explicit
+                // end_time was saved with end_time === start_time.
+                const occurrenceEnd = stepOccurrence(
+                    checkout.end_time,
+                    recurrence.recurrence_pattern,
+                    recurrence.separation_count,
+                    occurrenceIndex,
+                );
+
                 // Check for conflicts with the new single checkout
                 const newStart = new Date(updates.start_time || occurrenceDate);
-                const newEnd = new Date(
-                    updates.end_time ||
-                        addDays(
-                            occurrenceDate,
-                            (new Date(checkout.end_time) -
-                                new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24),
-                        ),
-                );
+                const newEnd = new Date(updates.end_time || occurrenceEnd);
 
-                await checkConflicts(
-                    checkout.equipment_id,
-                    newStart,
-                    newEnd,
-                    null,
-                    null,
-                    null,
-                );
+                // Cancelling can never create a conflict, so skip the check
+                // for it exactly as the "all" branch does. And the head row
+                // has to be excluded: without it the series collided with
+                // itself and every "this" edit 409'd against the occurrence it
+                // was editing.
+                if (updates.status !== "cancelled") {
+                    await checkConflicts(
+                        checkout.equipment_id,
+                        newStart,
+                        newEnd,
+                        null,
+                        null,
+                        null,
+                        baseCheckoutId,
+                    );
+                }
 
-                // End the original recurrence before this occurrence
-                await recurrence.update({ end_date: dayBefore });
+                // One transaction for the whole split. The old recurrence is
+                // truncated first, so a create failing afterwards (a conflict,
+                // a validation or FK error) used to leave the series cut short
+                // with no replacement -- every future reservation gone for good
+                // and a 500 for the user.
+                const completeNewCheckout = await sequelize.transaction(
+                    async (t) => {
+                        // End the original recurrence before this occurrence
+                        await recurrence.update(
+                            { end_date: dayBefore },
+                            { transaction: t },
+                        );
 
-                // Create new single checkout for this specific occurrence with edited times
-                const newCheckout = await Checkout.create({
-                    equipment_id: checkout.equipment_id,
-                    user_id: checkout.user_id,
-                    start_time: updates.start_time || occurrenceDate,
-                    end_time:
-                        updates.end_time ||
-                        addDays(
-                            occurrenceDate,
-                            (new Date(checkout.end_time) -
-                                new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24),
-                        ),
-                    notes: updates.notes || checkout.notes,
-                    project_number:
-                        updates.project_number || checkout.project_number,
-                    notes: updates.notes || checkout.notes,
-                    scheduled_on_behalf_of:
-                        updates.scheduled_on_behalf_of ||
-                        checkout.scheduled_on_behalf_of,
-                    status: updates.status || checkout.status,
-                    approved_by_user_id: checkout.approved_by_user_id,
-                    approved_at: checkout.approved_at,
-                });
+                        // Create new single checkout for this specific occurrence with edited times
+                        const newCheckout = await Checkout.create(
+                            {
+                                equipment_id: checkout.equipment_id,
+                                user_id: checkout.user_id,
+                                start_time: newStart,
+                                end_time: newEnd,
+                                // `!== undefined` rather than `||` so clearing
+                                // a field actually clears it instead of having
+                                // the previous value quietly restored.
+                                notes:
+                                    updates.notes !== undefined
+                                        ? updates.notes
+                                        : checkout.notes,
+                                project_number:
+                                    updates.project_number !== undefined
+                                        ? updates.project_number
+                                        : checkout.project_number,
+                                scheduled_on_behalf_of:
+                                    updates.scheduled_on_behalf_of !== undefined
+                                        ? updates.scheduled_on_behalf_of
+                                        : checkout.scheduled_on_behalf_of,
+                                status: updates.status || checkout.status,
+                                approved_by_user_id:
+                                    checkout.approved_by_user_id,
+                                approved_at: checkout.approved_at,
+                                // Split OUT of the series, so this row carries
+                                // no recurrence_id and does not repeat.
+                                repeats: null,
+                                // user_id stays the original booker -- they
+                                // still own the reservation. The audit columns
+                                // are the editor, the same source
+                                // auditMiddleware uses. Leaving them unset gave
+                                // every row born from an edit a blank
+                                // "created by" in the detail dialog.
+                                created_by: userId,
+                                updated_by: userId,
+                            },
+                            { transaction: t },
+                        );
 
-                // Fetch complete checkout with audit fields
-                const completeNewCheckout = await Checkout.findByPk(
-                    newCheckout.id,
-                    {
-                        include: [
-                            {
-                                model: User,
-                                as: "User",
-                                attributes: [
-                                    "id",
-                                    "username",
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                ],
-                            },
-                            {
-                                model: User,
-                                as: "ApprovedBy",
-                                attributes: [
-                                    "id",
-                                    "username",
-                                    "first_name",
-                                    "last_name",
-                                ],
-                            },
-                            {
-                                model: User,
-                                as: "CheckoutCreatedBy",
-                                attributes: [
-                                    "id",
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                ],
-                            },
-                            {
-                                model: User,
-                                as: "CheckoutUpdatedBy",
-                                attributes: [
-                                    "id",
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                ],
-                            },
-                        ],
+                        // Continue the series with the ORIGINAL pattern and times
+                        if (
+                            !originalEndDate ||
+                            new Date(originalEndDate) > occurrenceDate
+                        ) {
+                            const newRecurrence =
+                                await CheckoutRecurrence.create(
+                                    {
+                                        recurrence_pattern:
+                                            recurrence.recurrence_pattern,
+                                        separation_count:
+                                            recurrence.separation_count,
+                                        max_occurrences:
+                                            recurrence.max_occurrences,
+                                        day_of_week: recurrence.day_of_week,
+                                        day_of_month: recurrence.day_of_month,
+                                        month_of_year: recurrence.month_of_year,
+                                        end_date: originalEndDate,
+                                    },
+                                    { transaction: t },
+                                );
+
+                            // The continuation has to resume on the series' own
+                            // phase. This used to be addDays(occurrenceDate, 1)
+                            // -- one CALENDAR day later whatever the pattern --
+                            // so editing a single occurrence of a weekly Monday
+                            // series moved every remaining occurrence to
+                            // Tuesday, and a monthly series slipped a day per
+                            // edit.
+                            const nextIndex = occurrenceIndex + 1;
+                            const newStartTime = stepOccurrence(
+                                checkout.start_time,
+                                recurrence.recurrence_pattern,
+                                recurrence.separation_count,
+                                nextIndex,
+                            );
+                            const newEndTime = stepOccurrence(
+                                checkout.end_time,
+                                recurrence.recurrence_pattern,
+                                recurrence.separation_count,
+                                nextIndex,
+                            );
+
+                            await Checkout.create(
+                                {
+                                    equipment_id: checkout.equipment_id,
+                                    user_id: checkout.user_id,
+                                    start_time: newStartTime,
+                                    end_time: newEndTime,
+                                    notes: checkout.notes,
+                                    project_number: checkout.project_number,
+                                    scheduled_on_behalf_of:
+                                        checkout.scheduled_on_behalf_of,
+                                    status: checkout.status,
+                                    approved_by_user_id:
+                                        checkout.approved_by_user_id,
+                                    approved_at: checkout.approved_at,
+                                    recurrence_id: newRecurrence.id,
+                                    repeats: recurrence.recurrence_pattern,
+                                    created_by: userId,
+                                    updated_by: userId,
+                                },
+                                { transaction: t },
+                            );
+                        }
+
+                        // Fetch complete checkout with audit fields
+                        return Checkout.findByPk(newCheckout.id, {
+                            include: [
+                                {
+                                    model: User,
+                                    as: "User",
+                                    attributes: [
+                                        "id",
+                                        "username",
+                                        "first_name",
+                                        "last_name",
+                                        "email",
+                                    ],
+                                },
+                                {
+                                    model: User,
+                                    as: "ApprovedBy",
+                                    attributes: [
+                                        "id",
+                                        "username",
+                                        "first_name",
+                                        "last_name",
+                                    ],
+                                },
+                                {
+                                    model: User,
+                                    as: "CheckoutCreatedBy",
+                                    attributes: [
+                                        "id",
+                                        "first_name",
+                                        "last_name",
+                                        "email",
+                                    ],
+                                },
+                                {
+                                    model: User,
+                                    as: "CheckoutUpdatedBy",
+                                    attributes: [
+                                        "id",
+                                        "first_name",
+                                        "last_name",
+                                        "email",
+                                    ],
+                                },
+                            ],
+                            transaction: t,
+                        });
                     },
                 );
-
-                // Create new recurrence starting the day after with ORIGINAL pattern and times
-                if (
-                    !originalEndDate ||
-                    new Date(originalEndDate) > occurrenceDate
-                ) {
-                    const dayAfter = addDays(occurrenceDate, 1);
-
-                    const newRecurrence = await CheckoutRecurrence.create({
-                        recurrence_pattern: recurrence.recurrence_pattern,
-                        separation_count: recurrence.separation_count,
-                        max_occurrences: recurrence.max_occurrences,
-                        day_of_week: recurrence.day_of_week,
-                        day_of_month: recurrence.day_of_month,
-                        month_of_year: recurrence.month_of_year,
-                        end_date: originalEndDate,
-                    });
-
-                    console.log(
-                        "Created new recurrence with end_date:",
-                        originalEndDate,
-                    );
-
-                    // Create new checkout starting from the day after with ORIGINAL times
-                    const originalStartTime = new Date(checkout.start_time);
-                    const originalEndTime = new Date(checkout.end_time);
-
-                    console.log("=== CREATING CONTINUATION RECURRENCE ===");
-                    console.log("originalStartTime:", originalStartTime);
-                    console.log("originalEndTime:", originalEndTime);
-                    console.log("dayAfter:", dayAfter);
-
-                    // Set the day to dayAfter but keep original time of day
-                    const newStartTime = new Date(dayAfter);
-                    newStartTime.setHours(
-                        originalStartTime.getHours(),
-                        originalStartTime.getMinutes(),
-                        originalStartTime.getSeconds(),
-                    );
-
-                    const newEndTime = new Date(dayAfter);
-                    newEndTime.setHours(
-                        originalEndTime.getHours(),
-                        originalEndTime.getMinutes(),
-                        originalEndTime.getSeconds(),
-                    );
-
-                    console.log("newStartTime:", newStartTime);
-                    console.log("newEndTime:", newEndTime);
-
-                    await Checkout.create({
-                        equipment_id: checkout.equipment_id,
-                        user_id: checkout.user_id,
-                        start_time: newStartTime,
-                        end_time: newEndTime,
-                        notes: checkout.notes,
-                        project_number: checkout.project_number,
-                        notes: checkout.notes,
-                        scheduled_on_behalf_of: checkout.scheduled_on_behalf_of,
-                        status: checkout.status,
-                        approved_by_user_id: checkout.approved_by_user_id,
-                        approved_at: checkout.approved_at,
-                        recurrence_id: newRecurrence.id,
-                        repeats: recurrence.recurrence_pattern,
-                    });
-                }
 
                 // Emit socket event
                 const io = req.app.get("io");
@@ -1013,33 +1109,28 @@ const Update = async (req, res, next) => {
             } else if (updateMode === "following" || updateMode === "next") {
                 // Edit this and following: End current recurrence before this date,
                 // create new checkout with new recurrence from this date
-                console.log("=== EDIT FOLLOWING MODE ===");
-                console.log("Base checkout ID:", checkout.id);
-                console.log(
-                    "Original checkout start_time:",
-                    checkout.start_time,
-                );
-                console.log("Original checkout end_time:", checkout.end_time);
-                console.log("Occurrence date being edited:", occurrenceDate);
-                console.log("Updates received:", updates);
-
                 const dayBefore = addDays(occurrenceDate, -1);
-                console.log("Setting old recurrence end_date to:", dayBefore);
 
                 // Store original end_date before modifying
                 const originalEndDate = recurrence.end_date;
 
+                // This occurrence's own end time, rebuilt from the head row the
+                // way the expander built it. The old fallback fed addDays a
+                // fractional day count, which date-fns truncates to 0, so a
+                // sub-day booking with no explicit end_time was saved with
+                // end_time === start_time. The new head starts AT this
+                // occurrence, so unlike the "this" branch it is already on the
+                // series' phase and needs no stepping.
+                const occurrenceEnd = stepOccurrence(
+                    checkout.end_time,
+                    recurrence.recurrence_pattern,
+                    recurrence.separation_count,
+                    occurrenceIndex,
+                );
+
                 // Check for conflicts with the new recurring checkout
                 const newStart = new Date(updates.start_time || occurrenceDate);
-                const newEnd = new Date(
-                    updates.end_time ||
-                        addDays(
-                            occurrenceDate,
-                            (new Date(checkout.end_time) -
-                                new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24),
-                        ),
-                );
+                const newEnd = new Date(updates.end_time || occurrenceEnd);
                 const newPattern =
                     updates.recurrence_pattern || recurrence.recurrence_pattern;
                 const newSeparation =
@@ -1047,113 +1138,141 @@ const Update = async (req, res, next) => {
                 const newEndDate =
                     updates.recurrence_end_date || recurrence.end_date;
 
-                await checkConflicts(
-                    checkout.equipment_id,
-                    newStart,
-                    newEnd,
-                    newPattern,
-                    newSeparation,
-                    newEndDate,
-                );
+                // Same two fixes as the "this" branch: a cancellation cannot
+                // conflict, and without excluding the head row the series
+                // conflicted with itself and every "following" edit 409'd.
+                if (updates.status !== "cancelled") {
+                    await checkConflicts(
+                        checkout.equipment_id,
+                        newStart,
+                        newEnd,
+                        newPattern,
+                        newSeparation,
+                        newEndDate,
+                        baseCheckoutId,
+                    );
+                }
 
-                await recurrence.update({ end_date: dayBefore });
+                // One transaction: the old recurrence is truncated first, so a
+                // failure in any later create used to leave the series cut
+                // short with nothing to replace it.
+                const completeNewCheckout = await sequelize.transaction(
+                    async (t) => {
+                        await recurrence.update(
+                            { end_date: dayBefore },
+                            { transaction: t },
+                        );
 
-                // Create new recurrence with updated settings
-                const newRecurrence = await CheckoutRecurrence.create({
-                    recurrence_pattern:
-                        updates.recurrence_pattern ||
-                        recurrence.recurrence_pattern,
-                    separation_count:
-                        updates.separation_count || recurrence.separation_count,
-                    max_occurrences:
-                        updates.max_occurrences || recurrence.max_occurrences,
-                    day_of_week: updates.day_of_week || recurrence.day_of_week,
-                    day_of_month:
-                        updates.day_of_month || recurrence.day_of_month,
-                    month_of_year:
-                        updates.month_of_year || recurrence.month_of_year,
-                    end_date: updates.recurrence_end_date || originalEndDate,
-                });
-
-                console.log(
-                    "Created new recurrence with end_date:",
-                    updates.recurrence_end_date || originalEndDate,
-                );
-
-                const newCheckout = await Checkout.create({
-                    equipment_id: checkout.equipment_id,
-                    user_id: checkout.user_id,
-                    start_time: updates.start_time || occurrenceDate,
-                    end_time:
-                        updates.end_time ||
-                        addDays(
-                            occurrenceDate,
-                            (new Date(checkout.end_time) -
-                                new Date(checkout.start_time)) /
-                                (1000 * 60 * 60 * 24),
-                        ),
-                    notes: updates.notes || checkout.notes,
-                    project_number:
-                        updates.project_number || checkout.project_number,
-                    notes: updates.notes || checkout.notes,
-                    scheduled_on_behalf_of:
-                        updates.scheduled_on_behalf_of ||
-                        checkout.scheduled_on_behalf_of,
-                    status: updates.status || checkout.status,
-                    approved_by_user_id: checkout.approved_by_user_id,
-                    approved_at: checkout.approved_at,
-                    recurrence_id: newRecurrence.id,
-                    repeats: newRecurrence.recurrence_pattern,
-                });
-
-                // Fetch complete checkout with audit fields
-                const completeNewCheckout = await Checkout.findByPk(
-                    newCheckout.id,
-                    {
-                        include: [
+                        // Create new recurrence with updated settings
+                        const newRecurrence = await CheckoutRecurrence.create(
                             {
-                                model: User,
-                                as: "User",
-                                attributes: [
-                                    "id",
-                                    "username",
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                ],
+                                recurrence_pattern: newPattern,
+                                separation_count: newSeparation,
+                                max_occurrences:
+                                    updates.max_occurrences ||
+                                    recurrence.max_occurrences,
+                                day_of_week:
+                                    updates.day_of_week ||
+                                    recurrence.day_of_week,
+                                day_of_month:
+                                    updates.day_of_month ||
+                                    recurrence.day_of_month,
+                                month_of_year:
+                                    updates.month_of_year ||
+                                    recurrence.month_of_year,
+                                end_date:
+                                    updates.recurrence_end_date ||
+                                    originalEndDate,
                             },
+                            { transaction: t },
+                        );
+
+                        const newCheckout = await Checkout.create(
                             {
-                                model: User,
-                                as: "ApprovedBy",
-                                attributes: [
-                                    "id",
-                                    "username",
-                                    "first_name",
-                                    "last_name",
-                                ],
+                                equipment_id: checkout.equipment_id,
+                                user_id: checkout.user_id,
+                                start_time: newStart,
+                                end_time: newEnd,
+                                // `!== undefined` rather than `||` so clearing
+                                // a field actually clears it instead of having
+                                // the previous value quietly restored.
+                                notes:
+                                    updates.notes !== undefined
+                                        ? updates.notes
+                                        : checkout.notes,
+                                project_number:
+                                    updates.project_number !== undefined
+                                        ? updates.project_number
+                                        : checkout.project_number,
+                                scheduled_on_behalf_of:
+                                    updates.scheduled_on_behalf_of !== undefined
+                                        ? updates.scheduled_on_behalf_of
+                                        : checkout.scheduled_on_behalf_of,
+                                status: updates.status || checkout.status,
+                                approved_by_user_id:
+                                    checkout.approved_by_user_id,
+                                approved_at: checkout.approved_at,
+                                recurrence_id: newRecurrence.id,
+                                repeats: newRecurrence.recurrence_pattern,
+                                // user_id stays the original booker; the audit
+                                // columns are the editor, matching what
+                                // auditMiddleware would have written. Without
+                                // them the detail dialog showed a blank
+                                // "created by".
+                                created_by: userId,
+                                updated_by: userId,
                             },
-                            { model: CheckoutRecurrence, as: "Recurrence" },
-                            {
-                                model: User,
-                                as: "CheckoutCreatedBy",
-                                attributes: [
-                                    "id",
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                ],
-                            },
-                            {
-                                model: User,
-                                as: "CheckoutUpdatedBy",
-                                attributes: [
-                                    "id",
-                                    "first_name",
-                                    "last_name",
-                                    "email",
-                                ],
-                            },
-                        ],
+                            { transaction: t },
+                        );
+
+                        // Fetch complete checkout with audit fields
+                        return Checkout.findByPk(newCheckout.id, {
+                            include: [
+                                {
+                                    model: User,
+                                    as: "User",
+                                    attributes: [
+                                        "id",
+                                        "username",
+                                        "first_name",
+                                        "last_name",
+                                        "email",
+                                    ],
+                                },
+                                {
+                                    model: User,
+                                    as: "ApprovedBy",
+                                    attributes: [
+                                        "id",
+                                        "username",
+                                        "first_name",
+                                        "last_name",
+                                    ],
+                                },
+                                { model: CheckoutRecurrence, as: "Recurrence" },
+                                {
+                                    model: User,
+                                    as: "CheckoutCreatedBy",
+                                    attributes: [
+                                        "id",
+                                        "first_name",
+                                        "last_name",
+                                        "email",
+                                    ],
+                                },
+                                {
+                                    model: User,
+                                    as: "CheckoutUpdatedBy",
+                                    attributes: [
+                                        "id",
+                                        "first_name",
+                                        "last_name",
+                                        "email",
+                                    ],
+                                },
+                            ],
+                            transaction: t,
+                        });
                     },
                 );
 
@@ -1169,15 +1288,6 @@ const Update = async (req, res, next) => {
                 return res.json(completeNewCheckout);
             } else if (updateMode === "all") {
                 // Edit all occurrences: Update base checkout and recurrence
-                console.log("=== EDIT ALL MODE ===");
-                console.log("Base checkout ID:", checkout.id);
-                console.log(
-                    "Original checkout start_time:",
-                    checkout.start_time,
-                );
-                console.log("Original checkout end_time:", checkout.end_time);
-                console.log("Updates received:", updates);
-
                 // For "edit all", preserve the original START DATE but update the TIME OF DAY
                 let newStartTime = new Date(checkout.start_time);
                 let newEndTime = new Date(checkout.end_time);
@@ -1199,13 +1309,6 @@ const Update = async (req, res, next) => {
                         updatedTime.getSeconds(),
                     );
                 }
-
-                console.log(
-                    "New times - start:",
-                    newStartTime,
-                    "end:",
-                    newEndTime,
-                );
 
                 const newPattern =
                     updates.recurrence_pattern || recurrence.recurrence_pattern;
@@ -1232,15 +1335,18 @@ const Update = async (req, res, next) => {
                 await checkout.update({
                     start_time: newStartTime,
                     end_time: newEndTime,
-                    notes: updates.notes || checkout.notes,
-                    project_number:
-                        updates.project_number !== undefined
-                            ? updates.project_number
-                            : checkout.project_number,
+                    // `notes` was listed twice here, once as `||` and once as
+                    // `!== undefined`; the second silently won, so the
+                    // behaviour depended on key order. Keep the
+                    // `!== undefined` form -- it lets a user clear the field.
                     notes:
                         updates.notes !== undefined
                             ? updates.notes
                             : checkout.notes,
+                    project_number:
+                        updates.project_number !== undefined
+                            ? updates.project_number
+                            : checkout.project_number,
                     scheduled_on_behalf_of:
                         updates.scheduled_on_behalf_of !== undefined
                             ? updates.scheduled_on_behalf_of
@@ -1475,7 +1581,15 @@ const Approve = async (req, res, next) => {
         const { id } = req.params;
         const { approved_by_user_id, approval_notes } = req.body;
 
-        const checkout = await Checkout.findByPk(id);
+        // A calendar hands back the virtual id of whichever occurrence was
+        // clicked, which used to reach findByPk verbatim and blow up with an
+        // MSSQL conversion error. Approval is stored on the head row only --
+        // there is nowhere to record a per-occurrence decision -- so resolve
+        // to the head and be explicit in the response that the whole series
+        // was approved, rather than quietly doing more than was asked.
+        const { isVirtualOccurrence, baseCheckoutId } = parseCheckoutId(id);
+
+        const checkout = await Checkout.findByPk(baseCheckoutId);
 
         if (!checkout) {
             return res.status(404).json({ message: "Checkout not found" });
@@ -1495,7 +1609,7 @@ const Approve = async (req, res, next) => {
         });
 
         // Fetch complete checkout data
-        const completeCheckout = await Checkout.findByPk(id, {
+        const completeCheckout = await Checkout.findByPk(baseCheckoutId, {
             include: [
                 {
                     model: Equipment,
@@ -1530,7 +1644,10 @@ const Approve = async (req, res, next) => {
             ],
         });
 
-        res.json(completeCheckout);
+        res.json({
+            ...completeCheckout.toJSON(),
+            applied_to_entire_series: isVirtualOccurrence,
+        });
 
         // Emit socket event
         const io = req.app.get("io");
@@ -1551,7 +1668,15 @@ const Delete = async (req, res, next) => {
         const userId = req.user?.id;
         const isAdmin = req.user?.admin;
 
-        const checkout = await Checkout.findByPk(id, {
+        // Same virtual-id problem as Approve: "4_3" reached findByPk verbatim
+        // and MSSQL failed converting it to the INTEGER key. Cancelling is
+        // stored on the head row, so a virtual id necessarily cancels the
+        // whole series -- resolve to the head and say so in the response.
+        // Callers that want to drop a single occurrence should use
+        // PUT /checkouts/:id with updateMode "this".
+        const { isVirtualOccurrence, baseCheckoutId } = parseCheckoutId(id);
+
+        const checkout = await Checkout.findByPk(baseCheckoutId, {
             include: [
                 {
                     model: Equipment,
@@ -1586,10 +1711,15 @@ const Delete = async (req, res, next) => {
                 const firstName = nameParts[0];
                 const lastName = nameParts.slice(1).join(" ");
 
+                // Op.iLike is PostgreSQL-only and threw on this MSSQL
+                // connection, so this authorization check never completed --
+                // the scheduled-on-behalf-of user got a 500 instead of being
+                // allowed to cancel. MSSQL collations are case-insensitive by
+                // default, so Op.like gives the intended match.
                 const scheduledForUser = await User.findOne({
                     where: {
-                        first_name: { [Sequelize.Op.iLike]: firstName },
-                        last_name: { [Sequelize.Op.iLike]: lastName },
+                        first_name: { [Sequelize.Op.like]: firstName },
+                        last_name: { [Sequelize.Op.like]: lastName },
                     },
                 });
 
@@ -1609,7 +1739,12 @@ const Delete = async (req, res, next) => {
         // Soft delete - change status to cancelled instead of destroying
         await checkout.update({ status: "cancelled" });
 
-        res.json({ message: "Checkout cancelled successfully" });
+        res.json({
+            message: isVirtualOccurrence
+                ? "Recurring checkout series cancelled successfully"
+                : "Checkout cancelled successfully",
+            applied_to_entire_series: isVirtualOccurrence,
+        });
 
         // Send cancellation email notifications
         (async () => {

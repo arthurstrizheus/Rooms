@@ -256,8 +256,13 @@ const DisplayCheckout = ({
                 status: "cancelled",
                 user_id: user?.id,
             };
-            // "this" is the plain single-occurrence cancel the API already does.
-            if (updateMode && updateMode !== "this") {
+            // Every scope has to go through as `updateMode`, exactly as the
+            // edit flow does. Omitting it for "this occurrence only" left the
+            // API with a virtual occurrence id, a recurrence and no mode, so
+            // none of its recurring branches matched: the request fell through
+            // to the plain single-checkout path and cancelled the HEAD row,
+            // taking the entire series with it.
+            if (updateMode) {
                 body.updateMode = updateMode;
                 body.occurrence_start_time =
                     checkout.start_time || checkout.start;
