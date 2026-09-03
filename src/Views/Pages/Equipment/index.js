@@ -1,24 +1,9 @@
-import { Box } from "@mui/material";
-import { useEffect } from "react";
 import Equipment from "./Equipment";
 
-const EquipmentPage = ({ setLoading, loading }) => {
-    useEffect(() => {});
-
-    return (
-        <Box
-            sx={{
-                display: "flex",
-                flexGrow: 1,
-                flexDirection: "column",
-                height: "100%",
-                overflow: "hidden",
-                padding: 2,
-            }}
-        >
-            <Equipment setLoading={setLoading} loading={loading} />
-        </Box>
-    );
-};
+// The page now owns its own header, gutters and scrolling via PageHeader /
+// PageContainer, so this wrapper is just the route entry point.
+const EquipmentPage = ({ setLoading, loading }) => (
+    <Equipment setLoading={setLoading} loading={loading} />
+);
 
 export default EquipmentPage;

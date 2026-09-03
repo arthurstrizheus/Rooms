@@ -1,33 +1,35 @@
 import React from "react";
-import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
-    Typography,
-    IconButton,
-} from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import {
     ErrorOutline as ErrorIcon,
     WarningAmber as WarningIcon,
-    Info as InfoIcon,
+    InfoOutlined as InfoIcon,
     CheckCircleOutline as SuccessIcon,
-    Close as CloseIcon,
 } from "@mui/icons-material";
+import ResponsiveDialog from "../Views/Components/UI/ResponsiveDialog";
 
 /**
- * Custom Alert Dialog Component
- * Replaces browser alert() with a Material-UI styled dialog
+ * Replacement for browser alert().
  *
- * @param {Object} props
- * @param {boolean} props.open - Controls dialog visibility
- * @param {function} props.onClose - Callback when dialog closes
- * @param {string} props.title - Dialog title (optional)
- * @param {string} props.message - Main message to display
- * @param {string} props.severity - Type: 'error', 'warning', 'info', 'success' (default: 'info')
- * @param {string} props.confirmText - Text for confirm button (default: 'OK')
+ * Now built on ResponsiveDialog, so it inherits the app's dialog chrome:
+ * full screen with a slide-up on phones, sticky footer, safe-area padding.
+ * Severity drives the accent color from the theme palette rather than the
+ * hardcoded hex values this used to carry.
+ *
+ * @param {boolean} open
+ * @param {function} onClose
+ * @param {string} title      Optional; defaults per severity.
+ * @param {string} message
+ * @param {'error'|'warning'|'info'|'success'} severity
+ * @param {string} confirmText
  */
+const SEVERITY = {
+    error: { accent: "error", Icon: ErrorIcon, title: "Error" },
+    warning: { accent: "warning", Icon: WarningIcon, title: "Warning" },
+    success: { accent: "success", Icon: SuccessIcon, title: "Success" },
+    info: { accent: "info", Icon: InfoIcon, title: "Information" },
+};
+
 const AlertDialog = ({
     open,
     onClose,
@@ -36,128 +38,43 @@ const AlertDialog = ({
     severity = "info",
     confirmText = "OK",
 }) => {
-    const getSeverityIcon = () => {
-        switch (severity) {
-            case "error":
-                return <ErrorIcon sx={{ fontSize: 48, color: "#d32f2f" }} />;
-            case "warning":
-                return <WarningIcon sx={{ fontSize: 48, color: "#ed6c02" }} />;
-            case "success":
-                return <SuccessIcon sx={{ fontSize: 48, color: "#2e7d32" }} />;
-            case "info":
-            default:
-                return <InfoIcon sx={{ fontSize: 48, color: "#0288d1" }} />;
-        }
-    };
-
-    const getSeverityColor = () => {
-        switch (severity) {
-            case "error":
-                return "#d32f2f";
-            case "warning":
-                return "#ed6c02";
-            case "success":
-                return "#2e7d32";
-            case "info":
-            default:
-                return "#0288d1";
-        }
-    };
-
-    const getDefaultTitle = () => {
-        switch (severity) {
-            case "error":
-                return "Error";
-            case "warning":
-                return "Warning";
-            case "success":
-                return "Success";
-            case "info":
-            default:
-                return "Information";
-        }
-    };
+    const { accent, Icon, title: fallbackTitle } =
+        SEVERITY[severity] || SEVERITY.info;
 
     return (
-        <Dialog
+        <ResponsiveDialog
             open={open}
             onClose={onClose}
+            title={title || fallbackTitle}
+            icon={<Icon />}
+            accent={accent}
             maxWidth="sm"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 2,
-                    boxShadow: 3,
-                },
-            }}
-        >
-            <DialogTitle
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    pb: 1,
-                    borderBottom: `2px solid ${getSeverityColor()}`,
-                }}
-            >
-                <Typography
-                    variant="h6"
-                    component="div"
-                    sx={{ fontWeight: 600 }}
-                >
-                    {title || getDefaultTitle()}
-                </Typography>
-                <IconButton
-                    aria-label="close"
-                    onClick={onClose}
-                    size="small"
-                    sx={{
-                        color: (theme) => theme.palette.grey[500],
-                    }}
-                >
-                    <CloseIcon />
-                </IconButton>
-            </DialogTitle>
-            <DialogContent sx={{ pt: 3, pb: 2 }}>
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: "16px",
-                    }}
-                >
-                    <div style={{ flexShrink: 0 }}>{getSeverityIcon()}</div>
-                    <Typography
-                        variant="body1"
-                        sx={{
-                            pt: 1,
-                            color: "text.primary",
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                        }}
-                    >
-                        {message}
-                    </Typography>
-                </div>
-            </DialogContent>
-            <DialogActions sx={{ px: 3, pb: 2 }}>
+            // A one-button acknowledgement doesn't need to eat a whole phone
+            // screen the way a form does.
+            fullScreen={false}
+            actions={
                 <Button
                     onClick={onClose}
                     variant="contained"
-                    sx={{
-                        minWidth: 100,
-                        backgroundColor: getSeverityColor(),
-                        "&:hover": {
-                            backgroundColor: getSeverityColor(),
-                            filter: "brightness(0.9)",
-                        },
-                    }}
+                    color={accent}
                     autoFocus
+                    sx={{ minWidth: 108 }}
                 >
                     {confirmText}
                 </Button>
-            </DialogActions>
-        </Dialog>
+            }
+        >
+            <Typography
+                variant="body1"
+                sx={{
+                    color: "text.primary",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                }}
+            >
+                {message}
+            </Typography>
+        </ResponsiveDialog>
     );
 };
 
