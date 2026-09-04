@@ -1778,3 +1778,94 @@ and reproduces the paper styling via the kit's exported `menuPaperSx` — mergin
 Two comments still claiming the tally was "live while the form is open" were corrected.
 
 **Verified:** `npm run build` compiles, no warnings in any Clippy file; user-confirmed fixed in the running app.
+
+---
+
+## 2026-09-04 — Month view: "+N more" opens the PREVIOUS day, hiding the meeting a booking conflicts with
+
+Branch: `Work`
+
+### Reported symptoms
+
+1. Booking **CR4, Sept 4, 11–12** was rejected with a conflicting-meeting error,
+   but the conflicting meeting was "not on the calendar" in **month** view. It
+   *was* visible in **day** and **week** view.
+2. Clicking the **"+2"** ("+N more") link in month view "takes you to the
+   previous day".
+
+Both are the same defect. Report 1 is what report 2 looks like from the user's
+side: the conflicting meeting was in the month grid, stacked under the "+N more"
+link, and the only control that could reveal it was showing the wrong day.
+
+### Root cause — `moreLinkClick` is the one FullCalendar callback that hands back a raw date MARKER
+
+FullCalendar works internally in *date markers*: `Date` objects whose **UTC**
+fields carry the local wall-clock time. Every callback the calendar uses
+converts before handing the value out — `dateClick`'s `date`, `select`'s
+`start`/`end` (`triggerDateSelect`), `dayCellContent`'s `date`
+(`refineRenderProps` → `dateEnv.toDate(date)`), `slotLabelContent`'s `date`.
+
+`MoreLinkContainer.handleClick` does not
+(`@fullcalendar/core/internal-common.js`):
+
+```js
+let date = computeRange(props).start;          // <- MARKER, never converted
+...
+moreLinkClick({ date, allDay, allSegs: props.allSegs.map(buildPublicSeg), ... })
+//                    ^ raw          ^ buildPublicSeg DOES call dateEnv.toDate()
+```
+
+For a month cell, `computeRange` returns `props.allDayDate`, which
+`TableCell` passes as the cell's own marker (`@fullcalendar/daygrid/internal.js`).
+The Sept 4 cell is therefore `2026-09-04T00:00:00Z`. Read with **local** fields
+west of Greenwich (America/New_York, UTC-4) that is **Sept 3, 8:00 PM**.
+
+`handleMoreLinkClick` passed it straight to `openDayList`, which does
+`startOfDay(date)` → **Sept 3**. So the day-list dialog listed Sept 3's
+meetings, its header read "Thu, Sep 3", and its footer button offered to
+**book a room on Sep 3**.
+
+This is the same trap `renderDayHeader` already documents for the day-of-week
+markers, arriving through a different door.
+
+Note the asymmetry that made it survive: a plain **click on the month cell**
+goes through `select`/`dateClick`, which *are* converted, so that path opened
+the correct day. Only the "+N more" link was wrong.
+
+### Fix
+
+`src/Views/Pages/Calendar/index.jsx`
+
+* New `markerToLocalDate(marker)` helper — `DateEnv.toDate`'s own `local`
+  branch (`arrayToLocalDate(dateToUtcArray(m))`) reimplemented, because the
+  callback argument carries no `dateEnv` to ask. It carries the time fields
+  too, not just the date: a time-grid "+N more" resolves its range from the
+  hidden segments rather than from a midnight `allDayDate`.
+* `handleMoreLinkClick` now calls `openDayList(markerToLocalDate(arg.date))`.
+
+Nothing else changed. `openDayList` itself was already correct — it was being
+handed the wrong day.
+
+### Ruled out while investigating
+
+* **Not a data problem.** `GetAllUserCanSee` (`backend/controllers/meetingControler.js`)
+  returns a strict *superset* for Month vs Week on any given day: the stored-row
+  window is month ± 1 week (vs week ± 1 week), and `CreateRepeatingMeetings`
+  generates occurrences out to `currentDate + 2 months` for Month against
+  `+ 7 days` for Week. A meeting visible in week view is always in the month
+  payload.
+* Booking's conflict check was behaving correctly — the conflicting meeting
+  really existed.
+
+### Verified vs. reasoned
+
+* **Verified:** the marker arithmetic, by running the conversion under
+  `TZ=America/New_York` (marker `2026-09-04T00:00:00Z` → old: Thu Sep 03,
+  new: Fri Sep 04); `npm run build` compiles, and `index.jsx` gains no new
+  lint warnings. **Not seen in a browser.**
+* **Reasoned, not observed:** that the specific CR4 meeting was among the
+  entries hidden behind Joe's "+2" rather than absent from the cell for some
+  other reason. If an *empty* Sept 4 cell showing only a "+N more" link is seen
+  again after this fix, that is a separate `dayMaxEvents: true` measurement
+  question (`layout.monthCell` tiers in `src/Utilites/concourse.js`) and needs
+  a screenshot of the cell.

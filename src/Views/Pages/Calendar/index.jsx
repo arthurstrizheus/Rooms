@@ -335,6 +335,41 @@ function isMultipleDayMeeting(meeting) {
     }
 }
 
+/**
+ * `moreLinkClick` IS THE ONE CALLBACK THAT HANDS BACK A RAW DATE MARKER.
+ *
+ * Every other date FullCalendar gives us — `dateClick`'s `date`, `select`'s
+ * `start`/`end`, `dayCellContent`'s `date` — has already been through
+ * `dateEnv.toDate()` and is a genuine local Date. `MoreLinkContainer.handleClick`
+ * does NOT: it takes `computeRange(props).start` (for a month cell, the cell's
+ * own `allDayDate`) and passes the MARKER straight through, even though the
+ * `allSegs`/`hiddenSegs` it passes alongside are converted
+ * (core/internal-common.js — `MoreLinkContainer`). A marker is UTC-anchored: the
+ * Sept 4 cell is `2026-09-04T00:00:00Z`, which west of Greenwich reads back as
+ * Sept 3 in local fields. That is the same trap `renderDayHeader` documents for
+ * the day-of-week markers, arriving through a different door — and it is why
+ * clicking "+2 more" opened the PREVIOUS day's list (and offered to book it).
+ *
+ * This is `DateEnv.toDate`'s own `local` branch — `arrayToLocalDate(
+ * dateToUtcArray(m))` — reimplemented, because the callback arg carries no
+ * `dateEnv` to ask. Time fields are carried too, not just the date: a time-grid
+ * "+N more" resolves its range from the hidden segments rather than a midnight
+ * `allDayDate`.
+ */
+const markerToLocalDate = (marker) => {
+    const m = new Date(marker);
+    if (Number.isNaN(m.getTime())) return m;
+    return new Date(
+        m.getUTCFullYear(),
+        m.getUTCMonth(),
+        m.getUTCDate(),
+        m.getUTCHours(),
+        m.getUTCMinutes(),
+        m.getUTCSeconds(),
+        m.getUTCMilliseconds()
+    );
+};
+
 /* The agenda used to end each day header with a free-time reading —
  * "3h 15m free", or "fully booked" when the meetings the CURRENT USER can see
  * happened to cover 7am-7pm. Both readings were untrue. `GetMeetingsByUserId`
@@ -1731,7 +1766,11 @@ const Calendar = ({
             // on the cell itself then open the same list from the same source,
             // and it cannot inherit FullCalendar's own idea of which segments
             // belong to which cell.
-            openDayList(arg.date);
+            //
+            // `arg.date` is a MARKER, not a local Date — see `markerToLocalDate`.
+            // Without the conversion this list, its header and its "Book a room
+            // on ..." button all named the previous day.
+            openDayList(markerToLocalDate(arg.date));
             // Truthy and not a view name => FullCalendar's own popover never
             // opens, which is why the MutationObserver that used to reposition
             // it is gone.
